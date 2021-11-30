@@ -1,0 +1,3 @@
+name: esp-hosted
+build:
+  cmake: .

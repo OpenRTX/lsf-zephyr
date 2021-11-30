@@ -1,0 +1,33 @@
+if(CONFIG_ESP_HOSTED)
+
+zephyr_library()
+zephyr_include_directories(
+        esp-hosted/common/include
+        port/host_common/include
+        port/csk/hosted/include
+        port/csk/common/include
+        port/csk/driver/netif
+        port/csk/driver/network
+        port/csk/driver/serial
+        port/csk/driver/spi
+        port/csk/driver/gpio
+        port/csk/driver/vhci
+)
+
+zephyr_library_sources(
+        esp-hosted/common/esp_hosted_config.pb-c.c
+        port/host_common/commands.c
+        port/host_common/platform_wrapper.c
+        port/host_common/transport_pserial.c
+        port/csk/hosted/hosted.c
+        port/csk/common/common.c
+        port/csk/common/util.c
+        port/csk/driver/network/netdev_api.c
+        port/csk/driver/network/netdev_stub.c
+        port/csk/driver/serial/serial_if.c
+        port/csk/driver/spi/hosted_spi.c
+        port/csk/driver/spi/spi_drv.c
+        port/csk/driver/gpio/hosted_gpio.c
+        port/csk/driver/vhci/vhci_if.c
+)
+endif()
