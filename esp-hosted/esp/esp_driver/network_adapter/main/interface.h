@@ -84,4 +84,6 @@ typedef struct {
 
 interface_context_t * interface_insert_driver(int (*callback)(uint8_t val));
 int interface_remove_driver();
+//This api only works at spi mode, while sdio mode should give a implementation
+esp_err_t interface_send_raw_pkg(interface_buffer_handle_t *buf_handle, uint32_t xTicksToWait);
 #endif

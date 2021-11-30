@@ -35,7 +35,7 @@
 #define WIFI_FAIL_BIT               BIT1
 #define WIFI_NO_AP_FOUND_BIT        BIT2
 #define WIFI_WRONG_PASSWORD_BIT     BIT3
-#define MAX_RETRY                   5
+#define MAX_RETRY                   0
 
 #define TIMEOUT_IN_MIN              (60*TIMEOUT_IN_SEC)
 #define TIMEOUT                     (2*TIMEOUT_IN_MIN)

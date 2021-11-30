@@ -31,6 +31,7 @@
 
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "priv_events.h"
 #ifdef CONFIG_BT_ENABLED
 #include "esp_bt.h"
 #ifdef CONFIG_BT_HCI_UART_NO
@@ -42,6 +43,8 @@
 #include <protocomm.h>
 #include "protocomm_pserial.h"
 #include "slave_commands.h"
+
+#define CONFIG_BTDM_CONTROLLER_HCI_MODE_VHCI	1
 
 #define EV_STR(s) "================ "s" ================"
 static const char TAG[] = "NETWORK_ADAPTER";
@@ -713,6 +716,7 @@ void app_main()
 	tcpip_adapter_init();
 
 	ESP_ERROR_CHECK(initialise_wifi());
+    ESP_ERROR_CHECK(priv_events_init(if_context, if_handle));
 
 	ESP_LOGI(TAG,"Initial set up done");
 }

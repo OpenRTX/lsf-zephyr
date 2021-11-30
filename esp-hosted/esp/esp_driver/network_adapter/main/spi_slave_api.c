@@ -70,7 +70,7 @@ static const char TAG[] = "SPI_DRIVER";
 
 #define DMA_CHAN                 ESP_SPI_CONTROLLER
 
-#define SPI_BUFFER_SIZE          1600
+#define SPI_BUFFER_SIZE          (2048)
 #define SPI_QUEUE_SIZE           3
 #ifdef CONFIG_IDF_TARGET_ESP32S2
 #define SPI_RX_QUEUE_SIZE        5
@@ -524,10 +524,10 @@ static interface_handle_t * esp_spi_init(uint8_t capabilities)
 
 	/* Configuration for the SPI slave interface */
 	spi_slave_interface_config_t slvcfg={
-		.mode=SPI_MODE_2,
+		.mode=SPI_MODE_1,
 		.spics_io_num=GPIO_CS,
 		.queue_size=SPI_QUEUE_SIZE,
-		.flags=0,
+		.flags=SPI_SLAVE_BIT_LSBFIRST,
 		.post_setup_cb=spi_post_setup_cb,
 		.post_trans_cb=spi_post_trans_cb
 	};
@@ -712,4 +712,14 @@ static void esp_spi_deinit(interface_handle_t *handle)
 		ESP_LOGE(TAG, "spi all bus free failed\n");
 		return;
 	}
+}
+
+esp_err_t interface_send_raw_pkg(interface_buffer_handle_t *buf_handle, uint32_t xTicksToWait)
+{
+    BaseType_t os_ret;
+    os_ret = xQueueSend(spi_tx_queue, buf_handle, xTicksToWait);
+    if (os_ret != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+    return ESP_OK;
 }
