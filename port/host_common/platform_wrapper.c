@@ -13,15 +13,16 @@
 // limitations under the License.
 
 #include "string.h"
-#include "FreeRTOS.h"
-#include "semphr.h"
+// #include "FreeRTOS.h"
+// #include "semphr.h"
 #include "common/trace.h"
 #include "serial_if.h"
 #include "transport_pserial.h"
 #include "platform_wrapper.h"
 
 #define MILLISEC_TO_SEC			1000
-static SemaphoreHandle_t readSemaphore = NULL;
+//static SemaphoreHandle_t readSemaphore = NULL;
+static struct k_sem* readSemaphore = NULL;
 // static osSemaphoreId readSemaphore;
 static serial_handle_t * serial_if_g;
 
@@ -34,8 +35,13 @@ struct esp_hosted_driver_handle_t {
 int control_path_platform_init(void)
 {
 	/* control path semaphore */
-	readSemaphore = xSemaphoreCreateBinary();
-	assert(readSemaphore);
+    readSemaphore = k_malloc(sizeof(struct k_sem));
+    if (readSemaphore == NULL) {
+        printk("[%s] no mem\n", __FUNCTION__ );
+    }
+    k_sem_init(readSemaphore, 0, 1);
+//	readSemaphore = xSemaphoreCreateBinary();
+//	assert(readSemaphore);
 
 	serial_if_g = serial_init(control_path_rx_indication);
 	if (!serial_if_g) {
@@ -63,27 +69,28 @@ static void control_path_rx_indication(void)
 {
 	/* heads up to control path for read */
 	if(readSemaphore) {
-		if (xPortIsInsideInterrupt() == pdTRUE) {
-			BaseType_t task_woken = pdFALSE;
-			xSemaphoreGiveFromISR(readSemaphore, &task_woken);
-			if (task_woken == pdTRUE) {
-				portYIELD_FROM_ISR(task_woken);
-			}
-		} else {
-			xSemaphoreGive(readSemaphore);
-		}
+//		if (xPortIsInsideInterrupt() == pdTRUE) {
+//			BaseType_t task_woken = pdFALSE;
+//			xSemaphoreGiveFromISR(readSemaphore, &task_woken);
+//			if (task_woken == pdTRUE) {
+//				portYIELD_FROM_ISR(task_woken);
+//			}
+//		} else {
+//			xSemaphoreGive(readSemaphore);
+//		}
+        k_sem_give(readSemaphore);
 		// osSemaphoreRelease(readSemaphore);
 	}
 }
 
 void* esp_hosted_malloc(size_t size)
 {
-	return pvPortMalloc(size);
+	return k_malloc(size);
 }
 
 void* esp_hosted_calloc(size_t blk_no, size_t size)
 {
-	void* ptr = pvPortMalloc(blk_no*size);
+	void* ptr = k_malloc(blk_no*size);
 	// void* ptr = malloc(blk_no*size);
 	if (!ptr) {
 		return NULL;
@@ -96,7 +103,7 @@ void* esp_hosted_calloc(size_t blk_no, size_t size)
 void esp_hosted_free(void* ptr)
 {
 	if(ptr) {
-		vPortFree(ptr);
+		k_free(ptr);
 		// free(ptr);
 		ptr=NULL;
 	}
@@ -161,19 +168,24 @@ uint8_t* esp_hosted_driver_read (struct esp_hosted_driver_handle_t* esp_hosted_d
 		printf("Semaphore not initialized\n\r");
 		return NULL;
 	}
-	if (xPortIsInsideInterrupt() == pdTRUE) {
-		BaseType_t task_woken = pdFALSE;
-		xSemaphoreTakeFromISR(readSemaphore, &task_woken);
-		if (task_woken == pdTRUE) {
-			portYIELD_FROM_ISR(task_woken);
-		}
-	} else {
-		BaseType_t os_ret = xSemaphoreTake(readSemaphore, wait * MILLISEC_TO_SEC);
-		if (os_ret != pdPASS) {
-			printf("Failed to read data \n\r");
-			return NULL;
-		}
-	}
+    int os_ret = k_sem_take(readSemaphore, K_SECONDS(wait));
+    if (os_ret == -EAGAIN) {
+        printk("Failed to read data \n");
+        return NULL;
+    }
+//	if (xPortIsInsideInterrupt() == pdTRUE) {
+//		BaseType_t task_woken = pdFALSE;
+//		xSemaphoreTakeFromISR(readSemaphore, &task_woken);
+//		if (task_woken == pdTRUE) {
+//			portYIELD_FROM_ISR(task_woken);
+//		}
+//	} else {
+//		BaseType_t os_ret = xSemaphoreTake(readSemaphore, wait * MILLISEC_TO_SEC);
+//		if (os_ret != pdPASS) {
+//			printf("Failed to read data \n\r");
+//			return NULL;
+//		}
+//	}
 	// if (osSemaphoreWait(readSemaphore , wait * MILLISEC_TO_SEC ) != osOK) {
 	// 	printf("Failed to read data \n\r");
 	// 	return NULL;
