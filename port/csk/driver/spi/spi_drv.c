@@ -520,7 +520,6 @@ static void transaction_task(void *arg1, void *arg2, void *arg3)
   */
 static void process_rx_task(void *arg1, void *arg2, void *arg3)
 {
-	stm_ret_t ret = STM_OK;
 	interface_buffer_handle_t buf_handle = {0};
 	uint8_t *payload = NULL;
 	struct net_pbuf *buffer = NULL;
