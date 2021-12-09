@@ -12,8 +12,6 @@ typedef struct {
     struct k_sem *transfer_done_sem;
 } spi_handle_t;
 
-static spi_handle_t* s_spi_handle_list[2] = {NULL};
-
 static const struct device *spi_dev = NULL;
 static struct spi_config spi_cfg;
 

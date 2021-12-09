@@ -103,7 +103,7 @@ struct net_pbuf * network_read(struct network_handle *handle, uint32_t timeout)
 int network_write(struct network_handle *net_handle, struct net_pbuf *buffer)
 {
 	struct netdev *ndev;
-	int ret;
+	int ret = 0;
 
 	if (!net_handle || !buffer)
 		return STM_FAIL;
