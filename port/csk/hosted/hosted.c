@@ -1,6 +1,3 @@
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-
 #include <stdlib.h>
 #include "common/util.h"
 #include "commands.h"
@@ -129,5 +126,3 @@ void hosted_priv_event_handler(struct esp_priv_event *priv_event)
         hosted_fire_callbacks(&hosted_callback_list, HOSTED_WIFI_EVT_AP_STADISCONNECTED);
     }
 }
-
-#pragma GCC pop_options

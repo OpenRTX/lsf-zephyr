@@ -31,7 +31,7 @@ int csk_read_pin(gpio_port_t port, int pin)
 
 void hosted_gpio_init(void)
 {
-    gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+    gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpioa));
     int ret = gpio_pin_configure(gpio_dev, GPIO_RESET_Pin, GPIO_OUTPUT_ACTIVE | 0);
     assert(ret == 0);
     ret |= gpio_pin_configure(gpio_dev, GPIO_DATA_READY_Pin, GPIO_INPUT);
