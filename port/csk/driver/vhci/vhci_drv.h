@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /** includes **/
-#include "common/common.h"
+#include "common.h"
 
 /** Exported Functions **/
 stm_ret_t vhci_rx_handler(uint8_t if_num, uint8_t *rxbuff, uint16_t rx_len);

@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 #include <kernel.h>
-#include "common/common.h"
+#include "common.h"
 #include "netdev_if.h"
 
 #define MAX_IF_NAME_SIZE    256
@@ -49,6 +49,7 @@ struct netdev {
 
 	/* Rx queue */
     struct k_msgq *rx_q;
+
 	/* Driver priv */
 	void *priv;
 };

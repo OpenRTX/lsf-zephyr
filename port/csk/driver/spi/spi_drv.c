@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/** Includes **/
 #include <string.h>
-#include "common/trace.h"
+#include "trace.h"
 #include "spi_drv.h"
 #include "adapter.h"
 #include "serial_drv.h"
@@ -43,12 +44,6 @@ static char __aligned(4) from_slave_msgq_buffer[FROM_SLAVE_QUEUE_SIZE * sizeof(i
 
 #define MAX_PAYLOAD_SIZE (MAX_SPI_BUFFER_SIZE-sizeof(struct esp_payload_header))
 
-typedef enum hardware_type_e {
-	HARDWARE_TYPE_ESP32,
-	HARDWARE_TYPE_ESP32S2,
-	HARDWARE_TYPE_INVALID,
-}hardware_type_t;
-
 static stm_ret_t spi_transaction_esp32(uint8_t * txbuff);
 
 static int esp_netdev_open(netdev_handle_t netdev);
@@ -58,7 +53,6 @@ static int esp_netdev_xmit(netdev_handle_t netdev, struct net_pbuf *net_buf);
 extern void hosted_priv_event_handler(struct esp_priv_event *priv_event);
 
 static struct esp_private *esp_priv[MAX_NETWORK_INTERFACES];
-static uint8_t hardware_type = HARDWARE_TYPE_INVALID;
 
 static struct netdev_ops esp_net_ops = {
 	.netdev_open = esp_netdev_open,
@@ -215,11 +209,6 @@ static void deinit_netdev(void)
 	}
 }
 
-static void set_hardware_type(void)
-{
-	hardware_type = HARDWARE_TYPE_ESP32;  //Currently we only support esp32
-}
-
 /** function definition **/
 
 /** Exported Functions **/
@@ -246,8 +235,6 @@ void spi_link_init(void(*spi_drv_evt_handler)(uint8_t))
         return;
 	}
 	stm_ret_t retval = STM_OK;
-	/* Check if supported board */
-	set_hardware_type();
 
 	/* register callback */
 	spi_drv_evt_handler_fp = spi_drv_evt_handler;
@@ -405,7 +392,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t * txbuff)
 	interface_buffer_handle_t buf_handle = {0};
 	struct  esp_payload_header *payload_header;
 	uint16_t len, offset;
-	// HAL_StatusTypeDef retval = HAL_ERROR;
+	uint16_t rx_checksum = 0, checksum = 0;
 
 	/* Allocate rx buffer */
 	rxbuff = (uint8_t *)k_malloc(MAX_SPI_BUFFER_SIZE);
@@ -449,14 +436,27 @@ static stm_ret_t spi_transaction_esp32(uint8_t * txbuff)
                 k_yield();
 
 			} else {
-				buf_handle.priv_buffer_handle = rxbuff;
-				buf_handle.free_buf_handle = k_free;
-				buf_handle.payload_len = len;
-				buf_handle.if_type     = payload_header->if_type;
-				buf_handle.if_num      = payload_header->if_num;
-				buf_handle.payload     = rxbuff + offset;
 
-                k_msgq_put(from_slave_queue, &buf_handle, K_FOREVER);
+				rx_checksum = le16toh(payload_header->checksum);
+				payload_header->checksum = 0;
+				checksum = compute_checksum(rxbuff, len+offset);
+				if (checksum == rx_checksum) {
+					buf_handle.priv_buffer_handle = rxbuff;
+					buf_handle.free_buf_handle = free;
+					buf_handle.payload_len = len;
+					buf_handle.if_type     = payload_header->if_type;
+					buf_handle.if_num      = payload_header->if_num;
+					buf_handle.payload     = rxbuff + offset;
+					if (0 != k_msgq_put(from_slave_queue, &buf_handle, K_FOREVER)) {
+						printk("Failed to send buffer\n\r");
+						goto done;
+					}
+				} else {
+					if (rxbuff) {
+						k_free(rxbuff);
+						rxbuff = NULL;
+					}
+				}
 			}
 
 			/* Free input TX buffer */
@@ -467,7 +467,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t * txbuff)
 			break;
 
 		default:
-			printf("default handler: Error in SPI transaction\n\r");
+			printk("default handler: Error in SPI transaction\n\r");
 			goto done;
 			break;
 	}
@@ -495,13 +495,6 @@ done:
   */
 static void transaction_task(void *arg1, void *arg2, void *arg3)
 {
-	if (hardware_type == HARDWARE_TYPE_ESP32) {
-		//Do nothing
-	} else {
-		printf("Unsupported slave hardware type\n\r");
-		assert(hardware_type != HARDWARE_TYPE_INVALID);
-	}
-
 	for (;;) {
 
 		if (osSemaphore != NULL) {
@@ -578,6 +571,7 @@ static void process_rx_task(void *arg1, void *arg2, void *arg3)
 
 		} else if (buf_handle.if_type == ESP_PRIV_IF) {
 			/* priv transaction received */
+
 			event = (struct esp_priv_event *) (payload);
 			if (event->event_type == ESP_PRIV_EVENT_INIT) {
 				/* halt spi transactions for some time,
@@ -646,11 +640,11 @@ static uint8_t * get_tx_buffer(uint8_t *is_valid_tx_buf)
 		payload = sendbuf + sizeof(struct esp_payload_header);
 		payload_header->len     = htole16(len);
 		payload_header->offset  = htole16(sizeof(struct esp_payload_header));
-        payload_header->if_type = buf_handle.if_type;
-        payload_header->if_num = buf_handle.if_num;
-		payload_header->reserved1 = 0;
-
+		payload_header->if_type = buf_handle.if_type;
+		payload_header->if_num  = buf_handle.if_num;
 		memcpy(payload, buf_handle.payload, min(len, MAX_PAYLOAD_SIZE));
+		payload_header->checksum = htole16(compute_checksum(sendbuf,
+				sizeof(struct esp_payload_header)+len));;
 	}
 
 done:

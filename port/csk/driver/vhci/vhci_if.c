@@ -19,7 +19,7 @@
 #include "vhci_if.h"
 #include "adapter.h"
 #include "spi_drv.h"
-#include "common/trace.h"
+#include "trace.h"
 
 /** Macros / Constants **/
 #define MAX_VHCI_INTF 2

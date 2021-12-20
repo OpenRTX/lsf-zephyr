@@ -21,8 +21,7 @@ extern "C" {
 #endif
 
 /** Includes **/
-#include <kernel.h>
-#include "common/common.h"
+#include "common.h"
 
 /** constants/macros **/
 #define MAX_NETWORK_INTERFACES  2

@@ -1,6 +1,8 @@
 # Control Interface: C API's
 
-This document describes C API's provided for control interface. Please refer [test.c](../host/linux/host_control/c_support/test.c) to get an idea how to use these API's.
+This document describes C API's provided for control path interface. Please refer [commands.c](../host/host_common/commands.c) for API's defination. [c_demo.md](c_demo.md) gives overview of how to test control path interface in application also how to perform stress testing of control path interface.
+
+A [stress.c](../host/linux/host_control/c_support/stress.c) can use for stress testing of control path commands. In which, `STRESS_TEST_COUNT` variable represents number of iterations and `STRESS_TEST` variable defines which test should get executed.
 
 ## 1. Data Structures
 
@@ -111,6 +113,24 @@ BSSID or MAC address of station of length 17. ex. "XX:XX:XX:XX:XX:XX".
 RSSI signal strength of station.
 
 ---
+
+_struct_ `vendor_ie_data_t`:
+
+This contains vendor information element to ESP32 softAP.
+
+*Public Members*
+- `uint8_t element_id` :
+Should be set to WIFI_VENDOR_IE_ELEMENT_ID (0xDD).
+- `uint8_t length` :
+Length of all bytes in the element data (payload) following this field. Minimum 4(offset for `vendor_oui` and `vendor_oui_type` field).
+- `uint8_t vendor_oui[3]` :
+Vendor identifier (OUI).
+- `uint8_t vendor_oui_type` :
+Vendor-specific OUI type.
+- `uint8_t payload[0]` :
+Payload. Length is equal to value in 'length' field, minus 4.
+
+---
 ## 2. Functions
 
 ### 2.1 `int wifi_get_mac (int mode, char *mac)`
@@ -122,7 +142,7 @@ This is used to get the MAC address of station or softAP interface of ESP32
 - `mode` :
   - `WIFI_MODE_STA` : station
   - `WIFI_MODE_AP` : softAP
-- `mac` : 
+- `mac` :
 String in form of "XX:XX:XX:XX:XX:XX" in success case.
 It should be large enough to store string in form "XX:XX:XX:XX:XX:XX"
 
@@ -418,6 +438,105 @@ User should free `esp_hosted_wifi_connected_stations_list` handler after use.
 
 ---
 
+### 2.15 `int wifi_set_vendor_specific_ie(bool enable, wifi_vendor_ie_type_t type, wifi_vendor_ie_id_t idx, void* vnd_ie, uint16_t vnd_ie_size)`
+Function set 802.11 Vendor-Specific Information Element. This function needs to get called before starting of ESP32 softAP.
+
+#### Parameters
+- `enable` :
+If true, specified IE is enabled. If false, specified IE is removed.
+- `type` :
+Information Element type. Determines the frame type to associate with the IE. Uses `wifi_vendor_ie_type_t` enum.
+- `idx` :
+Index to set or clear. Each IE type can be associated with up to two elements (indices 0 & 1). Uses `wifi_vendor_ie_id_t` enum.
+- `vnd_ie` :
+Pointer to vendor specific element data. First 6 bytes should be a header with fields matching vendor_ie_data_t. If enable is false, this argument is ignored and can be NULL.
+- `vnd_ie_size` :
+size of vnd_ie data
+
+#### Return
+
+- 0 : SUCCESS
+- -1 : FAILURE
+
+---
+
+### 2.16 `int create_socket(int domain, int type, int protocol, int *sock)`
+
+This is used to create an endpoint for communication
+
+#### Parameters
+
+- `domain` :
+The domain argument specifies a communication domain (like AF_INET, AF_INET6), this selects the protocol family which will be used for communication. These families are defined in <sys/socket.h>.
+- `type` :
+This specifies the communication semantics (like SOCK_DGRAM, SOCK_STREAM).
+- `protocol` :
+This specifies a particular protocol to be used with the socket. Generally protocol value should be 0, please refer man socket for more details.
+- `sock` :
+This will return file descriptor (integer number) that refers to that endpoint for the new socket on success or -1 on failure.
+
+#### Return
+
+- 0 : SUCCESS
+- -1 : FAILURE
+
+---
+
+### 2.17 `int close_socket(int sock)`
+
+This is used to close an endpoint of the communication
+
+#### Parameters
+
+- `sock` :
+This specifies the file descriptor of the endpoint/socket to be closed
+
+#### Return
+
+- 0 : SUCCESS
+- -1 : FAILURE
+
+---
+
+### 2.18 `int wifi_set_max_tx_power(int8_t wifi_max_tx_power)`
+
+Function sets maximum WiFi transmitting power at ESP32.
+
+#### **Note**
+- The value set by this API will be mapped to the max_tx_power of the structure wifi_country_t variable in wifi driver.
+- Mapping Table {wifi_max_tx_power, max_tx_power} = {{8,   2}, {20,  5}, {28,  7}, {34,  8}, {44, 11}, {52, 13}, {56, 14}, {60, 15}, {66, 16}, {72, 18}, {80, 20}}.
+- Input parameter `wifi_max_tx_power` unit is 0.25dBm, range is [8, 84] corresponding to `2dBm to 20dBm`.
+- Relationship between set value and actual value. As follows: {set value range, actual value} = {{[8,  19],8}, {[20, 27],20}, {[28, 33],28}, {[34, 43],34}, {[44, 51],44}, {[52, 55],52}, {[56, 59],56}, {[60, 65],60}, {[66, 71],66}, {[72, 79],72}, {[80, 84],80}}.
+
+#### Parameters
+- `wifi_max_tx_power` :
+Maximum WiFi transmitting power.
+
+#### Return
+
+- 0 : SUCCESS
+- -1 : FAILURE
+- 5 : OUT_OF_RANGE. `wifi_max_tx_power` is not in range of [8, 84] corresponding to `2dBm to 20dBm` tx power.
+
+---
+
+### 2.19 `int wifi_get_curr_tx_power(int8_t *wifi_curr_tx_power)`
+
+Function gets current WiFi transmiting power at ESP32.
+
+#### Parameters
+- `wifi_curr_tx_power` :
+Current WiFi transmitting power, unit is 0.25dBm.
+
+#### **Note**
+It is possible that the current wifi transmit power is lesser than that of the requested max transmit power as part of `wifi_set_max_tx_power` API.
+
+#### Return
+- 0 : SUCCESS
+- -1 : FAILURE
+
+---
+
 ## 3. Enumerations
 
 ### 3.1 _enum_ `wifi_mode_t`
@@ -468,6 +587,27 @@ Minimum modem power saving. In this mode, station wakes up to receive beacon eve
 Maximum modem power saving. In this mode, interval to receive beacons is determined by the listen_interval parameter in wifi set ap config function.
 - `WIFI_PS_INVALID` :
 Invalid power save mode
+
+---
+
+### 3.5 _enum_ `wifi_vendor_ie_type_t` :
+
+Vendor information element type. Determines the frame type that the IE will be associated with.
+_Values_ :
+- `WIFI_VND_IE_TYPE_BEACON` = 0 : Type beacon
+- `WIFI_VND_IE_TYPE_PROBE_REQ` : Type probe request
+- `WIFI_VND_IE_TYPE_PROBE_RESP` : Type probe response
+- `WIFI_VND_IE_TYPE_ASSOC_REQ` : Type association request
+- `WIFI_VND_IE_TYPE_ASSOC_RESP` : Type association response
+
+---
+
+### 3.6 _enum_ `wifi_vendor_ie_id_t` :
+
+Vendor Information Element index. Each IE type can have up to two associated vendor ID elements.
+_Values_ :
+- `WIFI_VND_IE_ID_0` = 0 : ID 0
+- `WIFI_VND_IE_ID_1` : ID 1
 
 ---
 

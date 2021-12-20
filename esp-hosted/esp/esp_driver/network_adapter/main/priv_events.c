@@ -10,7 +10,7 @@
 
 static const char* TAG = "priv_events";
 
-#define SPI_BUFFER_SIZE          (2048)
+#define SPI_BUFFER_SIZE          (1600)
 
 #define MAC2STR(a)                  (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR                      "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -75,29 +75,30 @@ static void softap_event_monitor(void *arg, esp_event_base_t event_base, int32_t
 
 static esp_err_t priv_post_event_to_host(struct esp_priv_event *event)
 {
-    interface_buffer_handle_t buf_handle;
+    interface_buffer_handle_t buf_handle = {0};
     struct esp_priv_event *temp_event;
-    struct esp_payload_header *header;
+    struct esp_payload_header *header = NULL;
     memset(&buf_handle, 0, sizeof(buf_handle));
     buf_handle.payload = heap_caps_malloc(SPI_BUFFER_SIZE, MALLOC_CAP_DMA);
+    assert(buf_handle.payload);
+    memset(buf_handle.payload, 0, SPI_BUFFER_SIZE);
 
     header = (struct esp_payload_header *) buf_handle.payload;
     header->if_type = ESP_PRIV_IF;
     header->if_num = 0;
     header->offset = htole16(sizeof(struct esp_payload_header));
     header->priv_pkt_type = ESP_PACKET_TYPE_EVENT;
-    /* Populate event data */
+    /* Populate event data (potocal payload body) */
     temp_event = (struct esp_priv_event *) (buf_handle.payload + sizeof(struct esp_payload_header));
     temp_event->event_type = event->event_type;
     temp_event->event_len = event->event_len;
     memcpy(temp_event->event_data, event->event_data, event->event_len);
     /* payload len = Event len + sizeof(event type) + sizeof(event len) */
-    uint16_t event_pkg_len = 2 + event->event_len;
-    header->len = event_pkg_len;
+    uint16_t payload_len = sizeof(event->event_type) + sizeof(event->event_len) + event->event_len;
+    header->len = htole16(payload_len);
 
-    buf_handle.if_type = ESP_PRIV_IF;
-    buf_handle.if_num = 0;
-    buf_handle.payload_len = event_pkg_len + sizeof(struct esp_payload_header);
+    buf_handle.payload_len = payload_len + sizeof(struct esp_payload_header);
+	header->checksum = htole16(compute_checksum(buf_handle.payload, buf_handle.payload_len));
 
     interface_send_raw_pkg(&buf_handle, portMAX_DELAY);
     return ESP_OK;

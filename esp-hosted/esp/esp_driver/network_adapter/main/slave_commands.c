@@ -19,8 +19,8 @@
 #include "esp_private/wifi.h"
 #include "slave_commands.h"
 #include "esp_hosted_config.pb-c.h"
+#include "esp_ota_ops.h"
 
-#define MAC_LEN                     6
 #define MAC_STR_LEN                 17
 #define MAC2STR(a)                  (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR                      "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -29,6 +29,8 @@
 #define SSID_LENGTH                 32
 #define PASSWORD_LENGTH             64
 #define BSSID_LENGTH                19
+#define MIN_TX_POWER                8
+#define MAX_TX_POWER                84
 
 /* Bits for wifi connect event */
 #define WIFI_CONNECTED_BIT          BIT0
@@ -39,6 +41,11 @@
 
 #define TIMEOUT_IN_MIN              (60*TIMEOUT_IN_SEC)
 #define TIMEOUT                     (2*TIMEOUT_IN_MIN)
+#define RESTART_TIMEOUT             (5*TIMEOUT_IN_SEC)
+
+#if CONFIG_ESP_OTA_WORKAROUND
+#define OTA_SLEEP_TIME_MS           (40)
+#endif
 
 #define mem_free(x)                 \
         {                           \
@@ -49,12 +56,16 @@
         }
 
 static const char* TAG = "slave_commands";
+extern volatile uint8_t ota_ongoing;
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t wifi_event_group;
 
 static int retry = 0;
 static bool scan_done = false;
+static esp_ota_handle_t handle;
+const esp_partition_t* update_partition = NULL;
+static int ota_msg = 0;
 
 static void station_event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data);
@@ -72,9 +83,17 @@ static esp_err_t convert_mac_to_bytes(uint8_t *out, char *s);
 
 extern esp_err_t wlan_sta_rx_callback(void *buffer, uint16_t len, void *eb);
 extern esp_err_t wlan_ap_rx_callback(void *buffer, uint16_t len, void *eb);
+void esp_update_ap_mac(void);
 
 extern volatile uint8_t station_connected;
 extern volatile uint8_t softap_started;
+
+// OTA end timer callback
+void vTimerCallback( TimerHandle_t xTimer )
+{
+    xTimerDelete(xTimer, 0);
+    esp_restart();
+}
 
 // event handler for station connect/disconnect to/from AP
 static void station_event_handler(void *arg, esp_event_base_t event_base,
@@ -86,7 +105,7 @@ static void station_event_handler(void *arg, esp_event_base_t event_base,
             retry++;
             ESP_LOGI(TAG, "Retry to connect to the AP");
         } else {
-            wifi_event_sta_disconnected_t * disconnected_event = \
+            wifi_event_sta_disconnected_t * disconnected_event =
                         (wifi_event_sta_disconnected_t *) event_data;
             if (disconnected_event->reason == WIFI_REASON_NO_AP_FOUND) {
                 xEventGroupSetBits(wifi_event_group, WIFI_NO_AP_FOUND_BIT);
@@ -121,6 +140,7 @@ static void softap_event_handler(void *arg, esp_event_base_t event_base,
             MAC2STR(event->mac), event->aid);
     } else if (event_id == WIFI_EVENT_AP_START) {
         esp_wifi_internal_reg_rxcb(ESP_IF_WIFI_AP, (wifi_rxcb_t) wlan_ap_rx_callback);
+        esp_update_ap_mac();
     } else if (event_id == WIFI_EVENT_AP_STOP) {
         ESP_LOGI(TAG,"softap stop handler stop");
         esp_wifi_internal_reg_rxcb(ESP_IF_WIFI_AP,NULL);
@@ -232,9 +252,9 @@ typedef struct esp_hosted_config_cmd {
 static esp_err_t cmd_get_mac_address_handler(EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
-    uint8_t mac[MAC_LEN];
-    char mac_str[BSSID_LENGTH];
+    esp_err_t ret = ESP_OK;
+    uint8_t mac[MAC_LEN] = {0};
+    char mac_str[BSSID_LENGTH] = "";
     EspHostedRespGetMacAddress *resp_payload = NULL;
 
     if (!req || !resp || !req->cmd_get_mac_address) {
@@ -298,8 +318,8 @@ err:
 static esp_err_t cmd_get_wifi_mode_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
-    wifi_mode_t mode;
+    esp_err_t ret = ESP_OK;
+    wifi_mode_t mode = 0;
     EspHostedRespGetMode *resp_payload = NULL;
 
     if (!req || !resp) {
@@ -336,8 +356,8 @@ err:
 static esp_err_t cmd_set_wifi_mode_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
-    wifi_mode_t num;
+    esp_err_t ret = ESP_OK;
+    wifi_mode_t num = 0;
     EspHostedRespSetMode *resp_payload = NULL;
 
     if (!req || !resp || !req->cmd_set_wifi_mode) {
@@ -379,7 +399,7 @@ err:
 static esp_err_t cmd_set_ap_config_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
+    esp_err_t ret = ESP_OK;
     bool event_registered = false;
     wifi_config_t *wifi_cfg = NULL;
     EspHostedRespSetAPConfig *resp_payload = NULL;
@@ -476,7 +496,7 @@ static esp_err_t cmd_set_ap_config_handler (EspHostedConfigPayload *req,
     }
 
     EventBits_t bits = xEventGroupWaitBits(wifi_event_group,
-            (WIFI_CONNECTED_BIT | WIFI_FAIL_BIT | 
+            (WIFI_CONNECTED_BIT | WIFI_FAIL_BIT |
             WIFI_NO_AP_FOUND_BIT | WIFI_WRONG_PASSWORD_BIT),
             pdFALSE,
             pdFALSE,
@@ -526,7 +546,7 @@ err1:
 static esp_err_t cmd_get_ap_config_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
+    esp_err_t ret = ESP_OK;
     credentials_t credentials = {0};
     wifi_ap_record_t *ap_info = NULL;
     EspHostedRespGetAPConfig *resp_payload = NULL;
@@ -621,7 +641,7 @@ err:
 static esp_err_t cmd_disconnect_ap_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
+    esp_err_t ret = ESP_OK;
     EspHostedRespGetStatus *resp_payload = NULL;
     if (!req || !resp) {
         ESP_LOGE(TAG, "Invalid parameters");
@@ -664,8 +684,8 @@ err:
 static esp_err_t cmd_get_softap_config_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
-    wifi_bandwidth_t get_bw;
+    esp_err_t ret = ESP_OK;
+    wifi_bandwidth_t get_bw = 0;
     credentials_t credentials = {0};
     wifi_config_t get_conf = {0};
     EspHostedRespGetSoftAPConfig *resp_payload = NULL;
@@ -765,8 +785,8 @@ err:
 static esp_err_t cmd_set_softap_config_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
-    uint8_t mac[MAC_LEN];
+    esp_err_t ret = ESP_OK;
+    uint8_t mac[MAC_LEN] = {0};
     wifi_config_t *wifi_config = NULL;
     EspHostedRespSetSoftAPConfig *resp_payload = NULL;
 
@@ -887,8 +907,8 @@ err:
 static esp_err_t cmd_get_ap_scan_list_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
-    wifi_mode_t mode;
+    esp_err_t ret = ESP_OK;
+    wifi_mode_t mode = 0;
     uint16_t ap_count = 0;
     credentials_t credentials = {0};
     wifi_ap_record_t *ap_info = NULL;
@@ -1048,8 +1068,8 @@ err:
 static esp_err_t cmd_stop_softap_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
-    wifi_mode_t mode;
+    esp_err_t ret = ESP_OK;
+    wifi_mode_t mode = 0;
     EspHostedRespGetStatus *resp_payload = NULL;
 
     if (!req || !resp) {
@@ -1104,8 +1124,8 @@ err:
 static esp_err_t get_connected_sta_list_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
-    esp_err_t ret;
-    wifi_mode_t mode;
+    esp_err_t ret = ESP_OK;
+    wifi_mode_t mode = 0;
     credentials_t credentials = {0};
     EspHostedRespConnectedSTA *resp_payload = NULL;
     EspHostedConnectedSTAList **results = NULL;
@@ -1163,7 +1183,7 @@ static esp_err_t get_connected_sta_list_handler (EspHostedConfigPayload *req,
     resp_payload->num = stas_info->num;
     if (stas_info->num) {
         resp_payload->n_stations = stas_info->num;
-        results = (EspHostedConnectedSTAList **)calloc(stas_info->num, \
+        results = (EspHostedConnectedSTAList **)calloc(stas_info->num,
                 sizeof(EspHostedConnectedSTAList));
         if (!results) {
             ESP_LOGE(TAG,"Failed to allocate memory for connected stations");
@@ -1173,7 +1193,7 @@ static esp_err_t get_connected_sta_list_handler (EspHostedConfigPayload *req,
         for (int i = 0; i < stas_info->num ; i++) {
             snprintf((char *)credentials.bssid,BSSID_LENGTH,
                 MACSTR,MAC2STR(stas_info->sta[i].mac));
-            results[i] = (EspHostedConnectedSTAList *)calloc(1,\
+            results[i] = (EspHostedConnectedSTAList *)calloc(1,
                 sizeof(EspHostedConnectedSTAList));
             if (!results[i]) {
                 ESP_LOGE(TAG,"Failed to allocated memory");
@@ -1329,7 +1349,7 @@ static esp_err_t cmd_get_power_save_mode_handler (EspHostedConfigPayload *req,
                                 EspHostedConfigPayload *resp, void *priv_data)
 {
     esp_err_t ret = ESP_OK;
-    wifi_ps_type_t ps_type;
+    wifi_ps_type_t ps_type = 0;
     EspHostedRespGetMode *resp_payload = NULL;
 
     if (!req || !resp) {
@@ -1351,12 +1371,297 @@ static esp_err_t cmd_get_power_save_mode_handler (EspHostedConfigPayload *req,
     if (ret) {
         ESP_LOGE(TAG, "Failed to set power save mode");
         resp_payload->resp = FAILURE;
+        return ESP_OK;
     } else {
         resp->resp_get_power_save_mode->has_mode = true;
         resp->resp_get_power_save_mode->mode = ps_type;
     }
 
     resp_payload->resp = SUCCESS;
+    return ESP_OK;
+}
+
+// Function OTA begin
+static esp_err_t cmd_ota_begin_handler (EspHostedConfigPayload *req,
+        EspHostedConfigPayload *resp, void *priv_data)
+{
+    esp_err_t ret = ESP_OK;
+    EspHostedRespOTABegin *resp_payload = NULL;
+
+    if (!req || !resp) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "OTA update started");
+
+    resp_payload = (EspHostedRespOTABegin *)
+	       calloc(1,sizeof(EspHostedRespOTABegin));
+    if (!resp_payload) {
+        ESP_LOGE(TAG,"Failed to allocate memory");
+        return ESP_ERR_NO_MEM;
+    }
+    esp_hosted_resp_otabegin__init(resp_payload);
+    resp->payload_case = ESP_HOSTED_CONFIG_PAYLOAD__PAYLOAD_RESP_OTA_BEGIN;
+    resp->resp_ota_begin = resp_payload;
+    resp_payload->has_resp = true;
+
+    // Identify next OTA partition
+    update_partition = esp_ota_get_next_update_partition(NULL);
+    if (update_partition == NULL) {
+        ESP_LOGE(TAG, "Failed to get next update partition");
+        goto err;
+    }
+
+    ESP_LOGI(TAG, "Prepare partition for OTA\n");
+    ota_ongoing=1;
+#if CONFIG_ESP_OTA_WORKAROUND
+    vTaskDelay(OTA_SLEEP_TIME_MS/portTICK_PERIOD_MS);
+#endif
+    ret = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &handle);
+    ota_ongoing=0;
+    if (ret) {
+        ESP_LOGE(TAG, "OTA update failed in OTA begin");
+        goto err;
+    }
+
+    ota_msg = 1;
+
+    resp_payload->resp = SUCCESS;
+    return ESP_OK;
+err:
+    resp_payload->resp = FAILURE;
+    return ESP_OK;
+
+}
+
+// Function OTA write
+static esp_err_t cmd_ota_write_handler (EspHostedConfigPayload *req,
+        EspHostedConfigPayload *resp, void *priv_data)
+{
+    esp_err_t ret = ESP_OK;
+    EspHostedRespOTAWrite *resp_payload = NULL;
+
+    if (!req || !resp) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_FAIL;
+    }
+
+    resp_payload = (EspHostedRespOTAWrite *)calloc(1,sizeof(EspHostedRespOTAWrite));
+    if (!resp_payload) {
+        ESP_LOGE(TAG,"Failed to allocate memory");
+        return ESP_ERR_NO_MEM;
+    }
+
+    if (ota_msg) {
+        ESP_LOGI(TAG, "Flashing image\n");
+        ota_msg = 0;
+    }
+    esp_hosted_resp_otawrite__init(resp_payload);
+    resp->payload_case = ESP_HOSTED_CONFIG_PAYLOAD__PAYLOAD_RESP_OTA_WRITE;
+    resp->resp_ota_write = resp_payload;
+    resp_payload->has_resp = true;
+
+    ota_ongoing=1;
+#if CONFIG_ESP_OTA_WORKAROUND
+	/* Delay added is to give chance to transfer pending data at transport
+	 * Care to be taken, when OTA ongoing, no other processing should happen
+	 * So big sleep is added before any flash operations start
+	 * */
+    vTaskDelay(OTA_SLEEP_TIME_MS/portTICK_PERIOD_MS);
+#endif
+    printf(".");
+    fflush(stdout);
+    ret = esp_ota_write( handle, (const void *)req->cmd_ota_write->ota_data.data, req->cmd_ota_write->ota_data.len);
+    ota_ongoing=0;
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "OTA write failed with return code 0x%x",ret);
+        resp_payload->resp = FAILURE;
+        return ESP_OK;
+    }
+    resp_payload->resp = SUCCESS;
+    return ESP_OK;
+}
+
+// Function OTA end
+static esp_err_t cmd_ota_end_handler (EspHostedConfigPayload *req,
+        EspHostedConfigPayload *resp, void *priv_data)
+{
+    esp_err_t ret = ESP_OK;
+    EspHostedRespOTAEnd *resp_payload = NULL;
+    TimerHandle_t xTimer = NULL;
+
+    if (!req || !resp) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_FAIL;
+    }
+
+    resp_payload = (EspHostedRespOTAEnd *)calloc(1,sizeof(EspHostedRespOTAEnd));
+    if (!resp_payload) {
+        ESP_LOGE(TAG,"Failed to allocate memory");
+        return ESP_ERR_NO_MEM;
+    }
+    esp_hosted_resp_otaend__init(resp_payload);
+    resp->payload_case = ESP_HOSTED_CONFIG_PAYLOAD__PAYLOAD_RESP_OTA_END;
+    resp->resp_ota_end = resp_payload;
+    resp_payload->has_resp = true;
+
+    ota_ongoing=1;
+#if CONFIG_ESP_OTA_WORKAROUND
+    vTaskDelay(OTA_SLEEP_TIME_MS/portTICK_PERIOD_MS);
+#endif
+    ret = esp_ota_end(handle);
+    ota_ongoing=0;
+    if (ret != ESP_OK) {
+        if (ret == ESP_ERR_OTA_VALIDATE_FAILED) {
+	ESP_LOGE(TAG, "Image validation failed, image is corrupted");
+        } else {
+	ESP_LOGE(TAG, "OTA update failed in end (%s)!", esp_err_to_name(ret));
+        }
+        goto err;
+    }
+
+    // set OTA partition for next boot
+    ret = esp_ota_set_boot_partition(update_partition);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_set_boot_partition failed (%s)!", esp_err_to_name(ret));
+        goto err;
+    }
+    xTimer = xTimerCreate("Timer", RESTART_TIMEOUT , pdFALSE, 0, vTimerCallback);
+    if (xTimer == NULL) {
+        ESP_LOGE(TAG, "Failed to create timer to restart system");
+        goto err;
+    }
+    ret = xTimerStart(xTimer, 0);
+    if (ret != pdPASS) {
+        ESP_LOGE(TAG, "Failed to start timer to restart system");
+        goto err;
+    }
+    ESP_LOGE(TAG, "**** OTA updated successfully, ESP32 will be rebooted in 5 sec ****");
+    resp_payload->resp = SUCCESS;
+    return ESP_OK;
+err:
+    resp_payload->resp = FAILURE;
+    return ESP_OK;
+}
+
+// Function vendor specific ie
+static esp_err_t cmd_set_vender_specific_ie_handler (EspHostedConfigPayload *req,
+        EspHostedConfigPayload *resp, void *priv_data)
+{
+    esp_err_t ret = ESP_OK;
+    EspHostedRespSetVendorSpecificIE *resp_payload = NULL;
+
+    if (!req || !resp || !req->cmd_set_vendor_specific_ie || 
+        !req->cmd_set_vendor_specific_ie->vendor_ie_data.len ||
+        !req->cmd_set_vendor_specific_ie->vendor_ie_data.data) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_FAIL;
+    }
+
+    resp_payload = (EspHostedRespSetVendorSpecificIE *)
+	       calloc(1,sizeof(EspHostedRespSetVendorSpecificIE));
+    if (!resp_payload) {
+        ESP_LOGE(TAG,"Failed to allocate memory");
+        return ESP_ERR_NO_MEM;
+    }
+    esp_hosted_resp_set_vendor_specific_ie__init(resp_payload);
+    resp->payload_case = ESP_HOSTED_CONFIG_PAYLOAD__PAYLOAD_RESP_SET_VENDOR_SPECIFIC_IE;
+    resp->resp_set_vendor_specific_ie = resp_payload;
+    resp_payload->has_resp = true;
+
+    ret = esp_wifi_set_vendor_ie(req->cmd_set_vendor_specific_ie->enable,
+        req->cmd_set_vendor_specific_ie->type, req->cmd_set_vendor_specific_ie->idx,
+        req->cmd_set_vendor_specific_ie->vendor_ie_data.data);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set vendor information element %d \n", ret);
+        resp_payload->resp = FAILURE;
+        return ESP_OK;
+    }
+    resp_payload->resp = SUCCESS;
+    return ESP_OK;
+}
+
+// Function set wifi maximum TX power
+static esp_err_t cmd_set_wifi_max_tx_power_handler (EspHostedConfigPayload *req,
+        EspHostedConfigPayload *resp, void *priv_data)
+{
+    esp_err_t ret = ESP_OK;
+    EspHostedRespSetWiFiMAXTXPower *resp_payload = NULL;
+
+    if (!req || !resp ) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_FAIL;
+    }
+
+    resp_payload = (EspHostedRespSetWiFiMAXTXPower *)
+	       calloc(1,sizeof(EspHostedRespSetWiFiMAXTXPower));
+    if (!resp_payload) {
+        ESP_LOGE(TAG,"Failed to allocate memory");
+        return ESP_ERR_NO_MEM;
+    }
+    esp_hosted_resp_set_wi_fi_maxtxpower__init(resp_payload);
+    resp->payload_case = ESP_HOSTED_CONFIG_PAYLOAD__PAYLOAD_RESP_SET_WIFI_MAX_TX_POWER;
+    resp->resp_set_wifi_max_tx_power = resp_payload;
+    resp_payload->has_resp = true;
+
+    if ((req->cmd_set_wifi_max_tx_power->wifi_max_tx_power > MAX_TX_POWER)
+        || (req->cmd_set_wifi_max_tx_power->wifi_max_tx_power < MIN_TX_POWER)) {
+        ESP_LOGE(TAG, "Invalid maximum transmitting power value");
+        ESP_LOGE(TAG, "Value lies between [8,84]");
+        ESP_LOGE(TAG, "Please refer `wifi_set_max_tx_power` API documentation \n");
+        resp_payload->resp = ESP_HOSTED_STATUS__TYPE_OUT_OF_RANGE;
+        return ESP_OK;
+    }
+
+    ret = esp_wifi_set_max_tx_power(req->cmd_set_wifi_max_tx_power->wifi_max_tx_power);
+    if (ret != SUCCESS) {
+        ESP_LOGE(TAG, "Failed to set TX power");
+        goto err;
+    }
+    resp_payload->resp = SUCCESS;
+    return ESP_OK;
+err:
+    resp_payload->resp = FAILURE;
+    return ESP_OK;
+}
+
+// Function get wifi TX current power
+static esp_err_t cmd_get_wifi_curr_tx_power_handler (EspHostedConfigPayload *req,
+        EspHostedConfigPayload *resp, void *priv_data)
+{
+    esp_err_t ret = ESP_OK;
+    int8_t power = 0;
+    EspHostedRespGetWiFiCurrTXPower *resp_payload = NULL;
+
+    if (!req || !resp) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return ESP_FAIL;
+    }
+
+    resp_payload = (EspHostedRespGetWiFiCurrTXPower *)
+	       calloc(1,sizeof(EspHostedRespGetWiFiCurrTXPower));
+    if (!resp_payload) {
+        ESP_LOGE(TAG,"Failed to allocate memory");
+        return ESP_ERR_NO_MEM;
+    }
+
+    esp_hosted_resp_get_wi_fi_curr_txpower__init(resp_payload);
+    resp->payload_case = ESP_HOSTED_CONFIG_PAYLOAD__PAYLOAD_RESP_GET_WIFI_CURR_TX_POWER;
+    resp->resp_get_wifi_curr_tx_power = resp_payload;
+    resp_payload->has_resp = true;
+
+    ret = esp_wifi_get_max_tx_power(&power);
+    if (ret != SUCCESS) {
+        ESP_LOGE(TAG, "Failed to get TX power");
+        goto err;
+    }
+    resp_payload->has_wifi_curr_tx_power = true;
+    resp_payload->wifi_curr_tx_power = power;
+    resp_payload->resp = SUCCESS;
+    return ESP_OK;
+err:
+    resp_payload->resp = FAILURE;
     return ESP_OK;
 }
 
@@ -1417,6 +1722,30 @@ static esp_hosted_config_cmd_t cmd_table[] = {
         .cmd_num = ESP_HOSTED_CONFIG_MSG_TYPE__TypeCmdGetPowerSaveMode,
         .command_handler = cmd_get_power_save_mode_handler
     },
+    {
+        .cmd_num = ESP_HOSTED_CONFIG_MSG_TYPE__TypeCmdOTABegin,
+        .command_handler = cmd_ota_begin_handler
+    },
+    {
+        .cmd_num = ESP_HOSTED_CONFIG_MSG_TYPE__TypeCmdOTAWrite,
+        .command_handler = cmd_ota_write_handler
+    },
+    {
+        .cmd_num = ESP_HOSTED_CONFIG_MSG_TYPE__TypeCmdOTAEnd,
+        .command_handler = cmd_ota_end_handler
+    },
+    {
+        .cmd_num = ESP_HOSTED_CONFIG_MSG_TYPE__TypeCmdSetVendorSpecificIE,
+        .command_handler = cmd_set_vender_specific_ie_handler
+    },
+    {
+        .cmd_num = ESP_HOSTED_CONFIG_MSG_TYPE__TypeCmdSetWiFiMAXTXPower,
+        .command_handler = cmd_set_wifi_max_tx_power_handler
+    },
+    {
+        .cmd_num = ESP_HOSTED_CONFIG_MSG_TYPE__TypeCmdGetWiFiCurrTXPower,
+        .command_handler = cmd_get_wifi_curr_tx_power_handler
+    },
 };
 
 
@@ -1434,7 +1763,7 @@ static esp_err_t esp_hosted_config_command_dispatcher(
 		EspHostedConfigPayload *req, EspHostedConfigPayload *resp,
 		void *priv_data)
 {
-    esp_err_t ret;
+    esp_err_t ret = ESP_OK;
     int cmd_index = 0;
 
     if (!req || !resp) {
@@ -1554,6 +1883,30 @@ static void esp_hosted_config_cleanup(EspHostedConfigPayload *resp)
             mem_free(resp->resp_get_power_save_mode);
             break;
         }
+        case (ESP_HOSTED_CONFIG_MSG_TYPE__TypeRespOTABegin) : {
+            mem_free(resp->resp_ota_begin);
+            break;
+        }
+        case (ESP_HOSTED_CONFIG_MSG_TYPE__TypeRespOTAWrite) : {
+            mem_free(resp->resp_ota_write);
+            break;
+        }
+        case (ESP_HOSTED_CONFIG_MSG_TYPE__TypeRespOTAEnd) : {
+            mem_free(resp->resp_ota_end);
+            break;
+        }
+        case (ESP_HOSTED_CONFIG_MSG_TYPE__TypeRespSetVendorSpecificIE) : {
+            mem_free(resp->resp_set_vendor_specific_ie);
+            break;
+        }
+        case (ESP_HOSTED_CONFIG_MSG_TYPE__TypeRespSetWiFiMAXTXPower) : {
+            mem_free(resp->resp_set_wifi_max_tx_power);
+            break;
+        }
+        case (ESP_HOSTED_CONFIG_MSG_TYPE__TypeRespGetWiFiCurrTXPower) : {
+            mem_free(resp->resp_get_wifi_curr_tx_power);
+            break;
+        }
         default:
             ESP_LOGE(TAG, "Unsupported response type");
             break;
@@ -1563,7 +1916,7 @@ static void esp_hosted_config_cleanup(EspHostedConfigPayload *resp)
 esp_err_t data_transfer_handler(uint32_t session_id,const uint8_t *inbuf,
 		ssize_t inlen, uint8_t **outbuf, ssize_t *outlen, void *priv_data)
 {
-    EspHostedConfigPayload *req, resp;
+    EspHostedConfigPayload *req = NULL, resp = {0};
     esp_err_t ret = ESP_OK;
 
     if (!inbuf || !outbuf || !outlen) {

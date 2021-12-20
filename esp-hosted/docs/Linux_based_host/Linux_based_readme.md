@@ -19,7 +19,7 @@ This document explains ESP-Hosted setup and usage. The document is divided in tw
 ### 1.1 Hardware Requirements
 * Raspberry-Pi model 3 Model B/B+ or Raspberry-Pi 4 model B
 * ESP32 board
-* 8-12 jumper wires of 10cm length
+* 8-12 jumper wires of length < 10cm
 
 ### 1.2 Host Setup
 Make sure that Raspberry-Pi is equipped with following:
@@ -44,14 +44,10 @@ Make sure that Raspberry-Pi is equipped with following:
 	* Python 2.x or 3.x
 		```sh
 		$ sudo apt install python
-		 or
-		$ sudo apt install python3
 		```
-	* Protobuf
-		```sh
-		$ pip install protobuf
 		 or
-		$ pip3 install protobuf
+		```sh
+		$ sudo apt install python3
 		```
 * Clone ESP-Hosted code repository
 	```
@@ -101,6 +97,22 @@ Prepare connections based on interface requirements and setup host as below.
 		* After loading ESP firmware, execute below command to create `hci0` interface
 			```sh
 			$ sudo hciattach -s 921600 /dev/serial0 any 921600 flow
+
+* **Wifi over SPI and Bluetooth over UART**
+	* Connection Setup
+		* Prepare connections as per section [1.1 Hardware Setup](SPI_setup.md#11-hardware-setup) of [SPI Setup document](SPI_setup.md)
+		* Prepare UART connections as per section [1.1 Hardware Setup](UART_setup.md#11-hardware-setup) of [UART setup document](UART_setup.md)
+	* Host Software
+		* Prepare Raspberry-Pi as per [1.2 Raspberry-Pi Software Setup](SPI_setup.md#12-raspberry-pi-software-setup) of [SPI Setup document](SPI_setup.md)
+		* Prepare Raspberry-Pi for UART operations as per section [1.2 Raspberry-Pi Software Setup](UART_setup.md#12-raspberry-pi-software-setup) of [UART setup document](UART_setup.md)
+		* Compile and load host driver as below:
+			```sh
+			$ cd host/linux/host_control/
+			$ ./rpi_init.sh spi btuart
+			```
+		* After loading ESP firmware, execute below command to create `hci0` interface
+			```sh
+			$ sudo hciattach -s 921600 /dev/serial0 any 921600 flow
 			```
 
 #### 1.3.1 ESP Firmware Setup
@@ -114,7 +126,7 @@ write_flash --flash_mode dio --flash_freq 40m --flash_size detect \
 
 Where,
 	<serial_port>    : serial port of ESP peripheral
-	<esp_peripheral> : esp32/esp32s2
+	<esp_peripheral> : esp32/esp32s2/esp32c3
 	<interface_type> : sdio/spi/sdio_uart
 	<release_version>: 0.1,0.2 etc
 ```
@@ -150,7 +162,7 @@ This section identifies Raspberry-Pi specific setup requirements.
 	$ sudo apt update
 	$ sudo apt install raspberrypi-kernel-headers
 	```
-	* Verify that kernel headers are installed properly by running following command. Failure of this command indicates that kernel headers are not installed correctly. In such case, follow https://github.com/notro/rpi-source/wiki and run rpi-source to get current kernel headers. Alternatively upgrade/downgrade kernel and reinstall kernel headers.
+	* Verify that kernel headers are installed properly by running following command. Failure of this command indicates that kernel headers are not installed correctly. In such case, follow https://github.com/notro/rpi-source/wiki and run `rpi-source` to get current kernel headers. Alternatively upgrade/downgrade kernel and reinstall kernel headers.
 	```sh
 	$ ls /lib/modules/$(uname -r)/build
 	```
@@ -177,15 +189,8 @@ This section identifies Raspberry-Pi specific setup requirements.
 * Install following tools on Linux Host machine.
 	* Git
 	* Python 2.x or 3.x: We have tested ESP-Hosted solution with python 2.7.13 and 3.5.3
-	* Protobuf:  
-	  :warning:`Note: We have tested ESP-Hosted solution with Protobuf version >= 3.13.0`
-		```
-		$ pip install protobuf
-		or
-		$ pip3 install protobuf
-		```
-	* Bluetooth Stack and utilities:  
-	  :warning:`Note: We have tested ESP-Hosted solution with bluez 5.43 and 5.45`
+	* Bluetooth Stack and utilities:
+	  :warning:`Note: We have tested ESP-Hosted solution with bluez 5.43+`
 		* bluetooth
 		* bluez
 		* bluez-tools
@@ -201,6 +206,8 @@ ESP-IDF release version to be used for ESP peripherals are
 |:----:|:----:|
 | ESP32 | release v4.0 |
 | ESP32-S2 | release v4.2 |
+| ESP32-C3 | release v4.3 |
+| ESP32-C3 (HCI over UART)| release v4.4 (beta)|
 
 Clone appropriate ESP-IDF version as per your ESP peripheral. The control path between Linux host and ESP peripheral is based on `protobuf`. For that, corresponding stack layer, `protocomm` from ESP-IDF is used. Run following command in ESP-IDF directory to make `protocomm_priv.h` available for control path.
 ```

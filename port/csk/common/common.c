@@ -14,8 +14,8 @@
 //
 
 /** Includes **/
-#include "common/common.h"
-#include "common/trace.h"
+#include "common.h"
+#include "trace.h"
 #include "stdlib.h"
 #include <errno.h>
 
@@ -107,6 +107,18 @@ void print_hex_dump(uint8_t *buff, uint16_t rx_len, char *human_str)
   */
 int min(int x, int y) {
     return (x < y) ? x : y;
+}
+
+/**
+  * @brief Delay without context switch
+  * @param  None
+  * @retval None
+  */
+void hard_delay(int x)
+{
+    volatile int idx = 0;
+    for (idx=0; idx<100*x; idx++) {
+    }
 }
 
 /**

@@ -13,12 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common/trace.h"
+#include "trace.h"
 #include "string.h"
 #include "netdev_stub.h"
 
 struct netdev *ndev_db[MAX_INTERFACE];
 static uint8_t ndev_index = 0;
+
+char __aligned(4) msgq_buffer[RX_QUEUE_SIZE * sizeof(struct net_pbuf)];
 
 /**
   * @brief  initialize detdev
@@ -39,8 +41,6 @@ void netdev_init(void)
   * @param  ndev - netdev
   * @retval 0 on success
   */
-
-char __aligned(4) msgq_buffer[RX_QUEUE_SIZE * sizeof(struct net_pbuf)];
 int netdev_open(netdev_handle_t ndev)
 {
 	if (!ndev)
@@ -101,6 +101,7 @@ struct netdev * netdev_get(char *if_name)
 
 	while (i < MAX_INTERFACE) {
 		ndev = ndev_db[i];
+
 		if (ndev) {
 			if (strncmp(if_name, ndev->name, MAX_IF_NAME_SIZE) == 0)
 				return ndev;
@@ -253,7 +254,7 @@ int netdev_rx(netdev_handle_t dev, struct net_pbuf *net_buf)
 	}
 
 	if (ndev->state == NETDEV_STATE_UP) {
-        k_msgq_put(ndev->rx_q, net_buf, K_FOREVER);
+        k_msgq_put(ndev->rx_q, net_buf, K_FOREVER); //TODO: check return value
 
 		net_handle = (struct network_handle *) ndev->net_handle;
 

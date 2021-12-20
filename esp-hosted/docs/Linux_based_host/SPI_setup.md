@@ -8,12 +8,12 @@ Raspberry-Pi pinout can be found [here!](https://pinout.xyz/pinout/spi)
 #### 1.1.1 ESP32 setup
 | Raspberry-Pi Pin | ESP32 Pin | Function |
 |:-------:|:---------:|:--------:|
-| 24 | IO5 | CS0 |
-| 23 | IO18 | SCLK |
-| 21 | IO19 | MISO |
-| 19 | IO23 | MOSI |
+| 24 | IO15 | CS0 |
+| 23 | IO14 | SCLK |
+| 21 | IO12 | MISO |
+| 19 | IO13 | MOSI |
 | 25 | GND | Ground |
-| 11 | IO2 | Handshake |
+| 15 | IO2 | Handshake |
 | 13 | IO4 | Data Ready |
 | 31 | EN  | ESP32 Reset |
 
@@ -29,7 +29,7 @@ Setup image is here.
 | 21 | IO13 | MISO |
 | 19 | IO11 | MOSI |
 | 25 | GND | Ground |
-| 11 | IO2 | Handshake |
+| 15 | IO2 | Handshake |
 | 13 | IO4 | Data ready |
 | 31 | RST | ESP32 Reset |
 
@@ -37,14 +37,34 @@ Setup image is here.
 
 ![alt text](rpi_esp32_s2_setup.jpg "setup of Raspberry-Pi as host and ESP32-S2 as ESP peripheral")
 
+#### 1.1.3 ESP32-C3 setup
+| Raspberry-Pi Pin | ESP32-C3 Pin | Function |
+|:----------------:|:------------:|:--------:|
+| 24 | IO10 | CS0 |
+| 23 | IO06 | SCLK |
+| 21 | IO02 | MISO |
+| 19 | IO07 | MOSI |
+| 25 | GND | Ground |
+| 15 | IO03 | Handshake |
+| 13 | IO04 | Data ready |
+| 31 | RST | ESP32 Reset |
+
+Setup image is here.
+
+![alt text](rpi_esp32_c3_setup.jpg "setup of Raspberry-Pi as host and ESP32-C3 as ESP peripheral")
+
 ### 1.2 Raspberry-Pi Software Setup
 The SPI master driver is disabled by default on Raspberry-Pi OS. To enable it add following commands in  _/boot/config.txt_ file
 ```
 dtparam=spi=on
 dtoverlay=disable-bt
 ```
+In addition, below options are set as the SPI clock frequency in analyzer is observed to be smaller than expected clock. This is RaspberryPi specific [issue](https://github.com/raspberrypi/linux/issues/2286).
+```
+core_freq=250
+core_freq_min=250
+```
 Please reboot Raspberry-Pi after changing this file.
-
 
 ## 2. Load ESP-Hosted Solution
 ### 2.1 Host Software
@@ -89,6 +109,20 @@ Where,
 ```
 * This command will flash `SPI` interface binaries on `esp32s2` chip.
 
+##### ESP32-C3
+```sh
+$ python esptool.py --port <serial_port> --baud 960000 --before default_reset --after hard_reset \
+--chip esp32c3 write_flash --flash_mode dio --flash_size detect --flash_freq 80m \
+0x0 esp_hosted_bootloader_esp32c3_spi_v<release_version>.bin \
+0x8000 esp_hosted_partition-table_esp32c3_spi_v<release_version>.bin \
+0x10000 esp_hosted_firmware_esp32c3_spi_v<release_version>.bin
+
+Where,
+	<serial_port>    : serial port of ESP peripheral
+	<release_version>: 0.1,0.2 etc. Latest from [release page](https://github.com/espressif/esp-hosted/releases)
+```
+* This command will flash `SPI` interface binaries on `esp32c3` chip.
+
 * Windows user can use ESP Flash Programming Tool to flash the pre-built binary.
 
 #### 2.2.2 Source Compilation
@@ -99,23 +133,33 @@ Where,
 ```sh
 $ cd esp/esp_driver/network_adapter
 ```
+
 ##### Using cmake
-* Set target if the ESP32S2 is being used. Skip if ESP32 is being used.
+
+* :warning: `Set target if the ESP32S2 or ESP32C3 is being used. Skip if ESP32 is being used.`
 ```
 $ idf.py set-target esp32s2
 ```
+or
+```
+$ idf.py set-target esp32c3
+```
+
 * Execute following command to configure project
 ```sh
 $ idf.py menuconfig
 ```
 * This will open project configuration window. To select SPI transport interface, navigate to `Example Configuration ->  Transport layer -> SPI interface -> select` and exit from menuconfig.
+
+* For ESP32C3, select chip revision in addition. Navigate to `Component config → ESP32C3-Specific → Minimum Supported ESP32-C3 Revision` and select chip version of ESP32C3.
+
 * Use below command to compile and flash the project. Replace <serial_port> with ESP peripheral's serial port.
 ```sh
 $ idf.py -p <serial_port> build flash
 ```
 
 ##### Using make
-:warning: *make* build system is only supported till ESP32. Please refer cmake section above for ESP32-S2.
+:warning: *make* build system is only supported till ESP32. Please refer cmake section above for ESP32-S2 and ESP32-C3.
 * Execute following command to configure project
 ```sh
 $ make menuconfig

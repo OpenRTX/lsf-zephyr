@@ -19,7 +19,7 @@
 #include "serial_if.h"
 #include "adapter.h"
 #include "spi_drv.h"
-#include "common/trace.h"
+#include "trace.h"
 
 /** Macros / Constants **/
 #define MAX_SERIAL_INTF                   2
@@ -66,7 +66,6 @@ static struct serial_operations serial_fops = {
   * @param  serial_hdl - handle of serial interface
   * @retval 0 if success, -1 on failure
   */
-
 static int serial_open(serial_handle_t *serial_hdl)
 {
 	if (! serial_hdl) {
@@ -270,7 +269,7 @@ serial_handle_t * serial_init(void(*serial_rx_callback)(void))
 
 		serial_hdl = (serial_handle_t *)k_malloc(sizeof(serial_handle_t));
 		if (! serial_hdl) {
-			printk("Serial interface - malloc failed\n");
+			printf("Serial interface - malloc failed\n\r");
 			return NULL;
 		}
 

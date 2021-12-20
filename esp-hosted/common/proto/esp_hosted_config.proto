@@ -69,6 +69,8 @@ enum EspHostedStatus {
     TYPE_NOT_CONNECTED = 1;
     TYPE_NO_AP_FOUND = 2;
     TYPE_CONNECTION_FAIL = 3;
+    TYPE_INVALID_ARGUMET = 4;
+    TYPE_OUT_OF_RANGE = 5;
 }
 
 message EspHostedCmdSetAPConfig {
@@ -142,6 +144,68 @@ message EspHostedRespConnectedSTA {
     int32 resp = 3;
 }
 
+message EspHostedCmdOTABegin {
+}
+
+message EspHostedRespOTABegin {
+    int32 resp = 1;
+}
+
+message EspHostedCmdOTAWrite {
+    bytes ota_data = 1;
+}
+
+message EspHostedRespOTAWrite {
+    int32 resp = 1;
+}
+
+message EspHostedCmdOTAEnd {
+}
+
+message EspHostedRespOTAEnd {
+    int32 resp = 1;
+}
+
+enum EspHostedVendorIEType {
+    VND_IE_TYPE_BEACON = 0;
+    VND_IE_TYPE_PROBE_REQ = 1;
+    VND_IE_TYPE_PROBE_RESP = 2;
+    VND_IE_TYPE_ASSOC_REQ = 3;
+    VND_IE_TYPE_ASSOC_RESP = 4;
+}
+
+enum EspHostedIEID {
+    VND_IE_ID_0 = 0;
+    VND_IE_ID_1 = 1;
+}
+
+message EspHostedCmdSetVendorSpecificIE {
+    bool enable = 1;
+    EspHostedVendorIEType type = 2;
+    EspHostedIEID idx = 3;
+    bytes vendor_ie_data = 4;
+}
+
+message EspHostedRespSetVendorSpecificIE {
+    int32 resp = 1;
+}
+
+message EspHostedCmdSetWiFiMAXTXPower {
+    int32 wifi_max_tx_power = 1;
+}
+
+message EspHostedRespSetWiFiMAXTXPower {
+    int32 resp = 1;
+}
+
+message EspHostedCmdGetWiFiCurrTXPower {
+}
+
+message EspHostedRespGetWiFiCurrTXPower {
+    int32 wifi_curr_tx_power = 1;
+    int32 resp = 2;
+}
+
 enum EspHostedConfigMsgType {
     TypeCmdGetMACAddress = 0;
     TypeRespGetMACAddress = 1;
@@ -171,6 +235,18 @@ enum EspHostedConfigMsgType {
     TypeRespSetPowerSaveMode = 25;
     TypeCmdGetPowerSaveMode = 26;
     TypeRespGetPowerSaveMode = 27;
+    TypeCmdOTABegin = 28;
+    TypeRespOTABegin = 29;
+    TypeCmdOTAWrite = 30;
+    TypeRespOTAWrite = 31;
+    TypeCmdOTAEnd = 32;
+    TypeRespOTAEnd = 33;
+    TypeCmdSetVendorSpecificIE = 34;
+    TypeRespSetVendorSpecificIE = 35;
+    TypeCmdSetWiFiMAXTXPower = 36;
+    TypeRespSetWiFiMAXTXPower = 37;
+    TypeCmdGetWiFiCurrTXPower = 38;
+    TypeRespGetWiFiCurrTXPower = 39;
 }
 
 message EspHostedConfigPayload {
@@ -204,5 +280,17 @@ message EspHostedConfigPayload {
         EspHostedRespSetMode resp_set_power_save_mode = 35;
         EspHostedCmdGetMode cmd_get_power_save_mode = 36;
         EspHostedRespGetMode resp_get_power_save_mode = 37;
+        EspHostedCmdOTABegin cmd_ota_begin = 38;
+        EspHostedRespOTABegin resp_ota_begin = 39;
+        EspHostedCmdOTAWrite cmd_ota_write = 40;
+        EspHostedRespOTAWrite resp_ota_write = 41;
+        EspHostedCmdOTAEnd cmd_ota_end = 42;
+        EspHostedRespOTAEnd resp_ota_end = 43;
+        EspHostedCmdSetVendorSpecificIE cmd_set_vendor_specific_ie = 44;
+        EspHostedRespSetVendorSpecificIE resp_set_vendor_specific_ie = 45;
+        EspHostedCmdSetWiFiMAXTXPower cmd_set_wifi_max_tx_power = 46;
+        EspHostedRespSetWiFiMAXTXPower resp_set_wifi_max_tx_power = 47;
+        EspHostedCmdGetWiFiCurrTXPower cmd_get_wifi_curr_tx_power = 48;
+        EspHostedRespGetWiFiCurrTXPower resp_get_wifi_curr_tx_power = 49;
     }
 }

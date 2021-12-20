@@ -1,6 +1,10 @@
 # Control Interface API's: Python Implementation
 
-This document describes python API's provided for control interface. Please refer [test.py](../host/linux/host_control/python_support/test.py) to get an idea how to use these API's.
+This document describes python API's provided for control interface.
+[python_demo.md](python_demo.md) gives overview of how to test control path interface in application also how to perform stress testing of control path interface.
+
+
+A [stress.py](../host/linux/host_control/python_support/stress.py) can use for stress testing of control path commands. In which, `STRESS_TEST_COUNT` variable represents number of iterations and `STRESS_TEST` variable defines which test should get executed.
 
 ## 1. `wifi_get_mac`
 This is used to retrieve the MAC address of ESP's station or softAP interface
@@ -259,14 +263,82 @@ Get the list of connected station to the ESP32 softAP.
 
 ### Return
 
-*success case* : list of Stationlist tuple(mac,rssi)
+*success case* : list of Stationlist tuple(bssid,rssi)
 Stations credentials::
-- `mac` :
+- `bssid` :
 MAC address of station
 - `rssi` :
 RSSI signal strength
 
 *failure case*:
+- "failure" string
+
+---
+
+## 15. `create_socket`
+This function creates an endpoint for communication
+
+### Parameters
+- `domain` :
+This specifies a communication domain (like AF_INET, AF_INET6).
+- `types` :
+This specifies the communication semantics (like SOCK_DGRAM, SOCK_STREAM).
+- `protocol` :
+This specifies a particular protocol to be used with the socket. Generally protocol value should be 0, please refer socket documentation for more details.
+
+### Return
+- File descriptor (integer number) that refers to that endpoint/socket
+- "failure" string: if failed.
+
+---
+
+## 16. `close_socket`
+This function closes endpoint of the communication
+
+### Parameters
+- `sock` :
+This specifies the file descriptor of the endpoint/socket to be closed
+
+### Return
+- "success" or "failure" string
+
+---
+
+## 17. `wifi_set_max_tx_power`
+
+Function sets maximum WiFi transmitting power at ESP32.
+
+#### **Note**
+- The value set by this API will be mapped to the max_tx_power of the structure wifi_country_t variable in wifi driver.
+- Mapping Table {wifi_max_tx_power, max_tx_power} = {{8,   2}, {20,  5}, {28,  7}, {34,  8}, {44, 11}, {52, 13}, {56, 14}, {60, 15}, {66, 16}, {72, 18}, {80, 20}}.
+- Input parameter `wifi_max_tx_power` unit is 0.25dBm, range is [8, 84] corresponding to `2dBm to 20dBm`.
+- Relationship between set value and actual value. As follows: {set value range, actual value} = {{[8,  19],8}, {[20, 27],20}, {[28, 33],28}, {[34, 43],34}, {[44, 51],44}, {[52, 55],52}, {[56, 59],56}, {[60, 65],60}, {[66, 71],66}, {[72, 79],72}, {[80, 84],80}}.
+
+### Parameters
+- `wifi_max_tx_power` :
+Maximum WiFi transmitting power.
+
+### Return
+*Success case* :
+"success" string
+
+*Failure case* :
+"failure" string
+
+*Out of range case*:
+"out_of_range" string. `wifi_max_tx_power` is not in range of [8, 84] corresponding to `2dBm to 20dBm` tx power.
+
+---
+
+### 18. `wifi_get_curr_tx_power`
+
+Function gets current WiFi transmiting power at ESP32.
+
+### Return
+*Success case* :
+returns Current WiFi transmitting power, unit is 0.25dBm. It is possible that the current wifi transmit power is lesser than that of the requested max transmit power as part of `wifi_set_max_tx_power` API.
+
+*Failure case* :
 - "failure" string
 
 ---

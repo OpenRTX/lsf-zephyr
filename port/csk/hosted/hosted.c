@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "common/util.h"
+#include "util.h"
 #include "commands.h"
 #include "platform_wrapper.h"
 

@@ -25,7 +25,7 @@ extern "C" {
 // #include "cmsis_os.h"
 // #include "FreeRTOS.h"
 // #include "queue.h"
-#include "common/common.h"
+#include "common.h"
 
 struct vhci_operations;
 

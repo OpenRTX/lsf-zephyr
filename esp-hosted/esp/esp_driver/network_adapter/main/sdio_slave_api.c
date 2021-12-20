@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "esp_log.h"
 #include "interface.h"
 #include "adapter.h"
@@ -32,7 +33,7 @@ interface_context_t context;
 interface_handle_t if_handle_g;
 static const char TAG[] = "SDIO_SLAVE";
 
-static interface_handle_t * sdio_init(uint8_t capabilities);
+static interface_handle_t * sdio_init(void);
 static int32_t sdio_write(interface_handle_t *handle, interface_buffer_handle_t *buf_handle);
 interface_buffer_handle_t * sdio_read(interface_handle_t *if_handle);
 static esp_err_t sdio_reset(interface_handle_t *handle);
@@ -64,7 +65,7 @@ int interface_remove_driver()
 	return 0;
 }
 
-static void event_cb(uint8_t val)
+IRAM_ATTR static void event_cb(uint8_t val)
 {
 	if (val == ESP_RESET) {
 		sdio_reset(&if_handle_g);
@@ -74,7 +75,64 @@ static void event_cb(uint8_t val)
 	if (context.event_handler) {
 		context.event_handler(val);
 	}
+}
 
+void generate_startup_event(uint8_t cap)
+{
+	struct esp_payload_header *header = NULL;
+	interface_buffer_handle_t buf_handle = {0};
+	struct esp_priv_event *event = NULL;
+	uint8_t *pos = NULL;
+	uint16_t len = 0;
+	esp_err_t ret = ESP_OK;
+
+	memset(&buf_handle, 0, sizeof(buf_handle));
+
+	buf_handle.payload = heap_caps_malloc(BUFFER_SIZE, MALLOC_CAP_DMA);
+	assert(buf_handle.payload);
+	memset(buf_handle.payload, 0, BUFFER_SIZE);
+
+	header = (struct esp_payload_header *) buf_handle.payload;
+
+	header->if_type = ESP_PRIV_IF;
+	header->if_num = 0;
+	header->offset = htole16(sizeof(struct esp_payload_header));
+	header->priv_pkt_type = ESP_PACKET_TYPE_EVENT;
+
+	/* Populate event data */
+	event = (struct esp_priv_event *) (buf_handle.payload + sizeof(struct esp_payload_header));
+
+	event->event_type = ESP_PRIV_EVENT_INIT;
+
+	/* Populate TLVs for event */
+	pos = event->event_data;
+
+	/* TLVs start */
+
+	/* TLV - Capability */
+	*pos = ESP_PRIV_CAPABILITY;         pos++;len++;
+	*pos = LENGTH_1_BYTE;               pos++;len++;
+	*pos = cap;                         pos++;len++;
+
+	/* TLVs end */
+
+	event->event_len = len;
+
+	/* payload len = Event len + sizeof(event type) + sizeof(event len) */
+	len += 2;
+	header->len = htole16(len);
+
+	buf_handle.payload_len = len + sizeof(struct esp_payload_header);
+	header->checksum = htole16(compute_checksum(buf_handle.payload, buf_handle.payload_len));
+
+	ret = sdio_slave_transmit(buf_handle.payload, buf_handle.payload_len);
+	if (ret != ESP_OK) {
+		ESP_LOGE(TAG , "sdio slave tx error, ret : 0x%x\r\n", ret);
+		free(buf_handle.payload);
+		return;
+	}
+
+	free(buf_handle.payload);
 }
 
 static void sdio_read_done(void *handle)
@@ -82,10 +140,9 @@ static void sdio_read_done(void *handle)
 	sdio_slave_recv_load_buf((sdio_slave_buf_handle_t) handle);
 }
 
-
-static interface_handle_t * sdio_init(uint8_t capabilities)
+static interface_handle_t * sdio_init(void)
 {
-	esp_err_t ret = 0;
+	esp_err_t ret = ESP_OK;
 	sdio_slave_config_t config = {
 		.sending_mode       = SDIO_SLAVE_SEND_STREAM,
 		.send_queue_size    = SDIO_SLAVE_QUEUE_SIZE,
@@ -133,9 +190,6 @@ static interface_handle_t * sdio_init(uint8_t capabilities)
 		return NULL;
 	}
 
-	/* Advertise slave capabilities at 0th offset of reg HOST_SLCHOST_CONF_W0_REG */
-	sdio_slave_write_reg(0, capabilities);
-
 	memset(&if_handle_g, 0, sizeof(if_handle_g));
 	if_handle_g.state = INIT;
 
@@ -145,10 +199,10 @@ static interface_handle_t * sdio_init(uint8_t capabilities)
 static int32_t sdio_write(interface_handle_t *handle, interface_buffer_handle_t *buf_handle)
 {
 	esp_err_t ret = ESP_OK;
-	int32_t total_len;
+	int32_t total_len = 0;
 	uint8_t* sendbuf = NULL;
 	uint16_t offset = 0;
-	struct esp_payload_header *header;
+	struct esp_payload_header *header = NULL;
 
 	if (!handle || !buf_handle) {
 		ESP_LOGE(TAG , "Invalid arguments");
@@ -158,7 +212,6 @@ static int32_t sdio_write(interface_handle_t *handle, interface_buffer_handle_t 
 	if (handle->state != ACTIVE) {
 		return ESP_FAIL;
 	}
-
 
 	if (!buf_handle->payload_len || !buf_handle->payload) {
 		ESP_LOGE(TAG , "Invalid arguments, len:%d", buf_handle->payload_len);
@@ -185,6 +238,10 @@ static int32_t sdio_write(interface_handle_t *handle, interface_buffer_handle_t 
 	header->offset = htole16(offset);
 
 	memcpy(sendbuf + offset, buf_handle->payload, buf_handle->payload_len);
+
+	header->checksum = htole16(compute_checksum(sendbuf,
+				offset+buf_handle->payload_len));
+
 	ret = sdio_slave_transmit(sendbuf, total_len);
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG , "sdio slave transmit error, ret : 0x%x\r\n", ret);
@@ -200,7 +257,8 @@ static int32_t sdio_write(interface_handle_t *handle, interface_buffer_handle_t 
 interface_buffer_handle_t * sdio_read(interface_handle_t *if_handle)
 {
 	interface_buffer_handle_t *buf_handle = NULL;
-	struct esp_payload_header *header;
+	struct esp_payload_header *header = NULL;
+	uint16_t rx_checksum = 0, checksum = 0, len;
 
 	if (!if_handle) {
 		ESP_LOGE(TAG, "Invalid arguments to sdio_read");
@@ -222,6 +280,18 @@ interface_buffer_handle_t * sdio_read(interface_handle_t *if_handle)
 
 	header = (struct esp_payload_header *) buf_handle->payload;
 
+	rx_checksum = le16toh(header->checksum);
+
+	header->checksum = 0;
+	len = le16toh(header->len) + le16toh(header->offset);
+
+	checksum = compute_checksum(buf_handle->payload, len);
+
+	if (checksum != rx_checksum) {
+		sdio_read_done(buf_handle->sdio_buf_handle);
+		return NULL;
+	}
+
 	buf_handle->if_type = header->if_type;
 	buf_handle->if_num = header->if_num;
 	buf_handle->free_buf_handle = sdio_read_done;
@@ -231,7 +301,7 @@ interface_buffer_handle_t * sdio_read(interface_handle_t *if_handle)
 
 static esp_err_t sdio_reset(interface_handle_t *handle)
 {
-	esp_err_t ret;
+	esp_err_t ret = ESP_OK;
 
 	sdio_slave_stop();
 

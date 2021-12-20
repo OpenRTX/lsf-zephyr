@@ -14,10 +14,10 @@
 //
 
 /** Includes **/
-#include "common/util.h"
-#include <ctype.h>
-#include <string.h>
-#include "common/trace.h"
+#include "util.h"
+#include "ctype.h"
+#include "string.h"
+#include "trace.h"
 
 /** Constants/Macros **/
 
@@ -25,7 +25,100 @@
 
 /** Function declaration **/
 
+#define IS_ASCII(c)				((c) >=0 && (c) <= 127)
+
 /** Exported Functions **/
+/*
+ * Check whether "cp" is a valid ascii representation
+ * of an Internet address and convert to a binary address.
+ * Returns 1 if the address is valid, 0 if not.
+ * This replaces inet_addr, the return value from which
+ * cannot distinguish between failure and a local broadcast address.
+ */
+int ipv4_addr_aton(const unsigned char *cp, uint32_t *ip_uint32)
+{
+	u_long val, base, n;
+	char c;
+	u_long parts[4], *pp = parts;
+
+	for (;;) {
+		/*
+		 * Collect number up to ``.''.
+		 * Values are specified as for C:
+		 * 0x=hex, 0=octal, other=decimal.
+		 */
+		val = 0; base = 10;
+		if (*cp == '0') {
+			if (*++cp == 'x' || *cp == 'X')
+				base = 16, cp++;
+			else
+				base = 8;
+		}
+		while ((c = *cp) != '\0') {
+			if (IS_ASCII(c) && isdigit(c)) {
+				val = (val * base) + (c - '0');
+				cp++;
+				continue;
+			}
+			if (base == 16 && IS_ASCII(c) && isxdigit(c)) {
+				val = (val << 4) +
+					(c + 10 - (islower(c) ? 'a' : 'A'));
+				cp++;
+				continue;
+			}
+			break;
+		}
+		if (*cp == '.') {
+			/*
+			 * Internet format:
+			 *	a.b.c.d
+			 *	a.b.c	(with c treated as 16-bits)
+			 *	a.b	(with b treated as 24 bits)
+			 */
+			if (pp >= parts + 3 || val > 0xff)
+				return (0);
+			*pp++ = val, cp++;
+		} else
+			break;
+	}
+	/*
+	 * Check for trailing characters.
+	 */
+	if (*cp && (!IS_ASCII(*cp) || !isspace(*cp)))
+		return (0);
+	/*
+	 * Concoct the address according to
+	 * the number of parts specified.
+	 */
+	n = pp - parts + 1;
+	switch (n) {
+
+	case 1:				/* a -- 32 bits */
+		break;
+
+	case 2:				/* a.b -- 8.24 bits */
+		if (val > 0xffffff)
+			return (0);
+		val |= parts[0] << 24;
+		break;
+
+	case 3:				/* a.b.c -- 8.8.16 bits */
+		if (val > 0xffff)
+			return (0);
+		val |= (parts[0] << 24) | (parts[1] << 16);
+		break;
+
+	case 4:				/* a.b.c.d -- 8.8.8.8 bits */
+		if (val > 0xff)
+			return (0);
+		val |= (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8);
+		break;
+	}
+	if(ip_uint32) {
+		*ip_uint32 = hton_long(val);
+	}
+	return (1);
+}
 
 /**
  * @brief  convert ip in int to string
@@ -143,4 +236,22 @@ uint8_t is_same_buff(void *buff1, void *buff2, uint16_t len)
 		b2++;
 	}
 	return 1;
+}
+
+/**
+  * @brief  Get ip in 32bit from dotted string notation
+  * @param  ip_s - input ip address in string
+  *         ip_x - output ip address in 32 bit
+  * @retval STM_OK/STM_FAIL
+  */
+stm_ret_t get_ipaddr_from_str(const char *ip_s, uint32_t *ip_x)
+{
+	uint32_t ip_nw = 0;
+	if (! ipv4_addr_aton(ip_s, &ip_nw))
+	{
+		return STM_FAIL;
+	}
+	/* ipv4_addr_aton does conversion in network order. reverse */
+	*ip_x = ntoh_long(ip_nw);
+	return STM_OK;
 }

@@ -40,13 +40,15 @@ ESP-Hosted solution provides following WLAN and BT/BLE features to host:
 	- WLAN Station
 	- WLAN Soft AP
 - BT/BLE Features:
-	- v4.2 BR/EDR and BLE
+	- ESP32 supports v4.2 BR/EDR and BLE
+	- ESP32-C3 supports v5.0 BLE
 
 ### 1.2 Supported ESP boards
 
 ESP-Hosted solution is supported on following ESP boards:
 - ESP32
 - ESP32S2
+- ESP32C3
 
 ### 1.3 Supported Hosts
 
@@ -67,26 +69,49 @@ ESP-Hosted uses SDIO or SPI bus for interfacing ESP boards and host platform. No
 ##### 1.5.1 Linux Host
 Below table explains which feature is supported on which transport interface for Linux based host.
 
-| ESP device | Transport Interface | WLAN support | Virtual serial interface | BT/BLE support |
-|:---------:|:-------:|:---------:|:--------:|:--------:|
-| ESP32 | SDIO | Yes | Yes | Yes |
-| ESP32 | SPI | Yes | Yes | Yes |
-| ESP32 | UART | No | No | Yes |
-| ESP32-S2 | SDIO | NA | NA | NA |
-| ESP32-S2 | SPI | Yes | Yes | NA |
-| ESP32-S2 | UART | No | No | NA |
+| ESP device | Transport Interface | WLAN support | Virtual serial interface | BT/BLE support | BLE 5.0 support |
+|:---------:|:-------:|:---------:|:--------:|:--------:|:--------:|
+| ESP32 | SDIO | Yes | Yes | Yes | NA |
+| ESP32 | SPI | Yes | Yes | Yes | NA |
+| ESP32 | UART | No | No | Yes | NA |
+| ESP32-S2 | SDIO | NA | NA | NA | NA |
+| ESP32-S2 | SPI | Yes | Yes | NA | NA |
+| ESP32-S2 | UART | No | No | NA | NA |
+| ESP32-C3 | SDIO | NA | NA | NA | NA |
+| ESP32-C3 | SPI | Yes | Yes | Yes | Yes |
+| ESP32-C3 | UART | No | No | Yes | Yes |
 
 ##### 1.5.2 MCU Host
 Below table explains which feature is supported on which transport interface for MCU based host.
 
 | ESP device | Transport Interface | WLAN support | Virtual serial interface | BT/BLE support |
-|:---------:|:-------:|:---------:|:--------:|:--------:|
+|:------------:|:-------:|:---------:|:--------:|:--------:|
 | ESP32 | SDIO | No | No | No |
-| ESP32 | SPI | Yes | Yes | HCI interface can be implemented over virtual serial interface |
-| ESP32 | UART | No | No | No |
+| ESP32 | SPI | Yes | Yes | Yes\* |
+| ESP32 | UART | No | No | Yes\*\* |
 | ESP32-S2 | SDIO | NA | NA | NA |
 | ESP32-S2 | SPI | Yes | Yes | NA |
 | ESP32-S2 | UART | No | No | NA |
+| ESP32-C3 | SDIO | NA | NA | NA |
+| ESP32-C3 | SPI | Yes | Yes | Yes\* |
+| ESP32-C3 | UART | No | No | Yes\* |
+
+\* BT/BLE over SPI
+> BT/BLE support over SPI is not readily available. In order to implement it, one needs to:
+> 
+> Port BT/BLE stack to MCU, \
+> Add a new virtual serial interface using the serial interface API's provided in host driver of ESP-Hosted solution.
+> HCI implementation in Linux Driver `host/linux/host_driver/esp32` could be used as reference. Search keyword: `ESP_HCI_IF`
+> Register this serial interface with BT/BLE stack as a HCI interface.
+
+\*\* BT/BLE over UART
+> BT/BLE support over UART is not readily available. In order to implement this, one needs to:
+>
+> Port BT/BLE stack to MCU, \
+> Register the UART serial interface as a HCI interface with BT/BLE stack
+> With the help of this UART interface, BT/BLE stack can directly interact with BT controller present on ESP32 bypassing host driver and firmware
+> ESP Hosted host driver and a firmware plays no role in this communication
+
 
 ---
 
@@ -165,18 +190,20 @@ This section describes the data communication protocol used at the transport lay
 ##### 3.2.1 Payload Format
 This section explains the payload format used for data transfer on SDIO and SPI interfaces.
 
-* Host and peripheral makes use of 8 byte payload header which preceeds every data packet.
+* Host and peripheral makes use of 12 byte payload header which preceeds every data packet.
 * This payload header provides additional information about the data packet. Based on this header, host/peripheral consumes transmitted data packet.
 * Payload format is as below
 
 | Field | Length | Description |
 |:-------:|:---------:|:--------|
 | Interface type | 4 bits | Possible values: STA(0), SoftAP(1), Serial interface(2), HCI (3), Priv interface(4). Rest all values are reserved |
-| Reserved | 4 bits | Not in use |
-| Reserved | 1 byte | Not in use |
+| Interface number | 4 bits | Unused |
+| Flags | 1 byte | Additional flags like `MORE_FRAGMENT` in fragmentation |
 | Packet length | 2 bytes | Actual length of data packet |
 | Offset to packet | 2 bytes | Offset of actual data packet |
-| Reserved | 1 byte  | Not in use |
+| Checksum | 2 bytes | checksum for complete packet (Includes header and payload) |
+| Reserved2 | 1 byte | Not in use |
+| seq_num | 2 bytes | Sequence number for serial inerface |
 | Packet type | 1 byte | reserved when interface type is 0,1 and 2. Applicable only for interface type 3 and 4 |
 
 ### 3.3 Integration Guide

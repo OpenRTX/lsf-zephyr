@@ -3,9 +3,9 @@ if(CONFIG_ESP_HOSTED)
 zephyr_library()
 zephyr_include_directories(
         esp-hosted/common/include
-        port/host_common/include
+        esp-hosted/host/host_common/include
+        port/csk/common
         port/csk/hosted/include
-        port/csk/common/include
         port/csk/driver/netif
         port/csk/driver/network
         port/csk/driver/serial
@@ -16,9 +16,9 @@ zephyr_include_directories(
 
 zephyr_library_sources(
         esp-hosted/common/esp_hosted_config.pb-c.c
-        port/host_common/commands.c
-        port/host_common/platform_wrapper.c
-        port/host_common/transport_pserial.c
+        esp-hosted/host/host_common/commands.c
+        esp-hosted/host/host_common/transport_pserial.c
+        port/csk/hosted/platform_wrapper.c
         port/csk/hosted/hosted.c
         port/csk/common/common.c
         port/csk/common/util.c

@@ -4,18 +4,31 @@
 #ifndef __ESP_NETWORK_ADAPTER__H
 #define __ESP_NETWORK_ADAPTER__H
 
+#define PRIO_Q_SERIAL           0
+#define PRIO_Q_BT               1
+#define PRIO_Q_OTHERS           2
+#define MAX_PRIORITY_QUEUES     3
+
+/* ESP Payload Header Flags */
+#define MORE_FRAGMENT			(1 << 0)
+
 struct esp_payload_header {
-	uint8_t 		 if_type:4;
-	uint8_t 		 if_num:4;
-	uint8_t			 reserved1;
-	uint16_t                 len;
-	uint16_t                 offset;
-	uint8_t                  reserved2;
+	uint8_t          if_type:4;
+	uint8_t          if_num:4;
+	uint8_t          flags;
+	uint16_t         len;
+	uint16_t         offset;
+	uint16_t         checksum;
+	uint16_t		 seq_num;
+	uint8_t          reserved2;
+	/* Position of union field has to always be last,
+	 * this is required for hci_pkt_type */
 	union {
-		uint8_t		 reserved3;
-		uint8_t		 hci_pkt_type;		/* Packet type for HCI interface */
-		uint8_t		 priv_pkt_type;		/* Packet type for priv interface */
+		uint8_t      reserved3;
+		uint8_t      hci_pkt_type;		/* Packet type for HCI interface */
+		uint8_t      priv_pkt_type;		/* Packet type for priv interface */
 	};
+	/* Do no add anything here */
 } __attribute__((packed));
 
 typedef enum {
@@ -66,4 +79,18 @@ struct esp_priv_event {
 	uint8_t		event_len;
 	uint8_t		event_data[0];
 }__attribute__((packed));
+
+static inline uint16_t compute_checksum(uint8_t *buf, uint16_t len)
+{
+	uint16_t checksum = 0;
+	uint16_t i = 0;
+
+	while(i < len) {
+		checksum += buf[i];
+		i++;
+	}
+
+	return checksum;
+}
+
 #endif
