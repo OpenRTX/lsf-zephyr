@@ -285,8 +285,8 @@ void spi_link_init(void(*spi_drv_evt_handler)(uint8_t))
   */
 void spi_sync_callback(uint16_t pin)
 {
-	if ( (pin == GPIO_DATA_READY_Pin) ||
-	     (pin == GPIO_HANDSHAKE_Pin) )
+	if ( (pin == data_ready_spec.pin) ||
+	     (pin == handshake_spec.pin) )
 	{
         if (!hosted_is_synced()) {
             hosted_sync_set(true);
@@ -315,12 +315,10 @@ static void check_and_execute_spi_transaction(void)
 
 
 	/* handshake line SET -> slave ready for next transaction */
-	gpio_handshake = csk_read_pin(GPIO_HANDSHAKE_GPIO_Port,
-			GPIO_HANDSHAKE_Pin);
+	gpio_handshake = csk_read_pin(&handshake_spec);
 
 	/* data ready line SET -> slave wants to send something */
-	gpio_rx_data_ready = csk_read_pin(GPIO_DATA_READY_GPIO_Port,
-			GPIO_DATA_READY_Pin);
+	gpio_rx_data_ready = csk_read_pin(&data_ready_spec);
 
 	if (gpio_handshake == GPIO_PIN_SET) {
 
