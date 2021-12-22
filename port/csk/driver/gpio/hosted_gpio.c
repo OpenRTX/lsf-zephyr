@@ -1,10 +1,12 @@
-#include <drivers/gpio.h>
 #include "hosted_gpio.h"
 #include <assert.h>
 
 extern void spi_sync_callback(uint16_t pin);
 
-static const struct device *gpio_dev = NULL;
+const struct gpio_dt_spec data_ready_spec = GPIO_DT_SPEC_GET_OR(DT_NODELABEL(wifi_module), dataready_gpios, {0});
+const struct gpio_dt_spec handshake_spec = GPIO_DT_SPEC_GET_OR(DT_NODELABEL(wifi_module), handshake_gpios, {0});
+const struct gpio_dt_spec reset_spec = GPIO_DT_SPEC_GET_OR(DT_NODELABEL(wifi_module), reset_gpios, {0});
+
 static struct gpio_callback gpio_cb_body;
 
 void gpio_isr_cb(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
@@ -19,26 +21,40 @@ void gpio_isr_cb(const struct device *dev, struct gpio_callback *cb, uint32_t pi
     }
 }
 
-void csk_write_pin(gpio_port_t port, int pin, int level)
+void csk_write_pin(const struct gpio_dt_spec *spec, int value)
 {
-    gpio_pin_set(gpio_dev, pin, level);
+    gpio_pin_set_dt(spec, value);
 }
 
-int csk_read_pin(gpio_port_t port, int pin)
+int csk_read_pin(const struct gpio_dt_spec *spec)
 {
-    return gpio_pin_get(gpio_dev, pin);
+    return gpio_pin_get_dt(spec);
 }
 
 void hosted_gpio_init(void)
 {
-    gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpioa));
-    int ret = gpio_pin_configure(gpio_dev, GPIO_RESET_Pin, GPIO_OUTPUT_ACTIVE | 0);
+    int ret = 0;
+    if (!device_is_ready(data_ready_spec.port) ||
+        !device_is_ready(handshake_spec.port) ||
+        !device_is_ready(reset_spec.port)) {
+		printk("Error: hosted gpio is not ready\n");
+		return;
+	}
+
+    ret = gpio_pin_configure_dt(&data_ready_spec, GPIO_INPUT);
     assert(ret == 0);
-    ret |= gpio_pin_configure(gpio_dev, GPIO_DATA_READY_Pin, GPIO_INPUT);
-    ret |= gpio_pin_interrupt_configure(gpio_dev, GPIO_DATA_READY_Pin, GPIO_INT_EDGE_TO_ACTIVE);
-    ret |= gpio_pin_configure(gpio_dev, GPIO_HANDSHAKE_Pin, GPIO_INPUT);
-    ret |= gpio_pin_interrupt_configure(gpio_dev, GPIO_HANDSHAKE_Pin, GPIO_INT_EDGE_TO_ACTIVE);
+    ret = gpio_pin_configure_dt(&handshake_spec, GPIO_INPUT);
     assert(ret == 0);
-    gpio_init_callback(&gpio_cb_body, gpio_isr_cb, BIT(GPIO_DATA_READY_Pin) | BIT(GPIO_HANDSHAKE_Pin));
-    gpio_add_callback(gpio_dev, &gpio_cb_body);
+    ret = gpio_pin_configure_dt(&reset_spec, GPIO_OUTPUT);
+    assert(ret == 0);
+
+    ret = gpio_pin_interrupt_configure_dt(&data_ready_spec, GPIO_INT_EDGE_TO_ACTIVE);
+    assert(ret == 0);
+    ret = gpio_pin_interrupt_configure_dt(&handshake_spec, GPIO_INT_EDGE_TO_ACTIVE);
+    assert(ret == 0);
+    gpio_init_callback(&gpio_cb_body, gpio_isr_cb, BIT(data_ready_spec.pin) | BIT(handshake_spec.pin));
+    ret = gpio_add_callback(data_ready_spec.port, &gpio_cb_body);
+    assert(ret == 0);
+    ret = gpio_add_callback(handshake_spec.port, &gpio_cb_body);
+    assert(ret == 0);
 }

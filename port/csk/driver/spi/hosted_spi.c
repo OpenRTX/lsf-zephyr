@@ -3,6 +3,7 @@
 
 #include <drivers/spi.h>
 #include "hosted_spi.h"
+#include <assert.h>
 
 typedef struct {
     uint32_t spi_port;
@@ -13,15 +14,23 @@ typedef struct {
 } spi_handle_t;
 
 static const struct device *spi_dev = NULL;
-static struct spi_config spi_cfg;
+static struct spi_config spi_cfg = {0};
 
 int hosted_spi_init(csk_spi_config_t *spi_config, csk_spi_handle_t *csk_spi_handle)
 {
-#if HOSTED_SPI_NUM == 0
-    spi_dev = DEVICE_DT_GET(DT_NODELABEL(spi0));
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(wifi_module), okay)
+    #if DT_PROP(DT_NODELABEL(wifi_module), spi_port) == 0 && DT_NODE_HAS_STATUS(DT_NODELABEL(spi0), okay)
+        spi_dev = DEVICE_DT_GET(DT_NODELABEL(spi0));
+    #elif DT_PROP(DT_NODELABEL(wifi_module), spi_port) == 1 && DT_NODE_HAS_STATUS(DT_NODELABEL(spi1), okay)
+        spi_dev = DEVICE_DT_GET(DT_NODELABEL(spi1));
+    #else
+        spi_dev = NULL;
+    #endif
 #else
-    spi_dev = DEVICE_DT_GET(DT_NODELABEL(spi1));
+    spi_dev = NULL;
 #endif
+    assert(spi_dev != NULL);
 
     if (!device_is_ready(spi_dev)) {
         printk("SPI device %s is not ready\n", spi_dev->name);
