@@ -13,10 +13,11 @@ build:
         idf.py build &&
         esptool.py --chip esp32c3 merge_bin -o esp-hosted-merged.bin --flash_mode dio --flash_size 4MB 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/network_adapter.bin"
     - pwd
-    - docker cp esp-idf:esp-hosted/esp-hosted/esp/esp_driver/network_adapter/build .
+    - docker cp esp-idf:esp-hosted/esp-hosted/esp/esp_driver/network_adapter/esp-hosted-merged.bin .
     - docker rm -v esp-idf
-    - ls build
-
+    artifacts:
+      paths:
+        - esp-hosted-merged.bin
   stage: build
   tags:
     - iflyos-builder
