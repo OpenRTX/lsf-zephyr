@@ -2,7 +2,7 @@ image: "espressif/idf:release-v4.4"
 
 stages:
   - build
-  - packbin
+  - deploy
 
 build:
   script:
@@ -15,17 +15,19 @@ build:
     - pwd
     - docker cp esp-idf:esp-hosted/esp-hosted/esp/esp_driver/network_adapter/esp-hosted-merged.bin .
     - docker rm -v esp-idf
-  artifacts:
-    paths:
-      - esp-hosted-merged.bin
   stage: build
   tags:
     - iflyos-builder
 
-packbin:
+deploy:
   script:
     - ls esp-hosted/esp/esp_driver/network_adapter
-  stage: packbin
+
+  artifacts:
+    name: esp-hosted
+    paths:
+      - esp-hosted-merged.bin
+  stage: deploy
   tags:
     - iflyos-builder
 
