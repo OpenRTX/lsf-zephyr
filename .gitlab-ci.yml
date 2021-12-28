@@ -15,6 +15,7 @@ build:
     - pwd
     - docker cp esp-idf:esp-hosted/esp-hosted/esp/esp_driver/network_adapter/build .
     - docker rm -v esp-idf
+    - ls build
 
   stage: build
   tags:
