@@ -4,26 +4,21 @@ stages:
   - build
   - packbin
 
-before_script:
-  - docker run --rm -v ${PWD}:/esp-hosted espressif/idf:release-v4.4 bash -c
-    "mv /opt/esp/idf/components/protocomm/src/common/protocomm_priv.h /opt/esp/idf/components/protocomm/include/common/ &&
-      cd esp-hosted/esp-hosted/esp/esp_driver/network_adapter &&
-      idf.py set-target esp32c3 &&
-      idf.py build"
-
-
 build:
   script:
-    - ls
-    - pwd
+    - docker run --rm -v ${PWD}:/esp-hosted espressif/idf:release-v4.4 bash -c
+      "mv /opt/esp/idf/components/protocomm/src/common/protocomm_priv.h /opt/esp/idf/components/protocomm/include/common/ &&
+        cd esp-hosted/esp-hosted/esp/esp_driver/network_adapter &&
+        idf.py set-target esp32c3 &&
+        idf.py build"
+
   stage: build
   tags:
     - iflyos-builder
 
 packbin:
   script:
-    - ls
-    - pwd
+    - ls esp-hosted/esp-hosted/esp/esp_driver/network_adapter
   stage: packbin
   tags:
     - iflyos-builder
