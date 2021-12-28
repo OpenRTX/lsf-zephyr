@@ -15,9 +15,9 @@ build:
     - pwd
     - docker cp esp-idf:esp-hosted/esp-hosted/esp/esp_driver/network_adapter/esp-hosted-merged.bin .
     - docker rm -v esp-idf
-    artifacts:
-      paths:
-        - esp-hosted-merged.bin
+  artifacts:
+    paths:
+      - esp-hosted-merged.bin
   stage: build
   tags:
     - iflyos-builder
