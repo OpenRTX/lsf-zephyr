@@ -21,13 +21,3 @@ build:
   stage: build
   tags:
     - iflyos-builder
-
-deploy:
-  script:
-    - ls esp-hosted/esp/esp_driver/network_adapter
-
-  
-  stage: deploy
-  tags:
-    - iflyos-builder
-
