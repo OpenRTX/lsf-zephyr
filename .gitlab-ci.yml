@@ -18,7 +18,7 @@ build:
 
 packbin:
   script:
-    - ls esp-hosted/esp-hosted/esp/esp_driver/network_adapter
+    - ls
   stage: packbin
   tags:
     - iflyos-builder
