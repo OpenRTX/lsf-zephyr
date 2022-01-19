@@ -25,7 +25,7 @@ extern "C" {
 
 /** constants/macros **/
 #define DEBUG_HEX_STREAM_PRINT            0
-#define assert(x) do { if (!(x)) { \
+#define hosted_assert(x) do { if (!(x)) { \
 	printf("Aborting at: %s:%u\n", __FILE__, __LINE__); while(1);}} while (0);
 
 /** Exported Structures **/
