@@ -41,7 +41,7 @@ int control_path_platform_init(void)
 	serial_if_g = serial_init(control_path_rx_indication);
 	if (!serial_if_g) {
 	    printf("Serial interface creation failed\n\r");
-	    assert(serial_if_g);
+	    hosted_assert(serial_if_g);
 	    return STM_FAIL;
 	}
 	if (STM_OK != serial_if_g->fops->open(serial_if_g)) {

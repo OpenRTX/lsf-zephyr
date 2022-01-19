@@ -242,7 +242,7 @@ void spi_link_init(void(*spi_drv_evt_handler)(uint8_t))
 	retval = init_netdev();
 	if (retval) {
 		printf("netdev failed to init\n\r");
-		assert(retval==STM_OK);
+		hosted_assert(retval==STM_OK);
 	}
 
 	/* spi handshake semaphore */
@@ -394,7 +394,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t * txbuff)
 
 	/* Allocate rx buffer */
 	rxbuff = (uint8_t *)k_malloc(MAX_SPI_BUFFER_SIZE);
-	assert(rxbuff);
+	hosted_assert(rxbuff);
 	memset(rxbuff, 0, MAX_SPI_BUFFER_SIZE);
 
 	if(!txbuff) {
@@ -402,7 +402,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t * txbuff)
 		 * valid resetted txbuff is needed for SPI driver
 		 */
 		txbuff = (uint8_t *)k_malloc(MAX_SPI_BUFFER_SIZE);
-		assert(txbuff);
+		hosted_assert(txbuff);
 		memset(txbuff, 0, MAX_SPI_BUFFER_SIZE);
 	}
 	int retval = hosted_spi_send_recv(spi_handle, (uint8_t *) txbuff, (uint8_t *) rxbuff, MAX_SPI_BUFFER_SIZE / 4,
@@ -532,7 +532,7 @@ static void process_rx_task(void *arg1, void *arg2, void *arg3)
 		if (buf_handle.if_type == ESP_SERIAL_IF) {
 
 			serial_buf = (uint8_t *)k_malloc(buf_handle.payload_len);
-			assert(serial_buf);
+			hosted_assert(serial_buf);
 
 			memcpy(serial_buf, payload, buf_handle.payload_len);
 
@@ -546,11 +546,11 @@ static void process_rx_task(void *arg1, void *arg2, void *arg3)
 
 			if (priv) {
 				buffer = (struct net_pbuf *)k_malloc(sizeof(struct net_pbuf));
-				assert(buffer);
+				hosted_assert(buffer);
 
 				buffer->len = buf_handle.payload_len;
 				buffer->payload = k_malloc(buf_handle.payload_len);
-				assert(buffer->payload);
+				hosted_assert(buffer->payload);
 
 				memcpy(buffer->payload, buf_handle.payload,
 						buf_handle.payload_len);
@@ -560,7 +560,7 @@ static void process_rx_task(void *arg1, void *arg2, void *arg3)
 			
 		} else if (buf_handle.if_type == ESP_HCI_IF) {
 			vhci_buf = (uint8_t *)k_malloc(buf_handle.payload_len);
-			assert(vhci_buf);
+			hosted_assert(vhci_buf);
 			memcpy(vhci_buf, payload, buf_handle.payload_len);
 
 			/* vhci interface path */
