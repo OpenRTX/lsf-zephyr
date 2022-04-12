@@ -3,7 +3,7 @@
 
 description: listenai csk spi controller
 
-include: spi-controller.yaml
+include: [spi-controller.yaml, pinctrl-device.yaml]
 
 compatible: "listenai,csk-spi"
 
@@ -13,21 +13,6 @@ properties:
 
     interrupts:
       required: true
-
-    miso-gpios:
-      type: phandle-array
-      required: false
-      description: MISO pin
-
-    mosi-gpios:
-      type: phandle-array
-      required: false
-      description: MOSI pin
-
-    sclk-gpios:
-      type: phandle-array
-      required: false
-      description: SPI generated clock pin
 
     spi-max-frequency:
       type: int

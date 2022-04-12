@@ -10,6 +10,7 @@
 #include <drivers/adc.h>
 #include <kernel.h>
 #include <soc.h>
+#include <soc_dt.h>
 #include <drivers/pinmux.h>
 
 #include "Driver_GPADC.h"
@@ -58,20 +59,9 @@ struct adc_csk6_cfg {
 	const struct device *pinctrls;
 	/* GPIO pin */
 	uint8_t pin;
-	/* Alternate function */
-	uint8_t alt_fun;
-
-	uint8_t ch0_pin;
-	uint8_t ch1_pin;
-	uint8_t ch2_pin;
-
-	uint8_t ch0_func;
-	uint8_t ch1_func;
-	uint8_t ch2_func;
-
-	char *ch0_pinmux_drv;
-	char *ch1_pinmux_drv;
-	char *ch2_pinmux_drv;
+	/* ADC alternate configuration */
+	const struct csk6_pinctrl_cfg *pinctrl_list;
+	uint8_t pinctrl_list_size;
 };
 
 
@@ -98,9 +88,8 @@ static int adc_csk6_start_read(const struct device *dev,
 static int adc_csk6_channel_setup(const struct device *dev,
 				   const struct adc_channel_cfg *channel_cfg)
 {
-	const struct device *pinmux_dev = NULL;
-	uint8_t pin,func;
 	struct adc_csk6_cfg *config = DEV_CFG(dev);
+	uint8_t i = 0;
 
 	if (channel_cfg->channel_id >= ADC_CHANNEL_COUNT) {
 		LOG_ERR("ADC Channel %d is not valid", channel_cfg->channel_id);
@@ -132,30 +121,10 @@ static int adc_csk6_channel_setup(const struct device *dev,
 	switch(channel_cfg->channel_id)
 	{
 		case 0:
-			pinmux_dev = device_get_binding(config->ch0_pinmux_drv);
-			if (!pinmux_dev) {
-				return -EINVAL;
-			}
-			pin = config->ch0_pin;
-			func = config->ch0_func;
-			break;
-
 		case 1:
-			pinmux_dev = device_get_binding(config->ch1_pinmux_drv);
-			if (!pinmux_dev) {
-				return -EINVAL;
-			}
-			pin = config->ch1_pin;
-			func = config->ch1_func;
-			break;
-
 		case 2:
-			pinmux_dev = device_get_binding(config->ch2_pinmux_drv);
-			if (!pinmux_dev) {
-				return -EINVAL;
-			}
-			pin = config->ch2_pin;
-			func = config->ch2_func;
+			i = channel_cfg->channel_id;
+			pinmux_pin_set(config->pinctrl_list[i].pinctrls, config->pinctrl_list[i].pin, config->pinctrl_list[i].alt_fun);
 			break;
 
 		case 6:
@@ -166,12 +135,6 @@ static int adc_csk6_channel_setup(const struct device *dev,
 		default:
 			break;
 	}
-
-	if(pinmux_dev != NULL)
-	{
-		pinmux_pin_set(pinmux_dev, config->ch0_pin, config->ch0_func);
-	}
-
 
 	HAL_GPADC_Control(DEV_HANDLER(dev), CSK_GPADC_SAMPLETIME_8 | CSK_GPADC_CLKFREQ_12M |	\
 	 					(CSK_ADC_CHANNEL_SEL(channel_cfg->channel_id)) | \
@@ -284,8 +247,6 @@ static int adc_csk6_init(const struct device *dev)
 
 	HAL_GPADC_Initialize(DEV_HANDLER(dev));
 
-	LOG_DBG("adc_csk6_init irq:%d priority:%d\n", DT_INST_IRQN(0), DT_INST_IRQ(0, priority));
-
 	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority),
 		    adc_csk6_isr, DEVICE_DT_INST_GET(0), 0);
 
@@ -305,6 +266,10 @@ static const struct adc_driver_api api_stm32_driver_api = {
 };
 
 
+static const struct csk6_pinctrl_cfg                                       							\
+		adc_alts[DT_INST_NUM_PINCTRLS_BY_IDX(0, 0)] =          									\
+			CSK6_DT_ALT_ITEMS_LIST(0); 
+
 static struct adc_csk6_data adc_csk6_data_0 = {
 		ADC_CONTEXT_INIT_TIMER(adc_csk6_data_0, ctx),
 		ADC_CONTEXT_INIT_LOCK(adc_csk6_data_0, ctx),
@@ -312,17 +277,8 @@ static struct adc_csk6_data adc_csk6_data_0 = {
 };
 
 static const struct adc_csk6_cfg adc_csk6_cfg_0 = {
-	.ch0_pin = DT_INST_PHA_BY_NAME(0, pinmuxs, ch0, pin),
-	.ch1_pin = DT_INST_PHA_BY_NAME(0, pinmuxs, ch1, pin),
-	.ch2_pin = DT_INST_PHA_BY_NAME(0, pinmuxs, ch2, pin),
-
-	.ch0_func = DT_INST_PHA_BY_NAME(0, pinmuxs, ch0, function),
-	.ch1_func = DT_INST_PHA_BY_NAME(0, pinmuxs, ch1, function),
-	.ch2_func = DT_INST_PHA_BY_NAME(0, pinmuxs, ch2, function),
-
-	.ch0_pinmux_drv = DT_LABEL(DT_INST_PHANDLE_BY_NAME(0, pinmuxs, ch0)),
-	.ch1_pinmux_drv = DT_LABEL(DT_INST_PHANDLE_BY_NAME(0, pinmuxs, ch1)),
-	.ch2_pinmux_drv = DT_LABEL(DT_INST_PHANDLE_BY_NAME(0, pinmuxs, ch2)),
+		.pinctrl_list = adc_alts, 													   
+		.pinctrl_list_size = ARRAY_SIZE(adc_alts),									   
 };
 
 DEVICE_DT_INST_DEFINE(0, adc_csk6_init,

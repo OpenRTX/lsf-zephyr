@@ -1,9 +1,28 @@
-&spi1 {
-        miso-gpios = <&gpioa 6 7>;
-        mosi-gpios = <&gpioa 7 7>;
-        sclk-gpios = <&gpioa 8 7>; 
-        cs-gpios   = <&gpioa 9 7>;
+&ls_adsp_csk6_pinctrl{
 
+		pinctrl_spi1_sclk_default: spi1_sclk_default {
+            pinctrls = < &pinmuxa 8 7 >;
+		};
+		pinctrl_spi1_mosi_default: spi1_mosi_default {
+            pinctrls = < &pinmuxa 7 7 >;
+		};
+		pinctrl_spi1_miso_default: spi1_miso_default {
+            pinctrls = < &pinmuxa 6 7 >;
+		};
+		pinctrl_spi1_cs_default: spi1_cs_default {
+            pinctrls = < &pinmuxa 9 7 >;
+		}; 
+
+        pinctrl_uart2_rx_default: uart2_rx_default {
+			pinctrls = < &pinmuxb 7 3 >;
+		};
+		pinctrl_uart2_tx_default: uart2_tx_default {
+			pinctrls = < &pinmuxb 6 3 >;
+		};
+
+};
+
+&spi1 {
         status = "okay";
         spi-max-frequency = <25000000>;
 
@@ -18,7 +37,5 @@
 
 &uart2 {
 	current-speed = <921600>;
-	pinmuxs = <&pinmuxb 7 3>, <&pinmuxb 6 3>;
-    /* pinmux-names = "RXD", "TXD"; */
 	status = "okay";
 };

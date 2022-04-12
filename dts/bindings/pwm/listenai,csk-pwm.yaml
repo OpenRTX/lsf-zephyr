@@ -2,7 +2,7 @@ description: CSK6001 PWM
 
 compatible: "listenai,csk-pwm"
 
-include: [pwm-controller.yaml, base.yaml]
+include: [pwm-controller.yaml, base.yaml, pinctrl-device.yaml]
 
 properties:
     label:
@@ -41,13 +41,6 @@ properties:
        - 64
        - 128
       description: PWM Peripheral Clock Prescaler.
-
-
-    pinmuxs:
-      type: phandle-array
-      required: true
-      description: PWM PINMUX
-
 
     "#pwm-cells":
       const: 2

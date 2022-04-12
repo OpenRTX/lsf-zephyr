@@ -19,4 +19,7 @@ properties:
 pinmux-cells:
   - pin
   - function
-  
+
+pinctrl-cells:
+  - pin
+  - alt_func

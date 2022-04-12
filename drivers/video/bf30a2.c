@@ -680,9 +680,9 @@ static int bf30a2_dev_init(const struct device *dev)
 
 #define BF30A2_PWM_DT_SPEC_GET(node_id)                                                            \
 	{                                                                                          \
-		.pwm = DEVICE_DT_GET(DT_PROP(node_id, xclk_pwm)),                                  \
-		.pin = DT_PHA_BY_IDX(DT_PROP(node_id, xclk_pwm), pinmuxs, 0, pin),                 \
-		.flag = DT_PWMS_FLAGS(DT_PROP(node_id, xclk_pwm)),                                 \
+		.pwm = DEVICE_DT_GET(DT_PWMS_CTLR(node_id)),                                  \
+		.pin = DT_PWMS_CHANNEL(node_id),                 \
+		.flag = DT_PWMS_FLAGS(node_id),                                 \
 	}
 
 #define BF30A2_CHIP_DATA(inst)                                                                     \

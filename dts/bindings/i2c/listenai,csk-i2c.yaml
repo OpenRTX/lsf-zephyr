@@ -4,7 +4,7 @@ description: CSK I2C node
 
 compatible: "listenai,csk-i2c"
 
-include: i2c-controller.yaml
+include: [i2c-controller.yaml, pinctrl-device.yaml]
 
 properties:
     reg:
@@ -12,15 +12,4 @@ properties:
 
     interrupts:
       required: true
-
-    pinmuxs:
-      type: phandle-array
-      required: true
-      description: SCL and SDA pinmux
-
-    pinmux-names:
-      type: string-array
-      required: true
-      description: I2C pins names
-
 

@@ -9,6 +9,7 @@
 #include <errno.h>
 
 #include <soc.h>
+#include <soc_dt.h>
 #include <drivers/pwm.h>
 #include <drivers/pinmux.h>
 #include <device.h>
@@ -27,12 +28,12 @@ LOG_MODULE_REGISTER(pwm_csk6001, CONFIG_PWM_LOG_LEVEL);
 
 /** PWM configuration. */
 struct pwm_csk_config {
-	uint8_t pwm_pin;
-	uint8_t pwm_func;
 	uint8_t clock_source;
 	uint8_t clock_prescaler;
 	uint8_t mode;
-	const struct device *pinmux_drv;
+	/* PWM alternate configuration */
+    const struct csk6_pinctrl_cfg *pinctrl_list;
+    uint8_t pinctrl_list_size;
 };
 
 static uint32_t get_polarity(pwm_flags_t flags)
@@ -127,29 +128,33 @@ static const struct pwm_driver_api pwm_csk_driver_api = {
 
 static int pwm_csk_init(const struct device *dev)
 {
-	const struct pwm_csk_config *cfg = dev->config;
+	const struct pwm_csk_config *config = dev->config;
 	HAL_GPT_PWMInitialize(GPT0_PWM(), NULL);
 	HAL_GPT_PWMPowerControl(GPT0_PWM(), CSK_POWER_FULL);
-	pinmux_pin_set(cfg->pinmux_drv, cfg->pwm_pin, cfg->pwm_func);
+
+	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
+	
 	return 0;
 }
 
-
-#define PWM_DEVICE_INIT(index)                                                 \
-									       \
-	static const struct pwm_csk_config pwm_csk_config_##index = {      \
-		.clock_source = DT_INST_PROP(index, clock_source),                \
-		.clock_prescaler = DT_INST_PROP(index, clock_prescaler),           \
-		.mode = DT_INST_PROP(index, mode),           						\
-		.pwm_pin = DT_PHA_BY_IDX(DT_DRV_INST(index), pinmuxs, 0, pin),           	\
-		.pwm_func = DT_PHA_BY_IDX(DT_DRV_INST(index), pinmuxs, 0, function),           	\
-		.pinmux_drv = DEVICE_DT_GET(DT_INST_PHANDLE_BY_IDX(index, pinmuxs, 0))           	\
-	};                                                                     \
-									       \
-	DEVICE_DT_INST_DEFINE(index, &pwm_csk_init, NULL,                    \
-			    NULL,                           \
-			    &pwm_csk_config_##index, POST_KERNEL,            \
-			    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,                \
+#define PWM_DEVICE_INIT(index)                                                 	\
+																				\
+	static const struct csk6_pinctrl_cfg                                        \
+        pwm_alts_##index[DT_INST_NUM_PINCTRLS_BY_IDX(index, 0)] =               \
+            CSK6_DT_ALT_ITEMS_LIST(index);                                      \
+									               								\
+	static const struct pwm_csk_config pwm_csk_config_##index = {      			\
+		.clock_source = DT_INST_PROP(index, clock_source),                		\
+		.clock_prescaler = DT_INST_PROP(index, clock_prescaler),           		\
+		.mode = DT_INST_PROP(index, mode),           							\
+        .pinctrl_list = pwm_alts_##index,                   					\
+		.pinctrl_list_size = ARRAY_SIZE(pwm_alts_##index),                      \
+	};                                                                     		\
+																				\
+	DEVICE_DT_INST_DEFINE(index, &pwm_csk_init, NULL,                    		\
+			    NULL,                           								\
+			    &pwm_csk_config_##index, POST_KERNEL,            				\
+			    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,                				\
 			    &pwm_csk_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(PWM_DEVICE_INIT)

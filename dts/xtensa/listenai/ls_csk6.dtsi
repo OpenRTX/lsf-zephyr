@@ -42,6 +42,7 @@
 		compatible = "listenai,csk-pinmux";
 		reg = <0x46200000 0x80>;
 		#pinmux-cells = <2>;
+		#pinctrl-cells = <2>;
 		label = "PINMUX_A";
 		status = "okay";
 	};
@@ -50,6 +51,7 @@
 		compatible = "listenai,csk-pinmux";
 		reg = <0x46200080 0xc0>;
 		#pinmux-cells = <2>;
+		#pinctrl-cells = <2>;
 		label = "PINMUX_B";
 		status = "okay";
 	};
@@ -71,6 +73,8 @@
 		interrupt-parent = <&core_intc>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
+		pinctrl-names = "default";
 	};
 
 	dma0: dma-controller@4A200000 {

@@ -4,7 +4,7 @@ description: CSK ADC node
 
 compatible: "listenai,csk-adc"
 
-include: adc-controller.yaml
+include: [adc-controller.yaml, pinctrl-device.yaml]
 
 properties:
     reg:
@@ -12,17 +12,6 @@ properties:
 
     interrupts:
       required: true
-
-    pinmuxs:
-      type: phandle-array
-      required: true
-      description: pinmuxs for each channel
-
-    pinmux-names:
-      type: string-array
-      required: true
-      description: channel index
-
 
     "#io-channel-cells":
       const: 1

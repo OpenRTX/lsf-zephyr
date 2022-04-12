@@ -13,6 +13,7 @@
 
 #define DT_DRV_COMPAT listenai_csk_uart
 
+#include <soc_dt.h>
 #include <drivers/uart.h>
 #include <drivers/pinmux.h>
 #include "hal/Driver_UART.h"
@@ -28,17 +29,12 @@ struct csk_uart_data {
 #endif
 };
 
-struct pin_ctrl {
-	char *name;
-	uint8_t num;
-	uint8_t func;
-};
-
 struct csk_uart_config {
 	volatile uint32_t reg_addr;
 	volatile uint32_t baud_rate;
-	struct pin_ctrl rx_pin;
-	struct pin_ctrl tx_pin;
+    /* UART alternate configuration */
+    const struct csk6_pinctrl_cfg *pinctrl_list;
+    uint8_t pinctrl_list_size;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);
 #endif
@@ -288,19 +284,8 @@ static int csk_uart_init(const struct device *dev)
 	/* restore interrupt state */
 	irq_unlock(old_level);
 
-	const struct device *rx_pinmux_drv, *tx_pinmux_drv;
 	/* Configure RX and TX pin via the pinmux driver */
-	rx_pinmux_drv = device_get_binding(config->rx_pin.name);
-	if (!rx_pinmux_drv) {
-		return -EINVAL;
-	}
-	pinmux_pin_set(rx_pinmux_drv, config->rx_pin.num, config->rx_pin.func);
-
-	tx_pinmux_drv = device_get_binding(config->tx_pin.name);
-	if (!tx_pinmux_drv) {
-		return -EINVAL;
-	}
-	pinmux_pin_set(tx_pinmux_drv, config->tx_pin.num, config->tx_pin.func);
+	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
 
 	return 0;
 }
@@ -343,15 +328,16 @@ static const struct uart_driver_api csk_uart_driver_api = {
 	CSK_UART_IRQ_HANDLER(index)                                                                \
 	static struct csk_uart_data csk_uart_data_##index = {};                                    \
                                                                                                    \
+																				\
+	static const struct csk6_pinctrl_cfg                                        \
+        uart_alts_##index[DT_INST_NUM_PINCTRLS_BY_IDX(index, 0)] =              \
+            CSK6_DT_ALT_ITEMS_LIST(index);                                      \
+																				\
 	static const struct csk_uart_config csk_uart_cfg_##index = {                               \
 		.reg_addr = DT_INST_REG_ADDR(index),                                               \
 		.baud_rate = DT_INST_PROP(index, current_speed),                                   \
-		.rx_pin.name = DT_LABEL(DT_INST_PHANDLE_BY_IDX(index, pinmuxs, 0)),                \
-		.rx_pin.num = DT_PHA_BY_IDX(DT_DRV_INST(index), pinmuxs, 0, pin),                  \
-		.rx_pin.func = DT_PHA_BY_IDX(DT_DRV_INST(index), pinmuxs, 0, function),            \
-		.tx_pin.name = DT_LABEL(DT_INST_PHANDLE_BY_IDX(index, pinmuxs, 1)),                \
-		.tx_pin.num = DT_PHA_BY_IDX(DT_DRV_INST(index), pinmuxs, 1, pin),                  \
-		.tx_pin.func = DT_PHA_BY_IDX(DT_DRV_INST(index), pinmuxs, 1, function),            \
+		.pinctrl_list = uart_alts_##index,                                       		   \
+        .pinctrl_list_size = ARRAY_SIZE(uart_alts_##index),                                \
 		CSK_UART_IRQ_CFG_FUNC_CONF(index)                                                  \
 	};                                                                                         \
                                                                                                    \

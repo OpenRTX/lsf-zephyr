@@ -1,10 +1,28 @@
+&csk6002_c3_nano_pinctrl{
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxa 4 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxa 5 8>;
+                };    
+
+                pinctrl_spi0_sclk_default: spi0_sclk_default {
+                        pinctrls = < &pinmuxa 19 6 >;
+                };
+                pinctrl_spi0_mosi_default: spi0_mosi_default {
+                        pinctrls = < &pinmuxa 18 6 >;
+                };
+                pinctrl_spi0_miso_default: spi0_miso_default {
+                        pinctrls = < &pinmuxa 17 6 >;
+                };
+                pinctrl_spi0_cs_default: spi0_cs_default {
+                        pinctrls = < &pinmuxa 20 6 >;
+                }; 
+};
+
 &spi0 {
     status = "okay";
-    miso-gpios = <&gpioa 17 0>;
-    mosi-gpios = <&gpioa 18 0>;
-    sclk-gpios = <&gpioa 19 0>;
-    cs-gpios = <&gpioa 20 0>;
-
 	st7789v@0 {
             compatible = "sitronix,st7789v";
             label = "ST7789V";
@@ -52,8 +70,6 @@
 
 &i2c0 {
         status = "okay";
-        pinmuxs = <&pinmuxa 4 8>, <&pinmuxa 5 8>;
-        pinmux-names = "SCL", "SDA";
 
         bl6xxx@0 {
                 compatible = "betterlife,bl6xxx";

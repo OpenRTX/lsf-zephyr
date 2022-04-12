@@ -1,3 +1,7 @@
 sample:
   name: keysense 
 
+tests:
+  sample.board.csk6001.driver.keysense:
+    platform_allow: csk6001_tester
+    tags: csk6001

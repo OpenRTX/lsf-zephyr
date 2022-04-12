@@ -13,6 +13,8 @@
 #include <errno.h>
 #include <drivers/spi.h>
 #include <drivers/clock_control.h>
+#include <drivers/pinmux.h>
+#include <soc_dt.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(csk6001_spi, CONFIG_SPI_LOG_LEVEL);
@@ -23,6 +25,13 @@ LOG_MODULE_REGISTER(csk6001_spi, CONFIG_SPI_LOG_LEVEL);
 #include "hal/Driver_SPI.h"
 #include "hal/IOMuxManager.h"
 
+#define SPI0_LABEL "SPI_0"
+#define SPI1_LABEL "SPI_1"
+
+#define DEV_CFG(dev) ((const struct csk_spi_config *const)(dev)->config)
+#define DEV_DATA(dev) ((struct csk_spi_data *const)(dev)->data)
+#define DEV_LABEL(dev) ((char *)(DEV_CFG(dev))->label)
+
 typedef void *spi_driver_ctx_t;
 
 struct csk_spi_data {
@@ -30,6 +39,31 @@ struct csk_spi_data {
 	size_t current_transfer_len;
 	spi_driver_ctx_t driver_context;
 };
+
+struct csk_spi_config {
+	char *label;
+	void (*irq_config_func)(const struct device *dev);
+	/* SPI alternate configuration */
+    const struct csk6_pinctrl_cfg *pinctrl_list;
+    uint8_t pinctrl_list_size;
+};
+
+static void *spi_csk_get_ctx(const struct device *dev)
+{
+	const char *label = DEV_LABEL(dev);
+
+	if(!strcmp(label, SPI0_LABEL))
+	{
+		return SPI0();
+	}else if(!strcmp(label, SPI1_LABEL))
+	{
+		return SPI1();
+	}else{
+		LOG_ERR("ERR SPI LABEL:%s \n", label);
+	}
+
+	return NULL;
+}
 
 static int csk_spi_configure(const struct device *dev, const struct spi_config *spi_cfg)
 {
@@ -208,93 +242,62 @@ static const struct spi_driver_api csk_spi_driver_api = {
 	 .release = csk_spi_release,
 };
 
-#define SPI_CONFIG_CS(n, func) \
-do {                     \
-    const char *cs_gpio_label = DT_LABEL(DT_GPIO_CTLR_BY_IDX(DT_NODELABEL(spi##n), cs_gpios, 0)); \
-    const int cs_gpio_label_len = strlen(cs_gpio_label);                                        \
-    int cs_pad_num = (cs_gpio_label[cs_gpio_label_len - 1] == 'A')? 0 :                         \
-					(cs_gpio_label[cs_gpio_label_len - 1] == 'B')? 1 : -1;                  \
-    assert(cs_pad_num != -1);  \
-	ARG_UNUSED(cs_pad_num);	\
-    IOMuxManager_PinConfigure(sclk_pad_num, DT_PHA_BY_IDX(DT_NODELABEL(spi##n), cs_gpios, 0, pin), func);\
-} while (0)
+static int spi_csk_init(const struct device *dev)
+{
+	const struct csk_spi_config *config = DEV_CFG(dev);
+	struct csk_spi_data *data = DEV_DATA(dev);
 
-#define SPI_CONFIG_PINS(n, func)	do { \
-	_Static_assert(DT_NODE_HAS_PROP(DT_NODELABEL(spi##n), mosi_gpios), "Could not found mosi-gpio"); \
-	_Static_assert(DT_NODE_HAS_PROP(DT_NODELABEL(spi##n), miso_gpios), "Could not found miso-gpio"); \
-	_Static_assert(DT_NODE_HAS_PROP(DT_NODELABEL(spi##n), sclk_gpios), "Could not found sclk-gpio"); \
-                                \
-     /* spi signals will always locate at IOMUX function 6(spi0) and 7(spi1) */                   \
-    const char *mosi_gpio_label = DT_LABEL(DT_GPIO_CTLR_BY_IDX(DT_NODELABEL(spi##n), mosi_gpios, 0));\
-    const int mosi_gpio_label_len = strlen(mosi_gpio_label);                                      \
-    int mosi_pad_num = (mosi_gpio_label[mosi_gpio_label_len - 1] == 'A')? 0 :                     \
-                        (mosi_gpio_label[mosi_gpio_label_len - 1] == 'B')? 1 : -1;                \
-                                 \
-    const char *miso_gpio_label = DT_LABEL(DT_GPIO_CTLR_BY_IDX(DT_NODELABEL(spi##n), miso_gpios, 0));\
-    const int miso_gpio_label_len = strlen(miso_gpio_label);                                      \
-    int miso_pad_num = (miso_gpio_label[miso_gpio_label_len - 1] == 'A')? 0 :                     \
-                        (miso_gpio_label[miso_gpio_label_len - 1] == 'B')? 1 : -1;                \
-                                 \
-    const char *sclk_gpio_label = DT_LABEL(DT_GPIO_CTLR_BY_IDX(DT_NODELABEL(spi##n), sclk_gpios, 0));\
-    const int sclk_gpio_label_len = strlen(sclk_gpio_label);                                      \
-    int sclk_pad_num = (sclk_gpio_label[sclk_gpio_label_len - 1] == 'A')? 0 :                     \
-                        (sclk_gpio_label[sclk_gpio_label_len - 1] == 'B')? 1 : -1;                \
-    assert(mosi_pad_num != -1 && mosi_pad_num != -1 && sclk_pad_num != -1);                       \
-    IOMuxManager_PinConfigure(mosi_pad_num, DT_PHA_BY_IDX(DT_NODELABEL(spi##n), mosi_gpios, 0, pin), func);	\
-    IOMuxManager_PinConfigure(miso_pad_num, DT_PHA_BY_IDX(DT_NODELABEL(spi##n), miso_gpios, 0, pin), func);	\
-    IOMuxManager_PinConfigure(sclk_pad_num, DT_PHA_BY_IDX(DT_NODELABEL(spi##n), sclk_gpios, 0, pin), func); \
-    SPI##n##_CONFIG_CS(n);          \
-} while(0)
+	/* Get device handle */
+	data->driver_context = spi_csk_get_ctx(dev);
+             
+	/* Fixme: rework the SPI_Initialize(), let the user parameter become void* type */  
+	SPI_Initialize(data->driver_context, csk_spi_isr_callback, (uint32_t)dev);                    
+	SPI_PowerControl(data->driver_context, CSK_POWER_FULL);                                        
 
-#define SPI_CSK_SPI_INIT(n)						             \
-	static int csk_spi_##n##_init(const struct device *dev); \
-	static struct csk_spi_data csk_spi_##n##_data = {	     \
-		SPI_CONTEXT_INIT_LOCK(csk_spi_##n##_data, ctx),		 \
-		SPI_CONTEXT_INIT_SYNC(csk_spi_##n##_data, ctx),		 \
-	};	\
-	DEVICE_DT_DEFINE(DT_NODELABEL(spi##n),                                 \
-				&csk_spi_##n##_init,                         \
-				NULL,			                             \
-			    &csk_spi_##n##_data,				         \
-			    NULL,		                                 \
-				POST_KERNEL,				                 \
-			    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,		     \
-			    &csk_spi_driver_api);			             \
-        \
-	static int csk_spi_##n##_init(const struct device *dev)	 \
-	{	\
-		struct csk_spi_data *data = dev->data;		         \
-		data->driver_context = SPI##n();		             \
-		/* Fixme: rework the SPI_Initialize(), let the user parameter become void* type */  \
-        SPI_Initialize(data->driver_context, csk_spi_isr_callback, (uint32_t)dev);                    \
-		SPI_PowerControl(data->driver_context, CSK_POWER_FULL);                                        \
-		IRQ_CONNECT(DT_IRQN(DT_NODELABEL(spi##n)), DT_IRQ(DT_NODELABEL(spi##n), priority),	            \
-			        csk_zephyr_spi_isr, DEVICE_DT_GET(DT_NODELABEL(spi##n)), 0);       \
-		irq_enable(DT_IRQN(DT_NODELABEL(spi##n)));  \
-        SPI##n##_CONFIG_PINS(n);                                      \
-		spi_context_unlock_unconditionally(&data->ctx);		 \
-		return 0;						                     \
-	}
+	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);   
 
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(spi0), okay)
-#if DT_NODE_HAS_PROP(DT_NODELABEL(spi0), cs_gpios)
-    #define SPI0_CONFIG_CS(n)   SPI_CONFIG_CS(n, CSK_IOMUX_FUNC_ALTER6)
-#else
-    #define SPI0_CONFIG_CS(n)
-#endif
-#define SPI0_CONFIG_PINS(n)  SPI_CONFIG_PINS(n, CSK_IOMUX_FUNC_ALTER6)
-SPI_CSK_SPI_INIT(0);
-#endif
+	/* IRQ_CONNECT and irq_enable */
+	config->irq_config_func(dev);
 
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(spi1), okay)
-#if DT_NODE_HAS_PROP(DT_NODELABEL(spi1), cs_gpios)
-    #define SPI1_CONFIG_CS(n)   SPI_CONFIG_CS(n, CSK_IOMUX_FUNC_ALTER7)
-#else
-    #define SPI1_CONFIG_CS(n)
-#endif
-#define SPI1_CONFIG_PINS(n)  SPI_CONFIG_PINS(n, CSK_IOMUX_FUNC_ALTER7)
-SPI_CSK_SPI_INIT(1);
-#endif
+	spi_context_unlock_unconditionally(&data->ctx);		
+
+	return 0;	
+}
+
+#define SPI_DEVICE_INIT(n)                                                 	\
+																				\
+	static void spi_csk_config_func_##n(const struct device *dev)               \
+	{             																		\
+																						\
+		IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), csk_zephyr_spi_isr,                \
+			    DEVICE_DT_INST_GET(n), 0);                                             \
+                                                                                                   \
+		irq_enable(DT_INST_IRQN(n));                                                       \
+	}																			\
+																				\
+	static const struct csk6_pinctrl_cfg                                        \
+        spi_alts_##n[DT_INST_NUM_PINCTRLS_BY_IDX(n, 0)] =               \
+            CSK6_DT_ALT_ITEMS_LIST(n);                                      \
+									               								\
+	static const struct csk_spi_config csk_spi_config_##n = {      			\
+		.label = DT_INST_LABEL(n),											\
+		.irq_config_func = spi_csk_config_func_##n,                             \
+        .pinctrl_list = spi_alts_##n,                   					\
+		.pinctrl_list_size = ARRAY_SIZE(spi_alts_##n),                      \
+	};                                                                     		\
+																				\
+	static struct csk_spi_data csk_spi_data_##n = {	     					\
+		SPI_CONTEXT_INIT_LOCK(csk_spi_data_##n, ctx),		 					\
+		SPI_CONTEXT_INIT_SYNC(csk_spi_data_##n, ctx),		 					\
+	};																			\
+																				\
+	DEVICE_DT_INST_DEFINE(n, &spi_csk_init, NULL,                    		\
+			    &csk_spi_data_##n,                           				\
+			    &csk_spi_config_##n, POST_KERNEL,            				\
+			    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,                				\
+			    &csk_spi_driver_api);
+
+DT_INST_FOREACH_STATUS_OKAY(SPI_DEVICE_INIT)
 
 #ifdef CONFIG_SOC_CSK6001
 #pragma GCC pop_options

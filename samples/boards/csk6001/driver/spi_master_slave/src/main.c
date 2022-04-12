@@ -159,9 +159,6 @@ void slave_thread(void *v1, void *v2, void *v3)
 			slave_buffer_rx[i] = 0x55;
 		}
 		printk("\n");
-		
-
-		k_msleep(10);
 
 	}
 }

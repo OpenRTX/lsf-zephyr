@@ -1,3 +1,7 @@
 sample:
   description: Sample application for displays
   name: display_sample
+tests:
+  sample.board.csk6001.display.kscan:
+    platform_allow: csk6001_tester
+    tags: csk6001

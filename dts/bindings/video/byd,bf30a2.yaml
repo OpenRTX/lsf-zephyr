@@ -34,10 +34,10 @@ properties:
       type: phandle
       required: false
       description: spi-bus
-    xclk-pwm:
-      type: phandle
+    pwms:
+      type: phandle-array
       required: true
-      description: xclk-pwm
+      description: pwm output to xclk
     xclk-freq:
       type: int
       required: true

@@ -1,3 +1,4 @@
-sample:
-  name: ADC driver sample
-
+tests:
+  sample.board.csk6001.driver.adc:
+    platform_allow: csk6001_tester
+    tags: csk6001

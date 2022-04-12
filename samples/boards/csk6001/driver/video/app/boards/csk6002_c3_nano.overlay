@@ -1,3 +1,27 @@
+&csk6002_c3_nano_pinctrl{
+
+                pinctrl_pwm4_default: pwm4_default{
+                    pinctrls = <&pinmuxa 4 11>;
+                };  
+
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 0 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 1 8>;
+                };    
+
+                pinctrl_uart1_rx_default: uart1_rx_default{
+                        pinctrls = <&pinmuxa 8 3>;
+                };
+                
+                pinctrl_uart1_tx_default: uart1_tx_default{
+                        pinctrls = <&pinmuxa 9 3>;
+                };     
+
+};
+
 /{
     pwmleds {
 		compatible = "pwm-leds";
@@ -16,7 +40,6 @@
     };
 
 	pwm4: pwm4 {
-        pinmuxs = <&pinmuxa 4 11>;
         clock-prescaler = <1>;
         status = "okay";
     };
@@ -33,8 +56,6 @@
 
 &i2c0 {
         status = "okay";
-        pinmuxs = <&pinmuxb 0 8>, <&pinmuxb 1 8>;
-        pinmux-names = "SCL", "SDA";
 
         bf30a2: bf30a2@6e {
             compatible = "byd,bf30a2";
@@ -45,10 +66,10 @@
             pwr-gpios = <&gpioa 5 0>;
             product-id = <0x3b02>;
             spi = <&spi0>;
-            xclk-pwm = <&pwm4>;
+            pwms = <&pwm4 0x4 0x0>;
             xclk-freq = <12500>;
             csk6-spec;
-    };
+        };
 };
 
 &i2c1 {
@@ -62,5 +83,4 @@
 &uart1 {
     status = "disabled";
     current-speed = <115200>;
-	pinmuxs = < &pinmuxa 8 3>, < &pinmuxa 9 3>;
 };
