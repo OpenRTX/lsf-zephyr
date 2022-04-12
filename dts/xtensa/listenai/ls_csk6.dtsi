@@ -73,6 +73,8 @@
 		interrupt-parent = <&core_intc>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
+		pinctrl-names = "default";
 	};
 
 	dma0: dma-controller@4A200000 {

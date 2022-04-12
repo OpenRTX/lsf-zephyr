@@ -258,6 +258,10 @@ static const struct csk6_pinctrl_cfg                                       					
 			CSK6_DT_ALT_ITEMS_LIST(0); 
 #endif
 
+static const struct csk6_pinctrl_cfg                                       							\
+		adc_alts[DT_INST_NUM_PINCTRLS_BY_IDX(0, 0)] =          									\
+			CSK6_DT_ALT_ITEMS_LIST(0); 
+
 static struct adc_csk6_data adc_csk6_data_0 = {
 		ADC_CONTEXT_INIT_TIMER(adc_csk6_data_0, ctx),
 		ADC_CONTEXT_INIT_LOCK(adc_csk6_data_0, ctx),
