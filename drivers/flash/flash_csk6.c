@@ -5,7 +5,7 @@
  */
 
 #define DT_DRV_COMPAT listenai_csk_flash_controller
-#define SOC_NV_FLASH_NODE DT_INST(0, soc_nv_flash)
+#define SOC_NV_FLASH_NODE DT_INST(0, listenai_csk_nv_flash)
 
 #define FLASH_WRITE_BLK_SZ DT_PROP(SOC_NV_FLASH_NODE, write_block_size)
 #define FLASH_ERASE_BLK_SZ DT_PROP(SOC_NV_FLASH_NODE, erase_block_size)
@@ -16,6 +16,7 @@
 #include <kernel.h>
 #include <drivers/flash.h>
 #include "hal/spiflash.h"
+#include "mem.h"   // for macro "DT_SIZE_M"
 
 #define FALSH_DISABLE_IRQ (1)
 #if FALSH_DISABLE_IRQ
@@ -32,8 +33,10 @@ typedef struct {
 
 csk6_flash_config_t csk6_flash_config = { .flash_dev = {
 							.base_addr = DT_INST_REG_ADDR(0),
-							.spi_enum = FLASH_SPI_1_INN,
-							.w_protect = false,
+							.d_width = 4,
+							.sclk_div = 0, //divider is 1
+							.run_mod = RUN_WITH_INT,
+							.timeout = 0,
 						} };
 
 static const struct flash_parameters flash_csk6_parameters = {
@@ -63,20 +66,22 @@ static int flash_csk6_read(const struct device *dev, off_t address, void *buffer
 static int inline flash_csk6_write_with_cp(const struct device *dev, off_t address, const void *buffer,size_t length){
 
 	char cbuffer[32];
-	char* pos = (char*) buffer;
-	char* pTail = (char*)buffer + length;
+	char *pos = (char *)buffer;
+	char *pTail = (char *)buffer + length;
 	int iret = 0;
 	int32_t cpLen = 0;
 
-	do{
-		cpLen = (pTail - pos)>sizeof(cbuffer)?sizeof(cbuffer):(pTail - pos);
-		memcpy(cbuffer,pos,cpLen);
-		if (0 != sflash_write((void *)dev->config, FLASH_BASE_ADDRESS + address+(pos - (char*)buffer), cbuffer, cpLen)) {
+	do {
+		cpLen = (pTail - pos) > sizeof(cbuffer) ? sizeof(cbuffer) : (pTail - pos);
+		memcpy(cbuffer, pos, cpLen);
+		if (0 != sflash_write((void *)dev->config,
+				      FLASH_BASE_ADDRESS + address + (pos - (char *)buffer),
+				      cbuffer, cpLen)) {
 			iret = -EIO;
 			break;
-		} 		
+		}
 		pos += cpLen;
-	}while((uint32_t)pos < (uint32_t)buffer + length);
+	} while ((uint32_t)pos < (uint32_t)buffer + length);
 
 	return iret;
 }
@@ -157,8 +162,11 @@ static const struct flash_parameters *flash_csk6_get_parameters(const struct dev
 static int flash_csk6_init(const struct device *dev)
 {
 	unsigned int key;
+
+	((FLASH_DEV*)((void *)dev->config))->ext_addr4_mode = FLASH_CHIP_SZ > DT_SIZE_M(16) ? 1 : 0;
+
 	key = irq_lock();
-	sflash_init();
+	sflash_init((void *)dev->config);
 	irq_unlock(key);
 	return 0;
 }
