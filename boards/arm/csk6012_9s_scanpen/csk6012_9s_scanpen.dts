@@ -3,6 +3,72 @@
 /dts-v1/;
 #include <csk/csk6001.dtsi>
 #include <dt-bindings/pwm/pwm.h>
+#include "csk6012_9s_scanpen_pinctrl.dtsi"
+
+&csk6012_9s_scanpen_pinctrl{
+        pinctrl_pwm1_default: pwm1_default{
+                pinctrls = <&pinmuxa 1 11>;
+        };
+        /* SPIC alternate function */
+        pinctrl_spi0_cs_default: spi0_cs_default{
+                pinctrls = <&pinmuxa 12 6>;
+        };
+
+        pinctrl_spi0_miso_default: spi0_miso_default{
+                pinctrls = <&pinmuxa 13 6>;
+        };
+
+        pinctrl_spi0_mosi_default: spi0_mosi_default{
+                pinctrls = <&pinmuxa 10 6>;
+        };
+
+        pinctrl_spi0_sclk_default: spi0_sclk_default{
+                pinctrls = <&pinmuxa 11 6>;
+        };
+        
+        pinctrl_spi1_sclk_default: spi1_sclk_default{
+        };
+        
+        pinctrl_spi1_mosi_default: spi1_mosi_default{
+        };
+
+        pinctrl_spi1_miso_default: spi1_miso_default{
+        };    
+
+        pinctrl_spi1_cs_default: spi1_cs_default{
+        };
+
+        /* I2C alternate function */
+        pinctrl_i2c0_scl_default: i2c0_scl_default{
+                pinctrls = <&pinmuxb 2 8>;
+        };
+        
+        pinctrl_i2c0_sda_default: i2c0_sda_default{
+                pinctrls = <&pinmuxb 3 8>;
+        };
+        /* UART alternate function */
+        pinctrl_uart0_rx_default: uart0_rx_default{
+                pinctrls = <&pinmuxb 10 2>;
+        };
+        
+        pinctrl_uart0_tx_default: uart0_tx_default{
+                pinctrls = <&pinmuxb 11 2>;
+        };
+
+        /* ADC alternate function */
+        pinctrl_adc0_ch0_default: adc0_ch0_default{
+                pinctrls = <&pinmuxb 6 16>;
+        };
+        
+        pinctrl_adc0_ch1_default: adc0_ch1_default{
+                pinctrls = <&pinmuxb 7 16>;
+        };
+
+        pinctrl_adc0_ch2_default: adc0_ch2_default{
+                pinctrls = <&pinmuxb 8 16>;
+        };
+        
+};
 
 / {
         model = "csk6012 9s scanpen";
@@ -47,17 +113,28 @@
                         gpios = <&gpiob 4 1>;
                         label = "power_lock";
                 };
+                pwm1pin: pwm1pin {
+                        gpios = <&gpioa 1 11>;
+                        label = "power_lock";
+                };
 
         };
 
-        /*
-         * Your board-specific hardware: buttons, LEDs, sensors, etc.
-         */
+        xr819s: xr819s {
+                compatible = "wifi,xr819s";
+                label = "WiFi module";
+                dataready-gpios = <&gpioa 16 0>;
+                reset-gpios = <&gpioa 17 0>;
+                sdio-clk-gpios = <&gpioa 20 0>;
+                sdio-cmd-gpios = <&gpioa 18 0>;
+                sdio-dat0-gpios = <&gpioa 19 0>;
+                status = "okay";
+        };
+
 };
 &gpt0 {
 	status = "okay";
 	pwmlcd: pwm1 {
-                pinmuxs = <&pinmuxa 1 11>;
                 clock-prescaler = <1>;
                 status = "okay";
 	};
@@ -65,10 +142,6 @@
 
 &spi0 {
         status = "okay";
-        miso-gpios = <&gpioa 13 0>;
-        mosi-gpios = <&gpioa 10 0>;
-        sclk-gpios = <&gpioa 11 0>;
-        cs-gpios = <&gpioa 12 0>;
     
             st7789v@0 {
                 compatible = "sitronix,st7789v";
@@ -78,7 +151,6 @@
                 reg = <0>;
                 cmd-data-gpios = <&gpioa 14 1>;
                 reset-gpios = <&gpioa 15 1>;
-                pinmuxs = <&pinmuxa 14 1>, <&pinmuxa 15 0>;
                 width = <320>;
                 height = <170>;
                 x-offset = <0>;
@@ -121,8 +193,6 @@
 };
 &i2c0 {
         status = "okay";
-        pinmuxs = <&pinmuxb 2 8>, <&pinmuxb 3 8>;
-        pinmux-names = "SCL", "SDA";
 
         bl6xxx@0 {
                 compatible = "betterlife,bl6xxx";
@@ -149,7 +219,6 @@
 
 &uart0 {
         current-speed = <115200>;
-        pinmuxs = <&pinmuxb 10 2>, <&pinmuxb 11 2>;
 	// pinmux-names = "RXD", "TXD";
         status = "okay";
 };
@@ -170,8 +239,6 @@
 };
 &adc0 {
         status = "okay";
-        pinmuxs = <&pinmuxb 6 16>, <&pinmuxb 7 16>, <&pinmuxb 8 16>;
-        pinmux-names = "ch0", "ch1", "ch2";
 };
 &keysense {
         status = "okay";
