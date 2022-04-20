@@ -248,5 +248,5 @@
     
         // Trigger voltage of each analog key (mV)
         //    扫描开关：0.95V    翻译：1.24V   开关：1.83V 
-        analogkey-trigger = <950 1240 1830>;
+        analogkey-trigger = <950 1240 1710>;
     };
