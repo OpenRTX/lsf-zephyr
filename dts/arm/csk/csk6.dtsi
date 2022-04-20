@@ -280,6 +280,14 @@
 			label = "KEYSENSE";
 		};
 
+		crypto: crypto@44300000{
+			compatible = "listenai,csk-crypto";
+			reg = <0x44300000 0x100000>;
+			interrupts = <3 0>;
+			status = "disabled";
+			label = "CRYPTO";
+		};
+
 	};
 };
 

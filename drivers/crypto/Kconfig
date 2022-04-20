@@ -73,5 +73,6 @@ config CRYPTO_MBEDTLS_SHIM_MAX_SESSION
 source "drivers/crypto/Kconfig.ataes132a"
 source "drivers/crypto/Kconfig.stm32"
 source "drivers/crypto/Kconfig.nrf_ecb"
+source "drivers/crypto/Kconfig.csk6"
 
 endif # CRYPTO
