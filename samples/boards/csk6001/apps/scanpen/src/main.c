@@ -7,6 +7,7 @@
 #include <zephyr.h>
 #include <device.h>
 #include <sys/printk.h>
+#include <sys/sys_heap.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
 #include <logging/log.h>
@@ -17,12 +18,18 @@
 #include <drivers/adc.h>
 #include <shell/shell.h>
 
+#include <net/net_if.h>
+#include <net/net_core.h>
+#include <net/net_context.h>
+#include <net/net_mgmt.h>
+#include "csk6001/csk_wifi.h"
+
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 // device:Keysense
 #define KSCAN_DEVICE DT_LABEL(DT_ALIAS(analogkey))
 
 // device:ADC
-#define ADC_STACKSIZE       4096
+#define ADC_STACKSIZE       1024
 struct k_thread  adc_task_id;
 K_THREAD_STACK_DEFINE(adc_stack_area, ADC_STACKSIZE);
 
@@ -322,7 +329,7 @@ static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf,
 	memset(buf, color, buf_size);
 }
 
-void cam_led_test(void){
+void cam_led_test(){
 	bool led_is_on = true;
 	const struct device *cam_led = DEVICE_DT_GET(GPIO_LED_CAM);;
 	if (!device_is_ready(cam_led)) {
@@ -596,6 +603,45 @@ void pin_set_func(enum PIN_FUNC func){
 	}
 }
 
+
+
+static csk_wifi_event_cb_t wifi_event_cb;
+
+static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32_t data_len, void *arg)
+{
+    if (events & CSK_WIFI_EVT_SCAN_DONE) {
+        printk("scan done\n");
+    } else {
+        //abort();
+    }
+}
+
+void csk_819s_test(void)
+{
+    csk_wifi_init();
+    wifi_event_cb.handler = &wifi_event_handler;
+    wifi_event_cb.events = CSK_WIFI_EVT_SCAN_DONE;
+    wifi_event_cb.arg = NULL;
+    csk_wifi_add_callback(&wifi_event_cb);
+
+    csk_wifi_result_t result;
+
+
+	csk_wifi_scan_info_t *ap_list;
+	int count = csk_wifi_scan_ap(&ap_list, &result, K_FOREVER);
+	if (count < 0) {
+		return;
+	}
+	for (int i = 0; i < count; i++) {
+		printk("ssid:%s  bssid:%s  rssi: %d  channel: %d\n",
+				ap_list[i].ssid, ap_list[i].bssid, ap_list[i].rssi, ap_list[i].channel);
+	}
+	k_free(ap_list);
+	ap_list = NULL;
+    
+}
+
+
 void main(void)
 {
 	const struct device *pwm = DEVICE_DT_GET(PWM_LED0_NODE);
@@ -612,12 +658,13 @@ void main(void)
 					adc_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
 
 	#if 1
+	pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&camled_task_id, camled_stack_area,
 					K_THREAD_STACK_SIZEOF(camled_stack_area),
 					cam_led_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
 	#endif
 
-
+	
 	// PWM Init
 	#if 1
 	LOG_INF("下载模式,5s后变为PWM模式不可下载程序，重新下载需要上电并在5s内进行下载");
@@ -629,6 +676,9 @@ void main(void)
 	ret = pwm_pin_set_nsec(pwm, 1, 20000,  200, 1);
 	#endif
 
+	// WiFi 819s test
+	csk_819s_test();
+	
 	// Keysense init
 	const struct device *key_dev = device_get_binding(KSCAN_DEVICE);
 	if (!device_is_ready(key_dev)) {
