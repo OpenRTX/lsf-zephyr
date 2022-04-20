@@ -87,15 +87,13 @@ struct pwm_csk_config {
 	const struct device *pinmux_drv;
 };
 
-// PWM
-#define SDIO_PIN_FUNC 0
+// PWM SWDIO
 #define PWM_LED0_NODE	DT_NODELABEL(pwmlcd)
+#define PINMUXA_NODE 	DT_NODELABEL(pinmuxa)
+#define SWDIO_PIN_NUM 	1
+#define SWDIO_PIN_FUNC 	0
+#define PWM1_PIN_FUNC 	11
 
-#if DT_NODE_HAS_PROP(PWM_LED0_NODE, pinmuxs)
-#define PWM 		DEVICE_DT_GET(DT_NODELABEL(pwmlcd))
-#else
-#error "No PWM pinmuxs found"
-#endif
 // devicetree: power lock
 #define PWR_LOCK_NODE 	DT_NODELABEL(pwrlock)
 #define GPIO_PWR_LOCK	DT_GPIO_CTLR(PWR_LOCK_NODE, gpios) 
@@ -575,9 +573,32 @@ void power_lock_init(void){
 	LOG_INF("Power is on:%d", ret);
 }
 
+enum PIN_FUNC{
+	PWM1_FUNC,
+	SWD_FUNC
+};
+void pin_set_func(enum PIN_FUNC func){
+	const struct device *pinmuxa = DEVICE_DT_GET(PINMUXA_NODE);
+	if (!device_is_ready(pinmuxa)) {
+		LOG_ERR("pinmuxa device is not ready");
+		return;
+	}
+	switch (func)
+	{
+	case PWM1_FUNC:
+		pinmux_pin_set(pinmuxa, SWDIO_PIN_NUM, PWM1_PIN_FUNC);
+		break;
+	case SWD_FUNC:
+		pinmux_pin_set(pinmuxa, SWDIO_PIN_NUM, SWDIO_PIN_FUNC);
+		break;
+	default:
+		break;
+	}
+}
+
 void main(void)
 {
-	const struct device *pwm;
+	const struct device *pwm = DEVICE_DT_GET(PWM_LED0_NODE);
 	power_lock_init();
 	int pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&lcdtouch_task_id, lcdtouch_stack_area,
@@ -590,7 +611,7 @@ void main(void)
 					K_THREAD_STACK_SIZEOF(adc_stack_area),
 					adc_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
 
-	#if 0
+	#if 1
 	k_thread_create(&camled_task_id, camled_stack_area,
 					K_THREAD_STACK_SIZEOF(camled_stack_area),
 					cam_led_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
@@ -599,17 +620,11 @@ void main(void)
 
 	// PWM Init
 	#if 1
-	pwm = PWM;
-	if (!device_is_ready(pwm)) {
-		LOG_ERR("Error: PWM device %s is not ready", pwm->name);
-		return;
-	}
-	struct pwm_csk_config *pwmconfig = (struct pwm_csk_config*)pwm->config;
 	LOG_INF("下载模式,5s后变为PWM模式不可下载程序，重新下载需要上电并在5s内进行下载");
-	pinmux_pin_set(pwmconfig->pinmux_drv, pwmconfig->pwm_pin, SDIO_PIN_FUNC);	//配成sdio
+	pin_set_func(SWD_FUNC);
 	k_msleep(5000);
 	LOG_INF("PWM模式,需要进入swd模式请输入：swd");
-	pinmux_pin_set(pwmconfig->pinmux_drv, pwmconfig->pwm_pin, pwmconfig->pwm_func);		//配成pwm
+	pin_set_func(PWM1_FUNC);
 	int ret;
 	ret = pwm_pin_set_nsec(pwm, 1, 20000,  200, 1);
 	#endif
@@ -632,17 +647,8 @@ void main(void)
 int swd_mode_shell_handler(const struct shell *shell,
                                  size_t argc, char **argv)
 {
-    const struct device *pwm = PWM;
-        if (!device_is_ready(pwm)) {
-                LOG_ERR("Error: PWM device %s is not ready", pwm->name);
-                return -1;
-        }
-        struct pwm_csk_config *pwmconfig = (struct pwm_csk_config*)pwm->config;
-
-        pinmux_pin_set(pwmconfig->pinmux_drv, pwmconfig->pwm_pin, SDIO_PIN_FUNC);
-
+	pin_set_func(SWD_FUNC);
     shell_print(shell, "Enter SWD IO Mode.");
-
     return 0;
 }
 
