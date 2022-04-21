@@ -66,7 +66,12 @@ zephyr_library_include_directories_ifdef(
 	CONFIG_SOC_FLASH_NRF_RADIO_SYNC_TICKER
 	${ZEPHYR_BASE}/subsys/bluetooth
 	${ZEPHYR_BASE}/subsys/bluetooth/controller/ll_sw/nordic
-	)
+)
+
+zephyr_library_include_directories_ifdef(
+  CONFIG_SOC_FLASH_CSK6001
+  ${ZEPHYR_BASE}/dts/common
+)
 
 zephyr_library_sources_ifdef(CONFIG_FLASH_SHELL flash_shell.c)
 zephyr_library_sources_ifdef(CONFIG_FLASH_JESD216 jesd216.c)
