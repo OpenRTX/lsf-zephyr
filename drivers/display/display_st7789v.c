@@ -335,7 +335,6 @@ static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 static int st7789v_init(const struct device *dev)
 {
 	struct st7789v_data *data = (struct st7789v_data *)dev->data;
-	const struct device *cmd_pinmux_drv, *reset_pinmux_drv;
 
 	data->spi_dev = device_get_binding(DT_INST_BUS_LABEL(0));
 	if (data->spi_dev == NULL) {
@@ -348,28 +347,15 @@ static int st7789v_init(const struct device *dev)
 	data->spi_config.operation = SPI_OP_MODE_MASTER | SPI_WORD_SET(8);
 	data->spi_config.slave = DT_INST_REG_ADDR(0);
 
-	// use hardware spi_cs
+#if DT_INST_SPI_DEV_HAS_CS_GPIOS(0)
+	data->cs_ctrl.gpio_dev = device_get_binding(
+			DT_INST_SPI_DEV_CS_GPIOS_LABEL(0));
+	data->cs_ctrl.gpio_pin = DT_INST_SPI_DEV_CS_GPIOS_PIN(0);
+	data->cs_ctrl.gpio_dt_flags = DT_INST_SPI_DEV_CS_GPIOS_FLAGS(0);
+	data->cs_ctrl.delay = 0U;
+	data->spi_config.cs = &(data->cs_ctrl);
+#else
 	data->spi_config.cs = NULL;
-
-#if DT_INST_NODE_HAS_PROP(0, pinmuxs)
-
-	char *name = DT_LABEL(DT_INST_PHANDLE_BY_IDX(0, pinmuxs, 0));     
-	cmd_pinmux_drv = device_get_binding(name);
-	if (!cmd_pinmux_drv) {
-		return -EINVAL;
-	}
-	uint8_t num = DT_PHA_BY_IDX(DT_DRV_INST(0), pinmuxs, 0, pin);
-	uint8_t func = DT_PHA_BY_IDX(DT_DRV_INST(0), pinmuxs, 0, function);
-	pinmux_pin_set(cmd_pinmux_drv, num, func);
-	
-	name = DT_LABEL(DT_INST_PHANDLE_BY_IDX(0, pinmuxs, 1));               
-	reset_pinmux_drv = device_get_binding(name);
-	if (!reset_pinmux_drv) {
-		return -EINVAL;
-	}
-	num = DT_PHA_BY_IDX(DT_DRV_INST(0), pinmuxs, 1, pin);
-	func = DT_PHA_BY_IDX(DT_DRV_INST(0), pinmuxs, 1, function);
-	pinmux_pin_set(reset_pinmux_drv, num, func);
 #endif
 
 #if DT_INST_NODE_HAS_PROP(0, reset_gpios)
