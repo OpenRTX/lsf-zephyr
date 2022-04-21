@@ -11,8 +11,6 @@
 #include <net/net_context.h>
 #include <net/net_mgmt.h>
 
-#include <logging/log.h>
-LOG_MODULE_REGISTER(csk_wifi_sta, LOG_LEVEL_DBG);
 
 #include "csk6001/csk_wifi.h"
 

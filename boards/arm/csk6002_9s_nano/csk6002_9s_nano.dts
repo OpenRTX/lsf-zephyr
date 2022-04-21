@@ -1,0 +1,232 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/dts-v1/;
+#include <csk/csk6001.dtsi>
+#include <dt-bindings/pwm/pwm.h>
+
+/ {
+        model = "csk6002 9s nano";
+        compatible = "csk,csk6002_9s_nano";
+        aliases {
+                led0 = &board_led_2;
+                sw0 = &user_button_0;
+                pwm-led0 = &green_pwm_led;
+                i2c-0 = &i2c0;
+                i2c-1 = &i2c1;
+        };
+
+        chosen {
+                zephyr,console = &uart0;
+                zephyr,shell-uart = &uart0;
+                zephyr,sram = &sram0;
+                zephyr,itcm = &itcm0;
+                zephyr,flash = &flash0;
+                zephyr,flash_sysfs_storage = &filesystem_part;
+                zephyr,flash_controller = &flash;
+                /* other chosen settings  for your hardware */
+        };
+
+        fstab {
+                compatible = "zephyr,fstab";
+                lfs1: lfs1 {
+                        compatible = "zephyr,fstab,littlefs";
+                        mount-point = "/data";
+                        partition = <&filesystem_part>;
+                        read-size = <16>;
+                        prog-size = <16>;
+                        cache-size = <64>;
+                        lookahead-size = <32>;
+                        block-cycles = <512>;
+                };
+        };
+
+        leds {
+                compatible = "gpio-leds";
+                board_led_2: board_led_2 {
+                        gpios = <&gpioa 5 0>;
+                        label = "User BOARD_LED_2";
+                };
+        };
+
+        pwmleds {
+		compatible = "pwm-leds";
+		green_pwm_led: green_pwm_led {
+			pwms = <&pwm5 5 PWM_POLARITY_NORMAL>;
+			label = "User BOARD_LED_2 - PWM0";
+		};
+
+	};
+
+        gpio_keys {
+                compatible = "gpio-keys";
+                user_button_0: button_0 {
+                        label = "User SW0";
+                        gpios = <&gpiob 6 0>;
+                };
+        };
+
+        wifi_module: xr819s {
+                compatible = "wifi,xr819s";
+                label = "WiFi module";
+                dataready-gpios = <&gpioa 16 0>;
+                reset-gpios = <&gpioa 17 0>;
+                sdio-clk-gpios = <&gpioa 20 0>;
+                sdio-cmd-gpios = <&gpioa 18 0>;
+                sdio-dat0-gpios = <&gpioa 19 0>;
+                status = "okay";
+        };
+
+        /*
+         * Your board-specific hardware: buttons, LEDs, sensors, etc.
+         */
+};
+
+&gpt0 {
+	status = "okay";
+
+	pwm5: pwm5 {
+                pinmuxs = <&pinmuxa 5 11>;
+                clock-prescaler = <128>;
+                status = "okay";
+	};
+
+};
+
+&gpioa {
+        status = "okay";
+};
+
+&gpiob {
+        status = "okay";
+};
+
+&uart0 {
+        current-speed = <115200>;
+        pinmuxs = <&pinmuxa 2 2>, <&pinmuxa 3 2>;
+        /* pinmux-names = "RXD", "TXD"; */
+        status = "okay";
+};
+
+&uart1 {
+        status = "disabled";
+};
+
+&uart2 {
+        status = "disabled";
+};
+
+&spi0 {
+    miso-gpios = <&gpioa 17 0>;
+    mosi-gpios = <&gpioa 18 0>;
+    sclk-gpios = <&gpioa 19 0>;
+    cs-gpios = <&gpioa 20 0>;
+    status = "disabled";
+};
+
+&spi1 {
+    status = "disabled";
+};
+
+&i2c0 {
+        status = "okay";
+        pinmuxs = <&pinmuxa 4 8>, <&pinmuxa 5 8>;
+        pinmux-names = "SCL", "SDA";
+};
+
+&i2c1 {
+        status = "okay";
+        pinmuxs = <&pinmuxa 6 9>, <&pinmuxa 7 9>;
+        pinmux-names = "SDA", "SCL";
+};
+
+&board_led_2 {
+        status = "okay";
+};
+
+&mailbox0 {
+	status = "okay";
+};
+
+&dma0 {
+	dma-channels = <6>;
+	status = "okay";
+};
+
+&rtc1 {
+        status = "okay";
+};
+
+&flash0 {
+        /*
+         * For more information, see:
+         * http: //docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+         */
+        partitions {
+                compatible = "fixed-partitions";
+                #address-cells = <1>;
+                #size-cells = <1>;
+
+                filesystem_part: partition@200000 {
+			label = "xr819s_firmware";
+			reg = <0x200000 0x42000>;
+		};
+
+                /* storage: 6.625MB for storage */
+                storage_partition: partition@700000 {
+                        label = "storage";
+                        reg = <0x700000 0x100000>;
+                };
+
+        };
+};
+
+&psram0 {
+        reg = <0x30000000 DT_SIZE_M(8)>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        /* cp core slot: 6MB */
+        cp_partition:cp_partition@30000000{             
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x30000000 0x600000>;
+                status = "okay";
+        };
+
+        /* sof communication slot: 1MB */
+        section0_partition: section0_partition@30600000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x30600000 0x100000>;
+                status = "okay";
+        };
+
+        /* section0_partition slot: 512KB */
+        sof_partition: sof_partition@30700000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x30700000 0x80000>;
+                status = "okay";
+        };
+
+        /* section1_partition slot: 512KB */
+        section1_partition: section1_partition@30780000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x30780000 0x80000>;
+                status = "okay";
+        };
+};
+
+zephyr_udc0: &usbotg {
+        status = "okay";
+        num-bidir-endpoints = <6>;
+        num-in-endpoints = <6>;
+        num-out-endpoints = <6>;
+};
+
+&wdt {
+        status = "okay";
+};
+
+&adc0 {
+        status = "disabled";
+        pinmuxs = <&pinmuxb 6 16>, <&pinmuxb 7 16>, <&pinmuxb 8 16>;
+        pinmux-names = "ch0", "ch1", "ch2";
+};

@@ -61,17 +61,6 @@
                 status = "okay";
         };
 
-        xr819s: xr819s {
-                compatible = "wifi,xr819s";
-                label = "WiFi module";
-                dataready-gpios = <&gpioa 16 0>;
-                reset-gpios = <&gpioa 17 0>;
-                sdio-clk-gpios = <&gpioa 20 0>;
-                sdio-cmd-gpios = <&gpioa 18 0>;
-                sdio-dat0-gpios = <&gpioa 19 0>;
-                status = "okay";
-        };
-
         /*
          * Your board-specific hardware: buttons, LEDs, sensors, etc.
          */

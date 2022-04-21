@@ -9,6 +9,25 @@ menuconfig WIFI_CSK6001
 
 if WIFI_CSK6001
 
+choice
+    prompt "WiFi Offload Module"
+	config CSK_WIFI_ESP32C3
+		bool "ESP32C3"
+		select ESP_HOSTED
+		select GPIO
+		select SPI
+
+	config CSK_WIFI_XR819S
+		bool "XR819S"
+		select XR819S
+		select GPIO
+		select FLASH
+		select FLASH_MAP
+		select FLASH_PAGE_LAYOU
+		select FILE_SYSTEM
+		select FILE_SYSTEM_LITTLEFS
+endchoice
+
 config CSK_WIFI_STATION
 	bool "WiFi Station Enable"
 

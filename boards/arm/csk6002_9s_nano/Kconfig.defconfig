@@ -1,0 +1,6 @@
+if BOARD_CSK6002_9S_NANO
+
+config BOARD
+   default "csk6002_9s_nano"
+
+endif # BOARD_CSK6002_9S_NANO
