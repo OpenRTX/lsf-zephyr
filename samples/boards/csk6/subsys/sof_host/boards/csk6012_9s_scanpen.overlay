@@ -40,7 +40,7 @@
 
 	pwr_amp:audio_pwr_amp{
 		 compatible = "listenai,pwr-amp";
-		 enalbe-gpios = <&gpioa 4 1>;
+		 enalbe-gpios = <&gpioa 10 1>;
 		 label = "audio_pwr_amp";	
 		 status = "okay";
 	 };

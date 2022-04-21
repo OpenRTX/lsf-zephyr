@@ -69,7 +69,7 @@ zephyr_library_include_directories_ifdef(
 )
 
 zephyr_library_include_directories_ifdef(
-  CONFIG_SOC_FLASH_CSK6001
+  CONFIG_SOC_FLASH_CSK6
   ${ZEPHYR_BASE}/dts/common
 )
 
