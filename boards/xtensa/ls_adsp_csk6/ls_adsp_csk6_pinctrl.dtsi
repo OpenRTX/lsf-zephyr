@@ -69,19 +69,14 @@
                 pinctrl_spi1_cs_default: spi1_cs_default{
                 };
                 
-
-
                 /* ADC alternate function */
                 pinctrl_adc0_ch0_default: adc0_ch0_default{
-                        pinctrls = <&pinmuxb 6 16>;
                 };
                 
                 pinctrl_adc0_ch1_default: adc0_ch1_default{
-                        pinctrls = <&pinmuxb 7 16>;
                 };
 
                 pinctrl_adc0_ch2_default: adc0_ch2_default{
-                        pinctrls = <&pinmuxb 8 16>;
                 };
 
                 /* PWM alternate function*/
@@ -101,7 +96,6 @@
                 };
 
                 pinctrl_pwm5_default: pwm5_default{
-                        pinctrls = <&pinmuxa 5 11>;
                 };
 
                 pinctrl_pwm6_default: pwm6_default{
