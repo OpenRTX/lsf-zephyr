@@ -1,0 +1,45 @@
+&i2c0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
+
+        bf30a2: bf30a2@6e {
+            compatible = "byd,bf30a2";
+            status = "okay";
+            label = "VIDEO";
+            reg = <0x6e>;
+            pd-gpios = <&gpioa 1 0>;
+            pwr-gpios = <&gpioa 9 0>;
+            product-id = <0x3b02>;
+            spi = <&spi0>;
+            pwms = <&pwm2 0x2 0x0>;
+            xclk-freq = <12500>;
+            csk6-spec;
+        };
+};
+
+&gpt0 {
+	status = "okay";
+
+	pwm2: pwm2 {
+        clock-prescaler = <1>;
+        status = "okay";
+        pinctrl-0 = <&pinctrl_pwm2_default>; 
+        pinctrl-names = "default";
+    };
+};
+
+&csk6012_9s_scanpen_pinctrl {
+
+                pinctrl_pwm2_default: pwm2_default{
+                    pinctrls = <&pinmuxb 6 11>;
+                };
+
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 2 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 3 8>;
+                };
+};
