@@ -1,5 +1,7 @@
 &i2c0 {
         status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
 
         bf30a2: bf30a2@6e {
             compatible = "byd,bf30a2";
@@ -22,6 +24,8 @@
 	pwm2: pwm2 {
         clock-prescaler = <1>;
         status = "okay";
+        pinctrl-0 = <&pinctrl_pwm2_default>; 
+        pinctrl-names = "default";
     };
 };
 
@@ -29,5 +33,13 @@
 
                 pinctrl_pwm2_default: pwm2_default{
                     pinctrls = <&pinmuxb 6 11>;
+                };
+
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 2 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 3 8>;
                 };
 };
