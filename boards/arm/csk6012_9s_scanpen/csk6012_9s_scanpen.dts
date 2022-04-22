@@ -78,7 +78,6 @@
                 i2c-0 = &i2c0;
                 i2c-1 = &i2c1;
                 c-led = &camleds1;
-                analogkey = &keysense;
         };
 
         chosen {
@@ -118,7 +117,7 @@
 
         vbatt {
                 compatible = "voltage-divider";
-		io-channels = <&adc0 5>;
+		io-channels = <&adc0 5>, <&adc0 6>;
 		output-ohms = <0>;
 	};
 
@@ -254,16 +253,6 @@
 };
 &adc0 {
         status = "okay";
-};
-&keysense {
-        status = "okay";
-    
-            //keysense use adc channel 6 to sample
-        io-channels = <&adc0 6>;
-    
-        // Trigger voltage of each analog key (mV)
-        //    扫描开关：0.95V    翻译：1.24V   开关：1.83V 
-        analogkey-trigger = <950 1240 1710>;
 };
 &flash0 {
 	partitions {
