@@ -153,6 +153,8 @@
 &gpt0 {
 	status = "okay";
 	pwmlcd: pwm1 {
+                pinctrl-0 = <&pinctrl_pwm1_default>; 
+                pinctrl-names = "default";
                 clock-prescaler = <1>;
                 status = "okay";
 	};
@@ -160,7 +162,9 @@
 
 &spi0 {
         status = "okay";
-        // cs-gpios = <&gpioa 12 0>;
+        pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_cs_default>; 
+        pinctrl-names = "default";
+        cs-gpios = <&gpioa 12 0>;
         st7789v@0 {
                 compatible = "sitronix,st7789v";
                 label = "ST7789V";
@@ -211,7 +215,8 @@
 };
 &i2c0 {
         status = "okay";
-
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
         bl6xxx@0 {
                 compatible = "betterlife,bl6xxx";
                 reg = <0>;
@@ -237,6 +242,8 @@
 
 &uart0 {
         current-speed = <115200>;
+        pinctrl-0 = <&pinctrl_uart0_rx_default &pinctrl_uart0_tx_default>; 
+        pinctrl-names = "default";
 	// pinmux-names = "RXD", "TXD";
         status = "okay";
 };
