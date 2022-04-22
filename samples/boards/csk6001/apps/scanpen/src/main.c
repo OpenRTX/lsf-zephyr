@@ -25,9 +25,6 @@
 #include "csk6001/csk_wifi.h"
 
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
-// device:Keysense
-#define KSCAN_DEVICE DT_LABEL(DT_ALIAS(analogkey))
-
 // device:ADC
 #define ADC_STACKSIZE       1024
 struct k_thread  adc_task_id;
@@ -502,62 +499,52 @@ void adc_test(){
 		LOG_INF("ADC device not found");
 		return;
 	}
-
+	int32_t adc_vref = adc_ref_internal(dev_adc);
+	LOG_INF("adc_vref %d.", adc_vref);
+	while (1) {
 	/*
 	 * Configure channels individually prior to sampling
 	 */
-	for (uint8_t i = 0; i < ADC_NUM_CHANNELS; i++) {
-		channel_cfg.channel_id = channel_ids[i];
+		for (uint8_t i = 0; i < ADC_NUM_CHANNELS; i++) {
+			channel_cfg.channel_id = channel_ids[i];
 
-		adc_channel_setup(dev_adc, &channel_cfg);
+			adc_channel_setup(dev_adc, &channel_cfg);
 
-		sequence.channels |= BIT(channel_ids[i]);
-	}
-
-	int32_t adc_vref = adc_ref_internal(dev_adc);
-
-	LOG_INF("adc_vref %d.", adc_vref);
-
-	while (1) {
+			sequence.channels = BIT(channel_ids[i]);	
 		/*
 		 * Read sequence of channels (fails if not supported by MCU)
 		 */
-		err = adc_read(dev_adc, &sequence);
-		if (err != 0) {
-			LOG_ERR("ADC reading failed with error %d.", err);
-			return;
-		}
+			err = adc_read(dev_adc, &sequence);
+			if (err != 0) {
+				LOG_ERR("ADC reading failed with error %d.", err);
+				return;
+			}
 
-		for (uint8_t i = 0; i < ADC_NUM_CHANNELS; i++) {
-			int32_t raw_value = sample_buffer[i];
+			int32_t raw_value = sample_buffer[0];
 
 			if (adc_vref > 0) {
-				/*
-				 * Convert raw reading to millivolts if driver
-				 * supports reading of ADC reference voltage
-				 */
+			/*
+				* Convert raw reading to millivolts if driver
+				* supports reading of ADC reference voltage
+			*/
 				int32_t vcc_value = raw_value - 2048;
 
 				adc_raw_to_millivolts(adc_vref, ADC_GAIN_1,
 					ADC_RESOLUTION, &vcc_value); // Output 1/8 Vcc
 				
-				vcc_value *= 8; 
-				LOG_INF(" adc(%d)= %d mV", raw_value, vcc_value);
+				if(i==0){
+					vcc_value *= 8; 
+					LOG_INF("vcc_adc(%d)= %d mV", raw_value, vcc_value);
+				}
+				else{
+					LOG_INF("key_adc(%d)= %d mV", raw_value, vcc_value);
+				}
 			}
 		}
-
 		k_sleep(K_MSEC(1300));
 	}
 }
 
-static void kb_callback(const struct device *dev, uint32_t row, uint32_t col,
-			bool pressed)
-{
-	ARG_UNUSED(dev);
-
-	LOG_INF("Key value = %d; Unused values = %d Pressed = %u", row, col, pressed);
-
-}
 void power_lock_init(void){
 	const struct device *power_lock = DEVICE_DT_GET(GPIO_PWR_LOCK);
 	if (!device_is_ready(power_lock)) {
@@ -679,15 +666,6 @@ void main(void)
 	// WiFi 819s test
 	csk_819s_test();
 	
-	// Keysense init
-	const struct device *key_dev = device_get_binding(KSCAN_DEVICE);
-	if (!device_is_ready(key_dev)) {
-		LOG_ERR("kscan device is not ready");
-		return;
-	}
-	kscan_config(key_dev, kb_callback);
-	LOG_INF("key_dev init success!");
-
 	while(1){
 		k_msleep(1000);
 	}
