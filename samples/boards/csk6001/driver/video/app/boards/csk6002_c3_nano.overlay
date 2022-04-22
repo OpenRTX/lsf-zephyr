@@ -1,26 +1,17 @@
 &csk6002_c3_nano_pinctrl{
 
-                pinctrl_pwm4_default: pwm4_default{
-                    pinctrls = <&pinmuxa 4 11>;
-                };  
+                pinctrl_pwm2_default: pwm2_default{
+                    pinctrls = <&pinmuxb 6 11>;
+                };
 
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
-                        pinctrls = <&pinmuxb 0 8>;
+                        pinctrls = <&pinmuxb 2 8>;
                 };
                 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
-                        pinctrls = <&pinmuxb 1 8>;
-                };    
-};
+                        pinctrls = <&pinmuxb 3 8>;
+                };
 
-/{
-    pwmleds {
-		compatible = "pwm-leds";
-		green_pwm_led: green_pwm_led {
-			pwms = <&pwm4 4 PWM_POLARITY_NORMAL>;
-			label = "User BOARD_LED_2 - PWM0";
-		};
-	};
 };
 
 &gpt0 {
@@ -30,11 +21,11 @@
         status = "disabled";
     };
 
-	pwm4: pwm4 {
-        pinctrl-0 = <&pinctrl_pwm4_default>; 
-        pinctrl-names = "default";
+	pwm2: pwm2 {
         clock-prescaler = <1>;
         status = "okay";
+        pinctrl-0 = <&pinctrl_pwm2_default>; 
+        pinctrl-names = "default";
     };
 };
 
@@ -55,10 +46,10 @@
             label = "VIDEO";
             reg = <0x6e>;
             pd-gpios = <&gpioa 1 0>;
-            pwr-gpios = <&gpioa 5 0>;
+            pwr-gpios = <&gpioa 9 0>;
             product-id = <0x3b02>;
             spi = <&spi0>;
-            pwms = <&pwm4 0x4 0x0>;
+            pwms = <&pwm2 0x2 0x0>;
             xclk-freq = <12500>;
             csk6-spec;
         };
