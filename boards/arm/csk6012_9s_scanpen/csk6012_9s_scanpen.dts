@@ -15,7 +15,6 @@
         };
 
         pinctrl_spi0_miso_default: spi0_miso_default{
-                pinctrls = <&pinmuxa 13 6>;
         };
 
         pinctrl_spi0_mosi_default: spi0_mosi_default{
@@ -128,9 +127,14 @@
                         label = "power_lock";
                 };
                 pwm1pin: pwm1pin {
-                        gpios = <&gpioa 1 11>;
+                        gpios = <&gpioa 1 0>;
                         label = "power_lock";
                 };
+                fy_key: fykey {
+                        gpios = <&gpioa 13 1>;
+                        label = "power_lock";
+                };
+
 
         };
 
@@ -156,8 +160,8 @@
 
 &spi0 {
         status = "okay";
-    
-            st7789v@0 {
+        // cs-gpios = <&gpioa 12 0>;
+        st7789v@0 {
                 compatible = "sitronix,st7789v";
                 label = "ST7789V";
                 status = "okay";
