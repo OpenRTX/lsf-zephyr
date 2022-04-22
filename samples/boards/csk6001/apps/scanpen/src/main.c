@@ -26,7 +26,7 @@
 
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 // device:ADC
-#define ADC_STACKSIZE       1024
+#define ADC_STACKSIZE       512
 struct k_thread  adc_task_id;
 K_THREAD_STACK_DEFINE(adc_stack_area, ADC_STACKSIZE);
 
@@ -104,20 +104,25 @@ struct pwm_csk_config {
 #define PIN_PWR_LOCK	DT_GPIO_PIN(PWR_LOCK_NODE, gpios) 
 #define FLAGS_PWR_LOCK	DT_GPIO_FLAGS(PWR_LOCK_NODE, gpios) 
 
-
+#define WIFI_STACKSIZE	4096 
+struct k_thread  wifi_task_id;
+K_THREAD_STACK_DEFINE(wifi_stack_area, WIFI_STACKSIZE);
 
 // devicetree: LED CAM NODE
 struct k_thread  camled_task_id;
-#define CAM_LED_STACKSIZE	1024 
+#define CAM_LED_STACKSIZE	256 
 K_THREAD_STACK_DEFINE(camled_stack_area, CAM_LED_STACKSIZE);
 #define CAM_LED 		DT_NODELABEL(camleds1)
 #define GPIO_LED_CAM 	DT_GPIO_CTLR_BY_IDX(CAM_LED, gpios, 0) 
 
-#define FY_KEY 			DT_NODELABEL(fy_key_0)
-#define GPIO_FY_KEY 	DT_GPIO_CTLR_BY_IDX(FY_KEY, gpios, 0) 
-
+// devicetree: FY KEY NODE
+#define FY_KEY_NODE 	DT_NODELABEL(fy_key)
+#define GPIO_FY_KEY 	DT_GPIO_CTLR_BY_IDX(FY_KEY_NODE, gpios, 0) 
+static const struct gpio_dt_spec fy_key = GPIO_DT_SPEC_GET_OR(FY_KEY_NODE, gpios,
+							      {0});
+static struct gpio_callback fy_key_cb_data;
 // device: touch and LCD
-#define STACKSIZE       4096
+#define STACKSIZE       1024
 struct k_thread  lcdtouch_task_id;
 K_THREAD_STACK_DEFINE(lcdtouch_stack_area, STACKSIZE);
 
@@ -603,9 +608,9 @@ static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32
     }
 }
 
-void csk_819s_test(void)
+void csk_819s_test()
 {
-    csk_wifi_init();
+ 	csk_wifi_init();
     wifi_event_cb.handler = &wifi_event_handler;
     wifi_event_cb.events = CSK_WIFI_EVT_SCAN_DONE;
     wifi_event_cb.arg = NULL;
@@ -613,45 +618,95 @@ void csk_819s_test(void)
 
     csk_wifi_result_t result;
 
-
-	csk_wifi_scan_info_t *ap_list;
-	int count = csk_wifi_scan_ap(&ap_list, &result, K_FOREVER);
-	if (count < 0) {
-		return;
-	}
-	for (int i = 0; i < count; i++) {
-		printk("ssid:%s  bssid:%s  rssi: %d  channel: %d\n",
-				ap_list[i].ssid, ap_list[i].bssid, ap_list[i].rssi, ap_list[i].channel);
-	}
-	k_free(ap_list);
-	ap_list = NULL;
+    while (1) {
+        csk_wifi_scan_info_t *ap_list;
+        int count = csk_wifi_scan_ap(&ap_list, &result, K_FOREVER);
+        if (count < 0) {
+            continue;
+        }
+        printk("-----------------------------------Scan AP list------------------------------------\n");
+        for (int i = 0; i < count; i++) {
+            printk("|ssid: %-20s | bssid: %-18s | channel: %-3d | rssi: %-3d|\n",
+                    ap_list[i].ssid, ap_list[i].bssid, ap_list[i].channel, ap_list[i].rssi);
+        }
+        printk("-----------------------------------------------------------------------------------\n");
+        k_free(ap_list);
+        ap_list = NULL;
+        k_msleep(1000);
+    }
     
 }
 
+void fykey_pressed(const struct device *dev, struct gpio_callback *cb,
+		    uint32_t pins)
+{
+	printk("Button pressed at %" PRIu32 "\n", k_cycle_get_32());
+}
+
+void fykey_init(){
+		int ret;
+
+	if (!device_is_ready(fy_key.port)) {
+		printk("Error: button device %s is not ready\n",
+		       fy_key.port->name);
+		return;
+	}
+
+	ret = gpio_pin_configure_dt(&fy_key, GPIO_INPUT);
+	if (ret != 0) {
+		printk("Error %d: failed to configure %s pin %d\n",
+		       ret, fy_key.port->name, fy_key.pin);
+		return;
+	}
+
+	ret = gpio_pin_interrupt_configure_dt(&fy_key,
+					      GPIO_INT_EDGE_TO_ACTIVE);
+	if (ret != 0) {
+		printk("Error %d: failed to configure interrupt on %s pin %d\n",
+			ret, fy_key.port->name, fy_key.pin);
+		return;
+	}
+
+	gpio_init_callback(&fy_key_cb_data, fykey_pressed, BIT(fy_key.pin));
+	gpio_add_callback(fy_key.port, &fy_key_cb_data);
+	printk("Set up button at %s pin %d\n", fy_key.port->name, fy_key.pin);
+}
 
 void main(void)
 {
+	int pri;
 	const struct device *pwm = DEVICE_DT_GET(PWM_LED0_NODE);
 	power_lock_init();
-	int pri = k_thread_priority_get(k_current_get());
+	#if 1
+	pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&lcdtouch_task_id, lcdtouch_stack_area,
 					K_THREAD_STACK_SIZEOF(lcdtouch_stack_area),
 					lcd_touch_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
+	k_msleep(1000);
 
 	// ADC：Get Vcc Voltage thread
 	pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&adc_task_id, adc_stack_area,
 					K_THREAD_STACK_SIZEOF(adc_stack_area),
 					adc_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
-
-	#if 1
+	
+	k_msleep(1000);
 	pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&camled_task_id, camled_stack_area,
 					K_THREAD_STACK_SIZEOF(camled_stack_area),
 					cam_led_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
+	
+	// WiFi 819s test thread
+	k_msleep(1000);
+
+	pri = k_thread_priority_get(k_current_get());
+	k_thread_create(&wifi_task_id, wifi_stack_area,
+					K_THREAD_STACK_SIZEOF(wifi_stack_area),
+					csk_819s_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
 	#endif
 
-	
+	k_msleep(1000);
+
 	// PWM Init
 	#if 1
 	LOG_INF("下载模式,5s后变为PWM模式不可下载程序，重新下载需要上电并在5s内进行下载");
@@ -662,10 +717,11 @@ void main(void)
 	int ret;
 	ret = pwm_pin_set_nsec(pwm, 1, 20000,  200, 1);
 	#endif
-
-	// WiFi 819s test
-	csk_819s_test();
 	
+	// fy key init
+	fykey_init();
+
+
 	while(1){
 		k_msleep(1000);
 	}
