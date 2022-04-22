@@ -4,12 +4,20 @@
  * Copyright (c) 2021 STMicroelectronics
  */
 
+&csk6002_c3_nano_pinctrl{
+				pinctrl_adc0_ch0_default: adc0_ch0_default{
+						pinctrls = <&pinmuxb 6 16>;
+				};
+};
+
 / {
 	zephyr,user {
-		io-channels = <&adc0 5>;
+		io-channels = <&adc0 0>;
 	};
 };
 
 &adc0 {
+		pinctrl-0 = <&pinctrl_adc0_ch0_default>; 
+		pinctrl-names = "default";
         status = "okay";
 };

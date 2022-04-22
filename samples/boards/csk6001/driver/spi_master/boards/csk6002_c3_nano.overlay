@@ -18,20 +18,4 @@
                     pinctrls = <&pinmuxa 19 6>;
             };
             
-            pinctrl_spi1_sclk_default: spi1_sclk_default{
-                    pinctrls = <&pinmuxb 0 7>;
-            };
-            
-            pinctrl_spi1_mosi_default: spi1_mosi_default{
-                    pinctrls = <&pinmuxb 1 7>;
-            };
-
-            pinctrl_spi1_miso_default: spi1_miso_default{
-                    pinctrls = <&pinmuxb 2 7>;
-            };    
-
-            pinctrl_spi1_cs_default: spi1_cs_default{
-                    pinctrls = <&pinmuxb 3 7>;
-            };
-            
 };

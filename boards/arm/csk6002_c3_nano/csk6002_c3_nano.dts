@@ -95,7 +95,19 @@
         status = "okay";
 };
 
+&wdt {
+        status = "okay";
+};
+
+&pwm5 {
+        pinctrl-0 = <&pinctrl_pwm5_default>; 
+        pinctrl-names = "default";
+        status = "okay";
+};
+
 &uart0 {
+        pinctrl-0 = <&pinctrl_uart0_rx_default &pinctrl_uart0_tx_default>; 
+        pinctrl-names = "default";
         current-speed = <115200>;
         status = "okay";
 };
@@ -109,6 +121,8 @@
 };
 
 &spi0 {
+        pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>; 
+        pinctrl-names = "default";
         status = "okay";
 };
 
@@ -117,11 +131,11 @@
 };
 
 &i2c0 {
-        status = "okay";
+        status = "disabled";
 };
 
 &i2c1 {
-        status = "okay";
+        status = "disabled";
 };
 
 &board_led_2 {
@@ -232,10 +246,3 @@ zephyr_udc0: &usbotg {
         num-out-endpoints = <6>;
 };
 
-&wdt {
-        status = "okay";
-};
-
-&adc0 {
-        status = "disabled";
-};

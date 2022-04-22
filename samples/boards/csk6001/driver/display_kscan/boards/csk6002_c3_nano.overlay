@@ -23,6 +23,9 @@
 
 &spi0 {
     status = "okay";
+    pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>; 
+    pinctrl-names = "default";
+    
 	st7789v@0 {
             compatible = "sitronix,st7789v";
             label = "ST7789V";
@@ -70,7 +73,8 @@
 
 &i2c0 {
         status = "okay";
-
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
         bl6xxx@0 {
                 compatible = "betterlife,bl6xxx";
                 reg = <0>;
@@ -81,6 +85,3 @@
         };
 };
 
-&i2c1 {
-    status = "disabled";
-};

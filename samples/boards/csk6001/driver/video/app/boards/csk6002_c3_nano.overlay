@@ -11,15 +11,6 @@
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
                         pinctrls = <&pinmuxb 1 8>;
                 };    
-
-                pinctrl_uart1_rx_default: uart1_rx_default{
-                        pinctrls = <&pinmuxa 8 3>;
-                };
-                
-                pinctrl_uart1_tx_default: uart1_tx_default{
-                        pinctrls = <&pinmuxa 9 3>;
-                };     
-
 };
 
 /{
@@ -40,6 +31,8 @@
     };
 
 	pwm4: pwm4 {
+        pinctrl-0 = <&pinctrl_pwm4_default>; 
+        pinctrl-names = "default";
         clock-prescaler = <1>;
         status = "okay";
     };
@@ -50,12 +43,11 @@
     spi-max-frequency = <25000000>;
 };
 
-&spi1 {
-    status = "disabled";
-};
 
 &i2c0 {
         status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
 
         bf30a2: bf30a2@6e {
             compatible = "byd,bf30a2";
@@ -70,17 +62,4 @@
             xclk-freq = <12500>;
             csk6-spec;
         };
-};
-
-&i2c1 {
-    status = "disabled";
-};
-
-&uart0 {
-    current-speed = <115200>;
-};
-
-&uart1 {
-    status = "disabled";
-    current-speed = <115200>;
 };

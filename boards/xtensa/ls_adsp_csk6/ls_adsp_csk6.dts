@@ -21,24 +21,18 @@
 			compatible = "listenai,csk-uart";
 			reg = <0x45000000 0x100000>;
 			label = "UART_0";
-			pinctrl-0 = <&pinctrl_uart0_rx_default &pinctrl_uart0_tx_default>; 
-            pinctrl-names = "default";
 		};
 
 		uart1: uart@45100000 {
 			compatible = "listenai,csk-uart";
 			reg = <0x45100000 0x100000>;
 			label = "UART_1";
-			pinctrl-0 = <&pinctrl_uart1_rx_default &pinctrl_uart1_tx_default>; 
-            pinctrl-names = "default";
 		};
 
 		uart2: uart@45200000 {
 			compatible = "listenai,csk-uart";
 			reg = <0x45200000 0x100000>;
 			label = "UART_2";
-            pinctrl-0 = <&pinctrl_uart2_rx_default &pinctrl_uart2_tx_default>; 
-            pinctrl-names = "default";
 		};
 
 		gpioa: gpio@45900000 {
@@ -60,6 +54,8 @@
 };
 
 &uart2 {
+	pinctrl-0 = <&pinctrl_uart2_rx_default &pinctrl_uart2_tx_default>; 
+	pinctrl-names = "default";
 	current-speed = <115200>;
 	status = "okay";
 };

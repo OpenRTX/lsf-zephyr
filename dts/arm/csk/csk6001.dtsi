@@ -78,8 +78,6 @@
 			reg = <0x45000000 0x100000>;
 			interrupts = <8 2>;
 			label = "UART_0";
-			pinctrl-0 = <&pinctrl_uart0_rx_default &pinctrl_uart0_tx_default>; 
-			pinctrl-names = "default";
 		};
 
 		uart1: uart@45100000 {
@@ -87,8 +85,6 @@
 			reg = <0x45100000 0x100000>;
 			interrupts = <9 2>;
 			label = "UART_1";
-			pinctrl-0 = <&pinctrl_uart1_rx_default &pinctrl_uart1_tx_default>; 
-			pinctrl-names = "default";
 		};
 
 		uart2: uart@45200000 {
@@ -96,8 +92,6 @@
 			reg = <0x45200000 0x100000>;
 			interrupts = <10 2>;
 			label = "UART_2";
-			pinctrl-0 = <&pinctrl_uart2_rx_default &pinctrl_uart2_tx_default>; 
-			pinctrl-names = "default";
 		};
 
 		pinmuxa: pinmux@46200000 {
@@ -143,8 +137,6 @@
 			label = "SPI_0";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>; 
-			pinctrl-names = "default";
 		};
 
         spi1: spi@45500000 {
@@ -154,8 +146,6 @@
             label = "SPI_1";
             #address-cells = <1>;
             #size-cells = <0>;
-			pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
-			pinctrl-names = "default";
         };
 
 		mailbox0: mailbox@46100000 {
@@ -178,8 +168,6 @@
 				status = "disabled";
 				label = "PWM_0";
 				#pwm-cells = <2>;
-				pinctrl-0 = <&pinctrl_pwm0_default>; 
-				pinctrl-names = "default";
 			};
 
 			pwm1 {
@@ -187,8 +175,6 @@
 				status = "disabled";
 				label = "PWM_1";
 				#pwm-cells = <2>;
-				pinctrl-0 = <&pinctrl_pwm1_default>; 
-				pinctrl-names = "default";
 			};
 
 			pwm2 {
@@ -196,8 +182,6 @@
 				status = "disabled";
 				label = "PWM_2";
 				#pwm-cells = <2>;
-				pinctrl-0 = <&pinctrl_pwm2_default>; 
-				pinctrl-names = "default";
 			};
 
 			pwm3 {
@@ -205,8 +189,6 @@
 				status = "disabled";
 				label = "PWM_3";
 				#pwm-cells = <2>;
-				pinctrl-0 = <&pinctrl_pwm3_default>; 
-				pinctrl-names = "default";
 			};
 
 			pwm4 {
@@ -214,8 +196,6 @@
 				status = "disabled";
 				label = "PWM_4";
 				#pwm-cells = <2>;
-				pinctrl-0 = <&pinctrl_pwm4_default>; 
-				pinctrl-names = "default";
 			};
 
 			pwm5 {
@@ -223,8 +203,6 @@
 				status = "disabled";
 				label = "PWM_5";
 				#pwm-cells = <2>;
-				pinctrl-0 = <&pinctrl_pwm5_default>; 
-				pinctrl-names = "default";
 			};
 
 			pwm6 {
@@ -232,8 +210,6 @@
 				status = "disabled";
 				label = "PWM_6";
 				#pwm-cells = <2>;
-				pinctrl-0 = <&pinctrl_pwm6_default>; 
-				pinctrl-names = "default";
 			};
 
 			pwm7 {
@@ -241,8 +217,6 @@
 				status = "disabled";
 				label = "PWM_7";
 				#pwm-cells = <2>;
-				pinctrl-0 = <&pinctrl_pwm7_default>; 
-				pinctrl-names = "default";
 			};
 		};
 		
@@ -253,8 +227,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			label = "I2C_0";
-			pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
-			pinctrl-names = "default";
 		};
 
 		i2c1: i2c@45700000 {
@@ -264,8 +236,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			label = "I2C_1";
-			pinctrl-0 = <&pinctrl_i2c1_scl_default &pinctrl_i2c1_sda_default>; 
-			pinctrl-names = "default";
 		};
 		
 		usbotg: usbd@41000000 {
@@ -300,8 +270,6 @@
 			status = "disabled";
 			label = "ADC";
 			#io-channel-cells = <1>;
-			pinctrl-0 = <&pinctrl_adc0_ch0_default &pinctrl_adc0_ch1_default &pinctrl_adc0_ch2_default>; 
-			pinctrl-names = "default";
 		};
 
 		keysense: keysense@46900000{
