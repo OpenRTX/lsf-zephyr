@@ -506,7 +506,8 @@ void adc_test(){
 	}
 	int32_t adc_vref = adc_ref_internal(dev_adc);
 	LOG_INF("adc_vref %d.", adc_vref);
-	while (1) {
+	uint8_t adc_cnt = 5;
+	while (adc_cnt--) {
 	/*
 	 * Configure channels individually prior to sampling
 	 */
@@ -682,22 +683,15 @@ void main(void)
 	k_thread_create(&lcdtouch_task_id, lcdtouch_stack_area,
 					K_THREAD_STACK_SIZEOF(lcdtouch_stack_area),
 					lcd_touch_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
-	k_msleep(1000);
 
-	// ADC：Get Vcc Voltage thread
-	pri = k_thread_priority_get(k_current_get());
-	k_thread_create(&adc_task_id, adc_stack_area,
-					K_THREAD_STACK_SIZEOF(adc_stack_area),
-					adc_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
+	adc_test();
 	
-	k_msleep(1000);
 	pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&camled_task_id, camled_stack_area,
 					K_THREAD_STACK_SIZEOF(camled_stack_area),
 					cam_led_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
 	
 	// WiFi 819s test thread
-	k_msleep(1000);
 
 	pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&wifi_task_id, wifi_stack_area,
@@ -705,15 +699,13 @@ void main(void)
 					csk_819s_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
 	#endif
 
-	k_msleep(1000);
-
 	// PWM Init
 	#if 1
 	LOG_INF("下载模式,5s后变为PWM模式不可下载程序，重新下载需要上电并在5s内进行下载");
 	pin_set_func(SWD_FUNC);
 	k_msleep(5000);
 	LOG_INF("PWM模式,需要进入swd模式请输入：swd");
-	pin_set_func(PWM1_FUNC);
+	// pin_set_func(PWM1_FUNC);
 	int ret;
 	ret = pwm_pin_set_nsec(pwm, 1, 20000,  200, 1);
 	#endif
