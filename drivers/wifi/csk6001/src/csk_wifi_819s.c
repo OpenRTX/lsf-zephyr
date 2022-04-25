@@ -225,10 +225,16 @@ static csk_wifi_result_t wifi_sta_get_connected_info(const struct device *dev)
     int wlan_ret = 0;
     wlan_sta_ap_t ap_info;
     wlan_ret = wlan_sta_ap_info(&ap_info);
+    if (ap_info.ssid.ssid_len > CSK_WIFI_SSID_LEN) {
+        LOG_ERR("WiFi ssid too long");
+        return CSK_WIFI_ERR_STA_FAILED;
+    }
     memcpy(data->sta_config.ssid, ap_info.ssid.ssid, ap_info.ssid.ssid_len);
+    data->sta_config.ssid[ap_info.ssid.ssid_len] = '\0';
     config.field = WLAN_STA_FIELD_PSK;
     wlan_ret |= wlan_sta_get_config(&config);
     memcpy(data->sta_config.pwd, config.u.psk, CSK_WIFI_PWD_LEN);
+    data->sta_config.pwd[CSK_WIFI_PWD_LEN - 1] = '\0';
     sprintf(data->sta_config.bssid, MACSTR, MACTOSTR(ap_info.bssid));
     data->sta_config.rssi = -(ap_info.rssi * 0.5);
     data->sta_config.channel = ap_info.channel;
