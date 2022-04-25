@@ -16,7 +16,6 @@
 #include <drivers/pinmux.h>
 #include <drivers/pwm.h>
 #include <drivers/adc.h>
-#include <shell/shell.h>
 
 #include <net/net_if.h>
 #include <net/net_core.h>
@@ -506,48 +505,45 @@ void adc_test(){
 	}
 	int32_t adc_vref = adc_ref_internal(dev_adc);
 	LOG_INF("adc_vref %d.", adc_vref);
-	uint8_t adc_cnt = 5;
-	while (adc_cnt--) {
+
+/*
+	* Configure channels individually prior to sampling
+	*/
+	for (uint8_t i = 0; i < ADC_NUM_CHANNELS; i++) {
+		channel_cfg.channel_id = channel_ids[i];
+
+		adc_channel_setup(dev_adc, &channel_cfg);
+
+		sequence.channels = BIT(channel_ids[i]);	
 	/*
-	 * Configure channels individually prior to sampling
-	 */
-		for (uint8_t i = 0; i < ADC_NUM_CHANNELS; i++) {
-			channel_cfg.channel_id = channel_ids[i];
+		* Read sequence of channels (fails if not supported by MCU)
+		*/
+		err = adc_read(dev_adc, &sequence);
+		if (err != 0) {
+			LOG_ERR("ADC reading failed with error %d.", err);
+			return;
+		}
 
-			adc_channel_setup(dev_adc, &channel_cfg);
+		int32_t raw_value = sample_buffer[0];
 
-			sequence.channels = BIT(channel_ids[i]);	
+		if (adc_vref > 0) {
 		/*
-		 * Read sequence of channels (fails if not supported by MCU)
-		 */
-			err = adc_read(dev_adc, &sequence);
-			if (err != 0) {
-				LOG_ERR("ADC reading failed with error %d.", err);
-				return;
+			* Convert raw reading to millivolts if driver
+			* supports reading of ADC reference voltage
+		*/
+			int32_t vcc_value = raw_value - 2048;
+
+			adc_raw_to_millivolts(adc_vref, ADC_GAIN_1,
+				ADC_RESOLUTION, &vcc_value); // Output 1/8 Vcc
+			
+			if(i==0){
+				vcc_value *= 8; 
+				LOG_INF("vcc_adc(%d)= %d mV", raw_value, vcc_value);
 			}
-
-			int32_t raw_value = sample_buffer[0];
-
-			if (adc_vref > 0) {
-			/*
-				* Convert raw reading to millivolts if driver
-				* supports reading of ADC reference voltage
-			*/
-				int32_t vcc_value = raw_value - 2048;
-
-				adc_raw_to_millivolts(adc_vref, ADC_GAIN_1,
-					ADC_RESOLUTION, &vcc_value); // Output 1/8 Vcc
-				
-				if(i==0){
-					vcc_value *= 8; 
-					LOG_INF("vcc_adc(%d)= %d mV", raw_value, vcc_value);
-				}
-				else{
-					LOG_INF("key_adc(%d)= %d mV", raw_value, vcc_value);
-				}
+			else{
+				LOG_INF("key_adc(%d)= %d mV", raw_value, vcc_value);
 			}
 		}
-		k_sleep(K_MSEC(1300));
 	}
 }
 
@@ -683,8 +679,6 @@ void main(void)
 	k_thread_create(&lcdtouch_task_id, lcdtouch_stack_area,
 					K_THREAD_STACK_SIZEOF(lcdtouch_stack_area),
 					lcd_touch_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
-
-	adc_test();
 	
 	pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&camled_task_id, camled_stack_area,
@@ -705,7 +699,7 @@ void main(void)
 	pin_set_func(SWD_FUNC);
 	k_msleep(5000);
 	LOG_INF("PWM模式,需要进入swd模式请输入：swd");
-	// pin_set_func(PWM1_FUNC);
+	pin_set_func(PWM1_FUNC);
 	int ret;
 	ret = pwm_pin_set_nsec(pwm, 1, 20000,  200, 1);
 	#endif
@@ -715,17 +709,9 @@ void main(void)
 
 
 	while(1){
-		k_msleep(1000);
+		adc_test();
+		k_msleep(500);
 	}
 	return;
 }
 
-int swd_mode_shell_handler(const struct shell *shell,
-                                 size_t argc, char **argv)
-{
-	pin_set_func(SWD_FUNC);
-    shell_print(shell, "Enter SWD IO Mode.");
-    return 0;
-}
-
-SHELL_CMD_ARG_REGISTER(swd, NULL, "swd mode select.", swd_mode_shell_handler, 1, 0);
