@@ -83,6 +83,29 @@ static int csk_gpio_pinmux_set(const struct device *dev, gpio_pin_t pin)
     return 0;
 }
 
+static int csk_gpio_pull_set(const struct device *dev, gpio_pin_t pin, gpio_flags_t flags)
+{
+    const struct csk_gpio_config *config = dev->config;
+
+    if (config->driver_num == 0) {
+        if(GPIO_PULL_UP == flags){
+            IOMuxManager_ModeConfigure(CSK_IOMUX_PAD_A, pin, HAL_IOMUX_PULLUP_MODE);
+        }else{
+            IOMuxManager_ModeConfigure(CSK_IOMUX_PAD_A, pin, HAL_IOMUX_PULLDOWN_MODE);
+        }
+    } else if (config->driver_num == 1) {
+        if(GPIO_PULL_UP == flags){
+            IOMuxManager_ModeConfigure(CSK_IOMUX_PAD_B, pin, HAL_IOMUX_PULLUP_MODE);
+        }else{
+            IOMuxManager_ModeConfigure(CSK_IOMUX_PAD_B, pin, HAL_IOMUX_PULLDOWN_MODE);
+        }
+    } else {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static int csk_gpio_configure(const struct device *dev, gpio_pin_t pin, gpio_flags_t flags)
 {
     const struct csk_gpio_config *config = dev->config;
@@ -99,11 +122,10 @@ static int csk_gpio_configure(const struct device *dev, gpio_pin_t pin, gpio_fla
         GPIO_SetDir(driver_context, 1UL << pin, CSK_GPIO_DIR_INPUT);
     }
 
-    GPIO_Control(driver_context, CSK_GPIO_MODE_PULL_NONE, 1UL << pin);
     if (flags & GPIO_PULL_UP) {
-        GPIO_Control(driver_context, CSK_GPIO_MODE_PULL_UP, 1UL << pin);
+        csk_gpio_pull_set(dev, pin, GPIO_PULL_UP);
     } else if (flags & GPIO_PULL_DOWN) {
-        GPIO_Control(driver_context, CSK_GPIO_MODE_PULL_DOWN, 1UL << pin);
+        csk_gpio_pull_set(dev, pin, GPIO_PULL_DOWN);
     }
 
     if (flags & GPIO_OUTPUT_INIT_HIGH) {
