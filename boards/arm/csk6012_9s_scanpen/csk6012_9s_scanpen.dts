@@ -116,7 +116,7 @@
 
         vbatt {
                 compatible = "voltage-divider";
-		io-channels = <&adc0 5>, <&adc0 6>;
+		io-channels = <&adc0 6>;
 		output-ohms = <0>;
 	};
 
