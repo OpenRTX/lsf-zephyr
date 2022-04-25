@@ -52,15 +52,19 @@ static void *spi_csk_get_ctx(const struct device *dev)
 {
 	const char *label = DEV_LABEL(dev);
 
-	if(!strcmp(label, SPI0_LABEL))
+#ifdef CONFIG_SOC_CSK6001
+	if (!strcmp(label, SPI0_LABEL))
 	{
 		return SPI0();
-	}else if(!strcmp(label, SPI1_LABEL))
+	}
+#endif
+
+    if (!strcmp(label, SPI1_LABEL))
 	{
 		return SPI1();
-	}else{
-		LOG_ERR("ERR SPI LABEL:%s \n", label);
 	}
+	
+    LOG_ERR("ERR SPI LABEL:%s \n", label);
 
 	return NULL;
 }
@@ -246,10 +250,14 @@ static int spi_csk_init(const struct device *dev)
 {
 	const struct csk_spi_config *config = DEV_CFG(dev);
 	struct csk_spi_data *data = DEV_DATA(dev);
-
+    int r;
+    
 	/* Get device handle */
 	data->driver_context = spi_csk_get_ctx(dev);
-             
+    if (data->driver_context == NULL) {
+        return -1;
+    }
+
 	/* Fixme: rework the SPI_Initialize(), let the user parameter become void* type */  
 	SPI_Initialize(data->driver_context, csk_spi_isr_callback, (uint32_t)dev);                    
 	SPI_PowerControl(data->driver_context, CSK_POWER_FULL);                                        

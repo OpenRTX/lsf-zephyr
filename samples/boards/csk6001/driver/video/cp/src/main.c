@@ -58,12 +58,14 @@ void main(void)
 
 	uint32_t last_tick = 0;
 	while (1) {
-		ret = video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_FOREVER);
+		ret = video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_MSEC(2000));
 		if (ret == 0) {
 			if (vbuf->timestamp - last_tick > 0) {
 				printk("FPS:%d.\n", 1000 / (vbuf->timestamp - last_tick));
 			}
 			last_tick = vbuf->timestamp;
-		}
+		} else {
+            printk("recv frame timeout.\n");
+        }
 	}
 }

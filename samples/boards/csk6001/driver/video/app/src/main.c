@@ -27,7 +27,7 @@ LOG_MODULE_REGISTER(main, 4);
 #define CP_PSRAM_BASE (0x68400000)
 #define AP_PSRAM_BASE (0x30000000)
 
-void prepare_cp_run(void)
+void prepare_cp_run()
 {
 	PSRAM_Initialize();
 
@@ -47,6 +47,8 @@ void prepare_cp_run(void)
 	}
 
 	__DMB();
+    memcpy((void *)AP_PSRAM_BASE, (int)0x18200000, 274872 * 2);
+    dcache_clean_range(AP_PSRAM_BASE, AP_PSRAM_BASE + 274872 * 2);
 	__DSB();
 
 	// run cp
@@ -86,11 +88,13 @@ static void _work(struct k_work *work)
 	printk("start video steam.\n");
 }
 
+
 void main(void)
 {
 	const struct device *ipm = DEVICE_DT_GET(DT_NODELABEL(mailbox0));
 
 	printk("Hello World! %s\n", CONFIG_BOARD);
+
 	prepare_cp_run();
 
 	if (!device_is_ready(ipm)) {
@@ -104,8 +108,10 @@ void main(void)
 
 	/* define a delay work to start open video steam. */
 	k_work_init_delayable(&dwork, _work);
+    int i = 0;
 
 	while (1) {
-		k_yield();
+        printk("running, %d\n", i++);
+		k_sleep(K_MSEC(1000));
 	}
 }
