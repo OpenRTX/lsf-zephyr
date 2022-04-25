@@ -138,7 +138,7 @@
 
         };
 
-        xr819s: xr819s {
+        wifi_module: xr819s {
                 compatible = "wifi,xr819s";
                 label = "WiFi module";
                 dataready-gpios = <&gpioa 16 0>;
