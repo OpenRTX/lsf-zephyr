@@ -657,7 +657,7 @@ void fykey_init(){
 	}
 
 	ret = gpio_pin_interrupt_configure_dt(&fy_key,
-					      GPIO_INT_EDGE_TO_ACTIVE);
+					      GPIO_INT_EDGE_BOTH);
 	if (ret != 0) {
 		printk("Error %d: failed to configure interrupt on %s pin %d\n",
 			ret, fy_key.port->name, fy_key.pin);
