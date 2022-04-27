@@ -8,8 +8,8 @@
 #include "platform_wrapper.h"
 #include "esp_hosted_config.pb-c.h"
 
-//Workaround for csk6001
-//TODO: add csk6001 native support
+//Workaround for csk6
+//TODO: add csk6 native support
 #define STM32F469xx
 
 #ifndef STM32F469xx
