@@ -155,6 +155,13 @@
 };
 
 &flash0 {
+        /* size should be match the chip */
+        reg = <0x18000000 DT_SIZE_M(8)>;
+
+        /* write-block-size should be match the hal driver*/
+        write-block-size = <1>;
+        erase-block-size = <4096>;
+
         /*
          * For more information, see:
          * http: //docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
