@@ -37,30 +37,32 @@
         compatible = "listenai,csk-itcm";
         reg = <0x00010000 (12*1024)>;
         label = "itcm CODE";
-    };
-
-	psram0: psram@30000000 {
-		compatible = "listenai,csk6-psram";
-		reg = <0x30000000 DT_SIZE_M(8)>;
-		label = "psram0";
-	};	
+    };	
 
 	soc {
 
-		flash: flash-controller@46400000 {
+        psram: psram-controller@4a030000 {
+            compatible = "listenai,csk6-psram-controller";
+            label = "PSRAM_CTRL";
+            reg = <0x4A030000 DT_SIZE_M(1)>;
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            psram0: psram@30000000 {
+                compatible = "listenai,csk6-psram";
+                label = "psram0";
+            };
+        };
+
+        flash: flash-controller@46400000 {
 			compatible = "listenai,csk-flash-controller";
 			label = "FLASH_CTRL";
 			reg = <0x46400000 DT_SIZE_M(1)>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-
-
 			flash0: flash@18000000 {
-				compatible = "listenai,csk-nv-flash","soc-nv-flash";
+				compatible = "soc-nv-flash";
 				label = "FLASH_INN";
-				reg = <0x18000000 DT_SIZE_M(8)>;
-				write-block-size = <1>;
-				erase-block-size = <4096>;
 			};
 
 		};

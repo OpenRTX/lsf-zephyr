@@ -1,0 +1,94 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+&psram0 {
+     reg = <0x30000000 DT_SIZE_M(8)>;
+     #address-cells = <1>;
+     #size-cells = <1>;
+
+    /* cp core slot: 6MB */
+    cp_use_partition:cp_use_partition@30000000{             
+            compatible = "listenai,csk6-psram-partition";
+            reg = <0x30000000 0x600000>;
+            status = "okay";
+    };
+
+    /* sof communication slot: 1MB */
+    section0_partition: section0_partition@30600000 {
+            compatible = "listenai,csk6-psram-partition";
+            reg = <0x30600000 0x100000>;
+            status = "okay";
+    };
+
+    /* section0_partition slot: 512KB */
+    sof_partition: sof_partition@30700000 {
+            compatible = "listenai,csk6-psram-partition";
+            reg = <0x30700000 0x80000>;
+            status = "okay";
+    };
+
+    /* section1_partition slot: 512KB */
+    section1_partition: section1_partition@30780000 {
+            compatible = "listenai,csk6-psram-partition";
+            reg = <0x30780000 0x80000>;
+            status = "okay";
+    };        
+};
+
+&flash0 {
+    reg = <0x18000000 DT_SIZE_M(8)>;
+    write-block-size = <1>;
+    erase-block-size = <4096>;
+
+
+    /*
+    * For more information, see:
+    * http: //docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+    */
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        /* 256KB for bootloader */
+        boot_partition: partition@0 {
+                label = "mcuboot";
+                reg = <0x0 0x40000>;
+                read-only;
+        };
+
+        /* application image slot: 512KB */
+        slot0_partition: partition@40000 {
+                label = "image-0";
+                reg = <0x40000 0x80000>;
+        };
+
+        /* backup slot: 512KB */
+        slot1_partition: partition@c0000 {
+                label = "image-1";
+                reg = <0xc0000 0x80000>;
+        };
+
+        /* swap slot: 128KB */
+        scratch_partition: partition@140000 {
+                label = "image-scratch";
+                reg = <0x140000 0x20000>;
+        };
+        /* wifi_nvs_storage: 20Kb */
+        wifi_nvs_storage: partition@160000 {
+                label = "wifi_nvs_storage";
+                reg = <0x160000 0x5000>;
+        };
+
+        /* cp image partition,from addr NO.2 MB,size 1MB */                    
+        cp_image_partition: partition@200000 {
+            label = "cp-image";
+            reg = <0x200000 0x100000>;
+        };
+
+        /* storage: 5MB for storage,from addr NO.3 MB */
+        storage_partition: partition@300000 {
+            label = "storage";
+            reg = <0x300000 0x500000>;
+        };
+    };
+};

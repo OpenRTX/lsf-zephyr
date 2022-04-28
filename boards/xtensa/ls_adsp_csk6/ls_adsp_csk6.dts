@@ -7,6 +7,7 @@
 /dts-v1/;
 
 #include <listenai/ls_csk6.dtsi>
+#include <arm/csk/csk6_psram_flash.dtsi>
 #include "ls_adsp_csk6_pinctrl.dtsi"
 
 / {
