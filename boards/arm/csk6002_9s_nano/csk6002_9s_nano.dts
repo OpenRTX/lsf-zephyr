@@ -22,23 +22,8 @@
                 zephyr,sram = &sram0;
                 zephyr,itcm = &itcm0;
                 zephyr,flash = &flash0;
-                zephyr,flash_sysfs_storage = &filesystem_part;
                 zephyr,flash_controller = &flash;
                 /* other chosen settings  for your hardware */
-        };
-
-        fstab {
-                compatible = "zephyr,fstab";
-                lfs1: lfs1 {
-                        compatible = "zephyr,fstab,littlefs";
-                        mount-point = "/data";
-                        partition = <&filesystem_part>;
-                        read-size = <16>;
-                        prog-size = <16>;
-                        cache-size = <64>;
-                        lookahead-size = <32>;
-                        block-cycles = <512>;
-                };
         };
 
         leds {
@@ -163,11 +148,6 @@
                 compatible = "fixed-partitions";
                 #address-cells = <1>;
                 #size-cells = <1>;
-
-                filesystem_part: partition@200000 {
-			label = "xr819s_firmware";
-			reg = <0x200000 0x42000>;
-		};
 
                 /* storage: 6.625MB for storage */
                 storage_partition: partition@700000 {
