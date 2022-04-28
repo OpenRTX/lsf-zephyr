@@ -57,7 +57,9 @@ void __memmap_init(void)
 
 	for (__copy_table_t const *pTable = &__copy_table_start__; pTable < &__copy_table_end__;
 	     ++pTable) {
-        memcpy((void *)pTable->dest, (void *)pTable->src, pTable->wlen);
+		for (uint32_t i = 0u; i < pTable->wlen/4; ++i) {
+			pTable->dest[i] = pTable->src[i];
+		}
 	}
 
 }
