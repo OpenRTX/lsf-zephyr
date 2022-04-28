@@ -24,8 +24,6 @@ choice
 		select FLASH
 		select FLASH_MAP
 		select FLASH_PAGE_LAYOU
-		select FILE_SYSTEM
-		select FILE_SYSTEM_LITTLEFS
 endchoice
 
 config CSK_WIFI_STATION
