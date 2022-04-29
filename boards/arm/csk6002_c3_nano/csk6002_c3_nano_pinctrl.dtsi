@@ -33,9 +33,11 @@
 
                 /* I2C alternate function */
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 0 8>;
                 };
                 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 1 8>;
                 };
 
                 pinctrl_i2c1_scl_default: i2c1_scl_default{
@@ -97,6 +99,7 @@
                 };
 
                 pinctrl_pwm4_default: pwm4_default{
+                        pinctrls = <&pinmuxa 4 11>;
                 };
 
                 pinctrl_pwm5_default: pwm5_default{

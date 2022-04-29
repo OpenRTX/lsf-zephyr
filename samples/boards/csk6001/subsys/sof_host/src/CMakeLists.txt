@@ -15,3 +15,4 @@ zephyr_library_sources(./mcumgr_domain.c)
 zephyr_library_sources(./mcumgr_udp.c)
 endif()
 
+add_subdirectory(./lisa_mem)

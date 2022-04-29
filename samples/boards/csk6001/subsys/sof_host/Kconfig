@@ -57,4 +57,12 @@ menu "Example Configuration"
 
 endmenu
 
+
+config LISA_HEAP_ARENA_SIZE
+	int "Size of the lisa mem malloc arena"
+	default 0
+	help
+	  Indicate the size in bytes of the memory arena used for
+	  lisa_mem's malloc() implementation.
+
 source "Kconfig.zephyr"
