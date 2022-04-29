@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-zephyr_compile_options(-DARMCM33_DSP_FP -DPLATFORM_AP -DCSK6 -DIC_BOARD)
+
 zephyr_sources(
   firmware_verification_table.S
   soc.c
