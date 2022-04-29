@@ -10,12 +10,13 @@
 #include <drivers/dma.h>
 #include <logging/log.h>
 
-#include "hal/dma.h"
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
 #define DMA_CSK6001_RAM_FUNC 
+#include "dma_venus.h"
 #else
 #define DMA_CSK6001_RAM_FUNC __attribute__ ((section (".itcm"))) 
+#include "hal/dma.h"
 #endif /* end of CONFIG_SOC_LS_ADSP_CSK6 */
 
 LOG_MODULE_REGISTER(dma_csk6001, CONFIG_DMA_LOG_LEVEL);
