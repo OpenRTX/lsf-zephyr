@@ -10,5 +10,9 @@ supported:
   - gpio
   - uart
   - ipm
+  - usb_device
 ram: 320
 flash: 8000
+
+testing:
+  default: true
