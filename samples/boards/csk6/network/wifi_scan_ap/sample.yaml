@@ -1,0 +1,4 @@
+tests:
+  sample.board.csk6.network.wifi_sta:
+    platform_allow: csk6002_c3_nano csk6002_9s_nano
+    tags: csk6

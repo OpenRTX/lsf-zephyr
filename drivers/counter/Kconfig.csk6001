@@ -1,7 +1,0 @@
-# Counter driver for csk clock
-
-# Copyright (c) 2022 LISTENAI Corp.
-# SPDX-License-Identifier: Apache-2.0
-
-config COUNTER_CSK6001
-	bool "Counter driver for csk6001 RTC clock"

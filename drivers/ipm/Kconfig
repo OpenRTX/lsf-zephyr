@@ -16,7 +16,7 @@ config IPM_MCUX
 
 config IPM_CSK
 	bool "CSK IPM driver"
-	depends on HAS_CSK6001
+	depends on HAS_CSK6
 	help
 	  Driver for MCUX mailbox
 
@@ -29,9 +29,9 @@ config IPM_IMX
 config IPM_CSK
 	bool "CSK IPM driver"
 	default y
-	depends on HAS_CSK6001
+	depends on HAS_CSK6
 	help
-	  Driver for CSK6001 mailbox
+	  Driver for CSK6 mailbox
 
 choice
 	prompt "IMX IPM max data size"

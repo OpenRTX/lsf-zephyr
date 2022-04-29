@@ -1,0 +1,16 @@
+# Copyright (c) 2021 LISTENAI Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_FLASH_CSK6
+	bool "Listenai CSK6 flash driver"
+	default y
+	select FLASH_HAS_DRIVER_ENABLED
+	select FLASH_HAS_PAGE_LAYOUT
+	depends on HAS_CSK6
+	help
+	  Enable CSK6 internal flash driver.
+
+config MPU_ALLOW_FLASH_WRITE
+	bool "Add MPU access to write to flash"
+	help
+	  Enable this to allow MPU RWX access to flash memory

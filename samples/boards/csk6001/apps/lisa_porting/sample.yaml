@@ -1,4 +1,0 @@
-tests:
-  sample.board.csk6001.apps.lisa_porting:
-    platform_allow: csk6002_c3_nano
-    tags: csk6

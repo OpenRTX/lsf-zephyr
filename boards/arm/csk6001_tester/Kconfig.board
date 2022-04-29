@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: Apache-2.0
-
-config BOARD_CSK6001_TESTER
-   bool "csk6001 tester Board"
-   depends on SOC_CSK6001

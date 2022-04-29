@@ -22,4 +22,4 @@ zephyr_library_sources_ifdef(CONFIG_ADC_CC32XX		adc_cc32xx.c)
 zephyr_library_sources_ifdef(CONFIG_ADC_EMUL		adc_emul.c)
 zephyr_library_sources_ifdef(CONFIG_ADC_XEC_V2		adc_mchp_xec_v2.c)
 
-zephyr_library_sources_ifdef(CONFIG_ADC_CSK6001		adc_csk6001.c)
+zephyr_library_sources_ifdef(CONFIG_ADC_CSK6		adc_csk6.c)

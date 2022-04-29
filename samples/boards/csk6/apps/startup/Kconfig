@@ -1,0 +1,138 @@
+# Private config options for load sencond core firmware app
+
+# SPDX-License-Identifier: Apache-2.0
+
+# Workaround for not being able to have commas in macro arguments
+
+menu "Load Second Core Options"
+	depends on SOC_CSK6
+
+choice
+	prompt "The second core load method selection"
+	default SECOND_CORE_LOAD_BY_LITTLEFS
+
+config SECOND_CORE_LOAD_BY_FLASH_ELF
+	bool "load the second core fw by *.elf file store at flash area"
+
+config SECOND_CORE_IMAGE_ELF_ADDR
+	depends on SECOND_CORE_LOAD_BY_FLASH_ELF
+	hex "Address the second core firmware storage in flash,the file must be elf format"
+	default 0x18200000
+	help
+	  This is the address the second core image storage in flash. Additionally
+	  The data at this address will be load to run at the boot address.
+
+config SECOND_CORE_LOAD_BY_FLASH_BINARY
+	bool "load the second core fw by *.bin file store at flash area"
+
+config SECOND_CORE_IMAGE_BINARY_ADDR
+	depends on SECOND_CORE_LOAD_BY_FLASH_BINARY
+	hex "Address the second core firmware storage in flash,the file must be binary format"
+	default 0x18200000
+	help
+	  This is the address the second core image storage in flash. Additionally
+	  The data at this address will be load to run at the boot address.
+
+config SECOND_CORE_IMAGE_BINARY_SIZE
+	depends on SECOND_CORE_LOAD_BY_FLASH_BINARY
+	hex "The binary fw size of second core firmware storage in flash,the file must be binary format"
+	default 0x100000
+	help
+	  This is the address the second core image storage in flash. Additionally
+	  The data at this address will be load to run at the boot address.
+
+config SECOND_CORE_LOAD_BY_LITTLEFS
+	bool "load the second core fw by littleFS"
+	imply DISK_DRIVER_FLASH
+	imply FILE_SYSTEM
+	imply FILE_SYSTEM_LITTLEFS
+
+config SECOND_CORE_IMAGE_NAME
+	depends on SECOND_CORE_LOAD_BY_LITTLEFS
+	default "cp_fw.bin"
+	string "Binary image name of second core's code"
+	help
+	  This points to the image file for the the binary code that will be
+	  used by the second core.
+
+
+config SECOND_CORE_LOAD_BY_FATFS
+	bool "load the second core fw by fatfs"
+	imply DISK_DRIVER_FLASH
+	imply FILE_SYSTEM
+	imply FAT_FILESYSTEM_ELM
+
+
+config SECOND_CORE_IMAGE_NAME
+	depends on SECOND_CORE_LOAD_BY_FATFS
+	default "cp_fw.bin"
+	string "Binary image name of second core's code"
+	help
+	  This points to the image file for the the binary code that will be
+	  used by the second core.
+
+endchoice
+
+
+config SECOND_CORE_BOOT_ADDRESS
+	hex "Address the second core will boot at"
+	default 0x60000000
+	help
+	  This is the address the second core will boot from. Additionally this
+	  address is where we will copy the SECOND_IMAGE to. We default this to
+	  the base of PSRAM.
+
+
+endmenu
+
+if DISK_DRIVER_FLASH
+
+DT_CHOSEN_Z_FLASH_SYSFS_STORAGE := zephyr,flash_sysfs_storage
+DT_CHOSEN_Z_FLASH_CONTROLLER := zephyr,flash_controller
+DT_CHOSEN_Z_INN_FLASH := zephyr,flash
+
+
+config DISK_FLASH_START
+	default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_FLASH_SYSFS_STORAGE))"
+
+config DISK_FLASH_DEV_NAME
+	default "$(dt_chosen_label,$(DT_CHOSEN_Z_FLASH_CONTROLLER))"
+
+config DISK_VOLUME_SIZE
+	default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_FLASH_SYSFS_STORAGE))"
+
+
+config DISK_FLASH_MAX_RW_SIZE
+	default 4096
+	#default $(dt_node_int_prop_hex,$(DT_CHOSEN_Z_INN_FLASH),erase-block-size)
+
+config DISK_FLASH_ERASE_ALIGNMENT
+	default 0x1000
+	#default "$(dt_node_int_prop_hex,$(DT_CHOSEN_Z_INN_FLASH),erase-block-size)"
+
+config DISK_ERASE_BLOCK_SIZE
+	default 0x1000
+	#default "$(dt_node_int_prop_hex,$(DT_CHOSEN_Z_INN_FLASH),erase-block-size)"
+
+#USB config
+config MASS_STORAGE_DISK_NAME
+	default "NAND" 
+
+
+config FLASH_LOG_LEVEL
+	default 4
+
+
+		
+endif #DISK_DRIVER_FLASH
+
+config FLASH
+	default y
+
+config FLASH_MAP
+	default y
+
+config FLASH_PAGE_LAYOUT
+	default y
+
+source "Kconfig.zephyr"

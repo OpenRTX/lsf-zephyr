@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig SPI_CSK6
+	bool "CSK6 SPI driver"
+	default y
+	depends on HAS_CSK6
+	help
+	  Enable the csk6 SPI driver.
+
+if SPI_CSK6
+
+config SPI_TX_DMA
+	bool "Enable SPI TX DMA"
+	default y
+	select DMA
+
+config SPI_RX_DMA
+	bool "Enable SPI RX DMA"
+	default y
+	select DMA
+
+endif #SPI_CSK6
