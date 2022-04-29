@@ -117,7 +117,7 @@ source "drivers/serial/Kconfig.cc32xx"
 
 source "drivers/serial/Kconfig.cmsdk_apb"
 
-source "drivers/serial/Kconfig.csk6001"
+source "drivers/serial/Kconfig.csk6"
 
 source "drivers/serial/Kconfig.sifive"
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /dts-v1/;
-#include <csk/csk6001.dtsi>
+#include <csk/csk6.dtsi>
 #include <dt-bindings/pwm/pwm.h>
 #include "csk6002_c3_nano_pinctrl.dtsi"
 

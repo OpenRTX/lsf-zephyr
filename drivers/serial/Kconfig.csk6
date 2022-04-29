@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config UART_CSK6
+	bool "CSK6 UART driver"
+	default y
+	select SERIAL_HAS_DRIVER
+	select SERIAL_SUPPORT_INTERRUPT
+	select PINMUX
+	depends on HAS_CSK6
+	help
+	  Enable the csk6 UART driver.

@@ -2,4 +2,4 @@
 
 config BOARD_CSK6012_9S_SCANPEN
    bool "csk6002 9S_SCANPEN Board"
-   depends on SOC_CSK6001
+   depends on SOC_CSK6

@@ -1,0 +1,10 @@
+# Microchip CSK6 Watchdog Timer configuration
+
+# Copyright (c) 2022 listenai
+# SPDX-License-Identifier: Apache-2.0
+
+config WDT_CSK6
+	bool "Microchip CSK series Watchdog Timer (WDT) driver"
+	default y
+	help
+	  Enable WDT driver for Microchip CSK MCU series.

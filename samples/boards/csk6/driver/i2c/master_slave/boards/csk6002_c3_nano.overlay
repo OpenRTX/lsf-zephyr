@@ -1,0 +1,38 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright (c) 2021 STMicroelectronics
+ */
+
+&csk6002_c3_nano_pinctrl{
+				/* I2C alternate function */
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+						pinctrls = <&pinmuxa 4 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+						pinctrls = <&pinmuxa 5 8>;
+                };
+
+                pinctrl_i2c1_scl_default: i2c1_scl_default{
+						 pinctrls = <&pinmuxa 7 9>;
+                };
+                
+                pinctrl_i2c1_sda_default: i2c1_sda_default{
+						pinctrls = <&pinmuxa 6 9>;
+                };
+
+};
+
+
+&i2c1 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c1_scl_default &pinctrl_i2c1_sda_default>; 
+        pinctrl-names = "default";
+};
+
+&i2c0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
+};

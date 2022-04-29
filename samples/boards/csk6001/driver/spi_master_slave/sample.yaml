@@ -1,4 +1,0 @@
-tests:
-  sample.board.csk6001.driver.spi_master_slave:
-    platform_allow: csk6002_c3_nano
-    tags: csk6

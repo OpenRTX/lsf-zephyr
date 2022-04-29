@@ -1,0 +1,6 @@
+sample:
+  name: Load_ap Sample
+tests:
+  sample.board.csk6.driver.load_ap:
+    platform_allow: csk6002_c3_nano
+    tags: csk6

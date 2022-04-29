@@ -22,6 +22,6 @@ zephyr_library_sources_ifdef(CONFIG_WDT_SAM0 wdt_sam0.c)
 zephyr_library_sources_ifdef(CONFIG_WDT_SIFIVE wdt_sifive.c)
 zephyr_library_sources_ifdef(CONFIG_WDT_XEC wdt_mchp_xec.c)
 
-zephyr_library_sources_ifdef(CONFIG_WDT_CSK6001 wdt_csk6001.c)
+zephyr_library_sources_ifdef(CONFIG_WDT_CSK6 wdt_csk6.c)
 
 zephyr_library_sources_ifdef(CONFIG_USERSPACE wdt_handlers.c)

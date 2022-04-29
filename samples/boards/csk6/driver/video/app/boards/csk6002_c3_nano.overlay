@@ -1,0 +1,65 @@
+&csk6002_c3_nano_pinctrl{
+
+                pinctrl_pwm4_default: pwm4_default{
+                    pinctrls = <&pinmuxa 4 11>;
+                };  
+
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 0 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 1 8>;
+                };    
+};
+
+/{
+    pwmleds {
+		compatible = "pwm-leds";
+		green_pwm_led: green_pwm_led {
+			pwms = <&pwm4 4 PWM_POLARITY_NORMAL>;
+			label = "User BOARD_LED_2 - PWM0";
+		};
+	};
+};
+
+&gpt0 {
+	status = "okay";
+
+    pwm5: pwm5 {
+        status = "disabled";
+    };
+
+	pwm4: pwm4 {
+        pinctrl-0 = <&pinctrl_pwm4_default>; 
+        pinctrl-names = "default";
+        clock-prescaler = <1>;
+        status = "okay";
+    };
+};
+
+&spi0 {
+    status = "okay";
+    spi-max-frequency = <25000000>;
+};
+
+
+&i2c0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
+
+        bf30a2: bf30a2@6e {
+            compatible = "byd,bf30a2";
+            status = "okay";
+            label = "VIDEO";
+            reg = <0x6e>;
+            pd-gpios = <&gpioa 1 0>;
+            pwr-gpios = <&gpioa 5 0>;
+            product-id = <0x3b02>;
+            spi = <&spi0>;
+            pwms = <&pwm4 0x4 0x0>;
+            xclk-freq = <12500>;
+            csk6-spec;
+        };
+};

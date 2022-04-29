@@ -1,0 +1,13 @@
+# CSK I2C driver configuration options
+
+# Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+config I2C_CSK6
+	bool "listenai CSK6 embedded controller (EC) I2C driver"
+	default y
+	depends on HAS_CSK6
+	help
+	  This option enables the I2C driver for CSK6.
+	  Say y if you wish to use I2C modules on CSK6.
+	  

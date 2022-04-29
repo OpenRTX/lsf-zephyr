@@ -20,7 +20,7 @@ module = DMA
 module-str = dma
 source "subsys/logging/Kconfig.template.log_config"
 
-source "drivers/dma/Kconfig.csk6001"
+source "drivers/dma/Kconfig.csk6"
 
 source "drivers/dma/Kconfig.stm32"
 

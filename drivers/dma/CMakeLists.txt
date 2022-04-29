@@ -2,7 +2,7 @@
 
 zephyr_library()
 
-zephyr_library_sources_ifdef(CONFIG_DMA_CSK6001	    dma_csk6001.c)
+zephyr_library_sources_ifdef(CONFIG_DMA_CSK6	    dma_csk6.c)
 zephyr_library_sources_ifdef(CONFIG_DMA_SAM_XDMAC	dma_sam_xdmac.c)
 zephyr_library_sources_ifdef(CONFIG_DMA_STM32		dma_stm32.c)
 zephyr_library_sources_ifdef(CONFIG_DMA_STM32_V1	dma_stm32_v1.c)

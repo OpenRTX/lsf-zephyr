@@ -19,7 +19,7 @@
 #include <metal/device.h>
 
 #include "common.h"
-#ifdef CONFIG_SOC_CSK6001
+#ifdef CONFIG_SOC_CSK6
 #include "hal/PSRAMManager.h"
 #endif
 
@@ -287,7 +287,7 @@ _cleanup:
 void main(void)
 {
 	
-#ifdef CONFIG_SOC_CSK6001
+#ifdef CONFIG_SOC_CSK6
 	PSRAM_Initialize();
 #endif
 
