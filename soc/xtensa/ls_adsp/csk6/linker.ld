@@ -358,7 +358,9 @@ SECTIONS
   {
     _stext = .;
     _iram_text_start = ABSOLUTE(.);
+    . = ALIGN (4);
     *(.iram0.literal .iram.literal .iram.text.literal .iram0.text .iram.text)
+    . = ALIGN (4);
     _iram_text_end = ABSOLUTE(.);
   } >iram_text_start AT > sdram0 :iram_text_start_phdr
 
