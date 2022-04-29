@@ -1,0 +1,4 @@
+tests:
+  sample.board.csk6.subsys.usb.cdc.console_shell:
+    platform_allow: csk6002_c3_nano
+    tags: csk6

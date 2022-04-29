@@ -1,0 +1,7 @@
+sample:
+  name: soc_flash_listenai 
+
+tests:
+  sample.board.csk6.driver.soc_flash_listenai:
+    platform_allow: csk6002_c3_nano
+    tags: csk6

@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: Apache-2.0
-
-config DMA_CSK6001
-	bool "CSK6001 DMA controller driver"
-	default y
-	depends on HAS_CSK6001
-	help
-	  Enable the csk6001 SPI driver.

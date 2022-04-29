@@ -2,4 +2,4 @@
 
 config BOARD_CSK6002_9S_NANO
    bool "csk6002_9s_nano Board"
-   depends on SOC_CSK6001
+   depends on SOC_CSK6

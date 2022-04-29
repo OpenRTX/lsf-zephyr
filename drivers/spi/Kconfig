@@ -43,7 +43,7 @@ source "subsys/logging/Kconfig.template.log_config"
 
 source "drivers/spi/Kconfig.b91"
 
-source "drivers/spi/Kconfig.csk6001"
+source "drivers/spi/Kconfig.csk6"
 
 source "drivers/spi/Kconfig.stm32"
 

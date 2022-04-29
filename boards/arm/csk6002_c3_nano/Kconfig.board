@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
 config BOARD_CSK6002_C3_NANO
-   bool "csk6001 PICO Board"
-   depends on SOC_CSK6001
+   bool "csk6 PICO Board"
+   depends on SOC_CSK6

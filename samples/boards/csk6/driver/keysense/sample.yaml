@@ -1,0 +1,7 @@
+sample:
+  name: keysense 
+
+tests:
+  sample.board.csk6.driver.keysense:
+    platform_allow: csk6002_c3_nano
+    tags: csk6

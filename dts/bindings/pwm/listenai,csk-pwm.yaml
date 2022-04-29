@@ -1,4 +1,4 @@
-description: CSK6001 PWM
+description: CSK6 PWM
 
 compatible: "listenai,csk-pwm"
 

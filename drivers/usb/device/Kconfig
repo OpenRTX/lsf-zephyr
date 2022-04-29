@@ -21,12 +21,12 @@ config USB_DW_USB_2_0
 	help
 	  Indicates whether or not USB specification version 2.0 is supported
 
-config USB_DC_CSK6001
-	bool "USB device controller driver for CSK6001 devices"
+config USB_DC_CSK6
+	bool "USB device controller driver for CSK6 devices"
 	default y
-	depends on HAS_CSK6001
+	depends on HAS_CSK6
 	help
-	  Enable USB support on the csk6001 processors.
+	  Enable USB support on the csk6 processors.
 
 config USB_DC_STM32
 	bool "USB device controller driver for STM32 devices"
