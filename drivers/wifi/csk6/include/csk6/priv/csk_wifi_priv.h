@@ -28,54 +28,54 @@
 extern "C" {
 #endif
 
-#define WIFI_MODE_AP    10
-#define EVENT_SUBTYPE(event)  ((uint16_t)((event) & 0xFFFF))
+#define WIFI_MODE_AP 10
+#define EVENT_SUBTYPE(event) ((uint16_t)((event)&0xFFFF))
 
 struct csk_wifi_data {
-    const struct device *dev;
-    void *virtual_netif;
-    struct net_if *netif;
-    uint8_t mac_addr[6];
-    union {
+	const struct device *dev;
+	void *virtual_netif;
+	struct net_if *netif;
+	uint8_t mac_addr[6];
+	union {
 #if CONFIG_ESP_HOSTED
-        esp_hosted_sta_config_t sta_config;
-        esp_hosted_softap_config_t ap_config;
+		esp_hosted_sta_config_t sta_config;
+		esp_hosted_softap_config_t ap_config;
 #else
-        csk_wifi_sta_config_t sta_config;
-        csk_wifi_softap_config_t ap_config;
+		csk_wifi_sta_config_t sta_config;
+		csk_wifi_softap_config_t ap_config;
 #endif
-    };
+	};
 #ifdef CONFIG_ESP_HOSTED
-   hosted_event_callback_t hosted_event_cb;
+	hosted_event_callback_t hosted_event_cb;
 #else
-    wlan_event_t wifi_status;
+	wlan_event_t wifi_status;
 #endif
 };
 
 typedef enum {
-    WIFI_CMD_STA_INIT,
-    WIFI_CMD_STA_CONNECT,
-    WIFI_CMD_STA_DISCONNECT,
-    WIFI_CMD_AP_INIT,
-    WIFI_CMD_AP_START,
-    WIFI_CMD_AP_STOP,
-    WIFI_CMD_SCAN,
+	WIFI_CMD_STA_INIT,
+	WIFI_CMD_STA_CONNECT,
+	WIFI_CMD_STA_DISCONNECT,
+	WIFI_CMD_AP_INIT,
+	WIFI_CMD_AP_START,
+	WIFI_CMD_AP_STOP,
+	WIFI_CMD_SCAN,
 } wifi_cmd_t;
 
 typedef struct {
-    int result;
-    void *arg;
+	int result;
+	void *arg;
 } wifi_ret_msg_t;
 
 typedef struct {
-    csk_wifi_scan_info_t *ap_list;
-    int count;
+	csk_wifi_scan_info_t *ap_list;
+	int count;
 } wifi_scan_list_t;
 
 #if CONFIG_ESP_HOSTED
-const struct device * wifi_get_dev(wifi_mode_t mode);
+const struct device *wifi_get_dev(wifi_mode_t mode);
 #else
-const struct device * wifi_get_dev(int mode);
+const struct device *wifi_get_dev(int mode);
 #endif
 int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts);
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout);

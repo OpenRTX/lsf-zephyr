@@ -7,6 +7,7 @@
 #include <zephyr.h>
 #include <device.h>
 #include <sys/printk.h>
+#include <sys/sys_heap.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
 #include <logging/log.h>
@@ -15,14 +16,16 @@
 #include <drivers/pinmux.h>
 #include <drivers/pwm.h>
 #include <drivers/adc.h>
-#include <shell/shell.h>
+
+#include <net/net_if.h>
+#include <net/net_core.h>
+#include <net/net_context.h>
+#include <net/net_mgmt.h>
+#include "csk6/csk_wifi.h"
 
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
-// device:Keysense
-#define KSCAN_DEVICE DT_LABEL(DT_ALIAS(analogkey))
-
 // device:ADC
-#define ADC_STACKSIZE       4096
+#define ADC_STACKSIZE       512
 struct k_thread  adc_task_id;
 K_THREAD_STACK_DEFINE(adc_stack_area, ADC_STACKSIZE);
 
@@ -87,35 +90,38 @@ struct pwm_csk_config {
 	const struct device *pinmux_drv;
 };
 
-// PWM
-#define SDIO_PIN_FUNC 0
+// PWM SWDIO
 #define PWM_LED0_NODE	DT_NODELABEL(pwmlcd)
+#define PINMUXA_NODE 	DT_NODELABEL(pinmuxa)
+#define SWDIO_PIN_NUM 	1
+#define SWDIO_PIN_FUNC 	0
+#define PWM1_PIN_FUNC 	11
 
-#if DT_NODE_HAS_PROP(PWM_LED0_NODE, pinmuxs)
-#define PWM 		DEVICE_DT_GET(DT_NODELABEL(pwmlcd))
-#else
-#error "No PWM pinmuxs found"
-#endif
 // devicetree: power lock
 #define PWR_LOCK_NODE 	DT_NODELABEL(pwrlock)
 #define GPIO_PWR_LOCK	DT_GPIO_CTLR(PWR_LOCK_NODE, gpios) 
 #define PIN_PWR_LOCK	DT_GPIO_PIN(PWR_LOCK_NODE, gpios) 
 #define FLAGS_PWR_LOCK	DT_GPIO_FLAGS(PWR_LOCK_NODE, gpios) 
 
-
+#define WIFI_STACKSIZE	4096 
+struct k_thread  wifi_task_id;
+K_THREAD_STACK_DEFINE(wifi_stack_area, WIFI_STACKSIZE);
 
 // devicetree: LED CAM NODE
 struct k_thread  camled_task_id;
-#define CAM_LED_STACKSIZE	1024 
+#define CAM_LED_STACKSIZE	256 
 K_THREAD_STACK_DEFINE(camled_stack_area, CAM_LED_STACKSIZE);
 #define CAM_LED 		DT_NODELABEL(camleds1)
 #define GPIO_LED_CAM 	DT_GPIO_CTLR_BY_IDX(CAM_LED, gpios, 0) 
 
-#define FY_KEY 			DT_NODELABEL(fy_key_0)
-#define GPIO_FY_KEY 	DT_GPIO_CTLR_BY_IDX(FY_KEY, gpios, 0) 
-
+// devicetree: FY KEY NODE
+#define FY_KEY_NODE 	DT_NODELABEL(fy_key)
+#define GPIO_FY_KEY 	DT_GPIO_CTLR_BY_IDX(FY_KEY_NODE, gpios, 0) 
+static const struct gpio_dt_spec fy_key = GPIO_DT_SPEC_GET_OR(FY_KEY_NODE, gpios,
+							      {0});
+static struct gpio_callback fy_key_cb_data;
 // device: touch and LCD
-#define STACKSIZE       4096
+#define STACKSIZE       1024
 struct k_thread  lcdtouch_task_id;
 K_THREAD_STACK_DEFINE(lcdtouch_stack_area, STACKSIZE);
 
@@ -324,7 +330,7 @@ static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf,
 	memset(buf, color, buf_size);
 }
 
-void cam_led_test(void){
+void cam_led_test(){
 	bool led_is_on = true;
 	const struct device *cam_led = DEVICE_DT_GET(GPIO_LED_CAM);;
 	if (!device_is_ready(cam_led)) {
@@ -497,62 +503,50 @@ void adc_test(){
 		LOG_INF("ADC device not found");
 		return;
 	}
+	int32_t adc_vref = adc_ref_internal(dev_adc);
+	LOG_INF("adc_vref %d.", adc_vref);
 
-	/*
-	 * Configure channels individually prior to sampling
-	 */
+/*
+	* Configure channels individually prior to sampling
+	*/
 	for (uint8_t i = 0; i < ADC_NUM_CHANNELS; i++) {
 		channel_cfg.channel_id = channel_ids[i];
 
 		adc_channel_setup(dev_adc, &channel_cfg);
 
-		sequence.channels |= BIT(channel_ids[i]);
-	}
-
-	int32_t adc_vref = adc_ref_internal(dev_adc);
-
-	LOG_INF("adc_vref %d.", adc_vref);
-
-	while (1) {
-		/*
-		 * Read sequence of channels (fails if not supported by MCU)
-		 */
+		sequence.channels = BIT(channel_ids[i]);	
+	/*
+		* Read sequence of channels (fails if not supported by MCU)
+		*/
 		err = adc_read(dev_adc, &sequence);
 		if (err != 0) {
 			LOG_ERR("ADC reading failed with error %d.", err);
 			return;
 		}
 
-		for (uint8_t i = 0; i < ADC_NUM_CHANNELS; i++) {
-			int32_t raw_value = sample_buffer[i];
+		int32_t raw_value = sample_buffer[0];
 
-			if (adc_vref > 0) {
-				/*
-				 * Convert raw reading to millivolts if driver
-				 * supports reading of ADC reference voltage
-				 */
-				int32_t vcc_value = raw_value - 2048;
+		if (adc_vref > 0) {
+		/*
+			* Convert raw reading to millivolts if driver
+			* supports reading of ADC reference voltage
+		*/
+			int32_t vcc_value = raw_value - 2048;
 
-				adc_raw_to_millivolts(adc_vref, ADC_GAIN_1,
-					ADC_RESOLUTION, &vcc_value); // Output 1/8 Vcc
-				
+			adc_raw_to_millivolts(adc_vref, ADC_GAIN_1,
+				ADC_RESOLUTION, &vcc_value); // Output 1/8 Vcc
+			
+			if(i==0){
 				vcc_value *= 8; 
-				LOG_INF(" adc(%d)= %d mV", raw_value, vcc_value);
+				LOG_INF("vcc_adc(%d)= %d mV", raw_value, vcc_value);
+			}
+			else{
+				LOG_INF("key_adc(%d)= %d mV", raw_value, vcc_value);
 			}
 		}
-
-		k_sleep(K_MSEC(1300));
 	}
 }
 
-static void kb_callback(const struct device *dev, uint32_t row, uint32_t col,
-			bool pressed)
-{
-	ARG_UNUSED(dev);
-
-	LOG_INF("Key value = %d; Unused values = %d Pressed = %u", row, col, pressed);
-
-}
 void power_lock_init(void){
 	const struct device *power_lock = DEVICE_DT_GET(GPIO_PWR_LOCK);
 	if (!device_is_ready(power_lock)) {
@@ -575,75 +569,150 @@ void power_lock_init(void){
 	LOG_INF("Power is on:%d", ret);
 }
 
+enum PIN_FUNC{
+	PWM1_FUNC,
+	SWD_FUNC
+};
+void pin_set_func(enum PIN_FUNC func){
+	const struct device *pinmuxa = DEVICE_DT_GET(PINMUXA_NODE);
+	if (!device_is_ready(pinmuxa)) {
+		LOG_ERR("pinmuxa device is not ready");
+		return;
+	}
+	switch (func)
+	{
+	case PWM1_FUNC:
+		pinmux_pin_set(pinmuxa, SWDIO_PIN_NUM, PWM1_PIN_FUNC);
+		break;
+	case SWD_FUNC:
+		pinmux_pin_set(pinmuxa, SWDIO_PIN_NUM, SWDIO_PIN_FUNC);
+		break;
+	default:
+		break;
+	}
+}
+
+
+
+static csk_wifi_event_cb_t wifi_event_cb;
+
+static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32_t data_len, void *arg)
+{
+    if (events & CSK_WIFI_EVT_SCAN_DONE) {
+        printk("scan done\n");
+    } else {
+        //abort();
+    }
+}
+
+void csk_819s_test()
+{
+ 	csk_wifi_init();
+    wifi_event_cb.handler = &wifi_event_handler;
+    wifi_event_cb.events = CSK_WIFI_EVT_SCAN_DONE;
+    wifi_event_cb.arg = NULL;
+    csk_wifi_add_callback(&wifi_event_cb);
+
+    csk_wifi_result_t result;
+
+    while (1) {
+        csk_wifi_scan_info_t *ap_list;
+        int count = csk_wifi_scan_ap(&ap_list, &result, K_FOREVER);
+        if (count < 0) {
+            continue;
+        }
+        printk("-----------------------------------Scan AP list------------------------------------\n");
+        for (int i = 0; i < count; i++) {
+            printk("|ssid: %-20s | bssid: %-18s | channel: %-3d | rssi: %-3d|\n",
+                    ap_list[i].ssid, ap_list[i].bssid, ap_list[i].channel, ap_list[i].rssi);
+        }
+        printk("-----------------------------------------------------------------------------------\n");
+        k_free(ap_list);
+        ap_list = NULL;
+        k_msleep(1000);
+    }
+    
+}
+
+void fykey_pressed(const struct device *dev, struct gpio_callback *cb,
+		    uint32_t pins)
+{
+	printk("Button pressed at %" PRIu32 "\n", k_cycle_get_32());
+}
+
+void fykey_init(){
+		int ret;
+
+	if (!device_is_ready(fy_key.port)) {
+		printk("Error: button device %s is not ready\n",
+		       fy_key.port->name);
+		return;
+	}
+
+	ret = gpio_pin_configure_dt(&fy_key, GPIO_INPUT);
+	if (ret != 0) {
+		printk("Error %d: failed to configure %s pin %d\n",
+		       ret, fy_key.port->name, fy_key.pin);
+		return;
+	}
+
+	ret = gpio_pin_interrupt_configure_dt(&fy_key,
+					      GPIO_INT_EDGE_BOTH);
+	if (ret != 0) {
+		printk("Error %d: failed to configure interrupt on %s pin %d\n",
+			ret, fy_key.port->name, fy_key.pin);
+		return;
+	}
+
+	gpio_init_callback(&fy_key_cb_data, fykey_pressed, BIT(fy_key.pin));
+	gpio_add_callback(fy_key.port, &fy_key_cb_data);
+	printk("Set up button at %s pin %d\n", fy_key.port->name, fy_key.pin);
+}
+
 void main(void)
 {
-	const struct device *pwm;
+	int pri;
+	const struct device *pwm = DEVICE_DT_GET(PWM_LED0_NODE);
 	power_lock_init();
-	int pri = k_thread_priority_get(k_current_get());
+	#if 0
+	pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&lcdtouch_task_id, lcdtouch_stack_area,
 					K_THREAD_STACK_SIZEOF(lcdtouch_stack_area),
 					lcd_touch_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
-
-	// ADC：Get Vcc Voltage thread
+	#endif
+	
 	pri = k_thread_priority_get(k_current_get());
-	k_thread_create(&adc_task_id, adc_stack_area,
-					K_THREAD_STACK_SIZEOF(adc_stack_area),
-					adc_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
-
-	#if 0
 	k_thread_create(&camled_task_id, camled_stack_area,
 					K_THREAD_STACK_SIZEOF(camled_stack_area),
 					cam_led_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
-	#endif
+	
+	// WiFi 819s test thread
 
+	pri = k_thread_priority_get(k_current_get());
+	k_thread_create(&wifi_task_id, wifi_stack_area,
+					K_THREAD_STACK_SIZEOF(wifi_stack_area),
+					csk_819s_test, NULL, NULL, NULL, pri, 0, K_NO_WAIT);
+	
 
 	// PWM Init
 	#if 1
-	pwm = PWM;
-	if (!device_is_ready(pwm)) {
-		LOG_ERR("Error: PWM device %s is not ready", pwm->name);
-		return;
-	}
-	struct pwm_csk_config *pwmconfig = (struct pwm_csk_config*)pwm->config;
 	LOG_INF("下载模式,5s后变为PWM模式不可下载程序，重新下载需要上电并在5s内进行下载");
-	pinmux_pin_set(pwmconfig->pinmux_drv, pwmconfig->pwm_pin, SDIO_PIN_FUNC);	//配成sdio
+	pin_set_func(SWD_FUNC);
 	k_msleep(5000);
 	LOG_INF("PWM模式,需要进入swd模式请输入：swd");
-	pinmux_pin_set(pwmconfig->pinmux_drv, pwmconfig->pwm_pin, pwmconfig->pwm_func);		//配成pwm
+	pin_set_func(PWM1_FUNC);
 	int ret;
 	ret = pwm_pin_set_nsec(pwm, 1, 20000,  200, 1);
 	#endif
+	
+	// fy key init
+	fykey_init();
 
-	// Keysense init
-	const struct device *key_dev = device_get_binding(KSCAN_DEVICE);
-	if (!device_is_ready(key_dev)) {
-		LOG_ERR("kscan device is not ready");
-		return;
-	}
-	kscan_config(key_dev, kb_callback);
-	LOG_INF("key_dev init success!");
 
 	while(1){
-		k_msleep(1000);
+		//adc_test();
+		k_msleep(500);
 	}
 	return;
 }
 
-int swd_mode_shell_handler(const struct shell *shell,
-                                 size_t argc, char **argv)
-{
-    const struct device *pwm = PWM;
-        if (!device_is_ready(pwm)) {
-                LOG_ERR("Error: PWM device %s is not ready", pwm->name);
-                return -1;
-        }
-        struct pwm_csk_config *pwmconfig = (struct pwm_csk_config*)pwm->config;
-
-        pinmux_pin_set(pwmconfig->pinmux_drv, pwmconfig->pwm_pin, SDIO_PIN_FUNC);
-
-    shell_print(shell, "Enter SWD IO Mode.");
-
-    return 0;
-}
-
-SHELL_CMD_ARG_REGISTER(swd, NULL, "swd mode select.", swd_mode_shell_handler, 1, 0);
