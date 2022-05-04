@@ -1,0 +1,128 @@
+
+/ {
+        aliases {
+                sw0 = &user_button_0;
+                i2c-0 = &i2c0;
+                i2c-1 = &i2c1;
+                c-led = &camleds1;
+        };
+        chosen {
+		/*
+		 * shared memory reserved for the inter-processor communication
+		 */
+		zephyr,ipc_shm = &sof_partition;
+		zephyr,ipc = &mailbox0;
+		#zephyr,uart-mcumgr = &uart0;
+                zephyr,flash_sysfs_storage = &filesystem_part;
+                zephyr,code-partition = &slot0_partition;
+                zephyr,lisa_heap = &psram_region1;
+	};
+
+        fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/lfs1";
+			partition = <&filesystem_part>;
+			automount ;
+			no-format;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
+	};
+
+	gpio_keys {
+                user_button_0: button_0 {
+                        label = "User SW0";
+                        gpios = < &gpioa 0xd 0x0 >;
+                };
+	};
+
+
+};
+
+&i2c0 {
+        status = "disabled";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
+
+        bf30a2: bf30a2@6e {
+            compatible = "byd,bf30a2";
+            status = "disabled";
+            label = "VIDEO";
+            reg = <0x6e>;
+            pd-gpios = <&gpioa 1 0>;
+            pwr-gpios = <&gpioa 9 0>;
+            product-id = <0x3b02>;
+            spi = <&spi0>;
+            pwms = <&pwm2 0x2 0x0>;
+            xclk-freq = <12500>;
+            csk6-spec;
+        };
+};
+
+&spi0 {
+    status = "okay";
+    spi-max-frequency = <25000000>;
+};
+
+
+&gpt0 {
+	status = "okay";
+
+	pwm2: pwm2 {
+        clock-prescaler = <1>;
+        status = "okay";
+        pinctrl-0 = <&pinctrl_pwm2_default>; 
+        pinctrl-names = "default";
+    };
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+                /* 256KB for bootloader */
+                boot_partition: partition@0 {
+                        label = "mcuboot";
+                        reg = <0x0 0x40000>;
+                        read-only;
+                };
+
+                /* application image slot: 1024KB */
+                slot0_partition: partition@40000 {
+                        label = "image-0";
+                        reg = <0x40000 0x100000>;
+                };
+
+                /* backup slot: 1024KB */
+                slot1_partition: partition@140000 {
+                        label = "image-1";
+                        reg = <0x140000 0x100000>;
+                };
+
+                /* swap slot: 128KB */
+                scratch_partition: partition@240000 {
+                        label = "image-scratch";
+                        reg = <0x240000 0x20000>;
+                };
+
+                /* wifi_nvs_storage: 20Kb */
+                wifi_nvs_storage: partition@260000 {
+                        label = "wifi_nvs_storage";
+                        reg = <0x260000 0x5000>;
+                };
+
+                /* storage: 6.625MB for storage */
+                filesystem_part: partition@265000 {
+                        label = "storage";
+                        reg = <0x265000 0x59b000>;
+                };
+
+	};
+};

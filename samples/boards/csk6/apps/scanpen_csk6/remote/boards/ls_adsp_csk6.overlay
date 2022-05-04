@@ -1,0 +1,24 @@
+&spi1 {
+        miso-gpios = <&gpioa 6 0>;
+        mosi-gpios = <&gpioa 7 7>;
+        sclk-gpios = <&gpioa 8 7>;
+        cs-gpios   = <&gpioa 9 7>;
+
+        status = "okay";
+        spi-max-frequency = <25000000>;
+
+        bf30a2: bf30a2@6e {
+            compatible = "byd,bf30a2";
+            status = "okay";
+            label = "VIDEO";
+            reg = <0x6e>;
+            csk6-spec;
+    };
+};
+
+&uart2 {
+	current-speed = <115200>;
+	pinmuxs = <&pinmuxb 7 3>, <&pinmuxb 6 3>;
+    /* pinmux-names = "RXD", "TXD"; */
+	status = "okay";
+};
