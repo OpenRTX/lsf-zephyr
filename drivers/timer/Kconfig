@@ -259,7 +259,7 @@ config ESP32C3_SYS_TIMER
 
 config XTENSA_TIMER_ID
 	int "System timer CCOMPAREn register index"
-	default 1
+	default 0
 	depends on XTENSA_TIMER
 	help
 	  Index of the CCOMPARE register (and associated interrupt)
