@@ -167,7 +167,7 @@
 #define SYNC_TYPE(dev, i) (SYNC_TYPE_##dev(i) << 2)
 
 #define EP_SIZE(dev, i) \
-	((GET_RES(dev, i)/8) * CH_CNT(dev, i) * 48)
+	((GET_RES(dev, i)/8) * CH_CNT(dev, i) * 8)
 
 /* *_ID() macros are used to give proper Id to each entity describing
  * the device. Entities Id must start from 1 that's why 1 is added.
@@ -491,7 +491,7 @@ struct dev##_descriptor_##i {						\
 	.bSubframeSize = res/8,					\
 	.bBitResolution = res,					\
 	.bSamFreqType = 1,					\
-	.tSamFreq = {0x80, 0xBB, 0x00},				\
+	.tSamFreq = {0x40, 0x1F, 0x00},				\
 }
 
 #define INIT_STD_AS_AD_EP(dev, i, addr)					\
