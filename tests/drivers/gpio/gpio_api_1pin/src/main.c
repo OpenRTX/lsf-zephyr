@@ -14,9 +14,9 @@ void test_main(void)
 		ztest_unit_test(test_gpio_pin_set_get_raw),
 		ztest_unit_test(test_gpio_pin_set_get),
 		ztest_unit_test(test_gpio_pin_set_get_active_high),
-		ztest_unit_test(test_gpio_pin_set_get_active_low),
+		ztest_unit_test(test_gpio_pin_set_get_active_low),   /* import */
 		ztest_unit_test(test_gpio_pin_toggle),
-		ztest_unit_test(test_gpio_port_set_masked_get_raw),
+		ztest_unit_test(test_gpio_port_set_masked_get_raw), /* import */
 		ztest_unit_test(test_gpio_port_set_masked_get),
 		ztest_unit_test(test_gpio_port_set_masked_get_active_high),
 		ztest_unit_test(test_gpio_port_set_masked_get_active_low),
@@ -29,11 +29,12 @@ void test_main(void)
 		ztest_unit_test(test_gpio_int_edge_falling),
 		ztest_unit_test(test_gpio_int_edge_both),
 		ztest_unit_test(test_gpio_int_edge_to_active),
-		ztest_unit_test(test_gpio_int_edge_to_inactive),
-		ztest_unit_test(test_gpio_int_level_high),
-		ztest_unit_test(test_gpio_int_level_low),
-		ztest_unit_test(test_gpio_int_level_active),
-		ztest_unit_test(test_gpio_int_level_inactive),
-		ztest_unit_test(test_gpio_pin_toggle_visual));
+		ztest_unit_test(test_gpio_int_edge_to_inactive)
+		// ztest_unit_test(test_gpio_int_level_high),
+		// ztest_unit_test(test_gpio_int_level_low),
+		// ztest_unit_test(test_gpio_int_level_active),
+		// ztest_unit_test(test_gpio_int_level_inactive),
+		// ztest_unit_test(test_gpio_pin_toggle_visual));
+	);
 	ztest_run_test_suite(gpio_api_1pin_test);
 }

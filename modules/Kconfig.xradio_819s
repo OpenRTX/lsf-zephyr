@@ -2,3 +2,56 @@
 
 menuconfig XR819S
 	bool "XR819S support"
+
+
+if XR819S
+
+config XR_UMAC_STACK
+	int "XR819S uamc Thread Stack"
+	default 2048
+
+config XR_UMAC_PRIORITY
+	int "XR819S uamc Thread priority"
+	default 5
+
+config XR_WPAS_STACK
+	int "XR819S wpas Thread Stack"
+	default 3072
+
+config XR_WPAS_PRIORITY
+	int "XR819S wpas Thread priority"
+	default 5
+
+config XR_WORKQUEUE_STACK
+	int "XR819S workqueue Thread Stack"
+	default 2048
+
+config XR_WORKQUEUE_PRIORITY
+	int "XR819S workqueue Thread priority"
+	default 5
+
+config XR_BH_STACK
+	int "XR819S BH Thread Stack"
+	default 2048
+
+config XR_BH_PRIORITY
+	int "XR819S BH Thread priority"
+	default 4
+
+config XR_WLAN_RESET_STACK
+	int "XR819S wlan_reset Thread Stack"
+	default 2048
+
+config XR_WLAN_RESET_PRIORITY
+	int "XR819S wlan_reset Thread priority"
+	default 3
+
+config XR_RX_PROC_STACK
+	int "XR819S rx_proc Thread Stack"
+	default 2048
+
+config XR_RX_PROC_PRIORITY
+	int "XR819S rx_proc Thread priority"
+	default 2
+
+endif # XR819S

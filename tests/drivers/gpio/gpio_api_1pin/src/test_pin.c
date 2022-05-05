@@ -63,12 +63,17 @@ void test_gpio_pin_toggle(void)
 	int val_expected;
 	int ret;
 
+	const struct device *feedback_port = DEVICE_DT_GET(FEEDBACK_DEV);
+	zassert_not_null(feedback_port, "device gpiob" " not found");
+	ret = gpio_pin_configure(feedback_port, FEEDBACK_PIN, GPIO_INPUT);
+	zassert_equal(ret, 0, "Failed to configure the pin as an input");
+
 	port = device_get_binding(TEST_DEV);
 	zassert_not_null(port, "device " TEST_DEV " not found");
 
 	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
-	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
+	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT);
 	if (ret == -ENOTSUP) {
 		TC_PRINT("Simultaneous pin in/out mode is not supported.\n");
 		ztest_test_skip();
@@ -85,7 +90,7 @@ void test_gpio_pin_toggle(void)
 
 		val_expected = i % 2;
 
-		pin_get_raw_and_verify(port, TEST_PIN, val_expected, i);
+		pin_get_raw_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
 	}
 }
 
@@ -147,9 +152,14 @@ void test_gpio_pin_set_get_raw(void)
 	port = device_get_binding(TEST_DEV);
 	zassert_not_null(port, "device " TEST_DEV " not found");
 
+	const struct device *feedback_port = DEVICE_DT_GET(FEEDBACK_DEV);
+	zassert_not_null(feedback_port, "device gpiob" " not found");
+	ret = gpio_pin_configure(feedback_port, FEEDBACK_PIN, GPIO_INPUT);
+	zassert_equal(ret, 0, "Failed to configure the pin as an input");
+
 	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
-	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
+	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT);
 	if (ret == -ENOTSUP) {
 		TC_PRINT("Simultaneous pin in/out mode is not supported.\n");
 		ztest_test_skip();
@@ -162,7 +172,7 @@ void test_gpio_pin_set_get_raw(void)
 
 		val_expected = test_vector[i] != 0 ? 1 : 0;
 
-		pin_get_raw_and_verify(port, TEST_PIN, val_expected, i);
+		pin_get_raw_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
 	}
 }
 
@@ -184,9 +194,14 @@ void test_gpio_pin_set_get(void)
 	port = device_get_binding(TEST_DEV);
 	zassert_not_null(port, "device " TEST_DEV " not found");
 
+	const struct device *feedback_port = DEVICE_DT_GET(FEEDBACK_DEV);
+	zassert_not_null(feedback_port, "device gpiob" " not found");
+	ret = gpio_pin_configure(feedback_port, FEEDBACK_PIN, GPIO_INPUT);
+	zassert_equal(ret, 0, "Failed to configure the pin as an input");
+
 	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
-	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
+	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT);
 	if (ret == -ENOTSUP) {
 		TC_PRINT("Simultaneous pin in/out mode is not supported.\n");
 		ztest_test_skip();
@@ -199,7 +214,7 @@ void test_gpio_pin_set_get(void)
 
 		val_expected = test_vector[i] != 0 ? 1 : 0;
 
-		pin_get_and_verify(port, TEST_PIN, val_expected, i);
+		pin_get_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
 	}
 }
 
@@ -216,6 +231,11 @@ void test_gpio_pin_set_get_active_high(void)
 	int val_expected;
 	int ret;
 
+	const struct device *feedback_port = DEVICE_DT_GET(FEEDBACK_DEV);
+	zassert_not_null(feedback_port, "device gpiob" " not found");
+	ret = gpio_pin_configure(feedback_port, FEEDBACK_PIN, GPIO_INPUT | GPIO_ACTIVE_HIGH);
+	zassert_equal(ret, 0, "Failed to configure the pin as an input");
+
 	const int test_vector[] = {0, 2, 0, 9, -1, 0, 0, 1, INT_MAX, INT_MIN};
 
 	port = device_get_binding(TEST_DEV);
@@ -223,7 +243,7 @@ void test_gpio_pin_set_get_active_high(void)
 
 	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
-	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT |
+	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT |
 				 GPIO_ACTIVE_HIGH);
 	if (ret == -ENOTSUP) {
 		TC_PRINT("Simultaneous pin in/out mode is not supported.\n");
@@ -238,8 +258,8 @@ void test_gpio_pin_set_get_active_high(void)
 
 		val_expected = test_vector[i] != 0 ? 1 : 0;
 
-		pin_get_and_verify(port, TEST_PIN, val_expected, i);
-		pin_get_raw_and_verify(port, TEST_PIN, val_expected, i);
+		pin_get_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
+		pin_get_raw_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
 	}
 
 	TC_PRINT("Step 2: Set physical, get logical and physical pin value\n");
@@ -248,8 +268,8 @@ void test_gpio_pin_set_get_active_high(void)
 
 		val_expected = test_vector[i] != 0 ? 1 : 0;
 
-		pin_get_and_verify(port, TEST_PIN, val_expected, i);
-		pin_get_raw_and_verify(port, TEST_PIN, val_expected, i);
+		pin_get_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
+		pin_get_raw_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
 	}
 }
 
@@ -266,6 +286,11 @@ void test_gpio_pin_set_get_active_low(void)
 	int val_expected, val_raw_expected;
 	int ret;
 
+	const struct device *feedback_port = DEVICE_DT_GET(FEEDBACK_DEV);
+	zassert_not_null(feedback_port, "device gpiob" " not found");
+	ret = gpio_pin_configure(feedback_port, FEEDBACK_PIN, GPIO_INPUT | GPIO_ACTIVE_LOW);
+	zassert_equal(ret, 0, "Failed to configure the pin as an input");
+
 	const int test_vector[] = {0, 4, 0, 0, 1, 8, -3, -12, 0};
 
 	port = device_get_binding(TEST_DEV);
@@ -273,7 +298,7 @@ void test_gpio_pin_set_get_active_low(void)
 
 	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
-	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT |
+	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT |
 				 GPIO_ACTIVE_LOW);
 	if (ret == -ENOTSUP) {
 		TC_PRINT("Simultaneous pin in/out mode is not supported.\n");
@@ -288,9 +313,8 @@ void test_gpio_pin_set_get_active_low(void)
 
 		val_expected = (test_vector[i] != 0) ? 1 : 0;
 		val_raw_expected = (val_expected != 0) ? 0 : 1;
-
-		pin_get_and_verify(port, TEST_PIN, val_expected, i);
-		pin_get_raw_and_verify(port, TEST_PIN, val_raw_expected, i);
+		pin_get_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
+		pin_get_raw_and_verify(feedback_port, FEEDBACK_PIN, val_raw_expected, i);
 	}
 
 	TC_PRINT("Step 2: Set physical, get logical and physical pin value\n");
@@ -300,7 +324,7 @@ void test_gpio_pin_set_get_active_low(void)
 		val_expected = (test_vector[i] != 0) ? 0 : 1;
 		val_raw_expected = (val_expected != 0) ? 0 : 1;
 
-		pin_get_and_verify(port, TEST_PIN, val_expected, i);
-		pin_get_raw_and_verify(port, TEST_PIN, val_raw_expected, i);
+		pin_get_and_verify(feedback_port, FEEDBACK_PIN, val_expected, i);
+		pin_get_raw_and_verify(feedback_port, FEEDBACK_PIN, val_raw_expected, i);
 	}
 }

@@ -26,6 +26,7 @@ struct csk_gpio_data {
 	struct gpio_driver_data common;
 	/* port ISR callback routine address */
 	sys_slist_t callbacks;
+    uint32_t active_flag_mask[2];
 };
 
 static const gpio_driver_ctx_t csk_gpio_get_driver_ctx(int port_num)
@@ -86,11 +87,15 @@ static int csk_gpio_pinmux_set(const struct device *dev, gpio_pin_t pin)
 static int csk_gpio_configure(const struct device *dev, gpio_pin_t pin, gpio_flags_t flags)
 {
     const struct csk_gpio_config *config = dev->config;
+    struct csk_gpio_data *data = dev->data;
     gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
 
     csk_gpio_pinmux_set(dev, pin);
 
     if (flags & GPIO_OUTPUT) {
+        if (flags & GPIO_INPUT) {
+            return -ENOTSUP;
+        }
         GPIO_SetDir(driver_context, 1UL << pin, CSK_GPIO_DIR_OUTPUT);
     } else if (flags & GPIO_INPUT) {
         if (flags & GPIO_INT_DEBOUNCE) {
@@ -99,11 +104,12 @@ static int csk_gpio_configure(const struct device *dev, gpio_pin_t pin, gpio_fla
         GPIO_SetDir(driver_context, 1UL << pin, CSK_GPIO_DIR_INPUT);
     }
 
-    GPIO_Control(driver_context, CSK_GPIO_MODE_PULL_NONE, 1UL << pin);
     if (flags & GPIO_PULL_UP) {
-        GPIO_Control(driver_context, CSK_GPIO_MODE_PULL_UP, 1UL << pin);
+        IOMuxManager_ModeConfigure(config->driver_num, pin, HAL_IOMUX_PULLUP_MODE);
     } else if (flags & GPIO_PULL_DOWN) {
-        GPIO_Control(driver_context, CSK_GPIO_MODE_PULL_DOWN, 1UL << pin);
+        IOMuxManager_ModeConfigure(config->driver_num, pin, HAL_IOMUX_PULLDOWN_MODE);
+    } else {
+        IOMuxManager_ModeConfigure(config->driver_num, pin, HAL_IOMUX_NONE_MODE);
     }
 
     if (flags & GPIO_OUTPUT_INIT_HIGH) {
@@ -111,42 +117,63 @@ static int csk_gpio_configure(const struct device *dev, gpio_pin_t pin, gpio_fla
     } else if (flags & GPIO_OUTPUT_INIT_LOW) {
         GPIO_PinWrite(driver_context, 1UL << pin, 0);
     }
+
+    if (flags & GPIO_ACTIVE_LOW) {
+        data->active_flag_mask[config->driver_num] |= (1 << pin);
+    } else {
+        data->active_flag_mask[config->driver_num] &= ~(1 << pin);
+    }
     return 0;
 }
 
 static int csk_gpio_port_get_raw(const struct device *dev, uint32_t *value)
 {
+    struct csk_gpio_data *data = dev->data;
     const struct csk_gpio_config *config = dev->config;
     gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
     GPIO_RegDef *gpio_reg = ((GPIO_RESOURCES *)driver_context)->reg;
-    *value = gpio_reg->REG_DATAIN.all;
+    *value = gpio_reg->REG_DATAIN.all ^ data->active_flag_mask[config->driver_num];
     return 0;
 }
 
 static int csk_gpio_port_set_masked_raw(const struct device *dev, gpio_port_pins_t mask, gpio_port_value_t value)
 {
+    struct csk_gpio_data *data = dev->data;
     const struct csk_gpio_config *config = dev->config;
     gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
     GPIO_RegDef *gpio_reg = ((GPIO_RESOURCES *)driver_context)->reg;
+    value ^= data->active_flag_mask[config->driver_num];
     gpio_reg->REG_DATAOUT.all = (gpio_reg->REG_DATAOUT.all & ~mask) | (mask & value);
     return 0;
 }
 
 static int csk_gpio_port_set_bits_raw(const struct device *dev, gpio_port_pins_t pins)
 {
+    struct csk_gpio_data *data = dev->data;
     const struct csk_gpio_config *config = dev->config;
     gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
     GPIO_RegDef *gpio_reg = ((GPIO_RESOURCES *)driver_context)->reg;
-    gpio_reg->REG_DATAOUT.all |= pins;
+    // gpio_reg->REG_DATAOUT.all |= pins;
+
+    gpio_reg->REG_DATAOUT.all |= (pins ^ data->active_flag_mask[config->driver_num]);
+    if (data->active_flag_mask[config->driver_num]) {
+        gpio_reg->REG_DATAOUT.all &= ~data->active_flag_mask[config->driver_num];
+    }
     return 0;
 }
 
 static int csk_gpio_port_clear_bits_raw(const struct device *dev, gpio_port_pins_t pins)
 {
+    struct csk_gpio_data *data = dev->data;
     const struct csk_gpio_config *config = dev->config;
     gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
     GPIO_RegDef *gpio_reg = ((GPIO_RESOURCES *)driver_context)->reg;
-    gpio_reg->REG_DATAOUT.all &= ~pins;
+    // gpio_reg->REG_DATAOUT.all &= ~pins;
+
+    gpio_reg->REG_DATAOUT.all &= ((~pins) ^ data->active_flag_mask[config->driver_num]); 
+    if (data->active_flag_mask[config->driver_num]) {
+        gpio_reg->REG_DATAOUT.all |= data->active_flag_mask[config->driver_num];
+    }
     return 0;
 }
 
@@ -191,6 +218,8 @@ static int csk_gpio_pin_interrupt_configure(const struct device *dev,
         } else if (trig == GPIO_INT_TRIG_HIGH) {
             isr_conf_mask |= CSK_GPIO_SET_INTR_HIGH_LEVEL;
         }
+    } else {
+        isr_conf_mask = CSK_GPIO_INTR_DISABLE;
     }
     GPIO_Control(driver_context, isr_conf_mask, 1UL << pin);
     irq_unlock(key);
@@ -220,7 +249,7 @@ static const struct gpio_driver_api csk_gpio_driver_api = {
 //TODO: Add obtaion configuration from devicetree MACRO
 #define GPIO_CSK_INIT(n) \
     static int csk_gpio_##n##_init(const struct device *dev);	\
-    static struct csk_gpio_data csk_gpio_##n##_data;		\
+    static struct csk_gpio_data csk_gpio_##n##_data = {0};		\
     static const struct csk_gpio_config csk_gpio_##n##_config = {   \
         .common = {						                            \
 			.port_pin_mask = GPIO_PORT_PIN_MASK_FROM_DT_INST(n),    \

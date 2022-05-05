@@ -53,12 +53,17 @@ void test_gpio_pin_interrupt_edge(unsigned int cfg_flags,
 	unsigned int cfg_out_flag;
 	int ret;
 
+	const struct device *feedback_port = DEVICE_DT_GET(FEEDBACK_DEV);
+	zassert_not_null(feedback_port, "device gpioa" " not found");
+	ret = gpio_pin_configure(feedback_port, FEEDBACK_PIN, GPIO_OUTPUT);
+	zassert_equal(ret, 0, "Failed to configure the pin as an output");
+
 	port = device_get_binding(TEST_DEV);
 	zassert_not_null(port, "device " TEST_DEV " not found");
 
 	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
-	ret = gpio_pin_configure(port, TEST_PIN, GPIO_INPUT | GPIO_OUTPUT);
+	ret = gpio_pin_configure(port, TEST_PIN, GPIO_INPUT);
 	if (ret == -ENOTSUP) {
 		TC_PRINT("Simultaneous pin in/out mode is not supported.\n");
 		ztest_test_skip();
@@ -71,8 +76,9 @@ void test_gpio_pin_interrupt_edge(unsigned int cfg_flags,
 	} else {
 		cfg_out_flag = GPIO_OUTPUT_LOW;
 	}
-	ret = gpio_pin_configure(port, TEST_PIN, GPIO_INPUT | cfg_out_flag |
-				 cfg_flags);
+	ret = gpio_pin_configure(port, TEST_PIN, GPIO_INPUT | cfg_flags);
+	zassert_equal(ret, 0, "Failed to configure the pin");
+	ret = gpio_pin_configure(feedback_port, FEEDBACK_PIN, GPIO_OUTPUT | cfg_out_flag | cfg_flags);
 	zassert_equal(ret, 0, "Failed to configure the pin");
 
 	cb_count = 0;
@@ -90,15 +96,16 @@ void test_gpio_pin_interrupt_edge(unsigned int cfg_flags,
 	zassert_equal(ret, 0, "Failed to configure pin interrupt");
 
 	for (int i = 0; i < 6; i++) {
-		pin_set_and_verify(port, TEST_PIN, 1, i);
+		pin_set_and_verify(feedback_port, FEEDBACK_PIN, 1, i);
 		if (int_flags & GPIO_INT_HIGH_1) {
 			cb_count_expected++;
 		}
+		printk("-------------------------------- %d              %d\n", cb_count, cb_count_expected);
 		zassert_equal(cb_count, cb_count_expected,
 			      "Test point %d: Pin interrupt triggered invalid "
 			      "number of times on rising/to active edge", i);
 
-		pin_set_and_verify(port, TEST_PIN, 0, i);
+		pin_set_and_verify(feedback_port, FEEDBACK_PIN, 0, i);
 		if (int_flags & GPIO_INT_LOW_0) {
 			cb_count_expected++;
 		}
@@ -111,8 +118,8 @@ void test_gpio_pin_interrupt_edge(unsigned int cfg_flags,
 	zassert_equal(ret, 0, "Failed to disable pin interrupt");
 
 	for (int i = 0; i < 6; i++) {
-		pin_set_and_verify(port, TEST_PIN, 1, i);
-		pin_set_and_verify(port, TEST_PIN, 0, i);
+		pin_set_and_verify(feedback_port, FEEDBACK_PIN, 1, i);
+		pin_set_and_verify(feedback_port, FEEDBACK_PIN, 0, i);
 		zassert_equal(cb_count, cb_count_expected,
 			      "Pin interrupt triggered when disabled");
 	}
