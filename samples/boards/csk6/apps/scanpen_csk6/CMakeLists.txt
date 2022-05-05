@@ -18,8 +18,6 @@ if("${BOARD}" STREQUAL "csk6012_9s_scanpen")
   add_subdirectory(unit_test)
   add_subdirectory(scanpen_sdk)
   add_subdirectory(scanpen_app)
-  zephyr_compile_options(-fno-short-enums)
-  zephyr_ld_options(-fno-short-enums)
 endif()
 
 
