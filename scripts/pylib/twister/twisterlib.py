@@ -722,6 +722,8 @@ class DeviceHandler(Handler):
             # ignore SerialException which may happen during the serial device
             # power off/on process.
             except serial.SerialException:
+                ser.close()
+                break
                 pass
 
             # Just because ser_fileno has data doesn't mean an entire line
