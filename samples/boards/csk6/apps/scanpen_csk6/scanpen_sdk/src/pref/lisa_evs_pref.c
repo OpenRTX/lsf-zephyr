@@ -14,8 +14,8 @@ typedef enum {
 
 #define TAG "lisa_pref"
 
-#define CONFIG_FILE_PATH ("/NAND:/config.json")
-#define CONFIG_BACK_FILE_PATH ("/NAND:/config.json.back")
+#define CONFIG_FILE_PATH ("/lfs1/config.json")
+#define CONFIG_BACK_FILE_PATH ("/lfs1/config.json.back")
 #define CONFIG_FILE_MAX_SIZE (4 * 1024)
 
 static char *s_config_buffer = NULL;

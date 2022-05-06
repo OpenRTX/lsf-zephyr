@@ -36,8 +36,8 @@
 
 #define HTTP_TIME_OUT (10 * 1000)
 
-#define LISA_FEEDBACK_LOCAL_FILE "/NAND:/feedback.json"
-#define LISA_NOTEBOOK_LOCAL_FILE "/NAND:/notebook.json"
+#define LISA_FEEDBACK_LOCAL_FILE "/lfs1/feedback.json"
+#define LISA_NOTEBOOK_LOCAL_FILE "/lfs1/notebook.json"
 #define LISA_FEEDBACK_LOCAL_MAX (10)
 #define LISA_NOTEBOOK_LOCAL_WORD_MAX (50)
 #define LISA_NOTEBOOK_LOCAL_TEXT_MAX (10)

@@ -9,6 +9,8 @@
 #include <lisa_time.h>
 #define TAG "scanpen_app"
 
+
+#define L1FS_FILE_PATH(file_name)	("/lfs1/" # file_name)
 #define URL_GET_OTA_INFO ("http://ota.iflyos.cn/ota/client/check/packages")
 
 #define IMAGE_MSG_QUE_CNT (24)  //需要是2的倍数
@@ -231,7 +233,7 @@ static void send_ocr_simulation_image_thread(void *arg)
 
 	struct fs_file_t fp;
 	fs_file_t_init(&fp);
-	int err = fs_open(&fp, "/NAND:/image.bin", FS_O_READ);
+	int err = fs_open(&fp, L1FS_FILE_PATH(image.bin), FS_O_READ);
 	if (err) {
 		LISA_LOGE(TAG, " %s %d open file failed, err = %d", __FUNCTION__, __LINE__, err);
 		goto ERR_OPEN_FILE;
@@ -697,6 +699,7 @@ void ws_disconnected_cb(const char *const msg)
 void ws_message_cb(
 		const char *const action, const char *const msg, int len, const char *const req_id)
 {
+	printk("%s %d run here!\n",__func__,__LINE__);
 	LISA_LOGD(TAG, "message, action: %s, len: %d, payload: %s, request id: %s", action, len, msg,
 			req_id);
 	if (strcmp(action, "audio_player.audio_out") == 0) {
@@ -704,6 +707,7 @@ void ws_message_cb(
 	} else if (strcmp(action, "recognizer.evaluate_result") == 0) {
 		LISA_LOGD(TAG, "evaluate result = %s\n", msg);
 	}
+	printk("%s %d run here!\n",__func__,__LINE__);
 }
 /**
  * @brief websocket消息发送失败回调
@@ -867,7 +871,7 @@ void loop_trans_audio()
 {
 	struct fs_file_t fp;
 	fs_file_t_init(&fp);
-	int err = fs_open(&fp, "/NAND:/audio1.bin", FS_O_READ);
+	int err = fs_open(&fp, L1FS_FILE_PATH(audio1.bin), FS_O_READ);
 	if (err) {
 		LISA_LOGE(TAG, "open audio failed, err = %d", err);
 		goto ERR_OPEN_FILE;
@@ -922,7 +926,7 @@ void loop_trans_audio_translate()
 {
 	struct fs_file_t fp;
 	fs_file_t_init(&fp);
-	int err = fs_open(&fp, "/NAND:/audio1.bin", FS_O_READ);
+	int err = fs_open(&fp, L1FS_FILE_PATH(audio1.bin), FS_O_READ);
 	if (err) {
 		LISA_LOGE(TAG, "open audio failed, err = %d", err);
 		goto ERR_OPEN_FILE;
@@ -977,7 +981,7 @@ void loop_evalute_audio()
 {
 	struct fs_file_t fp;
 	fs_file_t_init(&fp);
-	int err = fs_open(&fp, "/NAND:/audio1.bin", FS_O_READ);
+	int err = fs_open(&fp, L1FS_FILE_PATH(audio1.bin), FS_O_READ);
 	if (err) {
 		LISA_LOGE(TAG, "open audio failed, err = %d", err);
 		goto ERR_OPEN_FILE;
@@ -1388,7 +1392,7 @@ void loop_evalute_audio_quest()
 
 	struct fs_file_t fp;
 	fs_file_t_init(&fp);
-	int err = fs_open(&fp, "/NAND:/audio2.bin", FS_O_READ);
+	int err = fs_open(&fp, L1FS_FILE_PATH(audio2.bin), FS_O_READ);
 	if (err) {
 		LISA_LOGE(TAG, "open audio failed, err = %d", err);
 		goto ERR_OPEN_FILE;

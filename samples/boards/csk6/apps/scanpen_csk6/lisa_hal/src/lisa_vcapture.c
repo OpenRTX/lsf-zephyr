@@ -15,7 +15,7 @@
 
 #define TAG "lisa_vcapture"
 
-#define DEFAULT_CAPTURE_FILE_NAME "/NAND:/vcapture_demo.pcm"
+#define DEFAULT_CAPTURE_FILE_NAME "/lfs1/vcapture_demo.pcm"
 
 #define IMAGE_CAPTURE_EVENT_THRES (1024)
 #define IMAGE_VCAPTURE_DATA_MSGQ_DEPTH (1024)

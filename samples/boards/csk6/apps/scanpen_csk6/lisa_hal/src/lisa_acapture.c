@@ -14,7 +14,7 @@
 
 #define TAG "lisa_acapture"
 
-#define DEFAULT_CAPTURE_FILE_NAME "/NAND:/acapture_demo.pcm"
+#define DEFAULT_CAPTURE_FILE_NAME "/lfs1/acapture_demo.pcm"
 
 #define SOUND_CAPTURE_FILE_MAXSIZE (160000)
 #define SOUND_CAPTURE_EVENT_THRES (1024)

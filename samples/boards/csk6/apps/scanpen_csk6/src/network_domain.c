@@ -82,22 +82,21 @@ void network_domain_task(void){
     }
     net_dhcpv4_start(iface);
 
-	//while (1) {
-//		k_sleep(K_MSEC(1000));
-	//}
+	while (1) {
+	    k_sleep(K_MSEC(1000));
+	}
 }
 
 
 struct k_thread network_thread;
 
-K_KERNEL_STACK_DEFINE(network_stack, 2048);
+K_KERNEL_STACK_DEFINE(network_stack, 1024);
 
 void network_domain(void){
-    #if 0
+  
 	k_thread_create(&network_thread, network_stack,
 				K_KERNEL_STACK_SIZEOF(network_stack), &network_domain_task, NULL, NULL, NULL,
 				2, 0, K_NO_WAIT);
 	k_thread_system_pool_assign(&network_thread);
-    #endif
-    network_domain_task();
+
 }
