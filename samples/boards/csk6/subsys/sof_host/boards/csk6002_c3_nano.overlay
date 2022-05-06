@@ -16,6 +16,11 @@
 		zephyr,flash_controller = &flash;
 		zephyr,uart-mcumgr = &uart0;
 	};
+
+	aliases {
+		avf-audio-pwr-amp = &pwr_amp;
+	};
+
 	fstab {
 		compatible = "zephyr,fstab";
 		lfs1: lfs1 {
@@ -30,6 +35,13 @@
 			lookahead-size = <32>;
 			block-cycles = <512>;
 		};
+	};
+
+	pwr_amp:audio_pwr_amp{
+		compatible = "listenai,pwr-amp";
+		enalbe-gpios = <&gpioa 4 1>;
+		label = "audio_pwr_amp";	
+		status = "okay";
 	};
 
 };
@@ -70,11 +82,15 @@
     };
 
 	pwm4: pwm4 {
-		pinctrl-0 = <&pinctrl_pwm4_default>; 
+		status = "disabled";
+    };
+
+	pwm6: pwm6 {
+		pinctrl-0 = <&pinctrl_pwm6_default>; 
         pinctrl-names = "default";
         clock-prescaler = <1>;
         status = "okay";
-    };
+    };	
 };
 
 &spi0 {
@@ -85,9 +101,6 @@
 
 &i2c0 {
         status = "okay";
-        //pinmuxs = <&pinmuxb 0 8>, <&pinmuxb 1 8>;
-        //pinmux-names = "SCL", "SDA";
-
         pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
         pinctrl-names = "default";
         status = "okay";
@@ -101,7 +114,7 @@
             pwr-gpios = <&gpioa 5 0>;
             product-id = <0x3b02>;
             spi = <&spi0>;
-			pwms = <&pwm4 4 PWM_POLARITY_NORMAL>;
+			pwms = <&pwm6 6 PWM_POLARITY_NORMAL>;
             xclk-freq = <12500>;
             csk6-spec;
     };

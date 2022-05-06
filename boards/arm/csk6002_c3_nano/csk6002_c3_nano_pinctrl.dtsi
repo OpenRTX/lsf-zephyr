@@ -107,6 +107,7 @@
                 };
 
                 pinctrl_pwm6_default: pwm6_default{
+                        pinctrls = <&pinmuxb 2 11>;
                 };
 
                 pinctrl_pwm7_default: pwm7_default{
