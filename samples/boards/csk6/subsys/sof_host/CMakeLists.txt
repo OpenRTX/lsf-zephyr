@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.20.0)
 #
 #set(ZEPHYR_EXTRA_MODULES $ENV{ZEPHYR_BASE}/../modules/lib/sof_host)
 
-if("${BOARD}" STREQUAL "csk6002_c3_nano")
+if("${BOARD}" STREQUAL "csk6002_9s_nano")
   set(BUILD_DSP_FIRMWARE OFF)
   find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
   message(INFO " ${BOARD} compile as Master in this sample")
@@ -19,7 +19,7 @@ if(BUILD_DSP_FIRMWARE)
 
   set(REMOTE_ZEPHYR_DIR ${CMAKE_CURRENT_BINARY_DIR}/sof-dsp-prefix/src/sof-dsp-build/zephyr)
 
-  if("${BOARD}" STREQUAL "csk6002_c3_nano")
+  if("${BOARD}" STREQUAL "csk6002_9s_nano")
     set(BOARD_REMOTE "ls_adsp_csk6")
   else()
     message(FATAL_ERROR "${BOARD} was not supported for this sample")
