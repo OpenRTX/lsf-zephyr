@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
-/* SPDX-License-Identifier: Apache-2.0 */
-
 / {
         csk6002_9s_nano_pinctrl:csk6002_pinctrl{
                 compatible = "listenai,csk-pinctrl";
@@ -109,6 +107,7 @@
                 };
 
                 pinctrl_pwm6_default: pwm6_default{
+                        pinctrls = <&pinmuxb 2 11>;
                 };
 
                 pinctrl_pwm7_default: pwm7_default{
@@ -116,4 +115,3 @@
 
         };
 };
-
