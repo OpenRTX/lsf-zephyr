@@ -39,7 +39,7 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
                  gdbserver='JLinkGDBServer',
                  gdb_host='',
                  gdb_port=DEFAULT_JLINK_GDB_PORT,
-                 tui=False, tool_opt=[], flash_opts=None):
+                 tui=False, tool_opt=[], flash_opts=None, ip=None):
         super().__init__(cfg)
         self.hex_name = cfg.hex_file
         self.bin_name = cfg.bin_file
@@ -59,6 +59,7 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
         self.tui_arg = ['-tui'] if tui else []
         self.flash_extra = flash_opts if flash_opts else []
         self.flash_extra_addr = JLinkBinaryRunner.parse_flash_addr(self.flash_extra)
+        self.ip = ip
 
         self.tool_opt = []
         for opts in [shlex.split(opt) for opt in tool_opt]:
@@ -118,6 +119,13 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
                             help='''Additional options for jlink flash,
                             e.g. --flash-opt="--base-address=0x18000000" to rewrite loadfile cmd base address''')
 
+        parser.add_argument('--ip', required=False, default=None,
+                            help='''use ip accessing a J-Link remotely,
+                            e.g. --ip=192.168.56.1 to acess J-Link which ip is 192.168.56.1,
+                            need open JLinkRemoteServer firstly to start J-Link remote server,
+                            reference: https://www.segger.com/products/debug-probes/j-link/tools/j-link-remote-server/ 
+                            reference: http://www.bmrtech.com/Tech/tech_show/249.html''')
+
         parser.set_defaults(reset_after_load=False)
 
     @classmethod
@@ -133,7 +141,8 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
                                  gdb_host=args.gdb_host,
                                  gdb_port=args.gdb_port,
                                  tui=args.tui, tool_opt=args.tool_opt,
-                                 flash_opts=args.flash_opt)
+                                 flash_opts=args.flash_opt,
+                                 ip=args.ip)
 
     def print_gdbserver_message(self):
         if not self.thread_info_enabled:
@@ -215,7 +224,9 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
 
         server_cmd = ([self.gdbserver] +
                        # only USB connections supported
-                      ['-select', 'usb' + (f'={self.did}' if self.did else ''),
+                       # add IP connection support
+                      ['-select', 
+                      ('ip' + f'={self.ip}') if self.ip else ('usb' + (f'={self.did}' if self.did else '')),
                        '-port', str(self.gdb_port),
                        '-if', self.iface,
                        '-speed', self.speed,
@@ -309,6 +320,8 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
                 f.writelines(bytes(line + '\n', 'utf-8') for line in lines)
             cmd = ([self.commander] +
                     # only USB connections supported
+                    # add IP connections support
+                   (['-IP', f'{self.ip}'] if self.ip else []) +
                    (['-USB', f'{self.did}'] if self.did else []) +
                    (['-nogui', '1'] if self.supports_nogui else []) +
                    ['-if', self.iface,
