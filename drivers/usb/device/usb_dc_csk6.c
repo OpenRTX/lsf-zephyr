@@ -16,7 +16,7 @@
 
 #include <sys/byteorder.h>
 
-#define LOG_LEVEL LOG_LEVEL_ERR
+#define LOG_LEVEL LOG_LEVEL_DBG
 #include <logging/log.h>
 LOG_MODULE_REGISTER(usb_dc_csk);
 

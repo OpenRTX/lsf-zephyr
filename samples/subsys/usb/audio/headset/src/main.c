@@ -9,12 +9,13 @@
  * @brief Sample app for Audio class
  */
 
+#include "logging/log_core.h"
 #include <zephyr.h>
 #include <logging/log.h>
 #include <usb/usb_device.h>
 #include <usb/class/usb_audio.h>
 
-LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 static void data_received(const struct device *dev,
 			  struct net_buf *buffer,
@@ -27,9 +28,13 @@ static void data_received(const struct device *dev,
 		return;
 	}
 
-	LOG_DBG("Received %d data, buffer %p", size, buffer);
+	// LOG_DBG("buffer size: %d, size: %d", buffer->size, size);
 
+	// LOG_DBG("Received %d data, buffer %p", size, buffer);
+	// LOG_HEXDUMP_DBG(buffer->data, buffer->size, "received data:");
 	/* Check if the device OUT buffer can be used for input */
+
+	// net_buf_unref(buffer);
 	if (size == usb_audio_get_in_frame_size(dev)) {
 		ret = usb_audio_send(dev, buffer, size);
 		if (ret) {
