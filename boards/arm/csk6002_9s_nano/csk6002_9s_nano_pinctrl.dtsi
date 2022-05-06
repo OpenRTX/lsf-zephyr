@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+/* SPDX-License-Identifier: Apache-2.0 */
+
 / {
         csk6002_9s_nano_pinctrl:csk6002_pinctrl{
                 compatible = "listenai,csk-pinctrl";
@@ -33,9 +35,11 @@
 
                 /* I2C alternate function */
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 0 8>;
                 };
                 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 1 8>;
                 };
 
                 pinctrl_i2c1_scl_default: i2c1_scl_default{
@@ -46,15 +50,19 @@
 
                 /* SPIC alternate function */
                 pinctrl_spi0_cs_default: spi0_cs_default{
+                        pinctrls = <&pinmuxa 20 6>;
                 };
 
                 pinctrl_spi0_miso_default: spi0_miso_default{
+                        pinctrls = <&pinmuxa 17 6>;
                 };
 
                 pinctrl_spi0_mosi_default: spi0_mosi_default{
+                        pinctrls = <&pinmuxa 18 6>;
                 };
 
                 pinctrl_spi0_sclk_default: spi0_sclk_default{
+                        pinctrls = <&pinmuxa 19 6>;
                 };
                 
                 pinctrl_spi1_sclk_default: spi1_sclk_default{
@@ -93,6 +101,7 @@
                 };
 
                 pinctrl_pwm4_default: pwm4_default{
+                        pinctrls = <&pinmuxa 4 11>;
                 };
 
                 pinctrl_pwm5_default: pwm5_default{
@@ -107,3 +116,4 @@
 
         };
 };
+
