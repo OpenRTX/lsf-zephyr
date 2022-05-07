@@ -1,0 +1,109 @@
+/*
+ * Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+/delete-node/ &storage_partition;
+
+/ {
+	chosen {
+		/*
+		 * shared memory reserved for the inter-processor communication
+		 */
+		zephyr,ipc_shm = &sof_partition;
+		zephyr,ipc = &mailbox0;
+		zephyr,flash_sysfs_storage = &filesystem_part;
+		zephyr,flash_controller = &flash;
+		zephyr,uart-mcumgr = &uart0;
+	};
+	fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/lfs1";
+			partition = <&filesystem_part>;
+			automount ;
+			no-format;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
+	};
+
+};
+
+ 
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		filesystem_part: partition@160000 {
+			label = "filesystem";
+			reg = <0x160000 0x00100000>;
+		};
+		/*
+		 * Reserve the final 640 KiB for file system partition
+		 */
+		storage_partition: partition@760000 {
+			label = "storage";
+			reg = <0x760000 0x00a0000>;
+		};
+
+
+	};
+};
+
+&i2c0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
+
+        bf30a2: bf30a2@6e {
+            compatible = "byd,bf30a2";
+            status = "okay";
+            label = "VIDEO";
+            reg = <0x6e>;
+            pd-gpios = <&gpioa 1 0>;
+            pwr-gpios = <&gpioa 9 0>;
+            product-id = <0x3b02>;
+            spi = <&spi0>;
+            pwms = <&pwm2 0x2 0x0>;
+            xclk-freq = <12500>;
+            csk6-spec;
+        };
+};
+
+&gpt0 {
+	status = "okay";
+
+	pwm2: pwm2 {
+        clock-prescaler = <1>;
+        status = "okay";
+        pinctrl-0 = <&pinctrl_pwm2_default>; 
+        pinctrl-names = "default";
+    };
+};
+
+&spi0 {
+	    status = "okay";
+		    spi-max-frequency = <25000000>;
+};
+
+&csk6012_9s_scanpen_pinctrl {
+
+                pinctrl_pwm2_default: pwm2_default{
+                    pinctrls = <&pinmuxb 6 11>;
+                };
+
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 2 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 3 8>;
+                };
+};
+
