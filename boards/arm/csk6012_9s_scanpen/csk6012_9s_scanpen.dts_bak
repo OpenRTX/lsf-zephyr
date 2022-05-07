@@ -1,0 +1,364 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/dts-v1/;
+#include <csk/csk6001.dtsi>
+#include <dt-bindings/pwm/pwm.h>
+#include "csk6012_9s_scanpen_pinctrl.dtsi"
+
+&csk6012_9s_scanpen_pinctrl{
+        pinctrl_pwm1_default: pwm1_default{
+                pinctrls = <&pinmuxa 1 11>;
+        };
+        /* SPIC alternate function */
+        pinctrl_spi0_cs_default: spi0_cs_default{
+                pinctrls = <&pinmuxa 12 6>;
+        };
+
+        pinctrl_spi0_miso_default: spi0_miso_default{
+        };
+
+        pinctrl_spi0_mosi_default: spi0_mosi_default{
+                pinctrls = <&pinmuxa 10 6>;
+        };
+
+        pinctrl_spi0_sclk_default: spi0_sclk_default{
+                pinctrls = <&pinmuxa 11 6>;
+        };
+        
+        pinctrl_spi1_sclk_default: spi1_sclk_default{
+        };
+        
+        pinctrl_spi1_mosi_default: spi1_mosi_default{
+        };
+
+        pinctrl_spi1_miso_default: spi1_miso_default{
+        };    
+
+        pinctrl_spi1_cs_default: spi1_cs_default{
+        };
+
+        /* I2C alternate function */
+        pinctrl_i2c0_scl_default: i2c0_scl_default{
+                pinctrls = <&pinmuxb 2 8>;
+        };
+        
+        pinctrl_i2c0_sda_default: i2c0_sda_default{
+                pinctrls = <&pinmuxb 3 8>;
+        };
+        /* UART alternate function */
+        pinctrl_uart0_rx_default: uart0_rx_default{
+                pinctrls = <&pinmuxb 10 2>;
+        };
+        
+        pinctrl_uart0_tx_default: uart0_tx_default{
+                pinctrls = <&pinmuxb 11 2>;
+        };
+
+        /* ADC alternate function */
+        pinctrl_adc0_ch0_default: adc0_ch0_default{
+                pinctrls = <&pinmuxb 6 16>;
+        };
+        
+        pinctrl_adc0_ch1_default: adc0_ch1_default{
+                pinctrls = <&pinmuxb 7 16>;
+        };
+
+        pinctrl_adc0_ch2_default: adc0_ch2_default{
+                pinctrls = <&pinmuxb 8 16>;
+        };
+        
+};
+
+/ {
+        model = "csk6012 9s scanpen";
+        compatible = "csk,csk6012_9s_scanpen";
+        aliases {
+                // led0 = &board_led_2;
+                i2c-0 = &i2c0;
+                i2c-1 = &i2c1;
+                c-led = &camleds1;
+        };
+
+        chosen {
+                zephyr,console = &uart0;
+                zephyr,shell-uart = &uart0;
+                zephyr,sram = &sram0;
+                zephyr,itcm = &itcm0;
+                zephyr,flash = &flash0;
+                zephyr,flash_sysfs_storage = &filesystem_part;
+		zephyr,flash_controller = &flash;
+                /* other chosen settings  for your hardware */
+        };
+
+        fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/data";
+			partition = <&filesystem_part>;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
+	};
+
+        leds {
+                compatible = "gpio-leds";
+                camleds1: cam_led_0 {
+                        gpios = <&gpiob 7 0>;
+                        label = "cam_led_0";
+                };
+
+
+        };
+
+        vbatt {
+                compatible = "voltage-divider";
+		io-channels = <&adc0 5>, <&adc0 6>;
+		output-ohms = <0>;
+	};
+
+        gpio,user {
+                compatible = "listenai,csk-gpio-user";
+                pwrlock: powerlock {
+                        gpios = <&gpiob 4 1>;
+                        label = "power_lock";
+                };
+                pwm1pin: pwm1pin {
+                        gpios = <&gpioa 1 0>;
+                        label = "power_lock";
+                };
+                fy_key: fykey {
+                        gpios = <&gpioa 13 1>;
+                        label = "power_lock";
+                };
+
+
+        };
+
+        xr819s: xr819s {
+                compatible = "wifi,xr819s";
+                label = "WiFi module";
+                dataready-gpios = <&gpioa 16 0>;
+                reset-gpios = <&gpioa 17 0>;
+                sdio-clk-gpios = <&gpioa 20 0>;
+                sdio-cmd-gpios = <&gpioa 18 0>;
+                sdio-dat0-gpios = <&gpioa 19 0>;
+                status = "disabled";
+        };
+
+};
+&gpt0 {
+	status = "okay";
+	pwmlcd: pwm1 {
+                pinctrl-0 = <&pinctrl_pwm1_default>; 
+                pinctrl-names = "default";
+                clock-prescaler = <1>;
+                status = "okay";
+	};
+};
+
+&spi0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_cs_default>; 
+        pinctrl-names = "default";
+        cs-gpios = <&gpioa 12 0>;
+        st7789v@0 {
+                compatible = "sitronix,st7789v";
+                label = "ST7789V";
+                status = "disabled";
+                spi-max-frequency = <20000000>;
+                reg = <0>;
+                cmd-data-gpios = <&gpioa 14 1>;
+                reset-gpios = <&gpioa 15 1>;
+                width = <320>;
+                height = <170>;
+                x-offset = <0>;
+                y-offset = <35>;
+                // reg:0xBB
+                vcom = <0x1e>;
+                // reg:0xB7
+                gctrl = <0x35>;
+                // reg:0xC3
+                vrhs = <0x0b>;
+                // reg:0xC4
+                vdvs = <0x20>;
+                // reg:0x36
+                mdac = <0xA3>;
+                // reg:0x26
+                gamma = <0x01>;
+                // reg:0x3a
+                colmod = <0x05>;
+                // reg:0xc0
+                lcm = <0x2c>;
+                // reg:0xb2
+                porch-param = [0c 0c 00 33 33];
+                // reg:0xDF
+                cmd2en-param = [5a 69 02 01];
+                // reg:0xD0
+                pwctrl1-param = [a4 a1];
+                // reg:0xE0
+                pvgam-param = [d0 06 0b 07 07 24 2e 32 46 37 13 13 2d 33];
+                // reg:0xE1
+                nvgam-param = [d0 02 06 09 08 05 29 44 42 38 14 14 2a 30];
+                // reg:b0
+                ram-param = [00 F0];
+                // reg:b1
+                rgb-param = [CD 08 14];
+            };
+    };
+&spi1 {
+    status = "disabled";
+
+};
+&i2c0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
+        bl6xxx@0 {
+                compatible = "betterlife,bl6xxx";
+                reg = <0>;
+                label = "BL6XXX";
+                status = "okay";
+                int-gpios = <&gpioa 3 0>;
+                reset-gpios = <&gpioa 2 0>;
+        };
+};
+
+&i2c1 {
+    status = "disabled";
+};
+
+&gpioa {
+        status = "okay";
+};
+
+&gpiob {
+        status = "okay";
+};
+
+
+&uart0 {
+        current-speed = <115200>;
+        pinctrl-0 = <&pinctrl_uart0_rx_default &pinctrl_uart0_tx_default>; 
+        pinctrl-names = "default";
+	// pinmux-names = "RXD", "TXD";
+        status = "okay";
+};
+&uart1 {
+        status = "disabled";
+};
+
+&uart2 {
+        status = "disabled";
+};
+&dma0 {
+	dma-channels = <6>;
+	status = "okay";
+};
+
+&rtc1 {
+        status = "okay";
+};
+&adc0 {
+        status = "okay";
+};
+/*
+ *&flash0 {
+ *    partitions {
+ *        compatible = "fixed-partitions";
+ *        #address-cells = <1>;
+ *        #size-cells = <1>;
+ *        filesystem_part: partition@200000 {
+ *            label = "819s_fw";
+ *            reg = <0x200000 0x42000>;
+ *        };
+ *    };
+ *};
+ *
+ */
+&flash0 {
+        /*
+         * For more information, see:
+         * http: //docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+         */
+        partitions {
+                compatible = "fixed-partitions";
+                #address-cells = <1>;
+                #size-cells = <1>;
+
+                /* 256KB for bootloader */
+                boot_partition: partition@0 {
+                        label = "mcuboot";
+                        reg = <0x0 0x40000>;
+                        read-only;
+                };
+
+                /* application image slot: 512KB */
+                slot0_partition: partition@40000 {
+                        label = "image-0";
+                        reg = <0x40000 0x80000>;
+                };
+
+                /* backup slot: 512KB */
+                slot1_partition: partition@c0000 {
+                        label = "image-1";
+                        reg = <0xc0000 0x80000>;
+                };
+
+                /* swap slot: 128KB */
+                scratch_partition: partition@140000 {
+                        label = "image-scratch";
+                        reg = <0x140000 0x20000>;
+                };
+
+                /* wifi_nvs_storage: 20Kb */
+                wifi_nvs_storage: partition@160000 {
+                        label = "wifi_nvs_storage";
+                        reg = <0x160000 0x5000>;
+                };
+
+                /* storage: 6.625MB for storage */
+                storage_partition: partition@165000 {
+                        label = "storage";
+                        reg = <0x165000 0x6a0000>;
+                };
+
+        };
+};
+
+&psram0 {
+        reg = <0x30000000 DT_SIZE_M(8)>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        /* cp core slot: 6MB */
+        cp_partition:cp_partition@30000000{             
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x30000000 0x600000>;
+                status = "okay";
+        };
+
+        /* sof communication slot: 1MB */
+        section0_partition: section0_partition@30600000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x30600000 0x100000>;
+                status = "okay";
+        };
+
+        /* section0_partition slot: 512KB */
+        sof_partition: sof_partition@30700000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x30700000 0x80000>;
+                status = "okay";
+        };
+
+        /* section1_partition slot: 512KB */
+        section1_partition: section1_partition@30780000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x30780000 0x80000>;
+                status = "okay";
+        };        
+};

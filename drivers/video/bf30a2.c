@@ -229,6 +229,19 @@ static int bf30a2_chip_xclk_init(const struct device *dev)
 	return 0;
 }
 
+#define SPI1_CS_PIN 9
+#include "hal/gpio.h"
+#include "hal/IOMuxManager.h"
+static int bf30a2_chip_cs_enable(const struct device *dev, uint8_t status)
+{
+	if (status) {
+		IOMuxManager_ModeConfigure(CSK_IOMUX_PAD_A, SPI1_CS_PIN, HAL_IOMUX_PULLDOWN_MODE);
+	} else {
+		IOMuxManager_ModeConfigure(CSK_IOMUX_PAD_A, SPI1_CS_PIN, HAL_IOMUX_PULLUP_MODE);
+	}
+	return 0;
+}
+
 static int bf30a2_chip_power_enable(const struct device *dev, uint8_t status)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
@@ -431,9 +444,10 @@ static int bf30a2_driv_stream_start(const struct device *dev)
 {
 #if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
 	/* TODO: active CS pin */
-	bf30a2_chip_write_register(dev, 0xCF, 0xF0);
+		bf30a2_chip_write_register(dev, 0xCF, 0xF0);
 
-	bf30a2_chip_power_enable(dev, 0);
+	 /*bf30a2_chip_power_enable(dev, 0);*/
+	bf30a2_chip_cs_enable(dev, 1);
 #endif
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
@@ -448,7 +462,8 @@ static int bf30a2_driv_stream_stop(const struct device *dev)
 {
 #if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
 	bf30a2_chip_write_register(dev, 0xCF, 0xF1);
-	bf30a2_chip_power_enable(dev, 1);
+	// bf30a2_chip_power_enable(dev, 1);
+	bf30a2_chip_cs_enable(dev, 0);
 #endif
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
@@ -610,11 +625,13 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 		frame_index++;
 
 		r = spi_transceive_dt(&data->chip_data.spi_bus, NULL, &rx_buf);
+		LOG_ERR("r %d len %d \n!", r, spi_buf.len);
 		if (r == spi_buf.len) {
 			r = bf30a2_decode_x(spi_buf.buf, vbuf->buffer, r, 180, 128);
 			if (r > 0) {
 				vbuf->bytesused = r;
 				vbuf->timestamp = k_uptime_get_32();
+				LOG_ERR("k_fifo_put!");
 				k_fifo_put(&data->fifo, vbuf);
 			}
 		}
@@ -637,8 +654,8 @@ static int bf30a2_dev_init(const struct device *dev)
 #if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
 
 	/* FIXME: Use power pin temporary instead of cs pin at here. */
-	bf30a2_chip_power_enable(dev, 1);
-
+	// bf30a2_chip_power_enable(dev, 1);
+	bf30a2_chip_cs_enable(dev, 0);
 #endif
 
 	bf30a2_chip_init(dev);
@@ -674,15 +691,12 @@ static int bf30a2_dev_init(const struct device *dev)
 
 #define BF30A2_SPI_DT_SPEC_GET(node_id, operation_, delay_)                                        \
 	{                                                                                          \
-		.bus = DEVICE_DT_GET(DT_PROP(node_id, spi)),                                       \
-		.config = BF30A2_SPI_CONFIG_DT(DT_PROP(node_id, spi), operation_, delay_),         \
 	}
 
 #define BF30A2_PWM_DT_SPEC_GET(node_id)                                                            \
 	{                                                                                          \
-		.pwm = DEVICE_DT_GET(DT_PWMS_CTLR(node_id)),                                  \
-		.pin = DT_PWMS_CHANNEL(node_id),                 \
-		.flag = DT_PWMS_FLAGS(node_id),                                 \
+		.pwm = DEVICE_DT_GET(DT_PWMS_CTLR(node_id)), .pin = DT_PWMS_CHANNEL(node_id),      \
+		.flag = DT_PWMS_FLAGS(node_id),                                                    \
 	}
 
 #define BF30A2_CHIP_DATA(inst)                                                                     \
