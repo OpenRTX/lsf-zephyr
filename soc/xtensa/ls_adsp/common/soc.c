@@ -64,10 +64,28 @@ void __memmap_init(void)
 
 }
 
-void xtensa_real_exit(int status){
+void xtensa_real_exit(int status)
+{
 	#include <xtensa/simcall.h>
 	register int a2 __asm__ ("a2") = SYS_exit;
 	register int a3 __asm__ ("a3") = status;
 	__asm__ volatile ("simcall"
 			  : : "a" (a2), "a" (a3));
 };
+
+bool ls_adsp_stack_ptr_is_sane(uint32_t sp)
+{
+	// return (ls_adsp_stack_ptr_in_psram(sp) || ls_adsp_stack_ptr_in_dram(sp));
+
+	// FIXME: TODO
+	return true;
+}
+
+bool ls_adsp_stack_ptr_executable(const void *p)
+{
+	// return (ls_adsp_stack_ptr_in_psram(sp) || ls_adsp_stack_ptr_in_dram(sp));
+
+	// FIXME: TODO
+	return true;
+}
+
