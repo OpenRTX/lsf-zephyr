@@ -75,14 +75,13 @@ struct ep_mem_block {
 };
 
 
-#define USBD_THREAD_STACK_SIZE		1024
 
 struct usb_device_data {
 	uint8_t address;
 	uint32_t bd_active;
 	bool attached;
 
-	K_KERNEL_STACK_MEMBER(thread_stack, USBD_THREAD_STACK_SIZE);
+	K_KERNEL_STACK_MEMBER(thread_stack, CONFIG_USB_DC_CSK6_THREAD_STACK_SIZE);
 	struct k_thread thread;
 };
 
@@ -119,16 +118,16 @@ static int usb_venus_init(void)
 	}
 
 	/* Set device speed to Full Speed */
-	CSK_USBC->POWER &= ~USB_VENUS_POWER_HSENABLE; //Full speed enable
+	CSK_USBC->POWER &= ~USB_VENUS_POWER_HSENABLE;
 
 	/* Enable soft connect */
 	CSK_USBC->POWER |= USB_VENUS_POWER_SOFTCONN;
 
 
 	k_thread_create(&dev_data.thread, dev_data.thread_stack,
-		USBD_THREAD_STACK_SIZE,
+		CONFIG_USB_DC_CSK6_THREAD_STACK_SIZE,
 		usb_csk6001_thread_main, NULL, NULL, NULL,
-		K_PRIO_COOP(2), 0, K_NO_WAIT);
+		K_PRIO_COOP(CONFIG_USB_DC_CSK6_THREAD_COOP_PRIO), 0, K_NO_WAIT);
 
 
 	/* Register USB ISR */
@@ -200,13 +199,6 @@ static int usb_venus_ep_set(uint8_t ep, uint32_t ep_mps, enum usb_dc_ep_transfer
 		/* max packet size is fixed to 64Bytes for EP0 */
 		/* No need to set EP0 type */
 	} else {
-		/* Set endpoint type and FIFO size for EP1-15 */
-		//		/* Clear ISO type bit */
-		//		/* enable the TX&RX endpoint for bulk or interrupt transfers */
-		//		EDPxReg_SEL(ep_idx);
-		//		CSK_USBC->TXCSRH &= (~USB_VENUS_TXCSRH_ISO_MASK);
-		//		CSK_USBC->RXCSRH &= (~USB_VENUS_RXCSRH_ISO_MASK);
-
 		switch (ep_type) {
 		case USB_DC_EP_CONTROL:
 			/* No need to set EP0, EP1-EP15 can't be set to control transfer */
@@ -545,7 +537,6 @@ static int usb_venus_dma_multiple_packet_setting(uint8_t ep, uint32_t address, u
 	//dma channel index begin from 0
 	CSK_USBC->USB_DMA[dma_channel].ADDR = address;
 	CSK_USBC->USB_DMA[dma_channel].COUNT = length;
-	//	CSK_USBC->USB_DMA[dma_channel].CNTL = 0;
 	CSK_USBC->USB_DMA[dma_channel].CNTL =
 		USB_VENUS_DMA_CNTL_DMA_ENAB | (dir << USB_VENUS_DMA_CNTL_DMA_DIR_POS) |
 		USB_VENUS_DMA_CNTL_DMAMODE_1 | USB_VENUS_DMA_CNTL_DMAIE |
@@ -589,7 +580,6 @@ static int usb_venus_tx(uint8_t ep, const uint8_t *const data, uint32_t data_len
 			usb_venus_ctrl.status = USB_VENUS_STS_SETUP;
 			EDPxReg_SEL(ep_idx);
 			CSK_USBC->CSR0L |= USB_VENUS_CSR0L_DATAEND;
-//			printk("END1\n");
 			return data_len;
 		}
 
@@ -740,7 +730,6 @@ int usb_dc_ep_configure(const struct usb_dc_ep_cfg_data *const cfg)
 		return -EINVAL;
 	}
 
-	// usb_dc_ep_enable_dma(ep);
 	usb_venus_ep_set(ep, cfg->ep_mps, cfg->ep_type);
 
 	return 0;
@@ -864,13 +853,6 @@ int usb_dc_ep_enable(const uint8_t ep)
 		usb_venus_ctrl.in_ep_ctrl[ep_idx].ep_ena = 1U;
 	}
 
-	//	//Todo:temp comment for compile
-	//	if (USB_EP_DIR_IS_OUT(ep) &&
-	//	    usb_venus_ctrl.out_ep_ctrl[ep_idx].cb != usb_transfer_ep_callback) {
-	//		/* Start reading now, except for transfer managed eps */
-	//		usb_venus_prep_rx(ep, 0);
-	//	}
-
 	return 0;
 }
 
@@ -878,7 +860,6 @@ int usb_dc_ep_disable(const uint8_t ep)
 {
 	uint8_t ep_idx = USB_EP_GET_IDX(ep);
 
-	// usb_dc_ep_disable_dma(ep);
 	if (!usb_venus_ctrl.attached || !usb_venus_ep_is_valid(ep)) {
 		LOG_ERR("Not attached / Invalid endpoint: EP 0x%x", ep);
 		return -EINVAL;
