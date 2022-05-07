@@ -100,11 +100,12 @@ void main(void)
     printk("p1sram test start!\n");
 
     LinkList_Initialize(&error_head);
-    for(int a=0; a<8; a++){
-        printk("========psram test %d!==========\n", a);
+    uint32_t cnt = 0;       // 总次数
+    while(1){
         uint32_t* wr_address = (uint32_t*)0x30000000;
         uint32_t* rd_address = (uint32_t*)0x30000000;
         for(i = 0; i <= (1024*1024*2); i++){
+            cnt++;
             // get random data
             wr_data = rand();
 
@@ -120,14 +121,15 @@ void main(void)
                 LinkList_increament(error_head, (uint32_t)wr_address, (uint32_t)rd_address, wr_data, rd_data);
             }
 
-            if(i%10000 == 0){
-                printk("i:%d,rd:%d,wd:%d\n", i, rd_data, wr_data);
+            // if(i%10000 == 0){
+            //     printk("i:%d,rd:%d,wd:%d\n", i, rd_data, wr_data);
 
-            }
+            // }
             wr_address++;
             rd_address++;
 
         }
+        printk("RESULT ERROE TIMES: [%d/%d]\n", error_times, cnt);
     }
 
     printk("SUCCESS SHOW BELOW:");
