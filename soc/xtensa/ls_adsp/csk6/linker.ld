@@ -358,7 +358,7 @@ SECTIONS
   {
     _stext = .;
     _iram_text_start = ABSOLUTE(.);
-    *(.iram0.literal .iram.literal .iram.text.literal .iram0.text .iram.text)
+    *(.iram0.literal .iram.literal .iram.text.literal .iram0.text .iram.text .iram1.literal .iram1)
     _iram_text_end = ABSOLUTE(.);
   } >iram_text_start AT > sdram0 :iram_text_start_phdr
 
