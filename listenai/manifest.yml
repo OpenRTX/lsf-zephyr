@@ -47,7 +47,7 @@ manifest:
       path: modules/lib/listenai/zport_sal
     - name: zport_esp
       remote: listenai
-      revision: 351362c57afe163756af96e027ff6575c915cf5c
+      revision: f2eeb54fede6cea78b34d9df7078ca77faa56588
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
