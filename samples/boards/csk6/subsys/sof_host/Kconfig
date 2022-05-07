@@ -9,7 +9,7 @@ DT_CHOSEN_Z_FLASH_CONTROLLER := zephyr,flash_controller
 DT_CHOSEN_Z_INN_FLASH := zephyr,flash
 DT_CHOSEN_Z_IPC_SHM := zephyr,ipc_shm
 
-if USB_MASS_STORAGE
+if DISK_DRIVER_FLASH
 
 	config DISK_FLASH_START
 		default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_FLASH_SYSFS_STORAGE))"

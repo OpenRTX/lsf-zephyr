@@ -13,13 +13,17 @@ extern void network_domain(void);
 
 void main(void)
 {
+#ifdef CONFIG_SOF_HOST
 	s_fs_mount();
+#endif
 	
 #ifdef CONFIG_WIFI
 	network_domain();
 #endif
 
+#ifdef CONFIG_SOF_HOST
 	sof_domain();
+#endif
 
 #ifdef CONFIG_MCUMGR
 	mcumgr_domain();
