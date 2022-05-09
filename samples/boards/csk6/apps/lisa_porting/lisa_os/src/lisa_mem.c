@@ -16,7 +16,7 @@
 
 #define TAG "lisa_mem"
 
-#define POOL_SECTION .csk6_psram_section0
+#define POOL_SECTION .csk6_psram_section
 #define HEAP_BYTES CONFIG_LISA_HEAP_ARENA_SIZE
 
 Z_GENERIC_SECTION(POOL_SECTION) static struct sys_heap z_malloc_heap;
