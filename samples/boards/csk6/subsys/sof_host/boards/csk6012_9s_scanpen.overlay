@@ -42,14 +42,14 @@
 		#size-cells = <1>;
 		filesystem_part: partition@160000 {
 			label = "filesystem";
-			reg = <0x160000 0x00100000>;
+			reg = <0x160000 0x00a0000>;
 		};
 		/*
 		 * Reserve the final 640 KiB for file system partition
 		 */
-		storage_partition: partition@760000 {
+		storage_partition: partition@300000 {
 			label = "storage";
-			reg = <0x760000 0x00a0000>;
+			reg = <0x300000 0x500000>;
 		};
 
 
