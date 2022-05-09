@@ -1,0 +1,19 @@
+#
+# Copyright (c) 2019, Linaro Limited
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+description: CSK6 audio power amplifier interface
+
+compatible: "listenai,pwr-amp"
+
+include: base.yaml
+
+properties:
+    label:
+      required: true
+    enalbe-gpios:
+      type: phandle-array
+      required: true
+      description: enable pin
