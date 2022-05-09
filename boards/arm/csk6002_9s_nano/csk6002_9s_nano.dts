@@ -107,7 +107,9 @@
 };
 
 &spi0 {
-    status = "disabled";
+        pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>; 
+        pinctrl-names = "default";
+        status = "okay";
 };
 
 &spi1 {
