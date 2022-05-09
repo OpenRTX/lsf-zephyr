@@ -1,0 +1,4 @@
+tests:
+  sample.board.csk6.etf.wifi_819s_etf:
+    platform_allow: csk6002_9s_nano
+    tags: csk6
