@@ -4,15 +4,10 @@
 
 #define DT_DRV_COMPAT listenai_csk_wifi
 
-#include <fs/fs.h>
-
 #include "csk6/priv/csk_wifi_priv.h"
 
 #include <logging/log.h>
 LOG_MODULE_DECLARE(csk_wifi, CONFIG_WIFI_LOG_LEVEL);
-
-#define PARTITION_NODE DT_NODELABEL(lfs1)
-FS_FSTAB_DECLARE_ENTRY(PARTITION_NODE);
 
 #define WIFI_MAX_SCAN_NUM       CONFIG_MAX_SCAN_APS_NUM
 #define WIFI_MAX_TIMEOUT_SEC    CONFIG_WLAN_API_TIMEOUT
@@ -149,18 +144,6 @@ static void wlan_event_handler(uint32_t param0, uint32_t param1)
 
 static int wifi_driver_init(const struct device *dev)
 {
-    int ret = 0;
-    struct fs_mount_t *mp =&FS_FSTAB_ENTRY(PARTITION_NODE);
-#if !DT_NODE_EXISTS(PARTITION_NODE) || !(FSTAB_ENTRY_DT_MOUNT_FLAGS(PARTITION_NODE) & FS_MOUNT_FLAG_AUTOMOUNT)
-    ret = fs_mount(mp);
-	if (ret < 0) {
-        LOG_ERR("%s mount failed", mp->mnt_point);
-		return ret;
-	}
-	LOG_INF("%s mounted\n", mp->mnt_point);
-#else
-    LOG_INF("%s automounted\n", mp->mnt_point);
-#endif
     wlan_sys_init();
     wlan_attach(wlan_event_handler);
 

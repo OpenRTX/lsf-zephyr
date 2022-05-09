@@ -12,8 +12,6 @@ if("${BOARD}" STREQUAL "csk6002_c3_nano")
   message(INFO " ${BOARD} compile as Master in this sample")
   target_sources(app PRIVATE src/main.c)
   add_subdirectory(./src)
-  zephyr_compile_options(-fno-short-enums)
-  zephyr_ld_options(-fno-short-enums)
 endif()
 
 
