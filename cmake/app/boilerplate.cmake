@@ -71,6 +71,12 @@ May include isr_tables.c etc."
   )
 set_property(GLOBAL PROPERTY GENERATED_KERNEL_SOURCE_FILES "")
 
+define_property(GLOBAL PROPERTY ZEPHYR_EXCLUDE_FILES
+        BRIEF_DOCS "Global list of libs/files that shouldn't be linked into bss and data section"
+        FULL_DOCS  "Global list of libs/files that shouldn't be linked into bss and data section.
+zephyr_library() appends libs to this list.")
+set_property(GLOBAL PROPERTY ZEPHYR_EXCLUDE_FILES "")
+
 set(APPLICATION_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "Application Source Directory")
 set(APPLICATION_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR} CACHE PATH "Application Binary Directory")
 
