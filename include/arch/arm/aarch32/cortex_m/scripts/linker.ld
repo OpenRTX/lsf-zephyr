@@ -19,6 +19,10 @@
 #include <linker/linker-defs.h>
 #include <linker/linker-tool.h>
 
+#ifdef CONFIG_SRAM_BSS_DATA_EXCLUDE
+#include <linker_exclude_config.h>
+#endif
+
 /* physical address of RAM */
 #ifdef CONFIG_XIP
 #define ROMABLE_REGION FLASH
@@ -302,8 +306,14 @@ SECTIONS
     SECTION_DATA_PROLOGUE(_DATA_SECTION_NAME,,)
 	{
 	__data_start = .;
+
+#ifndef CONFIG_SRAM_BSS_DATA_EXCLUDE
 	*(.data)
 	*(".data.*")
+#else
+	*(EXCLUDE_FILE MACRO_ZEPHYR_EXCLUDE_FILES .data)
+	*(EXCLUDE_FILE MACRO_ZEPHYR_EXCLUDE_FILES .data.*)
+#endif
 	*(".kernel.*")
 
 /* Located in generated directory. This file is populated by the
@@ -345,8 +355,13 @@ SECTIONS
 	__bss_start = .;
 	__kernel_ram_start = .;
 
+#ifndef CONFIG_SRAM_BSS_DATA_EXCLUDE
 	*(.bss)
 	*(".bss.*")
+#else
+	*(EXCLUDE_FILE MACRO_ZEPHYR_EXCLUDE_FILES .bss.*)
+	*(EXCLUDE_FILE MACRO_ZEPHYR_EXCLUDE_FILES .bss)
+#endif
 	*(COMMON)
 	*(".kernel_bss.*")
 

@@ -6,6 +6,23 @@ menuconfig XR819S
 
 if XR819S
 
+choice
+    prompt "Static Memory Location"
+	default XR_STATIC_MEM_LOCATION_PSRAM if CSK6_PSRAM
+	default XR_STATIC_MEM_LOCATION_SRAM if !CSK6_PSRAM
+	config XR_STATIC_MEM_LOCATION_SRAM
+		bool "SRAM"
+
+	config XR_STATIC_MEM_LOCATION_PSRAM
+		bool "PSRAM"
+		depends on CSK6_PSRAM
+		select SRAM_BSS_DATA_EXCLUDE
+
+endchoice
+
+
+menu "Threads Configuration"
+
 config XR_UMAC_STACK
 	int "XR819S uamc Thread Stack"
 	default 2048
@@ -53,5 +70,7 @@ config XR_RX_PROC_STACK
 config XR_RX_PROC_PRIORITY
 	int "XR819S rx_proc Thread priority"
 	default 2
+
+endmenu  #Threads Configuration
 
 endif # XR819S

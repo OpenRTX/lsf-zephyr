@@ -1691,3 +1691,12 @@ add_subdirectory_ifdef(
   CONFIG_MAKEFILE_EXPORTS
   cmake/makefile_exports
   )
+
+if (CONFIG_SRAM_BSS_DATA_EXCLUDE)
+get_property(MACRO_ZEPHYR_EXCLUDE_FILES GLOBAL PROPERTY ZEPHYR_EXCLUDE_FILES)
+string(REPLACE ";" " " MACRO_ZEPHYR_EXCLUDE_FILES "${MACRO_ZEPHYR_EXCLUDE_FILES}")
+configure_file(
+        ${ZEPHYR_BASE}/include/linker/linker_exclude_config.h.in
+        ${PROJECT_BINARY_DIR}/include/generated/linker_exclude_config.h
+        @ONLY)
+endif()

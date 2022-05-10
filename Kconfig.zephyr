@@ -218,6 +218,12 @@ config SRAM_OFFSET
 
 	  If unsure, leave at the default value 0.
 
+config SRAM_BSS_DATA_EXCLUDE
+	bool "Enable SRAM bss data section Exclude files"
+	default n
+	help
+	  TODO
+
 menu "Linker Sections"
 
 config LINKER_USE_BOOT_SECTION

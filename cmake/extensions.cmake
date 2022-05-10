@@ -541,6 +541,10 @@ function(zephyr_append_cmake_library library)
   set_property(GLOBAL APPEND PROPERTY ZEPHYR_LIBS ${library})
 endfunction()
 
+function(zephyr_append_exclude_files zephyr_exclude_files)
+  set_property(GLOBAL APPEND PROPERTY ZEPHYR_EXCLUDE_FILES "${zephyr_exclude_files}")
+endfunction()
+
 # Add the imported library 'library_name', located at 'library_path' to the
 # global list of Zephyr CMake libraries.
 function(zephyr_library_import library_name library_path)
