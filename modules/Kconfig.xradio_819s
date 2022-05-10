@@ -9,7 +9,7 @@ if XR819S
 choice
     prompt "Static Memory Location"
 	default XR_STATIC_MEM_LOCATION_PSRAM if CSK6_PSRAM
-	default XR_STATIC_MEM_LOCATION_PSRAM if !CSK6_PSRAM
+	default XR_STATIC_MEM_LOCATION_SRAM if !CSK6_PSRAM
 	config XR_STATIC_MEM_LOCATION_SRAM
 		bool "SRAM"
 
