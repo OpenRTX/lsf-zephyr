@@ -7,6 +7,7 @@
 #include <zephyr.h>
 #include <sys/printk.h>
 
+#include <cache.h>
 #include <drivers/video.h>
 #include <device.h>
 
@@ -27,7 +28,10 @@ LOG_MODULE_REGISTER(main, 4);
 #define CP_PSRAM_BASE (0x68400000)
 #define AP_PSRAM_BASE (0x30000000)
 
-void prepare_cp_run(void)
+#define CP_FW_ADDR (0x18000000 + 0x00200000)
+#define CP_FW_LEN 500000
+
+void prepare_cp_run()
 {
 	PSRAM_Initialize();
 
@@ -47,6 +51,9 @@ void prepare_cp_run(void)
 	}
 
 	__DMB();
+    // memcpy((void *)AP_PSRAM_BASE, (void *)CP_FW_ADDR, CP_FW_LEN);
+
+    // sys_cache_data_range((void *)AP_PSRAM_BASE, CP_FW_LEN, K_CACHE_WB);
 	__DSB();
 
 	// run cp
@@ -86,11 +93,13 @@ static void _work(struct k_work *work)
 	printk("start video steam.\n");
 }
 
+
 void main(void)
 {
 	const struct device *ipm = DEVICE_DT_GET(DT_NODELABEL(mailbox0));
 
 	printk("Hello World! %s\n", CONFIG_BOARD);
+
 	prepare_cp_run();
 
 	if (!device_is_ready(ipm)) {
@@ -104,8 +113,10 @@ void main(void)
 
 	/* define a delay work to start open video steam. */
 	k_work_init_delayable(&dwork, _work);
+    int i = 0;
 
 	while (1) {
-		k_yield();
+        printk("running, %d\n", i++);
+		k_sleep(K_MSEC(1000));
 	}
 }

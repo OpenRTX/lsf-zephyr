@@ -211,7 +211,9 @@ DMA_CSK6_RAM_FUNC
 csk_dma_irq_handler(const struct device *dev)
 {
     extern void dma_irq_handler(void);
+    GPIO_PinWrite(GPIOA(), (1 << 8), 1);
     dma_irq_handler();
+    GPIO_PinWrite(GPIOA(), (1 << 8), 0);
 }
 
 static int csk_dma_init(const struct device *dev)
