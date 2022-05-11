@@ -28,6 +28,7 @@ _names = [
     'blackmagicprobe',
     'bossac',
     'canopen_program',
+    'csk',
     'dediprog',
     'dfu',
     'esp32',
