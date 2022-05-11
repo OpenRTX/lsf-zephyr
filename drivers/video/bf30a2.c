@@ -6,23 +6,13 @@
 
 #define DT_DRV_COMPAT byd_bf30a2
 
+#define CONFIG_BF30A2_POLL 1
 
-#include <zephyr.h>
-#include <sys/printk.h>
-
-#include <drivers/video.h>
-#include <drivers/uart.h>
-#include <device.h>
-#include <drivers/ipm.h>
-
+#include <stdbool.h>
 #include <string.h>
 
-
 #include <zephyr.h>
 #include <device.h>
-
-#include <sys/byteorder.h>
-
 #include <drivers/video.h>
 #include <drivers/i2c.h>
 #include <drivers/gpio.h>
@@ -31,11 +21,18 @@
 #include <drivers/uart.h>
 
 #include <hal/spi.h>
+#include <sys/byteorder.h>
+#include <sys/printk.h>
+
+#ifdef CONFIG_SOC_LS_ADSP_CSK6
+#include <hal/reg/dma_venus.h>
+#define BF30A2_FAST_CODE __attribute__ ((section(".iram.text")))
+#else
+#include "hal/Driver_DVP.h"
 #include <hal/dma.h>
+#define BF30A2_FAST_CODE __attribute__ ((section(".itcm")))
+#endif
 
-// #include <hal/gpio_venus.h>
-
-#include <stdbool.h>
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <logging/log.h>
 
@@ -43,13 +40,6 @@ LOG_MODULE_REGISTER(bf30a2);
 
 #if CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 1
 #error "CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 1"
-#endif
-
-#ifdef CONFIG_SOC_LS_ADSP_CSK6
-#define BF30A2_FAST_CODE __attribute__ ((section(".iram.text")))
-#else
-#include "hal/Driver_DVP.h"
-#define BF30A2_FAST_CODE __attribute__ ((section(".itcm")))
 #endif
 
 #define BF30A2_FRAME_WIDTH (128)
@@ -530,6 +520,7 @@ enum {
     MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED,
     MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED_V2,
     MACHINE_STATE_END_AND_START_PACKET_RECEIVED,
+    MACHINE_STATE_FIND_HEADING
 };
 
 void bf30a2_spi_evt_callback(uint32_t event, uint32_t param);
@@ -551,7 +542,7 @@ BF30A2_FAST_CODE static int32_t spi_recv(void *spi_dev, void *data, uint32_t num
 	SPI_DEV *spi = (SPI_DEV *)spi_dev;
 
 	if (spi == NULL) {
-		LOG_ERR("%s: invalid SPI device (0x%08x)!", __func__, spi_dev);
+		LOG_ERR("SPI device error.");
 		return CSK_DRIVER_ERROR_PARAMETER;
 	}
 
@@ -628,6 +619,69 @@ BF30A2_FAST_CODE static int32_t spi_recv(void *spi_dev, void *data, uint32_t num
 	if ((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_MASTER) {
 		spi->reg->CMD = 0;
 	}
+
+	return CSK_DRIVER_OK;
+}
+
+BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
+{
+	int32_t stat;
+	SPI_DEV *spi = (SPI_DEV *)spi_dev;
+
+	uint32_t start_time = k_uptime_get_32();
+
+	int i = SPI_RXFIFO_ENTRIES(spi);
+
+	uint8_t head_buf[5] = {0};
+	uint8_t curr_idx = 0;
+
+	while (1) {
+
+		if(i<=0) {
+			i = SPI_RXFIFO_ENTRIES(spi);
+			continue;
+		}
+
+		head_buf[curr_idx++] = spi->reg->DATA;
+		
+		curr_idx = curr_idx % 5;
+		uint8_t m_cnt = 0;
+
+		for (size_t tmp = 0; tmp < 5; tmp++)
+		{
+			switch (tmp) {
+			case 0:
+				if(head_buf[(curr_idx + tmp)%5] == 0xFF) m_cnt++;
+				break;
+			case 1:
+				if(head_buf[(curr_idx + tmp)%5] == 0xFF) m_cnt++;
+				break;
+			case 2:
+				if(head_buf[(curr_idx + tmp)%5] == 0xFF) m_cnt++;
+				break;
+			case 3:
+				if(head_buf[(curr_idx + tmp)%5] == 0x01) m_cnt++;
+				break;
+			case 4:
+				if(head_buf[(curr_idx + tmp)%5] == 0x02) m_cnt++;
+				break;
+			default:
+				break;
+			}
+		}
+
+		if(m_cnt == 5) {
+			break;
+		}
+
+		if(m_cnt%5){
+			if(k_uptime_get_32() - start_time > timeout) return CSK_DRIVER_ERROR;
+		}
+		
+		// auto decrease, re-evaluate i if down to 0
+		if (--i == 0)
+			i = SPI_RXFIFO_ENTRIES(spi);
+	} // end while i
 
 	return CSK_DRIVER_OK;
 }
@@ -765,7 +819,8 @@ BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
 	if (event & CSK_SPI_EVENT_DMA_COMPLETE) {
         /* A state-machine for receiving frames line by line */
         if (bf30a2_recv_packet_process_v2(&recv_bufs[recv_bufs_idx][0], 0, 1)) {
-			recv_bufs_idx = ++recv_bufs_idx % RECV_BUFS_COUNT;
+            ++recv_bufs_idx;
+			recv_bufs_idx %= RECV_BUFS_COUNT;
             /* restart state-machine to receive next frame */
 			bf30a2_recv_packet_process_v2(&recv_bufs[recv_bufs_idx][0], 1, 1);
         }
@@ -803,8 +858,10 @@ static int bf30a2_driv_stream_start(const struct device *dev)
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
     bf30a2_stream_start_internal(dev);
     printk("resume\n");
+#ifndef CONFIG_BF30A2_POLL
     extern const k_tid_t bf30a2_thread_id;
 	k_thread_resume(bf30a2_thread_id);
+#endif
 #endif
 
 	return 0;
@@ -833,8 +890,12 @@ static int bf30a2_driv_dequeue(const struct device *dev, enum video_endpoint_id 
 	if (ep != VIDEO_EP_OUT) {
 		return -EINVAL;
 	}
-
+#ifdef CONFIG_BF30A2_POLL
+    extern struct video_buffer *bf30a2_poll(void *p1);
+    *buf = bf30a2_poll(data);
+#else
 	*buf = k_fifo_get(&data->fifo, timeout);
+#endif
 	if (*buf == NULL) {
 		return -EAGAIN;
 	}
@@ -914,6 +975,62 @@ static void ipm_callback(const struct device *dev, void *context, uint32_t id, v
 	printk("id=%d.\n", id);
 }
 
+#ifdef CONFIG_BF30A2_POLL
+struct video_buffer *bf30a2_poll(void *p1)
+{
+    __ASSERT(p1 != NULL, "Param is null.");
+	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)p1;
+	struct video_buffer *vbuf;
+	uint8_t frame_index = 0;
+    static uint32_t cnt = 0;
+    static uint32_t last_time = 0;
+    static uint32_t error_cnt = 0;
+    static uint32_t ok_cnt = 0;
+
+    struct rda_frame_info *info;
+    int fps = 0;
+    uint32_t tick = 0;
+
+    vbuf = data->vbuf[frame_index];
+    
+    info = k_fifo_get(&fifo_frames, K_NO_WAIT);
+    if (info != NULL && info->buf != NULL) {
+        cnt++;
+
+        int r = bf30a2_decode_XX(info->buf, vbuf->buffer, 25219, 179, 128);
+        if (r > 0) {
+            ok_cnt++;
+        } else {
+            error_cnt++;
+        }
+
+        if (r > 0) {
+            /* TODO: put frame data to out fifo. */
+            vbuf->bytesused = 180 * 128;
+            vbuf->timestamp = info->time;
+            k_fifo_put(&data->fifo, vbuf);
+        }
+
+        if (info->time - last_time) {
+            fps = 1000 / (info->time - last_time);
+            if (cnt % 3 == 0) {
+                GPIO_PinWrite(GPIOA(), (1 << 4), 0);
+                tick = k_uptime_get_32();
+                printk("frame %d decode %s, FPS:%d, buffer:%p, error_cnt:%d, ok_cnt:%d\n",
+                    cnt, r > 0 ? "ok" : "error", fps,
+                    info->buf, error_cnt, ok_cnt);
+                GPIO_PinWrite(GPIOA(), (1 << 4), 1);
+                tick = k_uptime_get_32() - tick;
+            }
+            return vbuf;
+        }
+        last_time = info->time;
+    }
+    return NULL;
+}
+
+#else
+
 static void bf30a2_thread(void *p1, void *p2, void *p3)
 {
 	__ASSERT(p1 != NULL, "Param is null.");
@@ -986,6 +1103,7 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 	}
 }
 #endif
+#endif
 
 #endif
 
@@ -1047,8 +1165,6 @@ static int bf30a2_dev_init(const struct device *dev)
 	k_fifo_init(&data->fifo);
     k_fifo_init(&data->fifo_in);
     k_fifo_init(&fifo_frames);
-
-    __asm__ volatile("wsr.intenable %0" : : "r"(0x49));
 
 	uint32_t i;
 	for (i = 0; i < ARRAY_SIZE(data->vbuf); i++) {
@@ -1134,7 +1250,7 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
-#if CONFIG_MULTITHREADING
+#ifndef CONFIG_BF30A2_POLL
 K_THREAD_DEFINE(bf30a2_thread_id, 2048,                                \
 			bf30a2_thread, &bf30a2_dev_data, NULL, NULL,               \
 			K_HIGHEST_THREAD_PRIO, 0, 0);
