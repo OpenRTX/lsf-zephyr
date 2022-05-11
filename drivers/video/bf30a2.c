@@ -48,6 +48,7 @@ LOG_MODULE_REGISTER(bf30a2);
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
 #define BF30A2_FAST_CODE __attribute__ ((section(".iram.text")))
 #else
+#include "hal/Driver_DVP.h"
 #define BF30A2_FAST_CODE __attribute__ ((section(".itcm")))
 #endif
 
@@ -998,7 +999,6 @@ static const struct video_driver_api bf30a2_driv_api = {
 	.set_ctrl = bf30a2_set_ctrl,
 };
 
-#include "hal/Driver_DVP.h"
 
 static int bf30a2_dev_init(const struct device *dev)
 {
