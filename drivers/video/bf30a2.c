@@ -6,13 +6,11 @@
 
 #define DT_DRV_COMPAT byd_bf30a2
 
-#define CONFIG_BF30A2_POLL 1
-
-#include <stdbool.h>
-#include <string.h>
-
 #include <zephyr.h>
 #include <device.h>
+
+#include <sys/byteorder.h>
+
 #include <drivers/video.h>
 #include <drivers/i2c.h>
 #include <drivers/gpio.h>
@@ -21,18 +19,10 @@
 #include <drivers/uart.h>
 
 #include <hal/spi.h>
-#include <sys/byteorder.h>
-#include <sys/printk.h>
 
-#ifdef CONFIG_SOC_LS_ADSP_CSK6
-#include <hal/reg/dma_venus.h>
-#define BF30A2_FAST_CODE __attribute__ ((section(".iram.text")))
-#else
-#include "hal/Driver_DVP.h"
-#include <hal/dma.h>
-#define BF30A2_FAST_CODE __attribute__ ((section(".itcm")))
-#endif
+// #include <hal/gpio_venus.h>
 
+#include <stdbool.h>
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <logging/log.h>
 
@@ -40,6 +30,15 @@ LOG_MODULE_REGISTER(bf30a2);
 
 #if CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 1
 #error "CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 1"
+#endif
+
+#ifdef CONFIG_SOC_LS_ADSP_CSK6
+#define BF30A2_FAST_CODE __attribute__ ((section(".iram.text")))
+#include <hal/reg/dma_venus.h>
+#else
+#define BF30A2_FAST_CODE __attribute__ ((section(".itcm")))
+#include <hal/dma.h>
+#include "hal/Driver_DVP.h"
 #endif
 
 #define BF30A2_FRAME_WIDTH (128)
@@ -489,7 +488,7 @@ static void dump(const struct device *dev, char *buffer, uint32_t l)
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
 #define RECV_BUFS_COUNT 5
-__attribute__((aligned(4))) uint8_t recv_bufs[RECV_BUFS_COUNT][25219 + 1] = {0};
+static __attribute__((aligned(4))) uint8_t recv_bufs[RECV_BUFS_COUNT][25219 + 1+4] = {0};
 static void * spi_hal;
 
 static uint32_t recv_bufs_idx = 0;
@@ -506,6 +505,9 @@ struct rda_frame_info
 
 static struct rda_frame_info frame_infos[RECV_BUFS_COUNT];
 
+int count = 0;
+static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_t w, uint32_t* n);
+
 enum {
 	BF30A2_PACKET_TYPE_FRAME_START = 0x01,
 	BF30A2_PACKET_TYPE_LINE_START = 0x02,
@@ -520,7 +522,7 @@ enum {
     MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED,
     MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED_V2,
     MACHINE_STATE_END_AND_START_PACKET_RECEIVED,
-    MACHINE_STATE_FIND_HEADING
+	MACHINE_STATE_FIND_HEADING,
 };
 
 void bf30a2_spi_evt_callback(uint32_t event, uint32_t param);
@@ -542,7 +544,7 @@ BF30A2_FAST_CODE static int32_t spi_recv(void *spi_dev, void *data, uint32_t num
 	SPI_DEV *spi = (SPI_DEV *)spi_dev;
 
 	if (spi == NULL) {
-		LOG_ERR("SPI device error.");
+		LOG_ERR("%s: invalid SPI device (0x%08x)!", __func__, spi_dev);
 		return CSK_DRIVER_ERROR_PARAMETER;
 	}
 
@@ -688,9 +690,16 @@ BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
 
 BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_next_packet(char *buf, uint32_t buf_size)
 {
+	// GPIO_PinWrite(GPIOA(), (1 << 8), 1);
     spi_recv(spi_hal, buf, buf_size);
+	// GPIO_PinWrite(GPIOA(), (1 << 8), 0);
     return 0;
 }
+
+
+static uint8_t next_state = MACHINE_STATE_INIT;
+static uint16_t recv_lines = 0;
+static uint32_t offset = 0;
 
 /**
  * Receving sensor frame line by line.
@@ -702,9 +711,6 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_next_packet(char *buf, uin
  */
 BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process(char *buf, uint8_t reset, uint8_t recv)
 {
-	static uint8_t next_state = MACHINE_STATE_INIT;
-	static uint16_t recv_lines = 0;
-    static uint32_t offset = 0;
 
 	int packet_received = 0;
 
@@ -736,6 +742,10 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process(char *buf, 
         if (recv_lines >= 180) {
 			next_state = MACHINE_STATE_END_AND_START_PACKET_RECEIVED;
             char *_buf = &recv_bufs[recv_bufs_idx][0];
+			// frame_infos[recv_bufs_idx].buf = _buf;
+			// frame_infos[recv_bufs_idx].len = BF30A2_FRAME_SIZE;
+			// frame_infos[recv_bufs_idx].time = k_uptime_get_32();
+			// k_fifo_put(&fifo_frames, &frame_infos[recv_bufs_idx]);
             bf30a2_recv_next_packet(buf + offset + offset, 4 + 9);
         } else {
             next_state = MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED;
@@ -747,6 +757,7 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process(char *buf, 
         next_state = MACHINE_STATE_INIT;
         packet_received = 1;
         break;
+	case MACHINE_STATE_FIND_HEADING:
 	default:
 		break;
 	}
@@ -756,10 +767,6 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process(char *buf, 
 
 BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *buf, uint8_t reset, uint8_t recv)
 {
-	static uint8_t next_state = MACHINE_STATE_INIT;
-	static uint16_t recv_lines = 0;
-    static uint32_t offset = 0;
-
 	int packet_received = 0;
 
 	if (reset) {
@@ -807,6 +814,7 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *bu
         next_state = MACHINE_STATE_INIT;
         packet_received = 1;
         break;
+	case MACHINE_STATE_FIND_HEADING:
 	default:
 		break;
 	}
@@ -814,13 +822,18 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *bu
 	return packet_received;
 }
 
+static uint8_t isoverflow = 0;
+
 BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
 {	
 	if (event & CSK_SPI_EVENT_DMA_COMPLETE) {
         /* A state-machine for receiving frames line by line */
         if (bf30a2_recv_packet_process_v2(&recv_bufs[recv_bufs_idx][0], 0, 1)) {
-            ++recv_bufs_idx;
-			recv_bufs_idx %= RECV_BUFS_COUNT;
+			recv_bufs_idx = ++recv_bufs_idx % RECV_BUFS_COUNT;
+            if(recv_bufs[recv_bufs_idx][25219+4]==1)
+            {
+                isoverflow = 1;
+            }
             /* restart state-machine to receive next frame */
 			bf30a2_recv_packet_process_v2(&recv_bufs[recv_bufs_idx][0], 1, 1);
         }
@@ -832,9 +845,14 @@ static int bf30a2_stream_start_internal(const struct device *dev)
 	recv_bufs_idx = 0;
     /* reset state-machine */
     bf30a2_recv_packet_process_v2(NULL, 1, 0);
-
     /* Skip first frame start packet. */
-	spi_recv(spi_hal, &recv_bufs[recv_bufs_idx][0], 9);
+	int r = spi_recv(spi_hal, &recv_bufs[recv_bufs_idx][0], 9);
+
+    for (int i = 0 ;i < RECV_BUFS_COUNT;i++) {
+        recv_bufs[i][25219+4] = 0;
+        // frame_infos[i].busy_flag = 0;
+    }
+
 	return 0;
 }
 
@@ -857,11 +875,6 @@ static int bf30a2_driv_stream_start(const struct device *dev)
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
     bf30a2_stream_start_internal(dev);
-    printk("resume\n");
-#ifndef CONFIG_BF30A2_POLL
-    extern const k_tid_t bf30a2_thread_id;
-	k_thread_resume(bf30a2_thread_id);
-#endif
 #endif
 
 	return 0;
@@ -890,12 +903,8 @@ static int bf30a2_driv_dequeue(const struct device *dev, enum video_endpoint_id 
 	if (ep != VIDEO_EP_OUT) {
 		return -EINVAL;
 	}
-#ifdef CONFIG_BF30A2_POLL
-    extern struct video_buffer *bf30a2_poll(void *p1);
-    *buf = bf30a2_poll(data);
-#else
+
 	*buf = k_fifo_get(&data->fifo, timeout);
-#endif
 	if (*buf == NULL) {
 		return -EAGAIN;
 	}
@@ -921,29 +930,29 @@ static inline int bf30a2_frame_check(char *in, uint32_t l, uint8_t packetId)
 	}
 
 	if (in[0] != 0xFF || in[1] != 0xFF || in[2] != 0xFF || in[3] != packetId) {
-		printk("packetId:%d, %02x %02x %02x %02x.\n", packetId, in[0], in[1], in[2], in[3]);
+		// printk("packetId:%d, %02x %02x %02x %02x.\n", packetId, in[0], in[1], in[2], in[3]);
 		return -1;
 	}
 
 	return 0;
 }
 
-static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_t w)
+static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_t w, uint32_t *n)
 {
 	uint16_t i = 0;
 	uint32_t offset = 0;
 	uint32_t len = 0;
 	offset += 0;
-
+    *n = 0;
     if (bf30a2_frame_check(in + offset, l - offset, BF30A2_PACKET_TYPE_LINE_START) != 0) {
-        LOG_ERR("Decode error: line start packet, h=%d. offset=0x%x\n", i, offset);
+        // LOG_ERR("Decode error: line start packet, h=%d. offset=0x%x\n", i, offset);
         return -1;
     }
     offset += 6;
 	for (i = 0; i < h; i++) {
 		/* data packet */
 		if (bf30a2_frame_check(in + offset, l - offset, BF30A2_PACKET_TYPE_FRAME_DATA) != 0) {
-			LOG_ERR("Decode error: data packet, h=%d. offset=0x%x\n", i, offset);
+			// LOG_ERR("Decode error: data packet, h=%d. offset=0x%x\n", i, offset);
 			return -1;
 		}
 
@@ -953,13 +962,14 @@ static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_
 		char *src = in + offset + BF30A2_DATA_PACKET_HEADA_LEN;
 		uint32_t _size = _copy_size;
 		while(_size--) {
+            // *n += *src;
 			*dst++ = *src++;
 		}
 		offset += BF30A2_DATA_PACKET_HEADA_LEN + w;
 		len += w;
 
         if (bf30a2_frame_check(in + offset, l - offset, BF30A2_PACKET_TYPE_LINE_START) != 0) {
-			LOG_ERR("Decode error: line packet, h=%d. offset=0x%x\n", i, offset);
+			// LOG_ERR("Decode error: line packet, h=%d. offset=0x%x\n", i, offset);
 			return -1;
 		}
         offset += 6;
@@ -969,67 +979,6 @@ static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_
 }
 
 #if CONFIG_MULTITHREADING
-#include <drivers/ipm.h>
-static void ipm_callback(const struct device *dev, void *context, uint32_t id, volatile void *data)
-{
-	printk("id=%d.\n", id);
-}
-
-#ifdef CONFIG_BF30A2_POLL
-struct video_buffer *bf30a2_poll(void *p1)
-{
-    __ASSERT(p1 != NULL, "Param is null.");
-	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)p1;
-	struct video_buffer *vbuf;
-	uint8_t frame_index = 0;
-    static uint32_t cnt = 0;
-    static uint32_t last_time = 0;
-    static uint32_t error_cnt = 0;
-    static uint32_t ok_cnt = 0;
-
-    struct rda_frame_info *info;
-    int fps = 0;
-    uint32_t tick = 0;
-
-    vbuf = data->vbuf[frame_index];
-    
-    info = k_fifo_get(&fifo_frames, K_NO_WAIT);
-    if (info != NULL && info->buf != NULL) {
-        cnt++;
-
-        int r = bf30a2_decode_XX(info->buf, vbuf->buffer, 25219, 179, 128);
-        if (r > 0) {
-            ok_cnt++;
-        } else {
-            error_cnt++;
-        }
-
-        if (r > 0) {
-            /* TODO: put frame data to out fifo. */
-            vbuf->bytesused = 180 * 128;
-            vbuf->timestamp = info->time;
-            k_fifo_put(&data->fifo, vbuf);
-        }
-
-        if (info->time - last_time) {
-            fps = 1000 / (info->time - last_time);
-            if (cnt % 3 == 0) {
-                GPIO_PinWrite(GPIOA(), (1 << 4), 0);
-                tick = k_uptime_get_32();
-                printk("frame %d decode %s, FPS:%d, buffer:%p, error_cnt:%d, ok_cnt:%d\n",
-                    cnt, r > 0 ? "ok" : "error", fps,
-                    info->buf, error_cnt, ok_cnt);
-                GPIO_PinWrite(GPIOA(), (1 << 4), 1);
-                tick = k_uptime_get_32() - tick;
-            }
-            return vbuf;
-        }
-        last_time = info->time;
-    }
-    return NULL;
-}
-
-#else
 
 static void bf30a2_thread(void *p1, void *p2, void *p3)
 {
@@ -1046,23 +995,6 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
     int fps = 0;
     int i = 0;
     uint32_t tick = 0;
-
-    const struct device *ipm = DEVICE_DT_GET(DT_NODELABEL(mailbox0));
-
-    bf30a2_driv_stream_start(data->dev);
-
-    if (!device_is_ready(ipm)) {
-		printk("ipm device is null.\n");
-		return;
-	}
-
-    /* Send msg to ap core to start the video stream */
-	int x = 0;
-	ipm_register_callback(ipm, ipm_callback, NULL);
-	ipm_set_enabled(ipm, 1);
-	ipm_send(ipm, 1, 0, &x, sizeof(x));
-
-    printk("ready to recv data.\n");
 	while(1) {
         if(info != NULL) frame_index = ++frame_index % CONFIG_VIDEO_BUFFER_POOL_NUM_MAX;
         vbuf = data->vbuf[frame_index];
@@ -1070,8 +1002,8 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 		info = k_fifo_get(&fifo_frames, K_NO_WAIT);
         if (info != NULL && info->buf != NULL) {
             cnt++;
- 
-			int r = bf30a2_decode_XX(info->buf, vbuf->buffer, 25219, 179, 128);
+            uint32_t n;
+			int r = bf30a2_decode_XX(info->buf, vbuf->buffer, 25219, 179, 128, &n);
 			if (r > 0) {
 				ok_cnt++;
 			} else {
@@ -1082,27 +1014,17 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
                 vbuf->bytesused = 25219;
                 vbuf->timestamp = info->time;
                 k_fifo_put(&data->fifo, vbuf);
+			}else{
+				next_state = MACHINE_STATE_FIND_HEADING;
+				spi_wait_head(spi_hal, 3000);
+				recv_bufs_idx = ++recv_bufs_idx % RECV_BUFS_COUNT;
+    			bf30a2_recv_packet_process_v2(NULL, 1, 0);
+				spi_recv(spi_hal, &recv_bufs[recv_bufs_idx][0] + 5, 4);
 			}
-            if (info->time - last_time) {
-                fps = 1000 / (info->time - last_time);
-                i++;
-                if (i == 2) {
-                    GPIO_PinWrite(GPIOA(), (1 << 4), 0);
-                    tick = k_uptime_get_32();
-                    printk("frame %d decode %s, FPS:%d, buffer:%p, error_cnt:%d, ok_cnt:%d\n",
-                        cnt, r > 0 ? "ok" : "error", fps,
-                        info->buf, error_cnt, ok_cnt);
-                    i = 0;
-                    GPIO_PinWrite(GPIOA(), (1 << 4), 1);
-                    tick = k_uptime_get_32() - tick;
-                }
-                
-	        }
 			last_time = info->time;
 		}
 	}
 }
-#endif
 #endif
 
 #endif
@@ -1116,7 +1038,6 @@ static const struct video_driver_api bf30a2_driv_api = {
 	.dequeue = bf30a2_driv_dequeue,
 	.set_ctrl = bf30a2_set_ctrl,
 };
-
 
 static int bf30a2_dev_init(const struct device *dev)
 {
@@ -1147,11 +1068,6 @@ static int bf30a2_dev_init(const struct device *dev)
 	GPIO_SetDir(GPIOA(), (1 << 5), 1);
 	GPIO_SetDir(GPIOA(), (1 << 4), 1);
 
-    // extern void vxthal_set_cache_prefetch(int);
-
-    // vxthal_set_cache_prefetch(XTHAL_PREFETCH_DISABLE);
-	// xthal_set_region_attribute((int *)&recv_bufs, sizeof(recv_bufs), XCHAL_CA_BYPASS, 0);
-
     spi_hal = SPI1();
     SPI_Uninitialize(spi_hal);	
     SPI_Initialize(spi_hal, bf30a2_spi_evt_callback, (uint32_t)dev);
@@ -1165,6 +1081,8 @@ static int bf30a2_dev_init(const struct device *dev)
 	k_fifo_init(&data->fifo);
     k_fifo_init(&data->fifo_in);
     k_fifo_init(&fifo_frames);
+
+    __asm__ volatile("wsr.intenable %0" : : "r"(0x49));
 
 	uint32_t i;
 	for (i = 0; i < ARRAY_SIZE(data->vbuf); i++) {
@@ -1250,11 +1168,11 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
-#ifndef CONFIG_BF30A2_POLL
+#if CONFIG_MULTITHREADING
 K_THREAD_DEFINE(bf30a2_thread_id, 2048,                                \
 			bf30a2_thread, &bf30a2_dev_data, NULL, NULL,               \
-			K_HIGHEST_THREAD_PRIO, 0, 0);
-#endif /* end of CONFIG_MULTITHREADING */
+			0, 0, 0);
 #endif
 
+#endif
 #endif
