@@ -1,23 +1,27 @@
 &ls_adsp_csk6_pinctrl{
 
 		pinctrl_spi1_sclk_default: spi1_sclk_default {
-            pinctrls = < &pinmuxa 8 7 >;
+            pinctrls = < &pinmuxb 0 7 >;
 		};
+
 		pinctrl_spi1_mosi_default: spi1_mosi_default {
-            pinctrls = < &pinmuxa 7 7 >;
+            pinctrls = < &pinmuxb 1 7 >;
 		};
+
 		pinctrl_spi1_miso_default: spi1_miso_default {
-            pinctrls = < &pinmuxa 6 7 >;
+            pinctrls = < &pinmuxa 1 7 >;
 		};
-		pinctrl_spi1_cs_default: spi1_cs_default {
+
+        pinctrl_spi1_cs_default: spi1_cs_default {
             pinctrls = < &pinmuxa 9 7 >;
-		}; 
+		};
 
         pinctrl_uart2_rx_default: uart2_rx_default {
 			pinctrls = < &pinmuxb 7 3 >;
 		};
+
 		pinctrl_uart2_tx_default: uart2_tx_default {
-			pinctrls = < &pinmuxb 6 3 >;
+			pinctrls = < &pinmuxa 18 3 >;
 		};
 
 };
@@ -35,9 +39,4 @@
             reg = <0x6e>;
             csk6-spec;
     };
-};
-
-&uart2 {
-	current-speed = <921600>;
-	status = "okay";
 };
