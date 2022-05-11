@@ -284,48 +284,77 @@
          * For more information, see:
          * http: //docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
          */
-        partitions {
+         partitions {
                 compatible = "fixed-partitions";
                 #address-cells = <1>;
                 #size-cells = <1>;
 
-                /* 256KB for bootloader */
+		/* 256KB for bootloader */
                 boot_partition: partition@0 {
                         label = "mcuboot";
                         reg = <0x0 0x40000>;
                         read-only;
                 };
 
-                /* application image slot: 512KB */
+                /* application image slot: 1MB */
                 slot0_partition: partition@40000 {
                         label = "image-0";
-                        reg = <0x40000 0x80000>;
+                        reg = <0x40000 0x100000>;
                 };
 
-                /* backup slot: 512KB */
-                slot1_partition: partition@c0000 {
+                /* backup slot: 1MB */
+                slot1_partition: partition@140000 {
                         label = "image-1";
-                        reg = <0xc0000 0x80000>;
+                        reg = <0x140000 0x100000>;
                 };
 
                 /* swap slot: 128KB */
-                scratch_partition: partition@140000 {
+                scratch_partition: partition@240000 {
                         label = "image-scratch";
-                        reg = <0x140000 0x20000>;
+                        reg = <0x240000 0x20000>;
                 };
 
                 /* wifi_nvs_storage: 20Kb */
-                wifi_nvs_storage: partition@160000 {
+                wifi_nvs_storage: partition@260000 {
                         label = "wifi_nvs_storage";
-                        reg = <0x160000 0x5000>;
+                        reg = <0x260000 0x5000>;
                 };
 
-                /* storage: 6.625MB for storage */
-                storage_partition: partition@165000 {
-                        label = "storage";
-                        reg = <0x165000 0x6a0000>;
+                /* cp partition: 3MB  */
+                hifi4_partition: partition@500000 {
+                        label = "cp-image";
+                        reg = <0x500000 0x300000>;
                 };
 
+		/*cutline partition: 512K */
+                cutline_partition: partition@800000 {
+                        label = "cutline";
+                        reg = <0x800000 0x80000>;
+                };
+
+		/*ocr partition: 2.5M */
+                ocr_partition: partition@880000 {
+                        label = "ocr";
+                        reg = <0x880000 0x280000>;
+                };
+
+		/*tts partition: 4M */
+                tts_partition: partition@b00000 {
+                        label = "tts";
+                        reg = <0xb00000 0x400000>;
+                };
+
+		/*trans partition: 16M */
+                trans_partition: partition@f00000 {
+                        label = "trans";
+                        reg = <0xf00000 0x1000000>;
+                };
+
+		/* Reserve the final 640 KiB for file system partition */
+		storage_partition: partition@1f00000 {
+			label = "storage";
+			reg = <0x1f00000 0x100000>;
+		};
         };
 };
 
