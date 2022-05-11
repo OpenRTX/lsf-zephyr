@@ -55,7 +55,7 @@ void xtensa_switch(void *switch_to, void **switched_from);
 
 static inline void arch_switch(void *switch_to, void **switched_from)
 {
-	return xtensa_switch(switch_to, switched_from);
+	xtensa_switch(switch_to, switched_from);
 }
 
 /* FIXME: we don't have a framework for including this from the SoC
