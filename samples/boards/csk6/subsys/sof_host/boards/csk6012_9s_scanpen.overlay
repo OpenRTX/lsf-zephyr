@@ -16,6 +16,11 @@
 		zephyr,flash_controller = &flash;
 		zephyr,uart-mcumgr = &uart0;
 	};
+
+	aliases {
+		avf-audio-pwr-amp = &pwr_amp;
+	};
+
 	fstab {
 		compatible = "zephyr,fstab";
 		lfs1: lfs1 {
@@ -32,6 +37,13 @@
 		};
 	};
 
+	pwr_amp:audio_pwr_amp{
+		compatible = "listenai,pwr-amp";
+		enalbe-gpios = <&gpioa 3 1>;
+		label = "audio_pwr_amp";	
+		status = "okay";
+	};
+
 };
 
  
@@ -40,19 +52,11 @@
 		compatible = "fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		filesystem_part: partition@160000 {
-			label = "filesystem";
-			reg = <0x160000 0x00a0000>;
-		};
-		/*
-		 * Reserve the final 640 KiB for file system partition
-		 */
-		storage_partition: partition@300000 {
-			label = "storage";
-			reg = <0x300000 0x500000>;
-		};
-
-
+        /* filesystem: 2.625MB */
+        filesystem_part: partition@260000 {
+					label = "filesystem";
+					reg = <0x260000 0x2a0000>;
+			};
 	};
 };
 
