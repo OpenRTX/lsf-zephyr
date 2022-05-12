@@ -2,5 +2,5 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-zephyr_library_sources(./lisa_mem.c)
-zephyr_include_directories(.)
+zephyr_library_sources(./main.c)
+

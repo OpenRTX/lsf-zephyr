@@ -1,0 +1,73 @@
+/*
+ * Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ /delete-node/ &storage_partition;
+
+ / {
+	 chosen {
+		 /*
+		  * shared memory reserved for the inter-processor communication
+		  */
+		 zephyr,ipc_shm = &sof_partition;
+		 zephyr,ipc = &mailbox0;
+	 };
+ 
+	 aliases {
+		 avf-audio-pwr-amp = &pwr_amp;
+	 };
+	 pwr_amp:audio_pwr_amp{
+		 compatible = "listenai,pwr-amp";
+		 enalbe-gpios = <&gpioa 4 1>;
+		 label = "audio_pwr_amp";	
+		 status = "okay";
+	 };
+ 
+ };
+ 
+ &gpt0 {
+	 status = "okay";
+	 pwm5: pwm5 {
+		 status = "disabled";
+	 };
+ 
+	 pwm4: pwm4 {
+		 status = "disabled";
+	 };
+ 
+	 pwm6: pwm6 {
+		 pinctrl-0 = <&pinctrl_pwm6_default>; 
+		 pinctrl-names = "default";
+		 clock-prescaler = <1>;
+		 status = "okay";
+	 };	
+ };
+ 
+ &spi0 {
+	 status = "okay";
+	 spi-max-frequency = <25000000>;
+ };
+ 
+ 
+ &i2c0 {
+		 status = "okay";
+		 pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+		 pinctrl-names = "default";
+		 status = "okay";
+ 
+		 bf30a2: bf30a2@6e {
+			 compatible = "byd,bf30a2";
+			 status = "okay";
+			 label = "VIDEO";
+			 reg = <0x6e>;
+			 pd-gpios = <&gpioa 5 0>;
+			 pwr-gpios = <&gpioa 5 0>;
+			 product-id = <0x3b02>;
+			 spi = <&spi0>;
+			 pwms = <&pwm6 6 PWM_POLARITY_NORMAL>;
+			 xclk-freq = <12500>;
+			 csk6-spec;
+	 };
+ };
+ 
