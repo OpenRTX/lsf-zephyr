@@ -92,56 +92,68 @@ void main(void){
     amedia_fmt_t fmt;
     int32_t iret,write_bytes;
     char* data_buffer;
+    char* pstart;
     char* pcm_data;
     uint32_t buffer_end;
 
     avf_stream_platform_register(dsp_firmware,sizeof(dsp_firmware),dsp_tplg,sizeof(dsp_tplg));
+    memset(&fmt,0,sizeof(amedia_fmt_t));
     pcm_data = prase_wav_fmt(test_audio,sizeof(test_audio),&fmt);
     if(pcm_data == NULL){
-        SLOGE(LOG_TAG,"test audio fmt error!.");
+        printk("test audio fmt error!.\n");
         return;
     }
 
+    printk("Prepare start play wav and get audio fmt <PCM/%d/%d /%d>\n",fmt.rate,fmt.channels,fmt.bits);
     /*step1: create aplyer instance*/
     aplay = aplay_create(APLAYER_SUBSTREAM_MAIN);
     if(aplay == NULL){
-        SLOGE(LOG_TAG,"[%s %d]acap_create failed!",__FUNCTION__,__LINE__);
+        printk("acap_create failed!\n");
         return;
     }
+    printk("Create aplay success\n");
 
     /*step2: set aplayer paramter*/
     if(0 != (iret = aplay_set_fmt(aplay,&fmt))){
-        SLOGE(LOG_TAG, "[%s %d]aplay_set_fmt failed.",__FUNCTION__,__LINE__);
+        printk("aplay_set_fmt failed!\n");
         return;
     }
+    printk("Set audio fmt to aplay success\n");
 
     /*step3: start play*/
     if(0 != (iret = aplay_start(aplay))){
-        SLOGE(LOG_TAG, "[%s %d]aplay_start failed.",__FUNCTION__,__LINE__);
+        printk("aplay_set_fmt failed.\n");
         return;
     }
+    printk("Trigger play start success.\n");
+
     buffer_end =  test_audio + sizeof(test_audio);
+    pstart = pcm_data;
     while(pcm_data < buffer_end){
 
         write_bytes = buffer_end- (uint32_t)pcm_data > PERIOD_BYTES(&fmt)?PERIOD_BYTES(&fmt):buffer_end- (uint32_t)pcm_data;
         /*step4: write data to aplayer*/
         iret = aplay_writei(aplay, pcm_data,write_bytes) ;
         if(iret != write_bytes){
-            SLOGE(LOG_TAG,"aplay_writei failed ret %d.",iret);
+            printk("aplay_writei failed ret %d.\n",iret);
             break;
         }
         pcm_data += iret;
         
     }
+    printk("Write play audio data compelete total size %d with timestamp %lld ms\n",(uint32_t)(pcm_data-pstart),k_uptime_get());
     /*step5: drain or stop aplayer*/
     if(0 != (iret = aplay_drain(aplay))){
-        SLOGE(LOG_TAG, "[%s %d]aplay_drain failed.",__FUNCTION__,__LINE__);
+        printk("aplay_drain failed.\n");
         return;
     }
-    
+    printk("play drain finsh with timestamp %lld ms\n",k_uptime_get());
     /*step6: destroy aplayer*/
-    aplay_destroy(aplay);
+    if(0 != (iret = aplay_destroy(aplay))){
+        printk("aplay_destroy failed.\n");
+        return;
+    }
 
-    SLOGI(LOG_TAG, "[%s %d]aplay run compelete and exit.",__FUNCTION__,__LINE__);
+    printk("aplay run compelete and exit.\n");
 }
 
