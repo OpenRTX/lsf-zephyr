@@ -1,0 +1,122 @@
+/*
+ * Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ /delete-node/ &storage_partition;
+
+ / {
+	 chosen {
+		 /*
+		  * shared memory reserved for the inter-processor communication
+		  */
+		 zephyr,ipc_shm = &sof_partition;
+		 zephyr,ipc = &mailbox0;
+		 zephyr,flash_sysfs_storage = &filesystem_part;
+		 zephyr,flash_controller = &flash;
+		 zephyr,uart-mcumgr = &uart0;
+	 };
+ 
+	 aliases {
+		 avf-audio-pwr-amp = &pwr_amp;
+	 };
+ 
+	 fstab {
+		 compatible = "zephyr,fstab";
+		 lfs1: lfs1 {
+			 compatible = "zephyr,fstab,littlefs";
+			 mount-point = "/lfs1";
+			 partition = <&filesystem_part>;
+			 automount ;
+			 no-format;
+			 read-size = <16>;
+			 prog-size = <16>;
+			 cache-size = <64>;
+			 lookahead-size = <32>;
+			 block-cycles = <512>;
+		 };
+	 };
+ 
+	 pwr_amp:audio_pwr_amp{
+		 compatible = "listenai,pwr-amp";
+		 enalbe-gpios = <&gpioa 4 1>;
+		 label = "audio_pwr_amp";	
+		 status = "okay";
+	 };
+ 
+ };
+ 
+  
+ &flash0 {
+	 partitions {
+		 compatible = "fixed-partitions";
+		 #address-cells = <1>;
+		 #size-cells = <1>;
+		 filesystem_part: partition@160000 {
+			 label = "filesystem";
+			 reg = <0x160000 0x00300000>;
+		 };
+		 /*
+		  * Reserve the final 640 KiB for file system partition
+		  */
+		 storage_partition: partition@460000 {
+			 label = "storage";
+			 reg = <0x460000 0x03a0000>;
+		 };
+ 
+ 
+	 };
+ };
+ 
+ &zephyr_udc0 {
+	 cdc_acm_uart0 {
+		 compatible = "zephyr,cdc-acm-uart";
+		 label = "CDC_ACM_0";
+	 };
+ };
+ 
+ &gpt0 {
+	 status = "okay";
+	 pwm5: pwm5 {
+		 status = "disabled";
+	 };
+ 
+	 pwm4: pwm4 {
+		 status = "disabled";
+	 };
+ 
+	 pwm6: pwm6 {
+		 pinctrl-0 = <&pinctrl_pwm6_default>; 
+		 pinctrl-names = "default";
+		 clock-prescaler = <1>;
+		 status = "okay";
+	 };	
+ };
+ 
+ &spi0 {
+	 status = "okay";
+	 spi-max-frequency = <25000000>;
+ };
+ 
+ 
+ &i2c0 {
+		 status = "okay";
+		 pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+		 pinctrl-names = "default";
+		 status = "okay";
+ 
+		 bf30a2: bf30a2@6e {
+			 compatible = "byd,bf30a2";
+			 status = "okay";
+			 label = "VIDEO";
+			 reg = <0x6e>;
+			 pd-gpios = <&gpioa 5 0>;
+			 pwr-gpios = <&gpioa 5 0>;
+			 product-id = <0x3b02>;
+			 spi = <&spi0>;
+			 pwms = <&pwm6 6 PWM_POLARITY_NORMAL>;
+			 xclk-freq = <12500>;
+			 csk6-spec;
+	 };
+ };
+ 
