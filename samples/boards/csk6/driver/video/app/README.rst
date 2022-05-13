@@ -1,33 +1,17 @@
-.. _hello_world:
+.. _ap_to_load_cp:
 
-Hello World
+AP to load cp
 ###########
 
 Overview
 ********
 
-A simple sample that can be used with any :ref:`supported board <boards>` and
-prints "Hello World" to the console.
+注意：
+本例程中：
+ap的大小不要超过0x20000;因为cp的地址被放在从0x18200000的位置开始，且cp的大小临时为500000，可自行修改。
+cp烧录时，请烧录到cp的放置位置开始地址，即 0x18200000
+
 
 Building and Running
 ********************
 
-This application can be built and executed on QEMU as follows:
-
-.. zephyr-app-commands::
-   :zephyr-app: samples/hello_world
-   :host-os: unix
-   :board: qemu_x86
-   :goals: run
-   :compact:
-
-To build for another board, change "qemu_x86" above to that board's name.
-
-Sample Output
-=============
-
-.. code-block:: console
-
-    Hello World! x86
-
-Exit QEMU by pressing :kbd:`CTRL+A` :kbd:`x`.
