@@ -35,7 +35,7 @@ manifest:
       path: bootloader/mcuboot
     - name: sof_host
       remote: listenai
-      revision: 4477d06cd91133b41d6b0b17853f79e6e4fb55fc
+      revision: 4c407bd28ca65707ce52cf183af2139513ddf71e
       path: modules/lib/sof_host
     - name: lisa_player
       remote: listenai
