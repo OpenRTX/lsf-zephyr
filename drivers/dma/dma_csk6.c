@@ -10,7 +10,11 @@
 #include <drivers/dma.h>
 #include <logging/log.h>
 
+#ifdef CONFIG_SOC_LS_ADSP_CSK6
+#include "hal/reg/dma_venus.h"
+#else
 #include "hal/dma.h"
+#endif
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
 #define DMA_CSK6_RAM_FUNC 
