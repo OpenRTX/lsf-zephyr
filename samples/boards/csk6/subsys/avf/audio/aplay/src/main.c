@@ -95,7 +95,9 @@ void main(void){
     char* pstart;
     char* pcm_data;
     uint32_t buffer_end;
-
+    
+    k_msleep(1000);/*Before cp run delay 100ms for jlink download fw.*/
+    
     avf_stream_platform_register(dsp_firmware,sizeof(dsp_firmware),dsp_tplg,sizeof(dsp_tplg));
     memset(&fmt,0,sizeof(amedia_fmt_t));
     pcm_data = prase_wav_fmt(test_audio,sizeof(test_audio),&fmt);
