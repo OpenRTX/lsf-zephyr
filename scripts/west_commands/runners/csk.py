@@ -30,7 +30,7 @@ class CskBinaryRunner(ZephyrBinaryRunner):
     def do_add_parser(cls, parser):
         parser.add_argument('--port', required=True,
                             help='serial port to flash')
-        parser.add_argument('--baud', default=None,
+        parser.add_argument('--baud', default='748800',
                             help='serial baud rate')
         parser.add_argument('--chip', default='6',
                             help='family of chip')
@@ -50,6 +50,7 @@ class CskBinaryRunner(ZephyrBinaryRunner):
         cmd_flash.extend(['--serial', self.port])
         if self.baud is not None:
             cmd_flash.extend(['--baud', self.baud])
+        cmd_flash.extend(['--reset-nanokit'])
         cmd_flash.extend([hex(self.addr), self.bin_file])
 
         self.logger.info("Flashing CSK chip on {} ({}bps)".format(
