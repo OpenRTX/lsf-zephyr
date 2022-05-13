@@ -119,6 +119,8 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
         ret = ret_msg.result;
         *result = CSK_WIFI_ERR_STA_FAILED;
         goto __exit;
+    } else {
+        *result = ret_msg.result;
     }
     memcpy(sta_config->ssid, data->sta_config.ssid, sizeof(sta_config->ssid));
     memcpy(sta_config->bssid, data->sta_config.bssid, sizeof(sta_config->bssid));
@@ -154,6 +156,8 @@ int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
         ret = ret_msg.result;
         *result = CSK_WIFI_ERR_STA_FAILED;
         goto __exit;
+    } else {
+        *result = ret_msg.result;
     }
     k_mutex_unlock(&wifi_api_mutex);
     return 0;
