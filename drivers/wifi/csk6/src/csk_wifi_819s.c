@@ -136,17 +136,49 @@ const struct device * wifi_get_dev(int mode)
     }
 }
 
+static int wlan_event_to_wifi_event(wlan_event_t wlan_event)
+{
+    int wifi_event;
+    switch (wlan_event) {
+        case WLAN_EVENT_CONNECTED:
+            wifi_event = CSK_WIFI_EVT_STA_CONNECTED;
+        break;
+
+        case WLAN_EVENT_DISCONNECTED:
+            wifi_event = CSK_WIFI_EVT_STA_DISCONNECTED;
+        break;
+
+        default :
+            wifi_event = -1;
+        break;
+    }
+    return wifi_event;
+}
+
 static void wlan_event_handler(uint32_t param0, uint32_t param1)
 {
-    wlan_event_t wifi_event = EVENT_SUBTYPE(param0);
-    wlan_event_give(&wifi_event);
+    wlan_event_t wlan_event = EVENT_SUBTYPE(param0);
+    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
+    struct csk_wifi_data *data = dev->data;
+    LOG_DBG("wlan event get: %d   is wait: %d\n", wlan_event, data->is_wait_result);
+    if (data->is_wait_result) {
+        wlan_event_give(&wlan_event);
+    } else {
+        int wifi_event = wlan_event_to_wifi_event(wlan_event);
+        if (wifi_event > 0) {
+            wifi_send_event(dev, wifi_event, NULL, 0, K_FOREVER);
+        }
+    }
 }
 
 static int wifi_driver_init(const struct device *dev)
 {
+    const struct csk_wifi_config *config = dev->config;
     wlan_sys_init();
     wlan_attach(wlan_event_handler);
-
+    if (config->mode == WLAN_MODE_STA) {
+        wlan_sta_set_autoconnect(0);
+    }
     return 0;
 }
 
@@ -165,8 +197,10 @@ static int wifi_sta_connect(const struct device *dev)
     wlan_event_t event;
     struct csk_wifi_data *data = dev->data;
 
-    wlan_sta_set((uint8_t *)data->sta_config.ssid, strlen(data->sta_config.ssid), (uint8_t *)data->sta_config.pwd);
+    data->is_wait_result = true;
     wlan_sta_enable();
+    wlan_sta_set((uint8_t *)data->sta_config.ssid, strlen(data->sta_config.ssid), (uint8_t *)data->sta_config.pwd);
+    wlan_sta_connect();
     do {
         int wlan_ret = wlan_event_take(&event, K_SECONDS(WIFI_MAX_TIMEOUT_SEC));
         if (wlan_ret == -EAGAIN) {
@@ -175,7 +209,8 @@ static int wifi_sta_connect(const struct device *dev)
         }
         if (event == WLAN_EVENT_CONNECTED) {
             LOG_INF("WiFi station connect successfully");
-            return 0;
+            ret = 0;
+            break;
         } else if (event == WLAN_EVENT_SCAN_SUCCESS) {
             LOG_INF("WiFi Scan successfully");
             continue;
@@ -212,6 +247,7 @@ static int wifi_sta_connect(const struct device *dev)
             break;
         }
     } while (1); /* station connect request will trigger scan operation */
+    data->is_wait_result = false;
 
     return ret;
 }
@@ -249,6 +285,8 @@ __failed:
 static csk_wifi_result_t wifi_sta_disconnect(const struct device *dev)
 {
     wlan_event_t event;
+    struct csk_wifi_data *data = dev->data;
+    data->is_wait_result = true;
     int ret = wlan_sta_disconnect();
     if (ret != 0) {
         goto __failed;
@@ -258,19 +296,23 @@ static csk_wifi_result_t wifi_sta_disconnect(const struct device *dev)
         goto __failed;
     }
     wlan_sta_disable();
+    data->is_wait_result = false;
     return ret;
 
 __failed:
     LOG_ERR("WiFi station disconnecte from AP failed, ret %d\n", ret);
+    data->is_wait_result = false;
     return -EIO;
 }
 
-static int wifi_scan_list(int *ap_count, csk_wifi_scan_info_t **ap_list)
+static int wifi_scan_list(const struct device *dev, int *ap_count, csk_wifi_scan_info_t **ap_list)
 {
     int ret = 0;
     wlan_event_t event;
     wlan_sta_scan_results_t scan_results;
+    struct csk_wifi_data *data = dev->data;
 
+    data->is_wait_result = true;
     int wlan_ret = wlan_sta_scan_once();
     if (wlan_ret != 0) {
         return CSK_WIFI_ERR_SCAN_FAILED;
@@ -308,12 +350,14 @@ static int wifi_scan_list(int *ap_count, csk_wifi_scan_info_t **ap_list)
         ap_list_ptr[idx].channel = scan_results.ap[idx].channel;
         ap_list_ptr[idx].rssi = -(scan_results.ap[idx].rssi * 0.5);
     }
+    data->is_wait_result = false;
 
 __out:
     if (scan_results.ap) {
         k_free(scan_results.ap);
         scan_results.ap = NULL;
     }
+    data->is_wait_result = false;
     return ret;
 }
 
@@ -339,7 +383,8 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
             if (ret != 0)   break;
             ret = wifi_sta_get_connected_info(dev);
             if (ret != 0)   break;
-            wifi_send_event(dev, CSK_WIFI_EVT_STA_CONNECTED, NULL, 0, K_FOREVER);
+            net_if_up(data->netif);
+            net_eth_carrier_on(data->netif);
             wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTED,
                                     &data->sta_config, sizeof(data->sta_config));
         } break;
@@ -347,14 +392,15 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
         case WIFI_CMD_STA_DISCONNECT: {
             ret = wifi_sta_disconnect(dev);
             if (ret != 0)   break;
-            wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
+            net_eth_carrier_off(data->netif);
+            net_if_down(data->netif);
             wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0);
         } break;
 
         case WIFI_CMD_SCAN: {
             int aps_num = 0;
             csk_wifi_scan_info_t *ap_list = NULL;
-            ret = wifi_scan_list(&aps_num, &ap_list);
+            ret = wifi_scan_list(dev, &aps_num, &ap_list);
             if (ret != 0)   break;
             wifi_scan_list_t scan_list = {0};
             scan_list.ap_list = ap_list;
@@ -374,18 +420,21 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
     wifi_give_result(&ret_msg);
 }
 
-static void wifi_event_handler(const struct device *dev, csk_wifi_event_t event)
+static void wifi_async_event_handler(const struct device *dev, csk_wifi_event_t event)
 {
     struct csk_wifi_data *data = dev->data;
     switch (event) {
         case CSK_WIFI_EVT_STA_CONNECTED: {
             net_if_up(data->netif);
             net_eth_carrier_on(data->netif);
+            wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTED,
+                                    &data->sta_config, sizeof(data->sta_config));
         } break;
 
         case CSK_WIFI_EVT_STA_DISCONNECTED: {
             net_eth_carrier_off(data->netif);
             net_if_down(data->netif);
+            wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0);
         } break;
 
         default:
@@ -404,7 +453,7 @@ static void wifi_control_thread(void *arg1, void *arg2, void *arg3)
             /* This function maybe will here block thread for a long time */
             wifi_command_handler(dev, msg.command);
         } else if (msg.type == WIFI_EVENT) {
-            wifi_event_handler(dev, msg.event);
+            wifi_async_event_handler(dev, msg.event);
         }
     }
 }
@@ -493,7 +542,7 @@ static int csk_eth_dev_init(const struct device *dev)
 {
     struct csk_wifi_data *data = dev->data;
     data->dev = dev;
-    data->wifi_status = WLAN_EVENT_MAX;
+    data->is_wait_result = false;
     k_sem_give(&init_sem);
     return 0;
 }
