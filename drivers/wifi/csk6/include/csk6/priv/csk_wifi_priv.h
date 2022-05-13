@@ -48,7 +48,7 @@ struct csk_wifi_data {
 #ifdef CONFIG_ESP_HOSTED
    hosted_event_callback_t hosted_event_cb;
 #else
-    wlan_event_t wifi_status;
+    bool is_wait_result;
 #endif
 };
 
