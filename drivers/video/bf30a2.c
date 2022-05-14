@@ -37,6 +37,7 @@ LOG_MODULE_REGISTER(bf30a2);
 #define BF30A2_FAST_CODE 
 #else
 #define BF30A2_FAST_CODE __attribute__ ((section(".itcm")))
+#include "Driver_DVP.h"
 #endif
 
 #define BF30A2_FRAME_WIDTH (128)
@@ -895,6 +896,14 @@ static int bf30a2_dev_init(const struct device *dev)
 
 #if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
     raise_spi_cs(1);
+    IOMuxManager_PinConfigure(0, 7, 20);
+
+    #define CP_DVP_BASE        (0x4A050000)
+    DVP_TypeDef *hDvp = (DVP_TypeDef *)(CP_DVP_BASE);
+    // Enable clockout with a divider of 4 (clockout = hclk/2/(4+1))
+    hDvp->PIXEL_CLK_DIV = 4;
+    hDvp->PIXEL_CLK_EN = 1;
+
 #endif
 
 	bf30a2_chip_init(dev);
