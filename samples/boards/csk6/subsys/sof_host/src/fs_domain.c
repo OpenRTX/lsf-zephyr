@@ -4,9 +4,12 @@
 #if defined(CONFIG_AVF_USE_FS_LITTLEFS)
 #include <fs/littlefs.h>
 #include <storage/flash_map.h>
-#include <usb/usb_device.h>
+
 #elif defined(CONFIG_AVF_USE_FS_FATFS)
 #include <ff.h>
+#endif
+
+#if(CONFIG_USB_DEVICE_STACK > 0)
 #include <usb/usb_device.h>
 #endif
 
@@ -133,7 +136,7 @@ void s_fs_mount(void)
 	#error "Please define file system type!"
 #endif
 
-#if defined(CONFIG_AVF_USE_FS_FATFS)
+#if defined(CONFIG_AVF_USE_FS_FATFS)&&(CONFIG_USB_DEVICE_STACK > 0)
 	ret = usb_enable(NULL);
 	if (ret != 0) {
 		printk("Failed to enable USB");
