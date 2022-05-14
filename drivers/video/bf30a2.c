@@ -983,8 +983,8 @@ typedef struct {
     volatile uint32_t tag;
 } __packed frames_info_t;
 
-Z_GENERIC_SECTION(.csk6_psram_section1) __attribute__((aligned(4))) static char swp_frames[3][180 * 128] = {0};
-Z_GENERIC_SECTION(.csk6_psram_section1) __attribute__((aligned(4)))static frames_info_t g_frames_info = {0};
+Z_GENERIC_SECTION(.csk6_psram_section1) __attribute__((aligned(32))) static char swp_frames[3][180 * 128] = {0};
+Z_GENERIC_SECTION(.csk6_psram_section1) __attribute__((aligned(32)))static frames_info_t g_frames_info = {0};
 
 static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 {
@@ -993,9 +993,10 @@ static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
             info->addr, info->frame_cnt);
         return NULL;
     }
-
-    if (info->w_pos < (info->frame_cnt - 1) && info->w_pos >= info->r_pos) {
+    SCB_InvalidateDCache_by_Addr(info,sizeof(frames_info_t));
+    if (info->w_pos < (info->frame_cnt - 1) || info->w_pos >= info->r_pos) {
         info->w_pos %= info->frame_cnt;
+		info->r_pos %= info->frame_cnt;
         return info->addr + info->w_pos * info->frame_size;
     } else if ((info->w_pos == (info->frame_cnt - 1)) && (info->r_pos == 0)) {
         /* No more free space. */
@@ -1016,7 +1017,7 @@ static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
 
     info->w_pos++;
     info->w_pos %= info->frame_cnt;
-
+    SCB_CleanDCache_by_Addr(info,sizeof(frames_info_t));
     return info->w_pos;
 }
 
@@ -1083,7 +1084,7 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 			}
 
             /* 16ms * 100 */
-            if (cnt % 1 == 0) {
+            if (cnt % 10 == 0) {
                 fps = info->time - last_time ? 1000 / (info->time - last_time) : 0;
                 LOG_INF("FPS:%d, T:%d, O:%d, E:%d",
                     fps, cnt, ok_cnt, error_cnt);
