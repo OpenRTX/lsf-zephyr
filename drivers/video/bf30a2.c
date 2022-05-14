@@ -410,11 +410,15 @@ static int bf30a2_chip_init(const struct device *dev)
      * NOTE THAT: bf30a2 must aways be on bus i2c if the csk6_spec property is not defined.
      */
 #if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
+
+#if DT_NODE_HAS_PROP(DT_DRV_INST(0), pwms)
 	r = bf30a2_chip_xclk_init(dev);
 	if (r != 0) {
 		LOG_ERR("XCLK init error.");
 		return r;
 	}
+#endif
+
 	r = bf30a2_chip_power_enable(dev, 1);
 	if (r != 0) {
 		LOG_ERR("power enable error.");
@@ -923,10 +927,10 @@ static int bf30a2_dev_init(const struct device *dev)
     k_fifo_init(&data->fifo_in);
     k_fifo_init(&fifo_frames);
 	uint32_t i;
-	for (i = 0; i < ARRAY_SIZE(data->vbuf); i++) {
+	for (i = 0; i <CONFIG_VIDEO_BUFFER_POOL_NUM_MAX; i++) {
 		data->vbuf[i] = video_buffer_alloc(BF30A2_FRAME_SIZE);
 		if (data->vbuf[i] == NULL) {
-			LOG_ERR("Unable to alloc video buffer");
+			LOG_ERR("Unable to alloc video buffer, index:%d.", i);
 			return -1;
 		}
 	}
@@ -952,11 +956,8 @@ static int bf30a2_dev_init(const struct device *dev)
 		.config = BF30A2_SPI_CONFIG_DT(DT_PROP(node_id, spi), operation_, delay_),   \
     }
 
-#define BF30A2_PWM_DT_SPEC_GET(node_id)                                                            \
+#define BF30A2_PWM_DT_SPEC_GET(node_id)                                             \
 	{                                                                                          \
-		.pwm = DEVICE_DT_GET(DT_PWMS_CTLR(node_id)),                                  \
-		.pin = DT_PWMS_CHANNEL(node_id),                 \
-		.flag = DT_PWMS_FLAGS(node_id),                                 \
 	}
 
 #define BF30A2_CHIP_DATA(inst)                                                                     \
@@ -969,7 +970,7 @@ static int bf30a2_dev_init(const struct device *dev)
 			0),                                                                        \
 		.pwm_bus = BF30A2_PWM_DT_SPEC_GET(DT_DRV_INST(inst)),                              \
 		.product_id = DT_PROP(DT_DRV_INST(inst), product_id),                              \
-		.xclk_freq = DT_PROP(DT_DRV_INST(inst), xclk_freq),                                \
+		.xclk_freq = Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), xclk_freq), (DT_PROP(DT_DRV_INST(inst), xclk_freq)),(0)),                                \
 	}
 #else
 
