@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <sys/printk.h>
 #include <sys/sys_heap.h>
-
+#include <kernel.h>
 #include <net/net_if.h>
 #include <net/net_core.h>
 #include <net/net_context.h>
@@ -19,6 +19,7 @@ LOG_MODULE_REGISTER(_wifi_, LOG_LEVEL_DBG);
 
 static csk_wifi_event_cb_t wifi_event_cb;
 static struct net_mgmt_event_callback dhcp_cb;
+extern struct k_sem g_wifi_ip_got;
 static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
 {
     if (mgmt_event != NET_EVENT_IPV4_DHCP_BOUND) {
@@ -31,6 +32,7 @@ static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, 
     printk("Lease time: %u seconds\n", iface->config.dhcpv4.lease_time);
     printk("Subnet: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
     printk("Router: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
+    k_sem_give(&g_wifi_ip_got);
 }
 
 static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32_t data_len, void *arg)
@@ -46,10 +48,11 @@ static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32
 
 void _wifi_init(void)
 {
-    wifi_event_cb.handler = &wifi_event_handler;
-    wifi_event_cb.events = CSK_WIFI_EVT_STA_CONNECTED | CSK_WIFI_EVT_STA_DISCONNECTED;
-    wifi_event_cb.arg = NULL;
-    csk_wifi_add_callback(&wifi_event_cb);
+	csk_wifi_init();
+	wifi_event_cb.handler = &wifi_event_handler;
+	wifi_event_cb.events = CSK_WIFI_EVT_STA_CONNECTED | CSK_WIFI_EVT_STA_DISCONNECTED;
+	wifi_event_cb.arg = NULL;
+	csk_wifi_add_callback(&wifi_event_cb);
 
     csk_wifi_sta_config_t sta_config = {
         .ssid = CONFIG_EXAMPLE_WIFI_SSID,
