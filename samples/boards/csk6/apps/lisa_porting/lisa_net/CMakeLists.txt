@@ -9,11 +9,3 @@ zephyr_library_sources(src/lisa_http.c)
 zephyr_library_sources(src/lisa_websocket.c)
 
 
-set(gen_dir ${ZEPHYR_BINARY_DIR}/include/generated/)
-
-generate_inc_file_for_target(
-    app
-    src/https-cert.der
-    ${gen_dir}/https-cert.der.inc
-    )
-
