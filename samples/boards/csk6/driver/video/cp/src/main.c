@@ -71,7 +71,7 @@ void main(void)
 				if(fps != 62 && fps != 71 && fps != 66){
 					err_times++;
 				}
-				printk("FPS:%d total: %d err_time: %d rate: %d%%\n", fps, cnt++, err_times, err_times / cnt * 100);
+				printk("cycle: %d FPS:%d total: %d err_time: %d success_rate: %d%%\n", k_cycle_get_32(), fps, cnt++, err_times, (cnt - err_times) * 100 / cnt );
 			}
 			last_tick = vbuf->timestamp;
 		} else {
@@ -80,32 +80,48 @@ void main(void)
 	}
 }
 
-static void test_thread(void *p1, void *p2, void *p3)
+static void test_thread(uint32_t id, void *p2, void *p3)
 {
     while(1) {
-        // printk("test_thread is running.\n");
-        k_msleep(10);
+        printk("cycle: %d [%d] test_thread is running.\n", k_cycle_get_32(), id);
+        k_msleep(1000);
     }
 }
 
 #define DELAY_MSEC 1000
 
 K_THREAD_DEFINE(bf30a2_thread_id_1, 2048,                                \
-			test_thread, NULL, NULL, NULL,               \
-			0, 0, DELAY_MSEC + 1);
+			test_thread, 1, NULL, NULL,               \
+			0, 0, DELAY_MSEC);
 
 K_THREAD_DEFINE(bf30a2_thread_id_2, 2048,                                \
-			test_thread, NULL, NULL, NULL,               \
-			1, 0, DELAY_MSEC + 3);
+			test_thread, 2, NULL, NULL,               \
+			1, 0, DELAY_MSEC + 300);
 
 K_THREAD_DEFINE(bf30a2_thread_id_3, 2048,                                \
-			test_thread, NULL, NULL, NULL,               \
-			2, 0, DELAY_MSEC + 2);
+			test_thread, 3, NULL, NULL,               \
+			2, 0, DELAY_MSEC + 600);
 
 K_THREAD_DEFINE(bf30a2_thread_id_4, 2048,                                \
-			test_thread, NULL, NULL, NULL,               \
-			3, 0, DELAY_MSEC + 4);
+			test_thread, 4, NULL, NULL,               \
+			3, 0, DELAY_MSEC + 900);
 
-// K_THREAD_DEFINE(bf30a2_thread_id_5, 2048,                                \
-// 			test_thread, NULL, NULL, NULL,               \
-// 			4, 0, DELAY_MSEC + 5);
+K_THREAD_DEFINE(bf30a2_thread_id_5, 2048,                                \
+			test_thread, 5, NULL, NULL,               \
+			4, 0, DELAY_MSEC + 5000);
+
+K_THREAD_DEFINE(bf30a2_thread_id_6, 2048,                                \
+			test_thread, 6, NULL, NULL,               \
+			4, 0, DELAY_MSEC);
+
+K_THREAD_DEFINE(bf30a2_thread_id_7, 2048,                                \
+			test_thread, 7, NULL, NULL,               \
+			4, 0, DELAY_MSEC);
+
+K_THREAD_DEFINE(bf30a2_thread_id_8, 2048,                                \
+			test_thread, 8, NULL, NULL,               \
+			4, 0, DELAY_MSEC);
+
+K_THREAD_DEFINE(bf30a2_thread_id_9, 2048,                                \
+			test_thread, 9, NULL, NULL,               \
+			4, 0, DELAY_MSEC);
