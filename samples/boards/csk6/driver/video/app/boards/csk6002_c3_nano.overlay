@@ -5,11 +5,11 @@
                 };  
 
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
-                        pinctrls = <&pinmuxb 0 8>;
+                        pinctrls = <&pinmuxb 2 8>;
                 };
                 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
-                        pinctrls = <&pinmuxb 1 8>;
+                        pinctrls = <&pinmuxb 3 8>;
                 };    
 };
 
@@ -54,7 +54,7 @@
             status = "okay";
             label = "VIDEO";
             reg = <0x6e>;
-            pd-gpios = <&gpioa 1 0>;
+            pd-gpios = <&gpioa 5 0>;
             pwr-gpios = <&gpioa 5 0>;
             product-id = <0x3b02>;
             spi = <&spi0>;
