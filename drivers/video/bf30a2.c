@@ -538,7 +538,7 @@ static int32_t spi_recv_fixed_dma_ch_install(SPI_DEV *spi, uint8_t ch)
     return 0;
 }
 
-BF30A2_FAST_CODE static int32_t spi_recv(void *spi_dev, void *data, uint32_t num)
+static int32_t spi_recv(void *spi_dev, void *data, uint32_t num)
 {
 	int32_t stat;
 	SPI_DEV *spi = (SPI_DEV *)spi_dev;
@@ -625,7 +625,7 @@ BF30A2_FAST_CODE static int32_t spi_recv(void *spi_dev, void *data, uint32_t num
 	return CSK_DRIVER_OK;
 }
 
-BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
+static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
 {
 	int32_t stat;
 	SPI_DEV *spi = (SPI_DEV *)spi_dev;
@@ -688,7 +688,7 @@ BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
 	return CSK_DRIVER_OK;
 }
 
-BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_next_packet(char *buf, uint32_t buf_size)
+static ALWAYS_INLINE int bf30a2_recv_next_packet(char *buf, uint32_t buf_size)
 {
 	// GPIO_PinWrite(GPIOA(), (1 << 8), 1);
     spi_recv(spi_hal, buf, buf_size);
@@ -709,7 +709,7 @@ static uint32_t offset = 0;
  *       data packet and line start packet                 |
  *       end packet and start packet.-----------------------                         
  */
-BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process(char *buf, uint8_t reset, uint8_t recv)
+static ALWAYS_INLINE int bf30a2_recv_packet_process(char *buf, uint8_t reset, uint8_t recv)
 {
 
 	int packet_received = 0;
@@ -765,7 +765,7 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process(char *buf, 
 	return packet_received;
 }
 
-BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *buf, uint8_t reset, uint8_t recv)
+static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *buf, uint8_t reset, uint8_t recv)
 {
 	int packet_received = 0;
 
@@ -824,7 +824,7 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *bu
 
 static uint8_t isoverflow = 0;
 
-BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
+void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
 {	
 	if (event & CSK_SPI_EVENT_DMA_COMPLETE) {
         /* A state-machine for receiving frames line by line */
@@ -922,7 +922,6 @@ static int bf30a2_set_ctrl(const struct device *dev, unsigned int cid, void *val
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
-BF30A2_FAST_CODE
 static inline int bf30a2_frame_check(char *in, uint32_t l, uint8_t packetId)
 {
 	if (in == NULL || l < 4) {
