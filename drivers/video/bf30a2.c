@@ -141,7 +141,7 @@ static const struct bf30a2_reg_config bf30a2_regs_configs[] = {
 	{ 0x2e, 0x57 }, //
 	{ 0x07, 0x52 }, //
 	{ 0x2c, 0x51 }, //
-	{ 0x12, 0xc3 }, //
+	{ 0x12, 0xe3 }, // [5] c3 0 lsb/msb | e3 1 msb/lsb
 	{ 0x15, 0x80 }, //
 	{ 0x6b, 0x71 }, //
 	{ 0x04, 0x00 }, //
@@ -487,8 +487,10 @@ static void dump(const struct device *dev, char *buffer, uint32_t l)
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
-#define RECV_BUFS_COUNT 5
-static __attribute__((aligned(4))) uint8_t recv_bufs[RECV_BUFS_COUNT][25219 + 1+4] = {0};
+// 因为是以32bit接收数据，需要保证整个数据段4字节对齐；
+// 数组长度为4 可以保证任意长度都为4字节对齐；
+#define RECV_BUFS_COUNT 4
+static __attribute__((aligned(4))) uint8_t recv_bufs[RECV_BUFS_COUNT][25219] = {0};
 static void * spi_hal;
 
 static uint32_t recv_bufs_idx = 0;
@@ -517,12 +519,12 @@ enum {
 } bf30a2_packet_type_t;
 
 enum {
-    MACHINE_STATE_INIT = 0,
+	MACHINE_STATE_HEAD = 0,
+    MACHINE_STATE_INIT,
     MACHINE_STATE_LINE_PACKET_RECEIVED,
     MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED,
     MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED_V2,
     MACHINE_STATE_END_AND_START_PACKET_RECEIVED,
-	MACHINE_STATE_FIND_HEADING,
 };
 
 void bf30a2_spi_evt_callback(uint32_t event, uint32_t param);
@@ -625,7 +627,14 @@ BF30A2_FAST_CODE static int32_t spi_recv(void *spi_dev, void *data, uint32_t num
 	return CSK_DRIVER_OK;
 }
 
-BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
+static uint32_t left_cnt = 0;
+
+BF30A2_FAST_CODE static uint32_t recv_cnt_m4(char *buf, uint32_t cnt){
+	left_cnt = cnt % 4;
+	return cnt / 4;
+}
+
+static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
 {
 	int32_t stat;
 	SPI_DEV *spi = (SPI_DEV *)spi_dev;
@@ -691,13 +700,13 @@ BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
 BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_next_packet(char *buf, uint32_t buf_size)
 {
 	// GPIO_PinWrite(GPIOA(), (1 << 8), 1);
-    spi_recv(spi_hal, buf, buf_size);
+    spi_recv(spi_hal, buf - left_cnt, recv_cnt_m4(buf - left_cnt, buf_size + left_cnt));
 	// GPIO_PinWrite(GPIOA(), (1 << 8), 0);
     return 0;
 }
 
 
-static uint8_t next_state = MACHINE_STATE_INIT;
+static uint8_t next_state = MACHINE_STATE_HEAD;
 static uint16_t recv_lines = 0;
 static uint32_t offset = 0;
 
@@ -757,7 +766,6 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process(char *buf, 
         next_state = MACHINE_STATE_INIT;
         packet_received = 1;
         break;
-	case MACHINE_STATE_FIND_HEADING:
 	default:
 		break;
 	}
@@ -770,7 +778,7 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *bu
 	int packet_received = 0;
 
 	if (reset) {
-		next_state = MACHINE_STATE_INIT;
+		next_state = MACHINE_STATE_HEAD;
 		recv_lines = 0;
 		offset = 0;
 	}
@@ -780,9 +788,13 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *bu
     }
 
 	switch (next_state) {
+	case MACHINE_STATE_HEAD:
+		next_state = MACHINE_STATE_INIT;
+		bf30a2_recv_next_packet(buf, 9);
+        offset += 9;
+		break;
 	case MACHINE_STATE_INIT:
 		next_state = MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED;
-        offset = 0;
 		bf30a2_recv_next_packet(buf + offset, 6 + 29 * 140);
         offset += (6 + 29 * 140);
         recv_lines = 0;
@@ -801,20 +813,19 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *bu
 		break;
     case MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED_V2:
         next_state = MACHINE_STATE_END_AND_START_PACKET_RECEIVED;
-        bf30a2_recv_next_packet(buf + offset, (13));
+        bf30a2_recv_next_packet(buf + offset, 4);
         char *_buf = &recv_bufs[recv_bufs_idx][0];
         frame_infos[recv_bufs_idx].buf = _buf;
         frame_infos[recv_bufs_idx].len = BF30A2_FRAME_SIZE;
         frame_infos[recv_bufs_idx].time = k_uptime_get_32();
         k_fifo_put(&fifo_frames, &frame_infos[recv_bufs_idx]);
-        offset += 13;
+        offset += 4;
         break;
     case MACHINE_STATE_END_AND_START_PACKET_RECEIVED:
         offset = 0;
-        next_state = MACHINE_STATE_INIT;
+        next_state = MACHINE_STATE_HEAD;
         packet_received = 1;
         break;
-	case MACHINE_STATE_FIND_HEADING:
 	default:
 		break;
 	}
@@ -824,16 +835,12 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *bu
 
 static uint8_t isoverflow = 0;
 
-BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
+void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
 {	
 	if (event & CSK_SPI_EVENT_DMA_COMPLETE) {
         /* A state-machine for receiving frames line by line */
         if (bf30a2_recv_packet_process_v2(&recv_bufs[recv_bufs_idx][0], 0, 1)) {
 			recv_bufs_idx = ++recv_bufs_idx % RECV_BUFS_COUNT;
-            if(recv_bufs[recv_bufs_idx][25219+4]==1)
-            {
-                isoverflow = 1;
-            }
             /* restart state-machine to receive next frame */
 			bf30a2_recv_packet_process_v2(&recv_bufs[recv_bufs_idx][0], 1, 1);
         }
@@ -843,15 +850,8 @@ BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
 static int bf30a2_stream_start_internal(const struct device *dev)
 {
 	recv_bufs_idx = 0;
-    /* reset state-machine */
-    bf30a2_recv_packet_process_v2(NULL, 1, 0);
-    /* Skip first frame start packet. */
-	int r = spi_recv(spi_hal, &recv_bufs[recv_bufs_idx][0], 9);
-
-    for (int i = 0 ;i < RECV_BUFS_COUNT;i++) {
-        recv_bufs[i][25219+4] = 0;
-        // frame_infos[i].busy_flag = 0;
-    }
+    /* reset and start state-machine */
+    bf30a2_recv_packet_process_v2(&recv_bufs[recv_bufs_idx][0], 1, 1);
 
 	return 0;
 }
@@ -940,7 +940,7 @@ static inline int bf30a2_frame_check(char *in, uint32_t l, uint8_t packetId)
 static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_t w, uint32_t *n)
 {
 	uint16_t i = 0;
-	uint32_t offset = 0;
+	uint32_t offset = 9;
 	uint32_t len = 0;
 	offset += 0;
     *n = 0;
@@ -999,7 +999,8 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
         if(info != NULL) frame_index = ++frame_index % CONFIG_VIDEO_BUFFER_POOL_NUM_MAX;
         vbuf = data->vbuf[frame_index];
        
-		info = k_fifo_get(&fifo_frames, K_NO_WAIT);
+		info = k_fifo_get(&fifo_frames, K_FOREVER);
+
         if (info != NULL && info->buf != NULL) {
             cnt++;
             uint32_t n;
@@ -1015,11 +1016,7 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
                 vbuf->timestamp = info->time;
                 k_fifo_put(&data->fifo, vbuf);
 			}else{
-				next_state = MACHINE_STATE_FIND_HEADING;
-				spi_wait_head(spi_hal, 3000);
-				recv_bufs_idx = ++recv_bufs_idx % RECV_BUFS_COUNT;
-    			bf30a2_recv_packet_process_v2(NULL, 1, 0);
-				spi_recv(spi_hal, &recv_bufs[recv_bufs_idx][0] + 5, 4);
+				printk("cnt: %d err: %d\n", cnt, error_cnt);
 			}
 			last_time = info->time;
 		}
@@ -1073,7 +1070,7 @@ static int bf30a2_dev_init(const struct device *dev)
     SPI_Initialize(spi_hal, bf30a2_spi_evt_callback, (uint32_t)dev);
     SPI_PowerControl(spi_hal, CSK_POWER_FULL);
     SPI_Control(spi_hal, CSK_SPI_EXCL_OP_UNSET | CSK_SPI_MODE_SLAVE | CSK_SPI_RXIO_DMA |
-                    CSK_SPI_CPOL0_CPHA0 | CSK_SPI_MSB_LSB | CSK_SPI_DATA_BITS(8), 0);
+                    CSK_SPI_CPOL0_CPHA0 | CSK_SPI_LSB_MSB | CSK_SPI_DATA_BITS(32), 0);
     /* Make sure dma channel 0 is always used for bf30a2. */
     spi_recv_fixed_dma_ch_install(spi_hal, 0);
 
@@ -1171,7 +1168,7 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 #if CONFIG_MULTITHREADING
 K_THREAD_DEFINE(bf30a2_thread_id, 2048,                                \
 			bf30a2_thread, &bf30a2_dev_data, NULL, NULL,               \
-			0, 0, 0);
+			2, 0, 0);
 #endif
 
 #endif
