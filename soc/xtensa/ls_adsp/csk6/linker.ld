@@ -104,7 +104,7 @@ MEMORY
         len = MEM_VECT_TEXT_SIZE
   iram_text_start :
 				org = XCHAL_DOUBLEEXC_VECTOR_PADDR_IRAM + MEM_VECT_TEXT_SIZE,
-        len = (IRAM_BASE + IRAM_SIZE) - (XCHAL_DOUBLEEXC_VECTOR_PADDR + MEM_VECT_TEXT_SIZE)
+        len = (IRAM_BASE + IRAM_SIZE) - (XCHAL_DOUBLEEXC_VECTOR_PADDR_IRAM + MEM_VECT_TEXT_SIZE)
   sdram0 :
 				org = SDRAM0_BASE,
         len = SDRAM0_SIZE
@@ -360,6 +360,7 @@ SECTIONS
     _stext = .;
     _iram_text_start = ABSOLUTE(.);
     *(.iram0.literal .iram.literal .iram.text.literal .iram0.text .iram.text)
+    *libkernel.a:sched.c.obj (.literal .text .literal.* .text.*)
     . = ALIGN (4);
     _iram_text_end = ABSOLUTE(.);
   } >iram_text_start AT > sdram0 :iram_text_start_phdr
@@ -444,7 +445,7 @@ SECTIONS
     *(.entry.text)
     *(.init.literal)
     KEEP(*(.init))
-    *(.literal .text .literal.* .text.* .stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*)
+    *(EXCLUDE_FILE (*libkernel.a:sched.c.obj) .literal .text .literal.* .text.* .stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*)
     *(.fini.literal)
     KEEP(*(.fini))
     *(.gnu.version)
