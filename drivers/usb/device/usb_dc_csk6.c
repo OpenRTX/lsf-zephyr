@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "kernel.h"
+#include <stdint.h>
 #define DT_DRV_COMPAT listenai_csk_usbd
 
 #include <drivers/usb/usb_dc.h>
@@ -14,9 +16,20 @@
 
 #include <sys/byteorder.h>
 
-#define LOG_LEVEL CONFIG_USB_DRIVER_LOG_LEVEL
+#define LOG_LEVEL LOG_LEVEL_ERR
 #include <logging/log.h>
 LOG_MODULE_REGISTER(usb_dc_csk);
+
+
+#define NUM_OF_EP_MAX		DT_INST_PROP(0, num_bidir_endpoints)
+
+struct cb_msg {
+	uint8_t ep;
+	uint8_t type;
+	uint32_t cb;
+};
+
+K_MSGQ_DEFINE(usb_dc_msgq, sizeof(struct cb_msg), 10, 4);
 
 /*
  * USB endpoint dma mode private structure.
@@ -57,8 +70,32 @@ struct usb_venus_ctrl_prv {
 	uint8_t status;
 };
 
+struct ep_mem_block {
+	void *data;
+};
+
+
+
+struct usb_device_data {
+	uint8_t address;
+	uint32_t bd_active;
+	bool attached;
+
+	K_KERNEL_STACK_MEMBER(thread_stack, CONFIG_USB_DC_CSK6_THREAD_STACK_SIZE);
+	struct k_thread thread;
+};
+
+static struct usb_device_data dev_data;
+
+#define USB_DC_CB_TYPE_MGMT		0
+#define USB_DC_CB_TYPE_EP		1
+
 static struct usb_venus_ctrl_prv usb_venus_ctrl = { 0 };
 static void usb_venus_isr_handler(const void *unused);
+int usb_dc_ep_enable_dma(const uint8_t ep);
+int usb_dc_ep_disable_dma(const uint8_t ep);
+
+static void usb_csk6001_thread_main(void *arg1, void *unused1, void *unused2);
 
 static int usb_venus_init(void)
 {
@@ -70,6 +107,7 @@ static int usb_venus_init(void)
 	usb_venus_ctrl.in_ep_ctrl[0].fifo_size = USB_MAX_CTRL_MPS;
 	usb_venus_ctrl.out_ep_ctrl[0].mps = USB_MAX_CTRL_MPS;
 	usb_venus_ctrl.out_ep_ctrl[0].fifo_size = USB_MAX_CTRL_MPS;
+	usb_venus_ctrl.txfifo_alloc_addr = 0x400 >> 3;
 
 	/* USB_VENUS_IN_EP_NUM == USB_VENUS_OUT_EP_NUM */
 	for (uint32_t i = 0; i < USB_VENUS_IN_EP_NUM; i++) {
@@ -80,10 +118,17 @@ static int usb_venus_init(void)
 	}
 
 	/* Set device speed to Full Speed */
-	CSK_USBC->POWER &= ~USB_VENUS_POWER_HSENABLE; //Full speed enable
+	CSK_USBC->POWER &= ~USB_VENUS_POWER_HSENABLE;
 
 	/* Enable soft connect */
 	CSK_USBC->POWER |= USB_VENUS_POWER_SOFTCONN;
+
+
+	k_thread_create(&dev_data.thread, dev_data.thread_stack,
+		CONFIG_USB_DC_CSK6_THREAD_STACK_SIZE,
+		usb_csk6001_thread_main, NULL, NULL, NULL,
+		K_PRIO_COOP(CONFIG_USB_DC_CSK6_THREAD_COOP_PRIO), 0, K_NO_WAIT);
+
 
 	/* Register USB ISR */
 	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), usb_venus_isr_handler, 0, 0);
@@ -154,13 +199,6 @@ static int usb_venus_ep_set(uint8_t ep, uint32_t ep_mps, enum usb_dc_ep_transfer
 		/* max packet size is fixed to 64Bytes for EP0 */
 		/* No need to set EP0 type */
 	} else {
-		/* Set endpoint type and FIFO size for EP1-15 */
-		//		/* Clear ISO type bit */
-		//		/* enable the TX&RX endpoint for bulk or interrupt transfers */
-		//		EDPxReg_SEL(ep_idx);
-		//		CSK_USBC->TXCSRH &= (~USB_VENUS_TXCSRH_ISO_MASK);
-		//		CSK_USBC->RXCSRH &= (~USB_VENUS_RXCSRH_ISO_MASK);
-
 		switch (ep_type) {
 		case USB_DC_EP_CONTROL:
 			/* No need to set EP0, EP1-EP15 can't be set to control transfer */
@@ -440,60 +478,6 @@ static int32_t usb_dma_get_free_channel(uint8_t *pch)
 	return (found ? 0 : -1);
 }
 
-/*
-static int usb_venus_dma_single_packet_setting(uint8_t ep, uint32_t address, uint32_t length)
-{
-	uint32_t ep_idx, dir;
-	ep_idx = USB_EP_GET_IDX(ep);
-	dir = USB_EP_GET_DIR(ep) >> 7;
-
-	if (ep_idx == 0) {
-		return -EINVAL;
-	}
-
-	//check whether dma channel is assigned before
-	if (dir == USB_VENUS_DMA_DIR_RX_ENDPOINT) {
-		if (usb_venus_ctrl.out_ep_ctrl[ep_idx].dma_info.channel_num !=
-		    USB_VENUS_DMA_CHANNEL_NOT_ASSIGNED)
-			return 0;
-	} else {
-		if (usb_venus_ctrl.in_ep_ctrl[ep_idx].dma_info.channel_num !=
-		    USB_VENUS_DMA_CHANNEL_NOT_ASSIGNED)
-			return 0;
-	}
-
-	uint8_t dma_channel;
-	int ret;
-	ret = usb_dma_get_free_channel(&dma_channel);
-	if (ret != 0) {
-		LOG_DBG("DMA channel resource is not available");
-	}
-
-	if (dir == USB_VENUS_DMA_DIR_RX_ENDPOINT) {
-		usb_venus_ctrl.out_ep_ctrl[ep_idx].dma_info.addr = address;
-		usb_venus_ctrl.out_ep_ctrl[ep_idx].dma_info.channel_num = dma_channel;
-		usb_venus_ctrl.out_ep_ctrl[ep_idx].dma_info.length = length;
-	} else {
-		usb_venus_ctrl.in_ep_ctrl[ep_idx].dma_info.addr = address;
-		usb_venus_ctrl.in_ep_ctrl[ep_idx].dma_info.channel_num = dma_channel;
-		usb_venus_ctrl.in_ep_ctrl[ep_idx].dma_info.length = length;
-	}
-
-	usb_dma_set_channel_active_flag(dma_channel);
-
-	//dma channel index begin from 0
-	CSK_USBC->USB_DMA[dma_channel].ADDR = address;
-	CSK_USBC->USB_DMA[dma_channel].COUNT = length;
-	CSK_USBC->USB_DMA[dma_channel].CNTL = 0;
-	CSK_USBC->USB_DMA[dma_channel].CNTL =
-		USB_VENUS_DMA_CNTL_DMA_ENAB | (dir << USB_VENUS_DMA_CNTL_DMA_DIR_POS) |
-		USB_VENUS_DMA_CNTL_DMAMODE_0 | USB_VENUS_DMA_CNTL_DMAIE |
-		USB_VENUS_DMA_CNTL_DMA_BRSTM_3 | (ep_idx << USB_VENUS_DMA_CNTL_DMAEP_POS);
-
-	return 0;
-}
-*/
-
 static int usb_venus_dma_multiple_packet_setting(uint8_t ep, uint32_t address, uint32_t length)
 {
 	uint32_t ep_idx, dir;
@@ -553,7 +537,6 @@ static int usb_venus_dma_multiple_packet_setting(uint8_t ep, uint32_t address, u
 	//dma channel index begin from 0
 	CSK_USBC->USB_DMA[dma_channel].ADDR = address;
 	CSK_USBC->USB_DMA[dma_channel].COUNT = length;
-	//	CSK_USBC->USB_DMA[dma_channel].CNTL = 0;
 	CSK_USBC->USB_DMA[dma_channel].CNTL =
 		USB_VENUS_DMA_CNTL_DMA_ENAB | (dir << USB_VENUS_DMA_CNTL_DMA_DIR_POS) |
 		USB_VENUS_DMA_CNTL_DMAMODE_1 | USB_VENUS_DMA_CNTL_DMAIE |
@@ -597,7 +580,6 @@ static int usb_venus_tx(uint8_t ep, const uint8_t *const data, uint32_t data_len
 			usb_venus_ctrl.status = USB_VENUS_STS_SETUP;
 			EDPxReg_SEL(ep_idx);
 			CSK_USBC->CSR0L |= USB_VENUS_CSR0L_DATAEND;
-//			printk("END1\n");
 			return data_len;
 		}
 
@@ -636,15 +618,9 @@ static int usb_venus_tx(uint8_t ep, const uint8_t *const data, uint32_t data_len
 			}
 
 		} else {
-			//			if(DMA_MULTIPLE){
-			//dma channel index begin from 0
 			LOG_DBG("USB dam multiple packet setting");
 			usb_venus_dma_multiple_packet_setting(ep, (uint32_t)data, data_len);
-			//			}
-			//			else{
-			//				//dma single packet
-			//				usb_venus_dma_single_packet_setting(ep, (uint32_t)data, data_len);
-			//			}
+
 		}
 	}
 
@@ -854,7 +830,8 @@ int usb_dc_ep_is_stalled(const uint8_t ep, uint8_t *const stalled)
 int usb_dc_ep_enable(const uint8_t ep)
 {
 	uint8_t ep_idx = USB_EP_GET_IDX(ep);
-
+	LOG_INF("usb_dc_ep_enable");
+	
 	if (!usb_venus_ctrl.attached || !usb_venus_ep_is_valid(ep)) {
 		LOG_ERR("Not attached / Invalid endpoint: EP 0x%x", ep);
 		return -EINVAL;
@@ -875,13 +852,6 @@ int usb_dc_ep_enable(const uint8_t ep)
 		usb_venus_ctrl.out_ep_ctrl[ep_idx].ep_ena = 1U;
 		usb_venus_ctrl.in_ep_ctrl[ep_idx].ep_ena = 1U;
 	}
-
-	//	//Todo:temp comment for compile
-	//	if (USB_EP_DIR_IS_OUT(ep) &&
-	//	    usb_venus_ctrl.out_ep_ctrl[ep_idx].cb != usb_transfer_ep_callback) {
-	//		/* Start reading now, except for transfer managed eps */
-	//		usb_venus_prep_rx(ep, 0);
-	//	}
 
 	return 0;
 }
@@ -909,23 +879,29 @@ int usb_dc_ep_disable(const uint8_t ep)
 
 	/* release fifo */
 	if (USB_EP_DIR_IS_OUT(ep)) {
-		if (usb_venus_ctrl.rxfifo_alloc_addr >=
+		if (usb_venus_ctrl.rxfifo_alloc_addr>=
 		    (usb_venus_ctrl.out_ep_ctrl[ep_idx].fifo_size >> 3)) {
 			usb_venus_ctrl.rxfifo_alloc_addr -=
 				(usb_venus_ctrl.out_ep_ctrl[ep_idx].fifo_size >> 3);
 			LOG_DBG("OUT EP 0x%x fifo address is 0x%x", ep,
 				usb_venus_ctrl.rxfifo_alloc_addr);
 		} else
+		{
+
 			LOG_ERR("EP 0x%x fifo address error", ep);
+		}
 	} else {
-		if (usb_venus_ctrl.txfifo_alloc_addr >=
+		if ((usb_venus_ctrl.txfifo_alloc_addr-(0x400>>3)) >=
 		    (usb_venus_ctrl.in_ep_ctrl[ep_idx].fifo_size >> 3)) {
 			usb_venus_ctrl.txfifo_alloc_addr -=
 				(usb_venus_ctrl.in_ep_ctrl[ep_idx].fifo_size >> 3);
 			LOG_DBG("IN EP 0x%x fifo address is 0x%x", ep,
 				usb_venus_ctrl.txfifo_alloc_addr);
 		} else
+		{
 			LOG_ERR("EP 0x%x fifo address error", ep);
+
+		}
 	}
 
 	/* De-activate, disable and set NAK for Ep */
@@ -1022,7 +998,7 @@ int usb_dc_ep_read_wait(uint8_t ep, uint8_t *data, uint32_t max_data_len, uint32
 
 	data_len = usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len; //received packet count in FIFO
 	if (data_len > max_data_len) {
-		LOG_ERR("Too much rx data!");
+		LOG_ERR("Too much rx data!, data_len: %d, max_data_len: %d", data_len, max_data_len);
 		bytes_to_copy = max_data_len;
 	} else {
 		bytes_to_copy = data_len;
@@ -1074,6 +1050,8 @@ int usb_dc_ep_read_wait(uint8_t ep, uint8_t *data, uint32_t max_data_len, uint32
 						(sys_cpu_to_le32(last_dw) >> (j * 8U)) & 0xFF;
 				}
 			}
+
+			// LOG_HEXDUMP_DBG(data, bytes_to_copy, "raw data:");
 		} else {
 			//			if(DMA_MULTIPLE){
 			//dma channel index begin from 0
@@ -1275,12 +1253,7 @@ static void usb_venus_ep0_isr(void)
 {
 	uint8_t ep_idx = 0;
 	usb_dc_ep_callback ep_cb;
-
-	//	/* Packet in RX FIFO */
-	//	usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len = CSK_USBC->COUNT0 & USB_VENUS_COUNT0_RXCOUNT_MASK;
-
-	//	LOG_DBG("USB EP%u: usb_venus_ctrl status %u, size %u",
-	//		ep_idx, usb_venus_ctrl.status, usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len);
+	struct cb_msg msg;
 
 	ep_cb = usb_venus_ctrl.out_ep_ctrl[ep_idx].cb;
 
@@ -1312,8 +1285,10 @@ static void usb_venus_ep0_isr(void)
 					usb_venus_ctrl.status,
 					usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len);
 				if (usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len != 0) {
-					ep_cb(USB_EP_GET_ADDR(ep_idx, USB_EP_DIR_OUT),
-					      USB_DC_EP_SETUP);
+					msg.cb = USB_DC_EP_SETUP;
+					msg.ep = ep_idx;
+					msg.type = USB_DC_CB_TYPE_EP;
+					k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
 				} else {
 					//setup state and zero rxpkt for ep0 interrupt
 					CSK_USBC->CSR0L |= USB_VENUS_CSR0L_SERVICEDRXPKTRDY;
@@ -1331,14 +1306,23 @@ static void usb_venus_ep0_isr(void)
 			if (CSK_USBC->CSR0L & USB_VENUS_CSR0L_RXPKTRDY) {
 				usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len =
 					CSK_USBC->COUNT0 & USB_VENUS_COUNT0_RXCOUNT_MASK;
-				ep_cb(USB_EP_GET_ADDR(ep_idx, USB_EP_DIR_OUT), USB_DC_EP_DATA_OUT);
+
+				msg.cb = USB_DC_EP_DATA_OUT;
+				msg.ep = ep_idx;
+				msg.type = USB_DC_CB_TYPE_EP;
+				k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
 			}
 		}
 		break;
 	case USB_VENUS_STS_IN:
 		LOG_DBG("usb ep0 in phase(tx state)");
 		if (ep_cb) {
-			ep_cb(USB_EP_GET_ADDR(ep_idx, USB_EP_DIR_IN), USB_DC_EP_DATA_IN);
+
+			msg.cb = USB_DC_EP_DATA_IN;
+			msg.ep = ep_idx;
+			msg.type = USB_DC_CB_TYPE_EP;
+			k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
+			// ep_cb(USB_EP_GET_ADDR(ep_idx, USB_EP_DIR_IN), USB_DC_EP_DATA_IN);
 		}
 		break;
 	case USB_VENUS_STS_STATUS:
@@ -1371,7 +1355,6 @@ static inline void usb_venus_dma_oep_remainpkt_handler(uint8_t ep,
 	dma_channel = usb_venus_ctrl.out_ep_ctrl[ep_idx].dma_info.channel_num;
 
 	//dma channel index begin from 0
-	//	CSK_USBC->USB_DMA[dma_channel].CNTL = 0;
 	CSK_USBC->USB_DMA[dma_channel].CNTL =
 		USB_VENUS_DMA_CNTL_DMA_ENAB | (dir << USB_VENUS_DMA_CNTL_DMA_DIR_POS) |
 		USB_VENUS_DMA_CNTL_DMAMODE_0 | USB_VENUS_DMA_CNTL_DMAIE |
@@ -1383,6 +1366,7 @@ static inline void usb_venus_int_oep_handler(uint32_t intsr)
 	uint32_t ep_int_status;
 	uint8_t ep_idx;
 	usb_dc_ep_callback ep_cb;
+	struct cb_msg msg;
 	LOG_DBG("usb_venus_int_oep_handler");
 
 	for (ep_idx = 1U; ep_idx < USB_VENUS_OUT_EP_NUM; ep_idx++) {
@@ -1402,8 +1386,10 @@ static inline void usb_venus_int_oep_handler(uint32_t intsr)
 			}
 
 			if (ep_cb && (ep_int_status & USB_VENUS_RXCSRL_RXPKTRDY)) {
-				/* Call the registered callback */
-				ep_cb(USB_EP_GET_ADDR(ep_idx, USB_EP_DIR_OUT), USB_DC_EP_DATA_OUT);
+				msg.cb = USB_DC_EP_DATA_OUT;
+				msg.ep = ep_idx;
+				msg.type = USB_DC_CB_TYPE_EP;
+				k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
 			}
 
 			/* !!!!!Change index to EP0, otherwise EP0 control transfer will not respond when index is not zero!!!!! */
@@ -1418,6 +1404,7 @@ static inline void usb_venus_int_iep_handler(uint32_t intsr)
 	uint32_t ep_int_status;
 	uint8_t ep_idx;
 	usb_dc_ep_callback ep_cb;
+	struct cb_msg msg;
 
 	LOG_DBG("usb_venus_int_iep_handler");
 	for (ep_idx = 1U; ep_idx < USB_VENUS_IN_EP_NUM; ep_idx++) {
@@ -1430,8 +1417,11 @@ static inline void usb_venus_int_iep_handler(uint32_t intsr)
 
 			ep_cb = usb_venus_ctrl.in_ep_ctrl[ep_idx].cb;
 			if (ep_cb && ((ep_int_status & USB_VENUS_TXCSRL_TXPKTRDY) == 0)) {
-				/* Call the registered callback */
-				ep_cb(USB_EP_GET_ADDR(ep_idx, USB_EP_DIR_IN), USB_DC_EP_DATA_IN);
+
+				msg.cb = USB_DC_EP_DATA_IN;
+				msg.ep = ep_idx;
+				msg.type = USB_DC_CB_TYPE_EP;
+				k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
 			}
 
 			/* !!!!!Change index to EP0, otherwise EP0 control transfer will not respond when index is not zero!!!!! */
@@ -1505,22 +1495,9 @@ static void usb_venus_dma_isr(uint32_t dmaintsr)
 static void usb_venus_handle_reset(void)
 {
 	LOG_DBG("USB RESET event");
-
+	struct cb_msg msg;
 	/* Inform upper layers */
-	if (usb_venus_ctrl.status_cb) {
-		usb_venus_ctrl.status_cb(USB_DC_RESET, NULL);
-	}
-	// usb_venus_ctrl.txfifo_alloc_addr = 0;
-	// usb_venus_ctrl.rxfifo_alloc_addr = 0;
 	usb_venus_ctrl.address = 0;
-	// for (uint32_t i = 1; i < USB_VENUS_IN_EP_NUM; i++) {
-	// 	usb_venus_ctrl.in_ep_ctrl[i].fifo_size = 0;
-	// 	usb_venus_ctrl.in_ep_ctrl[i].mps = 0;
-	// }
-	// for (uint32_t i = 1; i < USB_VENUS_OUT_EP_NUM; i++) {
-	// 	usb_venus_ctrl.out_ep_ctrl[i].fifo_size = 0;
-	// 	usb_venus_ctrl.out_ep_ctrl[i].mps = 0;
-	// }
 
 	usb_venus_ctrl.status = USB_VENUS_STS_SETUP;
 
@@ -1538,14 +1515,22 @@ static void usb_venus_handle_reset(void)
 	/* Enable usb module interrupt */
 	CSK_USBC->INTRUSBE = 0x00;
 	//	CSK_USBC->INTRUSBE |= USB_VENUS_INTRUSBE_RESET | USB_VENUS_INTRUSBE_SOF;
-	CSK_USBC->INTRUSBE |= USB_VENUS_INTRUSBE_RESET;
+	CSK_USBC->INTRUSBE |= USB_VENUS_INTRUSBE_RESET;	
+	
+	/* Inform upper layers */
+	if (usb_venus_ctrl.status_cb) {
+
+		msg.ep = 0U;
+		msg.type = USB_DC_CB_TYPE_MGMT;
+		msg.cb = USB_DC_RESET;
+		k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
+	}
 }
 
 static void usb_venus_isr_handler(const void *unused)
 {
 	uint32_t txsr, rxsr, intsr, dmaintsr, dmaie = 0;
-
-	//GPIO_PinWrite(GPIOA(), CSK_GPIO_PIN3, 1);
+	struct cb_msg msg;
 
 	//endpoint & common interrupt status -> read clear
 	intsr = CSK_USBC->INTRUSB & CSK_USBC->INTRUSBE;
@@ -1561,34 +1546,37 @@ static void usb_venus_isr_handler(const void *unused)
 	ARG_UNUSED(unused);
 
 	//	LOG_DBG("USB venus interrupt handler entered");
-	LOG_DBG("USB INTRUSB= 0x%x, INTRTX = 0x%x, INTRRX = 0x%x, DMA_INTR = 0x%x", intsr, txsr,
-		rxsr, dmaintsr);
+	// LOG_DBG("USB INTRUSB= 0x%x, INTRTX = 0x%x, INTRRX = 0x%x, DMA_INTR = 0x%x", intsr, txsr,
+	// 	rxsr, dmaintsr);
 
 	if (intsr & USB_VENUS_INTRUSB_RESET) {
 		/* Reset detected */
-		//		LOG_DBG("usb reset interrupt");
 		usb_venus_handle_reset();
 	}
 
 	if (intsr & USB_VENUS_INTRUSB_SUSPEND) {
 		LOG_DBG("usb suspend interrupt");
-		if (usb_venus_ctrl.status_cb) {
-			usb_venus_ctrl.status_cb(USB_DC_SUSPEND, NULL);
-		}
+		msg.cb = USB_DC_SUSPEND;
+		msg.ep = 0;
+		msg.type = USB_DC_CB_TYPE_MGMT;
+		k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
 	}
 
 	if (intsr & USB_VENUS_INTRUSB_RESUME) {
 		LOG_DBG("usb resume interrupt");
-		if (usb_venus_ctrl.status_cb) {
-			usb_venus_ctrl.status_cb(USB_DC_RESUME, NULL);
-		}
+		msg.cb = USB_DC_RESUME;
+		msg.ep = 0;
+		msg.type = USB_DC_CB_TYPE_MGMT;
+		k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
 	}
 
 	if (intsr & USB_VENUS_INTRUSB_SOF) {
 		LOG_DBG("usb sof interrupt");
-		if (usb_venus_ctrl.status_cb) {
-			usb_venus_ctrl.status_cb(USB_DC_SOF, NULL);
-		}
+		
+		msg.cb = USB_DC_SOF;
+		msg.ep = 0;
+		msg.type = USB_DC_CB_TYPE_MGMT;
+		k_msgq_put(&usb_dc_msgq, &msg, K_NO_WAIT);
 	}
 
 	if (dmaintsr & USB_VENUS_DMA_INTR_INT0_5_MASK) {
@@ -1614,6 +1602,80 @@ static void usb_venus_isr_handler(const void *unused)
 		usb_venus_int_oep_handler(rxsr);
 	}
 
-	//GPIO_PinWrite(GPIOA(), CSK_GPIO_PIN3, 0);
-	LOG_DBG("!!!!!!");
+}
+
+
+
+static void usb_csk6001_thread_main(void *arg1, void *unused1, void *unused2)
+{
+	ARG_UNUSED(arg1);
+	ARG_UNUSED(unused1);
+	ARG_UNUSED(unused2);
+	struct cb_msg msg;
+	uint8_t ep_addr;
+	uint8_t ep_idx;
+
+	while (true) {
+		k_msgq_get(&usb_dc_msgq, &msg, K_FOREVER);
+		ep_idx = msg.ep;
+		if (msg.type == USB_DC_CB_TYPE_EP) {
+			switch (msg.cb) {
+			case USB_DC_EP_SETUP:
+				ep_addr = USB_EP_GET_ADDR(msg.ep, USB_EP_DIR_OUT);
+				if (usb_venus_ctrl.out_ep_ctrl[ep_idx].cb) {
+					usb_venus_ctrl.out_ep_ctrl[ep_idx].cb(ep_addr,
+						USB_DC_EP_SETUP);
+				}
+				break;
+			case USB_DC_EP_DATA_OUT:
+				ep_addr = USB_EP_GET_ADDR(msg.ep, USB_EP_DIR_OUT);
+				if (usb_venus_ctrl.out_ep_ctrl[ep_idx].cb) {
+					usb_venus_ctrl.out_ep_ctrl[ep_idx].cb(ep_addr,
+						USB_DC_EP_DATA_OUT);
+				}
+				break;
+			case USB_DC_EP_DATA_IN:
+				ep_addr = USB_EP_GET_ADDR(msg.ep, USB_EP_DIR_IN);
+				if (usb_venus_ctrl.in_ep_ctrl[ep_idx].cb) {
+					usb_venus_ctrl.in_ep_ctrl[ep_idx].cb(ep_addr,
+						USB_DC_EP_DATA_IN);
+				}
+				break;
+			default:
+				LOG_ERR("unknown msg");
+				break;
+			}
+		} else if (msg.type == USB_DC_CB_TYPE_MGMT) {
+			switch (msg.cb) {
+			case USB_DC_RESET:
+				if (usb_venus_ctrl.status_cb) {
+					usb_venus_ctrl.status_cb(USB_DC_RESET, NULL);
+				}
+				break;
+			case USB_DC_ERROR:
+				if (usb_venus_ctrl.status_cb) {
+					usb_venus_ctrl.status_cb(USB_DC_ERROR, NULL);
+				}
+				break;
+			case USB_DC_SUSPEND:
+				if (usb_venus_ctrl.status_cb) {
+					usb_venus_ctrl.status_cb(USB_DC_SUSPEND, NULL);
+				}
+				break;
+			case USB_DC_RESUME:
+				if (usb_venus_ctrl.status_cb) {
+					usb_venus_ctrl.status_cb(USB_DC_RESUME, NULL);
+				}
+				break;
+			case USB_DC_SOF:
+				if (usb_venus_ctrl.status_cb) {
+					usb_venus_ctrl.status_cb(USB_DC_SOF, NULL);
+				}
+				break;
+			default:
+				LOG_ERR("unknown msg");
+				break;
+			}
+		}
+	}
 }

@@ -970,7 +970,7 @@ static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_
 		}
         offset += 6;
 	}
-
+    SCB_CleanDCache_by_Addr(out, len);
 	return len;
 }
 
@@ -1065,6 +1065,9 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 
 			if (r > 0) {
 				ok_cnt++;
+                for (int temp = 0; temp < ok_cnt % 5; temp++) {
+                    free_buff[128 * (temp + 90)] = 0xFF;
+                }
                 bf30a2_frames_info_update_w_pos(frams_info);
 			} else {
 				error_cnt++;
@@ -1127,7 +1130,7 @@ static int bf30a2_dev_init(const struct device *dev)
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
     // GPIO_SetDir(GPIOA(), (1 << 7), 1);
-	// GPIO_SetDir(GPIOA(), (1 << 8), 1);
+	GPIO_SetDir(GPIOA(), (1 << 8), 1);
 	// GPIO_SetDir(GPIOA(), (1 << 5), 1);
 	// GPIO_SetDir(GPIOA(), (1 << 4), 1);
 

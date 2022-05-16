@@ -234,7 +234,7 @@ static int csk_dma_init(const struct device *dev)
 		return -ENOMEM;
 	}
     IRQ_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
-                csk_dma_irq_handler, DEVICE_DT_INST_GET(0), 0);
+                csk_dma_irq_handler, DEVICE_DT_INST_GET(0), Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
 	irq_enable(DT_INST_IRQN(0));
     return 0;
 }
