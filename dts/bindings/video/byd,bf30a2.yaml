@@ -36,11 +36,11 @@ properties:
       description: spi-bus
     pwms:
       type: phandle-array
-      required: true
+      required: false
       description: pwm output to xclk
     xclk-freq:
       type: int
-      required: true
+      required: false
       description: xclk-freq
 
 include: i2c-device.yaml
