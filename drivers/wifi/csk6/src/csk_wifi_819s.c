@@ -458,6 +458,8 @@ static int csk_wifi_send_pkt(const struct device *dev, struct net_pkt *pkt)
         return -ENOMEM;
     }
 
+    Wifi_Test_Pin_Set(7, 1);
+
     if (net_pkt_read(pkt, payload, pkt_len) < 0) {
         ret = -EIO;
         goto __cleanup;
@@ -470,7 +472,11 @@ static int csk_wifi_send_pkt(const struct device *dev, struct net_pkt *pkt)
     }
     uint8_t *m_data = mtod(m, uint8_t *);
     memcpy(m_data, payload, pkt_len);
+    Wifi_Test_Pin_Set(7, 0);
+    Wifi_Test_Pin_Set(7, 1);
+    // printk("pkg len:%d \n", pkt_len);
     ret = wlan_linkoutput(data->virtual_netif, m);
+    Wifi_Test_Pin_Set(7, 0);
     if (ret != 0) {
         goto __cleanup;
     }
