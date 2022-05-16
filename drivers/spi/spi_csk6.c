@@ -52,10 +52,12 @@ static void *spi_csk_get_ctx(const struct device *dev)
 {
 	const char *label = DEV_LABEL(dev);
 
-	if(!strcmp(label, SPI0_LABEL))
-	{
+#ifdef CONFIG_SOC_CSK6
+	if (!strcmp(label, SPI0_LABEL)) {
 		return SPI0();
-	}else if(!strcmp(label, SPI1_LABEL))
+	}
+#endif
+    if(!strcmp(label, SPI1_LABEL))
 	{
 		return SPI1();
 	}else{
