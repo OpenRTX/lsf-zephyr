@@ -492,7 +492,7 @@ static void dump(const struct device *dev, char *buffer, uint32_t l)
 
 #define RECV_BUFS_COUNT 1
 static __attribute__((aligned(4))) uint8_t recv_bufs[RECV_BUFS_COUNT][25219 + 1] = {0};
-static void * spi_hal;
+static SPI_DEV *spi_hal;
 
 int count = 0;
 static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_t w);
@@ -515,11 +515,11 @@ enum {
 
 };
 
-void bf30a2_spi_evt_callback(uint32_t event, uint32_t param);
+void bf30a2_spi_evt_callback(uint32_t event_info, uint32_t xfer_bytes, uint32_t usr_param);
 
 static int32_t spi_recv_fixed_dma_ch_install(SPI_DEV *spi, uint8_t ch)
 {
-    spi->info->rx_dyn_dma_ch =  dma_channel_reserve(ch, spi->dma_rx.cb_event, spi->dma_rx.usr_param, DMA_CACHE_SYNC_DST);
+    spi->info->rx_dyn_dma_ch =  dma_channel_reserve(ch, bf30a2_spi_evt_callback, NULL, DMA_CACHE_SYNC_DST);
     if (spi->info->rx_dyn_dma_ch == DMA_CHANNEL_ANY) {
         LOG_ERR("%s: NO free DMA channel!!\r\n", __func__);
         return -1;
@@ -528,89 +528,148 @@ static int32_t spi_recv_fixed_dma_ch_install(SPI_DEV *spi, uint8_t ch)
     return 0;
 }
 
-BF30A2_FAST_CODE static int32_t spi_recv(void *spi_dev, void *data, uint32_t num)
+
+__attribute__ ((section(".itcm")))
+int32_t
+spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
 {
-	int32_t stat;
-	SPI_DEV *spi = (SPI_DEV *)spi_dev;
+    int32_t stat;
+    if (spi == NULL) {
+        LOG_ERR("%s: invalid SPI device (0x%08x)!", __func__, spi);
+        return CSK_DRIVER_ERROR_PARAMETER;
+    }
 
-	if (spi == NULL) {
-		LOG_ERR("%s: invalid SPI device (0x%08x)!", __func__, spi_dev);
-		return CSK_DRIVER_ERROR_PARAMETER;
+    if ((data == NULL) || (num == 0U) || (num > MAX_TRANCNT))
+        return CSK_DRIVER_ERROR_PARAMETER;
+
+    if (!(spi->info->flags & SPI_FLAG_CONFIGURED))
+        return CSK_DRIVER_ERROR;
+
+    if (spi->info->status.bit.busy)
+        return CSK_DRIVER_ERROR_BUSY;
+
+    // set busy flag
+    spi->info->status.bit.busy = 1U;
+    spi->info->status.bit.data_ovf = 0U;
+    spi->info->status.bit.rx_mode = NO_IO;
+
+    spi->info->xfer.rx_buf = data;
+    spi->info->xfer.rx_cnt = 0U;
+    spi->info->xfer.req_rx_cnt = num;
+    spi->info->xfer.cur_op = SPI_RECEIVE;
+
+    // wait prior transfer finish
+    // spi_polling_spiactive(spi);
+
+    // set transfer mode to read only and transfer count for read data
+    //spi->reg->TRANSCTRL = (SPI_TRANSMODE_RDONLY | RD_TRANCNT(num));
+    spi->reg->TRANSCTRL = (SPI_TRANSMODE_RDONLY | RD_TRANCNT(num) |
+                (spi->reg->TRANSCTRL & SPI_TRANSMODE_CMD_EN));
+
+    // DMA mode
+    bool xfer_started = false;
+    while ( RX_DMA(spi->info->txrx_mode) ) { // DMA RX
+        bool dma_only = RX_DMA_ONLY(spi->info->txrx_mode);
+
+        // initial the dma done flag
+        spi->info->xfer.dma_rx_done = 0;
+
+        // enable RX DMA
+        spi->reg->CTRL |= RXDMAEN;
+
+        if (spi->info->rx_dyn_dma_ch == DMA_CHANNEL_ANY) {
+            LOG_ERR("%s: NO free DMA channel!!\r\n", __func__);
+            if (dma_only)   return CSK_DRIVER_ERROR;
+            break; // quit DMA RX
+        }
+
+        uint32_t control, config_low, config_high;
+        control = DMA_CH_CTLL_DST_WIDTH(spi->info->dma_width_shift) | DMA_CH_CTLL_SRC_WIDTH(spi->info->dma_width_shift) |
+                DMA_CH_CTLL_DST_BSIZE(spi->info->rx_bsize_shift) | DMA_CH_CTLL_SRC_BSIZE(spi->info->rx_bsize_shift) |
+                DMA_CH_CTLL_DST_INC | DMA_CH_CTLL_SRC_FIX | DMA_CH_CTLL_TTFC_P2M |
+                DMA_CH_CTLL_DMS(0) | DMA_CH_CTLL_SMS(0) | DMA_CH_CTLL_INT_EN;
+        config_low = DMA_CH_CFGL_CH_PRIOR(1); // channel priority is higher than 0
+        config_high = DMA_CH_CFGH_SRC_PER(spi->dma_rx.reqsel); // DMA_CH_CFGH_FIFO_MODE |
+        
+        stat = dma_channel_configure (spi->info->rx_dyn_dma_ch,
+                            (uint32_t) (&(spi->reg->DATA)),
+                            (uint32_t) spi->info->xfer.rx_buf,
+                            num, control, config_low, config_high, 0, 0);
+        if (stat == -1) {
+            LOG_ERR("%s: Failed to call dma_channel_configure!!\r\n", __func__);
+            dma_channel_disable(spi->info->rx_dyn_dma_ch, false);
+            spi->info->rx_dyn_dma_ch = DMA_CHANNEL_ANY;
+            if (dma_only)   return CSK_DRIVER_ERROR;
+            break; // quit DMA RX
+        }
+
+        // enable RX DMA
+        spi->reg->CTRL |= RXDMAEN;
+
+        // enable interrupts
+        spi->reg->INTREN = SPI_ENDINT;
+
+        spi->info->status.bit.rx_mode = DMA_IO;
+        xfer_started = true;
+        break;
+    } // end while
+
+    if (!xfer_started && RX_PIO(spi->info->txrx_mode)) { // PIO RX (interrupt mode)
+        // enable interrupts
+        spi->reg->INTREN = (SPI_RXFIFOINT | SPI_ENDINT);
+
+        spi->info->status.bit.rx_mode = PIO_IO;
+        xfer_started = true;
+    }
+
+    // neither DMA nor PIO transfer is started
+    if (!xfer_started) {
+        LOG_ERR("%s: Neither DMA nor PIO is started!!\r\n", __func__);
+        return CSK_DRIVER_ERROR;
+    }
+
+    // enable RX FIFO overrun interrupt when slave mode
+    // set slave cmd interrupt
+	if((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_SLAVE) {
+	    CLR_SLV_RDCNT(spi); // clear RCnt on updated IP
+        //spi->reg->INTREN |= SPI_RXFIFOORINT;
+        //spi->reg->INTREN |= SPI_SLVCMD;
+	    spi->reg->INTREN |= SPI_RXFIFOORINT | SPI_SLVCMD;
 	}
 
-	if (!(spi->info->flags & SPI_FLAG_CONFIGURED)) {
-		return CSK_DRIVER_ERROR;
-	}
+    // trigger transfer when SPI master mode
+    if ((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_MASTER) {
+        spi->reg->CMD = 0;
+    }
 
-	if (spi->info->status.bit.busy) {
-		return CSK_DRIVER_ERROR_BUSY;
-	}
+    return CSK_DRIVER_OK;
+}
 
-	spi->info->status.bit.busy = 1U;
-	spi->info->status.bit.data_ovf = 0U;
-	spi->info->status.bit.rx_mode = NO_IO;
-	spi->info->xfer.rx_buf = data;
-	spi->info->xfer.rx_cnt = 0U;
-	spi->info->xfer.req_rx_cnt = num;
-	spi->info->xfer.cur_op = SPI_RECEIVE;
+BF30A2_FAST_CODE static inline int32_t spi_recv(SPI_DEV *spi, void *data, uint32_t num)
+{
+    extern int32_t dma_fast_update_only_for_fix_channel(uint8_t ch,
+        uint32_t src, uint32_t dst, uint32_t size);
+    dma_fast_update_only_for_fix_channel(spi->info->rx_dyn_dma_ch,
+        (uint32_t)(&(spi->reg->DATA)), (uint32_t)data, num);
 
-	spi->reg->TRANSCTRL = (SPI_TRANSMODE_RDONLY | RD_TRANCNT(num) |
-			       (spi->reg->TRANSCTRL & SPI_TRANSMODE_CMD_EN));
+    /* spi registers */
+    spi->reg->TRANSCTRL = (SPI_TRANSMODE_RDONLY | RD_TRANCNT(num)
+        | (spi->reg->TRANSCTRL & SPI_TRANSMODE_CMD_EN));
+    spi->reg->CTRL |= RXDMAEN;
+    spi->reg->INTREN = SPI_ENDINT;
+    CLR_SLV_RDCNT(spi); // clear RCnt on updated IP
+	spi->reg->INTREN |= SPI_RXFIFOORINT | SPI_SLVCMD;
 
-	bool xfer_started = false;
-	while (RX_DMA(spi->info->txrx_mode)) {
-		bool dma_only = RX_DMA_ONLY(spi->info->txrx_mode);
-
-		spi->info->xfer.dma_rx_done = 0;
-
-		uint32_t control, config_low, config_high;
-		control = DMA_CH_CTLL_DST_WIDTH(spi->info->dma_width_shift) |
-			  DMA_CH_CTLL_SRC_WIDTH(spi->info->dma_width_shift) |
-			  DMA_CH_CTLL_DST_BSIZE(spi->info->rx_bsize_shift) |
-			  DMA_CH_CTLL_SRC_BSIZE(spi->info->rx_bsize_shift) | DMA_CH_CTLL_DST_INC |
-			  DMA_CH_CTLL_SRC_FIX | DMA_CH_CTLL_TTFC_P2M | DMA_CH_CTLL_DMS(0) |
-			  DMA_CH_CTLL_SMS(0) | DMA_CH_CTLL_INT_EN;
-		config_low = DMA_CH_CFGL_CH_PRIOR(1);
-		config_high = DMA_CH_CFGH_SRC_PER(spi->dma_rx.reqsel);
-
-		stat = dma_channel_configure(spi->info->rx_dyn_dma_ch,
-					     (uint32_t)(&(spi->reg->DATA)),
-					     (uint32_t)spi->info->xfer.rx_buf, num, control,
-					     config_low, config_high, 0, 0);
-		if (stat == -1) {
-			LOG_ERR("%s: Failed to call dma_channel_configure!!\r\n", __func__);
-			dma_channel_disable(spi->info->rx_dyn_dma_ch, false);
-			spi->info->rx_dyn_dma_ch = DMA_CHANNEL_ANY;
-			break;
-		}
-
-		spi->reg->CTRL |= RXDMAEN;
-		spi->reg->INTREN = SPI_ENDINT;
-		spi->info->status.bit.rx_mode = DMA_IO;
-		xfer_started = true;
-		break;
-	}
-
-	if (!xfer_started && RX_PIO(spi->info->txrx_mode)) { // PIO RX (interrupt mode)
-		// enable interrupts
-		spi->reg->INTREN = (SPI_RXFIFOINT | SPI_ENDINT);
-		spi->info->status.bit.rx_mode = PIO_IO;
-		xfer_started = true;
-	}
-
-	if (!xfer_started) {
-		LOG_ERR("%s: Neither DMA nor PIO is started!!\r\n", __func__);
-		return CSK_DRIVER_ERROR;
-	}
-
-	if ((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_SLAVE) {
-		CLR_SLV_RDCNT(spi); // clear RCnt on updated IP
-		spi->reg->INTREN |= SPI_RXFIFOORINT | SPI_SLVCMD;
-	}
-
-	if ((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_MASTER) {
-		spi->reg->CMD = 0;
-	}
+    /* spi info can be optimized */
+	// spi->info->status.bit.rx_mode = DMA_IO;
+    // spi->info->xfer.dma_rx_done = 0;
+    // spi->info->status.bit.busy = 1U;
+	// spi->info->status.bit.data_ovf = 0U;
+	// spi->info->status.bit.rx_mode = NO_IO;
+	// spi->info->xfer.rx_buf = data;
+	// spi->info->xfer.rx_cnt = 0U;
+	// spi->info->xfer.req_rx_cnt = num;
+	// spi->info->xfer.cur_op = SPI_RECEIVE;
 
 	return CSK_DRIVER_OK;
 }
@@ -748,9 +807,16 @@ BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
 	return CSK_DRIVER_OK;
 }
 
-BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
+BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event_info, uint32_t xfer_bytes, uint32_t usr_param)
 {	
-	if (event & CSK_SPI_EVENT_DMA_COMPLETE) {
+    event_info &= 0xFF;
+    GPIO_RegDef* reg = 0x45900000;
+    reg->REG_DATAOUT.all |= (1 << 5);
+
+	if (event_info & DMA_EVENT_TRANSFER_COMPLETE) {
+        spi_hal->reg->CTRL &= ~(TXDMAEN | RXDMAEN);
+        spi_hal->reg->CTRL |= (TXFIFORST | RXFIFORST);
+
         char *buff = NULL;
         if (bf30a2_dev_data.curr_vbuf != NULL && bf30a2_dev_data.curr_vbuf->buffer != NULL) {
             buff = bf30a2_dev_data.curr_vbuf->buffer;
@@ -772,6 +838,8 @@ BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event, uint32_t param)
 		    bf30a2_recv_packet_process_v2(buff, 1, 1);
         }
 	}
+
+    reg->REG_DATAOUT.all &= ~(1 << 5);
 }
 
 static int bf30a2_stream_start_internal(const struct device *dev)
@@ -779,7 +847,7 @@ static int bf30a2_stream_start_internal(const struct device *dev)
     /* reset state-machine */
     bf30a2_recv_packet_process_v2(NULL, 1, 0);
     /* Skip first frame start packet. */
-	int r = SPI_Receive(spi_hal, &recv_bufs[0][0], 9);
+	int r = spi_first_recv(spi_hal, &recv_bufs[0][0], 9);
 
 	return 0;
 }
@@ -857,7 +925,6 @@ static inline int bf30a2_frame_check(char *in, uint32_t l, uint8_t packetId)
 	}
 
 	if (in[0] != 0xFF || in[1] != 0xFF || in[2] != 0xFF || in[3] != packetId) {
-		// printk("packetId:%d, %02x %02x %02x %02x.\n", packetId, in[0], in[1], in[2], in[3]);
 		return -1;
 	}
 
@@ -873,14 +940,12 @@ static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_
 	offset += 0;
 
     if (bf30a2_frame_check(in + offset, l - offset, BF30A2_PACKET_TYPE_LINE_START) != 0) {
-        // LOG_ERR("Decode error: line start packet, h=%d. offset=0x%x\n", i, offset);
         return -1;
     }
     offset += 6;
 	for (i = 0; i < h; i++) {
 		/* data packet */
 		if (bf30a2_frame_check(in + offset, l - offset, BF30A2_PACKET_TYPE_FRAME_DATA) != 0) {
-			// LOG_ERR("Decode error: data packet, h=%d. offset=0x%x\n", i, offset);
 			return -1;
 		}
 
@@ -896,7 +961,6 @@ static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_
 		len += w;
 
         if (bf30a2_frame_check(in + offset, l - offset, BF30A2_PACKET_TYPE_LINE_START) != 0) {
-			// LOG_ERR("Decode error: line packet, h=%d. offset=0x%x\n", i, offset);
 			return -1;
 		}
         offset += 6;
@@ -1006,10 +1070,9 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 				spi_recv(spi_hal, &recv_bufs[0][0] + 5, 4);
 			}
 
-            /* 16ms * 100 */
-            if (cnt % 10 == 0) {
+            if (cnt % 10 == 1) {
                 fps = vbuf->timestamp - last_time ? 1000 / (vbuf->timestamp - last_time) : 0;
-                LOG_INF("FPS:%d, T:%d, O:%d, E:%d",
+                LOG_INF("FPS:%d, T:%d, O:%d, E:%d.",
                     fps, cnt, ok_cnt, error_cnt);
             }
 			last_time = vbuf->timestamp;
@@ -1052,8 +1115,8 @@ static int bf30a2_dev_init(const struct device *dev)
 
     // GPIO_SetDir(GPIOA(), (1 << 7), 1);
 	GPIO_SetDir(GPIOA(), (1 << 8), 1);
-	// GPIO_SetDir(GPIOA(), (1 << 5), 1);
-	// GPIO_SetDir(GPIOA(), (1 << 4), 1);
+	GPIO_SetDir(GPIOA(), (1 << 5), 1);
+	GPIO_SetDir(GPIOA(), (1 << 4), 1);
 
     spi_hal = SPI1();
     SPI_Uninitialize(spi_hal);	
@@ -1063,7 +1126,7 @@ static int bf30a2_dev_init(const struct device *dev)
                     CSK_SPI_CPOL0_CPHA0 | CSK_SPI_MSB_LSB | CSK_SPI_DATA_BITS(8), 0);
     /* Make sure dma channel 0 is always used for bf30a2. */
     spi_recv_fixed_dma_ch_install(spi_hal, 0);
-
+    
 	k_fifo_init(&data->fifo_free);
     k_fifo_init(&data->fifo_out);
     k_fifo_init(&data->fifo);
