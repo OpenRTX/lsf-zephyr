@@ -3,8 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 zephyr_library_sources(./main.c)
+
+
+if(CONFIG_SOF_HOST)
 zephyr_library_sources(./fs_domain.c)
 zephyr_library_sources(./sof_domain.c)
+endif()
 
 if(CONFIG_WIFI)
 zephyr_library_sources(./network_domain.c)
