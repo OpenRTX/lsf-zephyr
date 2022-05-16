@@ -210,23 +210,11 @@ csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
     ch_info->cb_info.callback(dev, ch_info->cb_info.user_data, channel, ret);
 }
 
-extern void dma_irq_handler(void);
-DMA_CSK6_RAM_FUNC
-static void
-csk_dma_irq_handler(const struct device *dev)
-{
-    GPIO_RegDef* reg = 0x45900000;
-    reg->REG_DATAOUT.all |= (1 << 4);
-    dma_irq_handler();
-    reg->REG_DATAOUT.all &= ~(1 << 4);
-}
-
 ISR_DIRECT_DECLARE(dma_direct_irq_handler)
 {
-    GPIO_RegDef* reg = 0x45900000;
-    reg->REG_DATAOUT.all |= (1 << 4);
+    extern void dma_irq_handler(void);
     dma_irq_handler();
-    reg->REG_DATAOUT.all &= ~(1 << 4);
+
     return 1;
 }
 

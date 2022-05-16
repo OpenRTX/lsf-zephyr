@@ -21,10 +21,7 @@
 #include <hal/spi.h>
 #include <hal/dma.h>
 
-// #include <hal/gpio_venus.h>
-
 #include <stdbool.h>
-#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <logging/log.h>
 
 LOG_MODULE_REGISTER(bf30a2);
@@ -137,34 +134,34 @@ struct bf30a2_reg_config {
 static const struct bf30a2_reg_config bf30a2_regs_configs[] = {
 	{ 0xf2, 0x01 },
 	{ 0x2F, X_AXIS },
-	{ 0x2e, 0x57 }, //
-	{ 0x07, 0x52 }, //
-	{ 0x2c, 0x51 }, //
-	{ 0x12, 0xc3 }, //
-	{ 0x15, 0x80 }, //
-	{ 0x6b, 0x71 }, //
-	{ 0x04, 0x00 }, //
-	{ 0x06, 0x26 }, //
-	{ 0x08, 0x07 }, //
-	{ 0x1c, 0x12 }, //
-	{ 0x1e, 0xae }, //
-	{ 0x1f, 0x00 }, //
-	{ 0x20, 0x20 }, //
-	{ 0x21, 0x20 }, //
-	{ 0x34, 0x02 }, //
-	{ 0x35, 0x02 }, //
-	{ 0x36, 0x21 }, //
-	{ 0x37, 0x13 }, //
-	{ 0xca, 0x07 }, //
-	{ 0xcb, 0x22 }, //
-	{ 0xcc, 0x89 }, //
-	{ 0xcd, 0x4c }, //
-	{ 0xce, 0x6b }, //
-	{ 0xcf, 0xf0 }, //
-	{ 0xa0, 0x8e }, //
-	{ 0x01, 0x1b }, //
-	{ 0x02, 0x1d }, //
-	{ 0x13, 0x08 }, //
+	{ 0x2e, 0x57 },
+	{ 0x07, 0x52 },
+	{ 0x2c, 0x51 },
+	{ 0x12, 0xc3 },
+	{ 0x15, 0x80 },
+	{ 0x6b, 0x71 },
+	{ 0x04, 0x00 },
+	{ 0x06, 0x26 },
+	{ 0x08, 0x07 },
+	{ 0x1c, 0x12 },
+	{ 0x1e, 0xae },
+	{ 0x1f, 0x00 },
+	{ 0x20, 0x20 },
+	{ 0x21, 0x20 },
+	{ 0x34, 0x02 },
+	{ 0x35, 0x02 },
+	{ 0x36, 0x21 },
+	{ 0x37, 0x13 },
+	{ 0xca, 0x07 },
+	{ 0xcb, 0x22 },
+	{ 0xcc, 0x89 },
+	{ 0xcd, 0x4c },
+	{ 0xce, 0x6b },
+	{ 0xcf, 0xf0 },
+	{ 0xa0, 0x8e },
+	{ 0x01, 0x1b },
+	{ 0x02, 0x1d },
+	{ 0x13, 0x08 },
 	{ 0x87, 0x13 },
 	{ 0x8a, 0x1a },
 	{ 0x8b, 0x08 },
@@ -258,6 +255,7 @@ static const struct bf30a2_reg_config bf30a2_regs_configs[] = {
 	{ 0xcf, 0xf1 },
 };
 
+#if DT_NODE_HAS_PROP(DT_DRV_INST(0), pwms)
 static int bf30a2_chip_xclk_init(const struct device *dev)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
@@ -278,6 +276,7 @@ static int bf30a2_chip_xclk_init(const struct device *dev)
 
 	return 0;
 }
+#endif
 
 #define SPI1_CS_PIN 9
 #include "hal/gpio.h"
@@ -479,22 +478,13 @@ static int bf30a2_driv_get_caps(const struct device *dev, enum video_endpoint_id
 	return 0;
 }
 
-#define UART2_DEV DT_LABEL(DT_INST(0, listenai_csk_uart))
-static void dump(const struct device *dev, char *buffer, uint32_t l)
-{
-	while (l--) {
-		uart_poll_out(dev, *buffer);
-		buffer++;
-	}
-}
-
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
+/* TODO: Remove it */
 #define RECV_BUFS_COUNT 1
 static __attribute__((aligned(4))) uint8_t recv_bufs[RECV_BUFS_COUNT][25219 + 1] = {0};
 static SPI_DEV *spi_hal;
 
-int count = 0;
 static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_t w);
 
 enum {
@@ -512,14 +502,13 @@ enum {
     MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED_V2,
     MACHINE_STATE_END_AND_START_PACKET_RECEIVED,
 	MACHINE_STATE_FIND_HEADING,
-
 };
 
-void bf30a2_spi_evt_callback(uint32_t event_info, uint32_t xfer_bytes, uint32_t usr_param);
+void bf30a2_spi_evt_callback(unsigned int  event_info, unsigned int  xfer_bytes, unsigned int  usr_param);
 
 static int32_t spi_recv_fixed_dma_ch_install(SPI_DEV *spi, uint8_t ch)
 {
-    spi->info->rx_dyn_dma_ch =  dma_channel_reserve(ch, bf30a2_spi_evt_callback, NULL, DMA_CACHE_SYNC_DST);
+    spi->info->rx_dyn_dma_ch =  dma_channel_reserve(ch, bf30a2_spi_evt_callback, 0, DMA_CACHE_SYNC_DST);
     if (spi->info->rx_dyn_dma_ch == DMA_CHANNEL_ANY) {
         LOG_ERR("%s: NO free DMA channel!!\r\n", __func__);
         return -1;
@@ -528,14 +517,10 @@ static int32_t spi_recv_fixed_dma_ch_install(SPI_DEV *spi, uint8_t ch)
     return 0;
 }
 
-
-__attribute__ ((section(".itcm")))
-int32_t
-spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
+int32_t spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
 {
     int32_t stat;
     if (spi == NULL) {
-        LOG_ERR("%s: invalid SPI device (0x%08x)!", __func__, spi);
         return CSK_DRIVER_ERROR_PARAMETER;
     }
 
@@ -558,25 +543,16 @@ spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
     spi->info->xfer.req_rx_cnt = num;
     spi->info->xfer.cur_op = SPI_RECEIVE;
 
-    // wait prior transfer finish
-    // spi_polling_spiactive(spi);
-
-    // set transfer mode to read only and transfer count for read data
-    //spi->reg->TRANSCTRL = (SPI_TRANSMODE_RDONLY | RD_TRANCNT(num));
     spi->reg->TRANSCTRL = (SPI_TRANSMODE_RDONLY | RD_TRANCNT(num) |
                 (spi->reg->TRANSCTRL & SPI_TRANSMODE_CMD_EN));
 
-    // DMA mode
     bool xfer_started = false;
     while ( RX_DMA(spi->info->txrx_mode) ) { // DMA RX
         bool dma_only = RX_DMA_ONLY(spi->info->txrx_mode);
-
         // initial the dma done flag
         spi->info->xfer.dma_rx_done = 0;
-
         // enable RX DMA
         spi->reg->CTRL |= RXDMAEN;
-
         if (spi->info->rx_dyn_dma_ch == DMA_CHANNEL_ANY) {
             LOG_ERR("%s: NO free DMA channel!!\r\n", __func__);
             if (dma_only)   return CSK_DRIVER_ERROR;
@@ -600,44 +576,33 @@ spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
             dma_channel_disable(spi->info->rx_dyn_dma_ch, false);
             spi->info->rx_dyn_dma_ch = DMA_CHANNEL_ANY;
             if (dma_only)   return CSK_DRIVER_ERROR;
-            break; // quit DMA RX
+            break;
         }
 
-        // enable RX DMA
         spi->reg->CTRL |= RXDMAEN;
-
-        // enable interrupts
         spi->reg->INTREN = SPI_ENDINT;
-
         spi->info->status.bit.rx_mode = DMA_IO;
+
         xfer_started = true;
         break;
-    } // end while
+    }
 
-    if (!xfer_started && RX_PIO(spi->info->txrx_mode)) { // PIO RX (interrupt mode)
-        // enable interrupts
+    if (!xfer_started && RX_PIO(spi->info->txrx_mode)) {
         spi->reg->INTREN = (SPI_RXFIFOINT | SPI_ENDINT);
-
         spi->info->status.bit.rx_mode = PIO_IO;
         xfer_started = true;
     }
 
-    // neither DMA nor PIO transfer is started
     if (!xfer_started) {
         LOG_ERR("%s: Neither DMA nor PIO is started!!\r\n", __func__);
         return CSK_DRIVER_ERROR;
     }
 
-    // enable RX FIFO overrun interrupt when slave mode
-    // set slave cmd interrupt
 	if((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_SLAVE) {
 	    CLR_SLV_RDCNT(spi); // clear RCnt on updated IP
-        //spi->reg->INTREN |= SPI_RXFIFOORINT;
-        //spi->reg->INTREN |= SPI_SLVCMD;
 	    spi->reg->INTREN |= SPI_RXFIFOORINT | SPI_SLVCMD;
 	}
 
-    // trigger transfer when SPI master mode
     if ((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_MASTER) {
         spi->reg->CMD = 0;
     }
@@ -660,25 +625,12 @@ BF30A2_FAST_CODE static inline int32_t spi_recv(SPI_DEV *spi, void *data, uint32
     CLR_SLV_RDCNT(spi); // clear RCnt on updated IP
 	spi->reg->INTREN |= SPI_RXFIFOORINT | SPI_SLVCMD;
 
-    /* spi info can be optimized */
-	// spi->info->status.bit.rx_mode = DMA_IO;
-    // spi->info->xfer.dma_rx_done = 0;
-    // spi->info->status.bit.busy = 1U;
-	// spi->info->status.bit.data_ovf = 0U;
-	// spi->info->status.bit.rx_mode = NO_IO;
-	// spi->info->xfer.rx_buf = data;
-	// spi->info->xfer.rx_cnt = 0U;
-	// spi->info->xfer.req_rx_cnt = num;
-	// spi->info->xfer.cur_op = SPI_RECEIVE;
-
 	return CSK_DRIVER_OK;
 }
 
 BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_next_packet(char *buf, uint32_t buf_size)
 {
-	// GPIO_PinWrite(GPIOA(), (1 << 7), 1);
     spi_recv(spi_hal, buf, buf_size);
-	// GPIO_PinWrite(GPIOA(), (1 << 7), 0);
     return 0;
 }
 
@@ -747,7 +699,6 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process_v2(char *bu
 
 BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
 {
-	int32_t stat;
 	SPI_DEV *spi = (SPI_DEV *)spi_dev;
 
 	uint32_t start_time = k_uptime_get_32();
@@ -807,17 +758,15 @@ BF30A2_FAST_CODE static int32_t spi_wait_head(void *spi_dev, uint32_t timeout)
 	return CSK_DRIVER_OK;
 }
 
-BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event_info, uint32_t xfer_bytes, uint32_t usr_param)
-{	
+BF30A2_FAST_CODE void bf30a2_spi_evt_callback(unsigned int event_info, unsigned int  xfer_bytes, unsigned int  usr_param)
+{
+    char *buff = NULL;
     event_info &= 0xFF;
-    GPIO_RegDef* reg = 0x45900000;
-    reg->REG_DATAOUT.all |= (1 << 5);
 
 	if (event_info & DMA_EVENT_TRANSFER_COMPLETE) {
         spi_hal->reg->CTRL &= ~(TXDMAEN | RXDMAEN);
         spi_hal->reg->CTRL |= (TXFIFORST | RXFIFORST);
 
-        char *buff = NULL;
         if (bf30a2_dev_data.curr_vbuf != NULL && bf30a2_dev_data.curr_vbuf->buffer != NULL) {
             buff = bf30a2_dev_data.curr_vbuf->buffer;
         } else {
@@ -838,18 +787,15 @@ BF30A2_FAST_CODE void bf30a2_spi_evt_callback(uint32_t event_info, uint32_t xfer
 		    bf30a2_recv_packet_process_v2(buff, 1, 1);
         }
 	}
-
-    reg->REG_DATAOUT.all &= ~(1 << 5);
 }
 
 static int bf30a2_stream_start_internal(const struct device *dev)
 {
     /* reset state-machine */
     bf30a2_recv_packet_process_v2(NULL, 1, 0);
-    /* Skip first frame start packet. */
-	int r = spi_first_recv(spi_hal, &recv_bufs[0][0], 9);
 
-	return 0;
+    /* Skip first frame start packet. */
+	return spi_first_recv(spi_hal, &recv_bufs[0][0], 9);
 }
 
 #endif
@@ -859,7 +805,6 @@ static int bf30a2_stream_start_internal(const struct device *dev)
 static int bf30a2_driv_stream_start(const struct device *dev)
 {
 #if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
-    struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
     int r = bf30a2_chip_config(dev);
 	if (r != 0) {
 		LOG_ERR("chip config error.");
@@ -984,15 +929,15 @@ Z_GENERIC_SECTION(.csk6_psram_section1) __attribute__((aligned(32)))static frame
 static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 {
     if (info == NULL || info->addr == NULL || info->frame_cnt <= 0) {
-        LOG_ERR("frames_info:%p, addr:%p, frame_cnt:%d", info,
-            info->addr, info->frame_cnt);
         return NULL;
     }
+
     SCB_InvalidateDCache_by_Addr(info,sizeof(frames_info_t));
     if (info->w_pos < (info->frame_cnt - 1) || info->w_pos >= info->r_pos) {
         info->w_pos %= info->frame_cnt;
 		info->r_pos %= info->frame_cnt;
-        return info->addr + info->w_pos * info->frame_size;
+        int offset = info->w_pos * info->frame_size;
+        return info->addr + offset;
     } else if ((info->w_pos == (info->frame_cnt - 1)) && (info->r_pos == 0)) {
         /* No more free space. */
         return NULL;
@@ -1021,16 +966,11 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 	__ASSERT(p1 != NULL, "Param is null.");
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)p1;
 	struct video_buffer *vbuf;
-	uint8_t frame_index = 0;
 	uint32_t cnt = 0;
 	uint32_t last_time = 0;
 	uint32_t error_cnt = 0;
 	uint32_t ok_cnt = 0;
-
 	int fps = 0;
-	int i = 0;
-	uint32_t tick = 0;
-
     frames_info_t *frams_info = (frames_info_t *)&g_frames_info;
 
     memset(frams_info, 0, sizeof(frams_info));
@@ -1120,7 +1060,7 @@ static int bf30a2_dev_init(const struct device *dev)
 
     spi_hal = SPI1();
     SPI_Uninitialize(spi_hal);	
-    SPI_Initialize(spi_hal, bf30a2_spi_evt_callback, (uint32_t)dev);
+    SPI_Initialize(spi_hal, NULL, (uint32_t)dev);
     SPI_PowerControl(spi_hal, CSK_POWER_FULL);
     SPI_Control(spi_hal, CSK_SPI_EXCL_OP_UNSET | CSK_SPI_MODE_SLAVE | CSK_SPI_RXIO_DMA |
                     CSK_SPI_CPOL0_CPHA0 | CSK_SPI_MSB_LSB | CSK_SPI_DATA_BITS(8), 0);
