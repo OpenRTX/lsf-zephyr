@@ -69,8 +69,6 @@
             pd-gpios = <&gpioa 20 0>;
             pwr-gpios = <&gpioa 5 0>;
             product-id = <0x3b02>;
-            pwms = <&pwm2 0x2 0x0>;
-            xclk-freq = <25000>;
             spi = <&spi1>;
         };
 };

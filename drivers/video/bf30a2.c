@@ -80,7 +80,8 @@ struct bf30a2_dev_data {
 	struct k_work_delayable dwork;
 	struct k_fifo fifo_free;
 	struct k_fifo fifo_out;
-	struct k_fifo fifo;
+	struct k_fifo fifo_vbuf_in;
+	struct k_fifo fifo_vbuf_out;
     struct video_buffer *curr_vbuf;
 };
 
@@ -802,6 +803,7 @@ static int bf30a2_stream_start_internal(const struct device *dev)
 
 #define CSK_SPI1             ((CSK_SPI_RegDef *)  SPI1_BASE)
 
+static int32_t bf30a2_restart();
 static int bf30a2_driv_stream_start(const struct device *dev)
 {
 #if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
@@ -816,6 +818,7 @@ static int bf30a2_driv_stream_start(const struct device *dev)
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
     bf30a2_stream_start_internal(dev);
+    bf30a2_restart();
 #endif
 
 	return 0;
@@ -844,10 +847,28 @@ static int bf30a2_driv_dequeue(const struct device *dev, enum video_endpoint_id 
 		return -EINVAL;
 	}
 
-	*buf = k_fifo_get(&data->fifo, timeout);
+	*buf = k_fifo_get(&data->fifo_vbuf_out, timeout);
 	if (*buf == NULL) {
 		return -EAGAIN;
 	}
+
+	return 0;
+#else
+	return -1;
+#endif
+}
+
+static int bf30a2_driv_enqueue(const struct device *dev, enum video_endpoint_id ep,
+			       struct video_buffer *buf)
+{
+#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
+	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
+
+	if (ep != VIDEO_EP_OUT) {
+		return -EINVAL;
+	}
+
+	k_fifo_put(&data->fifo_vbuf_in, buf);
 
 	return 0;
 #else
@@ -910,10 +931,11 @@ static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_
 		}
         offset += 6;
 	}
-    SCB_CleanDCache_by_Addr(out, len);
+
 	return len;
 }
 
+#if CONFIG_BF30A2_UNUSED_DEQUEUE
 typedef struct {
     volatile char *addr;
     volatile uint32_t frame_size;
@@ -924,20 +946,17 @@ typedef struct {
 } __packed frames_info_t;
 
 Z_GENERIC_SECTION(.csk6_psram_section1) __attribute__((aligned(32))) static char swp_frames[3][180 * 128] = {0};
-Z_GENERIC_SECTION(.csk6_psram_section1) __attribute__((aligned(32)))static frames_info_t g_frames_info = {0};
 
 static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 {
     if (info == NULL || info->addr == NULL || info->frame_cnt <= 0) {
         return NULL;
     }
-
-    SCB_InvalidateDCache_by_Addr(info,sizeof(frames_info_t));
+#ifndef CONFIG_BF30A2_DECODE_TEST
+SCB_InvalidateDCache_by_Addr(info,sizeof(frames_info_t));
     if (info->w_pos < (info->frame_cnt - 1) || info->w_pos >= info->r_pos) {
         info->w_pos %= info->frame_cnt;
 		info->r_pos %= info->frame_cnt;
-        int offset = info->w_pos * info->frame_size;
-        return info->addr + offset;
     } else if ((info->w_pos == (info->frame_cnt - 1)) && (info->r_pos == 0)) {
         /* No more free space. */
         return NULL;
@@ -946,7 +965,12 @@ static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
         return NULL;
     }
 
-    return NULL;
+#else
+    info->w_pos = 0;
+#endif
+    info->w_pos %= info->frame_cnt;
+    int offset = info->w_pos * info->frame_size;
+    return info->addr + offset;
 }
 
 static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
@@ -957,8 +981,66 @@ static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
 
     info->w_pos++;
     info->w_pos %= info->frame_cnt;
-    SCB_CleanDCache_by_Addr(info,sizeof(frames_info_t));
+    SCB_CleanDCache_by_Addr(info, sizeof(frames_info_t));
     return info->w_pos;
+}
+
+#endif
+
+/**
+ * retval < 0  : decode error.
+ * retval == 0 : no free buffer to decode.
+ * retval >= 0 : decode success.
+ */
+static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
+{
+    int r = -1;
+
+    cache_dma_fast_inv_stage1(vbuf->buffer, vbuf->buffer + vbuf->size);
+
+#if CONFIG_BF30A2_UNUSED_DEQUEUE
+    frames_info_t *frams_info = (frames_info_t *)p;
+    char *free_buff = bf30a2_frames_info_get_free(frams_info);
+
+    if (free_buff != NULL) {
+        r = bf30a2_decode_XX(vbuf->buffer, free_buff, 25219, 179, 128);
+        if (r > 0) {
+            SCB_CleanDCache_by_Addr(free_buff, r);
+            bf30a2_frames_info_update_w_pos(frams_info);
+        }
+    } else {
+        LOG_ERR("no free space, info->w_pos:%u, info->r_pos:%u.", frams_info->w_pos,
+            frams_info->r_pos);
+        r = 0;
+    }
+#else
+    struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)p;
+    struct video_buffer *vbuf_out = k_fifo_get(&data->fifo_vbuf_in, K_MSEC(16));
+
+    if (vbuf_out == NULL) {
+        r = 0;
+    }
+    r = bf30a2_decode_XX(vbuf->buffer, vbuf_out->buffer, 25219, 180, 128);
+
+    if (r > 0) {
+        vbuf_out->bytesused = 128 * 180;
+        vbuf_out->timestamp = vbuf->timestamp;
+        k_fifo_put(&data->fifo_vbuf_out, vbuf_out);
+    }
+#endif
+
+    return r;
+}
+
+static int32_t bf30a2_restart()
+{
+#if CONFIG_BF30A2_UNUSED_DEQUEUE
+    frames_info_t *frams_info = (frames_info_t *)0x30704000;
+    frams_info->w_pos = 0;
+    frams_info->r_pos = 0;
+    SCB_CleanDCache_by_Addr(frams_info, sizeof(frames_info_t));
+#endif
+    return 0;
 }
 
 static void bf30a2_thread(void *p1, void *p2, void *p3)
@@ -970,53 +1052,60 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 	uint32_t last_time = 0;
 	uint32_t error_cnt = 0;
 	uint32_t ok_cnt = 0;
+    uint32_t discard_cnt = 0;
 	int fps = 0;
-    frames_info_t *frams_info = (frames_info_t *)&g_frames_info;
+    int r;
+    void *p;
 
-    memset(frams_info, 0, sizeof(frams_info));
+#if CONFIG_BF30A2_UNUSED_DEQUEUE
+    frames_info_t *frams_info = (frames_info_t *)0x30704000;
+    memset(frams_info, 0, sizeof(frames_info_t));
     frams_info->addr = &swp_frames[0][0];
     frams_info->frame_size = 180 * 128;
     frams_info->frame_cnt = 3;
     frams_info->w_pos = 0;
     frams_info->r_pos = 0;
+    frams_info->tag = 0x12345678;
+    p = frams_info;
 
-    LOG_INF("frams_info:%p.", frams_info);
+    LOG_INF("##########Frames info##########", frams_info);
+    LOG_INF("info       :%p.", frams_info);
+    LOG_INF("buffer addr:%p.", frams_info->addr);
+    LOG_INF("frame  size:%u.", frams_info->frame_size);
+    LOG_INF("frame count:%d.", frams_info->frame_cnt);
+    LOG_INF("write   pos:%d.", frams_info->w_pos);
+    LOG_INF("read    pos:%d.", frams_info->r_pos);
+#else
+    p = data;
+#endif
+
 	while (1) {
 		vbuf = k_fifo_get(&data->fifo_out, K_FOREVER);
 		if (vbuf != NULL && vbuf->buffer != NULL) {
 			cnt++;
-            /* get free pos */
-            char * free_buff = bf30a2_frames_info_get_free(frams_info);
-            int r = 0;
-
-            if (free_buff != NULL) {
-			    r = bf30a2_decode_XX(vbuf->buffer, free_buff, 25219, 179, 128);
-            } else {
-                LOG_ERR("no free space, info->w_pos:%u, info->r_pos:%u.", frams_info->w_pos,
-                    frams_info->r_pos);
-            }
-
+            r = bf30a2_rda_frame_decode_proc(vbuf, p);
 			if (r > 0) {
-				ok_cnt++;
-                for (int temp = 0; temp < ok_cnt % 5; temp++) {
-                    free_buff[128 * (temp + 90)] = 0xFF;
-                }
-                bf30a2_frames_info_update_w_pos(frams_info);
-			} else {
+                ok_cnt++;
+			} else if (r < 0) {
 				error_cnt++;
+                /* TODO: to be optimized */
                 next_state = MACHINE_STATE_FIND_HEADING;
 				spi_wait_head(spi_hal, 3000);
 				bf30a2_recv_packet_process_v2(NULL, 1, 0);
 				spi_recv(spi_hal, &recv_bufs[0][0] + 5, 4);
-			}
-
-            if (cnt % 10 == 1) {
-                fps = vbuf->timestamp - last_time ? 1000 / (vbuf->timestamp - last_time) : 0;
-                LOG_INF("FPS:%d, T:%d, O:%d, E:%d.",
-                    fps, cnt, ok_cnt, error_cnt);
+			} else {
+                discard_cnt++;
+                LOG_ERR("No free space to decode frame.");
             }
-			last_time = vbuf->timestamp;
+            uint32_t frame_timestamp = vbuf->timestamp;
+            /* free current vbuf */
             k_fifo_put(&data->fifo_free, vbuf);
+            if (cnt % 30 == 0) {
+                fps = frame_timestamp - last_time ? 1000 / (frame_timestamp - last_time) : 0;
+                LOG_INF("FPS:%d, T:%d, O:%d, E:%d, D:%d.",
+                    fps, cnt, ok_cnt, error_cnt, discard_cnt);
+            }
+			last_time = frame_timestamp;
 		}
 	}
 }
@@ -1029,6 +1118,7 @@ static const struct video_driver_api bf30a2_driv_api = {
 	.stream_start = bf30a2_driv_stream_start,
 	.stream_stop = bf30a2_driv_stream_stop,
 	.dequeue = bf30a2_driv_dequeue,
+    .enqueue = bf30a2_driv_enqueue,
 	.set_ctrl = bf30a2_set_ctrl,
 };
 
@@ -1038,26 +1128,21 @@ static int bf30a2_dev_init(const struct device *dev)
     data->dev = dev;
 
 #if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
+    /* TODO: to be optimized */
     raise_spi_cs(1);
     IOMuxManager_PinConfigure(0, 7, 20);
-
     #define CP_DVP_BASE        (0x4A050000)
     DVP_TypeDef *hDvp = (DVP_TypeDef *)(CP_DVP_BASE);
     // Enable clockout with a divider of 4 (clockout = hclk/2/(4+1))
     hDvp->PIXEL_CLK_DIV = 4;
     hDvp->PIXEL_CLK_EN = 1;
-
 #endif
 
 	bf30a2_chip_init(dev);
 
 #if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
-    // GPIO_SetDir(GPIOA(), (1 << 7), 1);
-	GPIO_SetDir(GPIOA(), (1 << 8), 1);
-	GPIO_SetDir(GPIOA(), (1 << 5), 1);
-	GPIO_SetDir(GPIOA(), (1 << 4), 1);
-
+    /* TODO: to be optimized */
     spi_hal = SPI1();
     SPI_Uninitialize(spi_hal);	
     SPI_Initialize(spi_hal, NULL, (uint32_t)dev);
@@ -1067,12 +1152,12 @@ static int bf30a2_dev_init(const struct device *dev)
     /* Make sure dma channel 0 is always used for bf30a2. */
     spi_recv_fixed_dma_ch_install(spi_hal, 0);
     
+    /* sr and thread */
 	k_fifo_init(&data->fifo_free);
     k_fifo_init(&data->fifo_out);
-    k_fifo_init(&data->fifo);
 
 	uint32_t i;
-	for (i = 0; i < CONFIG_VIDEO_BUFFER_POOL_NUM_MAX; i++) {
+	for (i = 0; i < CONFIG_VIDEO_BUFFER_POOL_NUM_MAX / 2; i++) {
 		struct video_buffer *vbuf = video_buffer_alloc(BF30A2_FRAME_SIZE);
 		if (vbuf == NULL) {
 			LOG_ERR("Unable to alloc video buffer, index:%d.", i);
@@ -1082,6 +1167,19 @@ static int bf30a2_dev_init(const struct device *dev)
         k_fifo_put(&data->fifo_free, vbuf);
 	}
 
+    /* application and thread */
+    k_fifo_init(&data->fifo_vbuf_in);
+    k_fifo_init(&data->fifo_vbuf_out);
+
+    for (i = 0; i < CONFIG_VIDEO_BUFFER_POOL_NUM_MAX / 2; i++) {
+		struct video_buffer *vbuf = video_buffer_alloc(BF30A2_FRAME_SIZE);
+		if (vbuf == NULL) {
+			LOG_ERR("Unable to alloc video buffer, index:%d.", i);
+			return -1;
+		}
+
+        k_fifo_put(&data->fifo_vbuf_in, vbuf);
+	}
 #endif
 
 	return 0;
