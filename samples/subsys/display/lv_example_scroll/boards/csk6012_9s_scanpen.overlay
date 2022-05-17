@@ -111,10 +111,10 @@
 			cmd-data-gpios = <&gpioa 14 1>;
 			reset-gpios = <&gpioa 15 1>;
 			pinmuxs = <&pinmuxa 14 1>, <&pinmuxa 15 0>;
-			width = <170>;
-			height = <320>;
+			width = <320>;
+			height = <205>;
 			orientation = <0>;
-			x-offset = <35>;
+			x-offset = <0>;
 			y-offset = <0>;
 
 			// width = <320>;
@@ -137,7 +137,7 @@
 			// 0xA3
 			// mdac = <0xA7>;
 			// mdac = <0xA3>;
-			mdac = <0x00>;
+			mdac = <0x60>;
 			// reg:0x26
 			gamma = <0x01>;
 			// reg:0x3a

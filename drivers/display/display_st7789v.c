@@ -381,7 +381,7 @@ static int st7789v_set_orientation(struct st7789v_data *p_st7789v,
 	// tx_data |= ST7789V_MADCTL_MX | ST7789V_MADCTL_MV;
 	// tx_data |= ST7789V_MADCTL_MV;
 
-	st7789v_transmit(p_st7789v, ST7789V_CMD_MADCTL, &tx_data, 1U);
+	// st7789v_transmit(p_st7789v, ST7789V_CMD_MADCTL, &tx_data, 1U);
 
 	// p_st7789v->orientation = orientation;
 
