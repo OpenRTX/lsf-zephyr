@@ -25,7 +25,6 @@
 extern void* GPIOA(void);
 void Wifi_Test_Pin_Set(uint8_t pin, uint8_t value)
 {
-    GPIO_SetDir(GPIOA(), (1 << pin), CSK_GPIO_DIR_OUTPUT);
     GPIO_PinWrite(GPIOA(), (1 << pin), value);
 }
 
@@ -93,10 +92,46 @@ static ssize_t sendall(int sock, const void *buf, size_t len)
 
 	return 0;
 }
+
+
+uint32_t test_get_speed(uint32_t time)
+{
+    uint32_t speed = 1000000 / time;
+    speed = 8 * speed * NET_SIZE;
+
+    return speed >> 10;
+}
+
+#define AVERNUM 20
+void test_info(uint32_t time)
+{
+    static uint32_t sum = 0;
+    static uint8_t cnt = 0;
+
+    if(time < 400000)
+    {
+        return;
+    }
+
+    sum += time;
+    cnt++;
+
+    if(cnt >= AVERNUM)
+    {
+        sum = sum/AVERNUM;
+        //cycle = 3.3ns
+        sum = sum * 33;
+        sum = sum / 10000;
+        printk("socket average time:%d(us) speed:%d(kb/s)\n", sum, test_get_speed(sum));
+        sum = 0;
+        cnt = 0;
+    }
+}
+
 #define PRINT_HEAP_INFO()  {extern struct k_heap _system_heap;sys_heap_print_info(&_system_heap.heap,0);}
 static void tcp_client_task(void *arg1, void *arg2, void *arg3)
 {
-    uint32_t count = 0;
+    uint32_t time = 0;
 	printk("Please startup a tcp server and pass parameters into the program\n");
     k_sem_take(&ip_sem, K_FOREVER);
 	printk("wifi connected event is token\n");
@@ -127,14 +162,17 @@ static void tcp_client_task(void *arg1, void *arg2, void *arg3)
     while(1){
         // PRINT_HEAP_INFO();
         Wifi_Test_Pin_Set(6, 1);
+        time = k_cycle_get_32();
         int wd_ret = sendall(socket_fd, lorem_ipsum, sizeof(lorem_ipsum) - 1);
+        time = k_cycle_get_32() - time;
         Wifi_Test_Pin_Set(6, 0);
         if (wd_ret < 0) {
             printk("write socket failed, closing socket... %d\n", errno);
             close(socket_fd);
             goto __cleanup;
         }
-        printk("write socket successful  %d\n", count++);
+        test_info(time);
+        // printk("write socket successful  %d time:%d(cycle)\n", count, time);
         k_msleep(100);
     }
 __cleanup:
@@ -182,9 +220,13 @@ csk_wifi_event_cb_t wifi_event_cb;
 void main(void)
 {
     IOMuxManager_PinConfigure(CSK_IOMUX_PAD_A, 4, CSK_IOMUX_FUNC_DEFAULT);
+    GPIO_SetDir(GPIOA(), (1 << 4), CSK_GPIO_DIR_OUTPUT);
     IOMuxManager_PinConfigure(CSK_IOMUX_PAD_A, 5, CSK_IOMUX_FUNC_DEFAULT);
+    GPIO_SetDir(GPIOA(), (1 << 5), CSK_GPIO_DIR_OUTPUT);
     IOMuxManager_PinConfigure(CSK_IOMUX_PAD_A, 6, CSK_IOMUX_FUNC_DEFAULT);
+    GPIO_SetDir(GPIOA(), (1 << 6), CSK_GPIO_DIR_OUTPUT);
     IOMuxManager_PinConfigure(CSK_IOMUX_PAD_A, 7, CSK_IOMUX_FUNC_DEFAULT);
+    GPIO_SetDir(GPIOA(), (1 << 7), CSK_GPIO_DIR_OUTPUT);
 
     csk_wifi_init();
     // csk_wifi_event_cb_t *wifi_event_cb = k_malloc(sizeof(csk_wifi_event_cb_t));
