@@ -1,8 +1,4 @@
-# Private config options for load sencond core firmware app
-
 # SPDX-License-Identifier: Apache-2.0
-
-# Workaround for not being able to have commas in macro arguments
 
 DT_CHOSEN_Z_IPC_SHM := zephyr,ipc_shm
 
