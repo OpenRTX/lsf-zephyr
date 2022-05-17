@@ -52,6 +52,10 @@ properties:
       required: true
       description: The row offset in pixels of the LCD to the controller memory
 
+    orientation:
+      type: int
+      required: false
+      description: orientation
     vcom:
       type: int
       required: true
@@ -76,7 +80,19 @@ properties:
       type: int
       required: true
       description: Memory Data Access Control
-
+      
+    teon:
+      type: int
+      required: false
+      description: TEON Setting
+    vdvvrhen:
+      type: int
+      required: false
+      description: VDV and VRH Command Enable
+    frctrl2:
+      type: int
+      required: false
+      description: FRCTRL2 (C6h) Frame Rate Control in Normal Mode
     lcm:
       type: int
       required: true
@@ -91,6 +107,11 @@ properties:
       type: int
       required: true
       description: Gamma Setting
+
+    ste-param:
+      type: uint8-array
+      required: false
+      description: Ste Setting
 
     porch-param:
       type: uint8-array

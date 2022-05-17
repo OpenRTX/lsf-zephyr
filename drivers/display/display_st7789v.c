@@ -23,11 +23,21 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(display_st7789v);
 
+// LOG_MODULE_REGISTER(display_st7789v, LOG_LEVEL_DBG);
+
+int te_flag = 0;
+
 #define ST7789V_CS_PIN		DT_INST_SPI_DEV_CS_GPIOS_PIN(0)
 #define ST7789V_CMD_DATA_PIN	DT_INST_GPIO_PIN(0, cmd_data_gpios)
 #define ST7789V_CMD_DATA_FLAGS	DT_INST_GPIO_FLAGS(0, cmd_data_gpios)
 #define ST7789V_RESET_PIN	DT_INST_GPIO_PIN(0, reset_gpios)
 #define ST7789V_RESET_FLAGS	DT_INST_GPIO_FLAGS(0, reset_gpios)
+
+
+#define TE_NODE 		DT_NODELABEL(tearing)
+#define GPIO_TE			DT_GPIO_CTLR(TE_NODE, gpios) 
+#define PIN_TE			DT_GPIO_PIN(TE_NODE, gpios) 
+#define FLAGS_TE		DT_GPIO_FLAGS(TE_NODE, gpios) 
 
 static uint8_t st7789v_porch_param[] = DT_INST_PROP(0, porch_param);
 static uint8_t st7789v_cmd2en_param[] = DT_INST_PROP(0, cmd2en_param);
@@ -36,6 +46,7 @@ static uint8_t st7789v_pvgam_param[] = DT_INST_PROP(0, pvgam_param);
 static uint8_t st7789v_nvgam_param[] = DT_INST_PROP(0, nvgam_param);
 static uint8_t st7789v_ram_param[] = DT_INST_PROP(0, ram_param);
 static uint8_t st7789v_rgb_param[] = DT_INST_PROP(0, rgb_param);
+static uint8_t st7789v_ste_param[] = DT_INST_PROP(0, ste_param);
 
 struct st7789v_data {
 	const struct device *spi_dev;
@@ -53,6 +64,12 @@ struct st7789v_data {
 	uint16_t width;
 	uint16_t x_offset;
 	uint16_t y_offset;
+	uint16_t frctrl2;
+	uint16_t teon;
+	uint16_t mdac;
+	uint16_t vdvvrhen;
+	uint16_t orientation;
+
 };
 
 #ifdef CONFIG_ST7789V_RGB565
@@ -153,7 +170,7 @@ static void st7789v_set_mem_area(struct st7789v_data *data, const uint16_t x,
 	st7789v_transmit(data, ST7789V_CMD_RASET, (uint8_t *)&spi_data[0], 4);
 }
 
-static int st7789v_write(const struct device *dev,
+static int _st7789v_write(const struct device *dev,
 			 const uint16_t x,
 			 const uint16_t y,
 			 const struct display_buffer_descriptor *desc,
@@ -201,6 +218,70 @@ static int st7789v_write(const struct device *dev,
 	return 0;
 }
 
+
+void set_te_flag(int flag){
+	te_flag = flag;
+	// printk("te_flag:%d\n",te_flag);
+}
+
+
+void te_interrupt_cb(const struct device *dev, struct gpio_callback *cb,
+		    uint32_t pins){
+    static int last_time = 0;
+    int now_time = k_uptime_get();
+
+    set_te_flag(1);
+    LOG_INF("te_i:%d,gap:%d\n",k_uptime_get(),now_time - last_time);
+    last_time = now_time;
+    // printk("te_interrupt_cb\n");
+
+}
+int init_te(void){
+    static struct gpio_callback te_cb_data;
+
+	const struct device *te = DEVICE_DT_GET(GPIO_TE);
+	if (!device_is_ready(te)) {
+		printk("Error: te device %s is not ready", te->name);
+		return -1;
+	}
+	int ret = gpio_pin_configure(te, PIN_TE, GPIO_INPUT | 0);
+   	if (ret < 0) {
+		printk("Error: power_lock configure %d", ret);
+		return ret;
+	}
+    ret = gpio_pin_interrupt_configure(te, PIN_TE, GPIO_INT_EDGE_FALLING);
+	if (ret) {
+		return ret;
+	}
+
+	gpio_init_callback(&te_cb_data, te_interrupt_cb, BIT(PIN_TE));
+	gpio_add_callback(te, &te_cb_data);
+    return 1;
+}
+
+static int st7789v_write(const struct device *dev,
+			 const uint16_t x,
+			 const uint16_t y,
+			 const struct display_buffer_descriptor *desc,
+			 const void *buf)
+{
+	while(!te_flag){
+		k_msleep(1);
+	}
+
+	static int last_time = 0;
+	int now_time = k_uptime_get();
+
+	_st7789v_write(dev, x, y, desc, buf);
+
+	// LOG_INF("[w]:[%d - %d],write_time:[%d],g:[%d]\n", now_time, k_uptime_get() , k_uptime_get() - now_time, now_time - last_time);
+
+	last_time = now_time;
+	te_flag = 0; 
+
+	return 0;
+}
+
 static void *st7789v_get_framebuffer(const struct device *dev)
 {
 	return NULL;
@@ -216,6 +297,38 @@ static int st7789v_set_contrast(const struct device *dev,
 			 const uint8_t contrast)
 {
 	return -ENOTSUP;
+}
+
+static int st7789v_set_orientation(struct st7789v_data *p_st7789v,
+				   const enum display_orientation orientation)
+{
+	// struct st7789v_data *data = dev->data;
+
+	uint8_t tx_data = 0;
+	printk("orientation:%d", orientation);
+	// uint8_t tx_data = ST7789V_MADCTL_BGR;
+
+	// if (orientation == DISPLAY_ORIENTATION_NORMAL) {
+	// 	tx_data |= ST7789V_MADCTL_MX;
+	// } else if (orientation == DISPLAY_ORIENTATION_ROTATED_90) {
+	// 	tx_data |= ST7789V_MADCTL_MV;
+	// } else if (orientation == DISPLAY_ORIENTATION_ROTATED_180) {
+	// 	tx_data |= ST7789V_MADCTL_MY;
+	// } else if (orientation == DISPLAY_ORIENTATION_ROTATED_270) {
+	// 	tx_data |= ST7789V_MADCTL_MV | ST7789V_MADCTL_MX |
+	// 		   ST7789V_MADCTL_MY;
+	// }
+
+	// tx_data |= ST7789V_MADCTL_MY | ST7789V_MADCTL_MV ;
+	// tx_data |= ST7789V_MADCTL_MX | ST7789V_MADCTL_MY | ST7789V_MADCTL_MV | ST7789V_MADCTL_ML;
+	// tx_data |= ST7789V_MADCTL_MX | ST7789V_MADCTL_MV;
+	// tx_data |= ST7789V_MADCTL_MV;
+
+	st7789v_transmit(p_st7789v, ST7789V_CMD_MADCTL, &tx_data, 1U);
+
+	// p_st7789v->orientation = orientation;
+
+	return 0;
 }
 
 static void st7789v_get_capabilities(const struct device *dev,
@@ -251,16 +364,6 @@ static int st7789v_set_pixel_format(const struct device *dev,
 	return -ENOTSUP;
 }
 
-static int st7789v_set_orientation(const struct device *dev,
-			    const enum display_orientation orientation)
-{
-	if (orientation == DISPLAY_ORIENTATION_NORMAL) {
-		return 0;
-	}
-	LOG_ERR("Changing display orientation not implemented");
-	return -ENOTSUP;
-}
-
 static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 {
 	uint8_t tmp;
@@ -279,8 +382,13 @@ static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 	st7789v_transmit(p_st7789v, ST7789V_CMD_DGMEN, &tmp, 1);
 
 	/* Frame Rate Control in Normal Mode, default value */
-	tmp = 0x0f;
-	st7789v_transmit(p_st7789v, ST7789V_CMD_FRCTRL2, &tmp, 1);
+	// tmp = 0x0f;
+	// st7789v_transmit(p_st7789v, ST7789V_CMD_FRCTRL2, &tmp, 1);
+
+	/* FRCTRL2 (C6h): Frame Rate Control in Normal Mode */
+	// static uint8_t hh= 0x1E;
+	// tmp = DT_INST_PROP(0, frctrl2);
+	st7789v_transmit(p_st7789v, ST7789V_CMD_FRCTRL2, &(p_st7789v->frctrl2), 1);
 
 	tmp = DT_INST_PROP(0, gctrl);
 	st7789v_transmit(p_st7789v, ST7789V_CMD_GCTRL, &tmp, 1);
@@ -300,12 +408,29 @@ static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 	st7789v_transmit(p_st7789v, ST7789V_CMD_VDS, &tmp, 1);
 #endif
 
-	st7789v_transmit(p_st7789v, ST7789V_CMD_PWCTRL1, st7789v_pwctrl1_param,
-			 sizeof(st7789v_pwctrl1_param));
+	// st7789v_transmit(p_st7789v, ST7789V_CMD_PWCTRL1, st7789v_pwctrl1_param,
+	// 		 sizeof(st7789v_pwctrl1_param));
 
 	/* Memory Data Access Control */
-	tmp = DT_INST_PROP(0, mdac);
-	st7789v_transmit(p_st7789v, ST7789V_CMD_MADCTL, &tmp, 1);
+	// tmp = DT_INST_PROP(0, mdac);
+	st7789v_transmit(p_st7789v, ST7789V_CMD_MADCTL, &(p_st7789v->mdac), 1);
+
+	st7789v_set_orientation(p_st7789v, p_st7789v->orientation);
+
+
+	/* VDV and VRH Command Enable */
+	// tmp = DT_INST_PROP(0, vdvvrhen);
+	st7789v_transmit(p_st7789v, ST7789V_CMD_VDVVRHEN, &(p_st7789v->vdvvrhen), 1);
+
+	
+
+	/* TEON (35h): Tearing Effect Line On */
+	// tmp = DT_INST_PROP(0, teon);
+	st7789v_transmit(p_st7789v, ST7789V_CMD_TEON, &(p_st7789v->teon), 1);
+
+	/* STE (44h): Set Tear Scanline */
+	st7789v_transmit(p_st7789v, ST7789V_CMD_STE, st7789v_ste_param,
+			 sizeof(st7789v_ste_param));
 
 	/* Interface Pixel Format */
 	tmp = DT_INST_PROP(0, colmod);
@@ -407,6 +532,8 @@ static int st7789v_init(const struct device *dev)
 
 	st7789v_exit_sleep(data);
 
+	init_te();
+
 	return 0;
 }
 
@@ -451,6 +578,13 @@ static struct st7789v_data st7789v_data = {
 	.height = DT_INST_PROP(0, height),
 	.x_offset = DT_INST_PROP(0, x_offset),
 	.y_offset = DT_INST_PROP(0, y_offset),
+	.frctrl2 = DT_INST_PROP(0, frctrl2),
+	.teon = DT_INST_PROP(0, teon),
+	.vdvvrhen = DT_INST_PROP(0, vdvvrhen),
+	.mdac = DT_INST_PROP(0, mdac),
+	.orientation = DT_INST_PROP(0, orientation),
+	
+	
 };
 
 DEVICE_DT_INST_DEFINE(0, &st7789v_init,
