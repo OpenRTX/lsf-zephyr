@@ -1,0 +1,1 @@
+source "$MICROPY_SDK/ports/zephyr/Kconfig"

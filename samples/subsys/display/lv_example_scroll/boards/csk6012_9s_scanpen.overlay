@@ -1,0 +1,185 @@
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	chosen {
+		/*
+		 * shared memory reserved for the inter-processor communication
+		 */
+		zephyr,flash_sysfs_storage = &filesystem_part;
+		zephyr,flash_controller = &flash;
+	};
+	
+	fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/flash";
+			partition = <&filesystem_part>;
+			automount ;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
+	};
+
+	gpio,user {
+		compatible = "listenai,csk-gpio-user";
+		pwrlock: powerlock {
+			gpios = <&gpiob 4 1>;
+			label = "power_lock";
+		};
+
+		tearing: tearing {
+			gpios = <&gpiob 8 1>;
+			label = "TE";
+		};
+    };
+
+};
+
+&spi0 {
+        status = "okay";
+        miso-gpios = <&gpioa 13 0>;
+        mosi-gpios = <&gpioa 10 0>;
+        sclk-gpios = <&gpioa 11 0>;
+        cs-gpios = <&gpioa 12 0>;
+
+		/* 
+		st7789v@0 {
+			compatible = "sitronix,st7789v";
+			label = "ST7789V";
+			status = "okay";
+			spi-max-frequency = <30000000>;
+			reg = <0>;
+			cmd-data-gpios = <&gpioa 14 1>;
+			reset-gpios = <&gpioa 15 1>;
+			width = <170>;
+			height = <320>;
+			x-offset = <35>;
+			y-offset = <0>;
+			orientation = <2>;
+			vdvvrhen = <0x1>;
+
+			// FRCTRL2 (C6h) Frame Rate Control in Normal Mode
+			frctrl2 = <0x1E>;
+			// reg:0xBB
+			vcom = <0x1e>;
+			// reg:0xB7
+			gctrl = <0x35>;
+			// reg:0xC3
+			vrhs = <0x0b>;
+			// reg:0xC4
+			vdvs = <0x20>;
+			// reg:0x36
+			mdac = <0x34>;
+			// reg:0x26
+			gamma = <0x01>;
+			// reg:0x3a
+			colmod = <0x05>;
+			// reg:0xc0
+			lcm = <0x2C>;
+			// TEON (35h): Tearing Effect Line On 
+			teon = <0x00>;
+			// STE (44h): Set Tear Scanline 
+			ste-param = [ f0 00 ];
+			// reg:0xb2
+			porch-param = [05 05 00 33 33];
+			// reg:0xDF
+			cmd2en-param = [5a 69 02 01];
+			// reg:0xD0
+			pwctrl1-param = [a4 a1];
+			// reg:0xE0
+			pvgam-param = [d0 06 0b 07 07 24 2e 32 46 37 13 13 2d 33];
+			// reg:0xE1
+			nvgam-param = [d0 02 06 09 08 05 29 44 42 38 14 14 2a 30];
+			// reg:b0
+			ram-param = [00 F0];
+			// reg:b1
+			rgb-param = [CD 08 14];
+	};
+		*/
+		
+		st7789v@0 {
+			compatible = "sitronix,st7789v";
+			label = "ST7789V";
+			status = "okay";
+			//spi-max-frequency = <60000000>;
+			spi-max-frequency = <40000000>;
+			reg = <0>;
+			cmd-data-gpios = <&gpioa 14 1>;
+			reset-gpios = <&gpioa 15 1>;
+			pinmuxs = <&pinmuxa 14 1>, <&pinmuxa 15 0>;
+			width = <170>;
+			height = <320>;
+			orientation = <0>;
+			x-offset = <35>;
+			y-offset = <0>;
+
+			// width = <320>;
+			// height = <170>;
+			// orientation = <0>;
+			// x-offset = <0>;
+			// y-offset = <35>;
+
+
+
+			// reg:0xBB
+			vcom = <0x1e>;
+			// reg:0xB7 
+			gctrl = <0x35>;
+			// reg:0xC3
+			vrhs = <0x0b>;
+			// reg:0xC4
+			vdvs = <0x20>;
+			// reg:0x36
+			// 0xA3
+			// mdac = <0xA7>;
+			// mdac = <0xA3>;
+			mdac = <0x00>;
+			// reg:0x26
+			gamma = <0x01>;
+			// reg:0x3a
+			// colmod = <0x05>;
+			colmod = <0x55>;
+			// reg:0xc0
+			lcm = <0x2C>;
+			// FRCTRL2 (C6h) Frame Rate Control in Normal Mode
+			frctrl2 = <0x1E>;
+			// VDVVRHEN (C2h): VDV and VRH Command Enable
+			vdvvrhen = <0x01>;
+			// TEON (35h): Tearing Effect Line On 
+            teon = <0x00>;
+			// STE (44h): Set Tear Scanline 
+			ste-param = [ 00 80 ];
+			// porch reg:0xb2
+			porch-param = [0c 0c 00 33 33];
+			// reg:0xDF
+			cmd2en-param = [5a 69 02 01];
+			// reg:0xD0
+			pwctrl1-param = [a4 a1];
+			// reg:0xE0
+			pvgam-param = [d0 06 0b 07 07 24 2e 32 46 37 13 13 2d 33];
+			// reg:0xE1
+			nvgam-param = [d0 02 06 09 08 05 29 44 42 38 14 14 2a 30];
+			// reg:b0
+			ram-param = [00 F0];
+			// reg:b1
+			rgb-param = [CD 08 14];
+		};
+		
+};
+
+ 
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		filesystem_part: partition@1C0000 {
+			label = "storage";
+			reg = <0x1C0000 0x2f0000>;
+		};
+	};
+};
