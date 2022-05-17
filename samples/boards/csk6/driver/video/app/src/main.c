@@ -189,9 +189,11 @@ static void test_thread_2(void *p1, void *p2, void *p3)
     const struct device *video = device_get_binding(VIDEO_DEV);
 
     while(1) {
-        int r = video_dequeue(video, VIDEO_EP_OUT, &buf, K_NO_WAIT);
+        int r = video_dequeue(video, VIDEO_EP_OUT, &buf, K_FOREVER);
         LOG_INF("video_dequeue r:%d, buf:%p", r, buf);
-        k_yield();
+        if (r == 0 && buf != NULL) {
+            video_enqueue(video, VIDEO_EP_OUT, buf);
+        }
     }
 }
 
