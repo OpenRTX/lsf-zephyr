@@ -18,6 +18,8 @@
 #include <sys/byteorder.h>
 #include <drivers/display.h>
 #include <drivers/pinmux.h>
+#include <drivers/pwm.h>
+
 
 #define LOG_LEVEL CONFIG_DISPLAY_LOG_LEVEL
 #include <logging/log.h>
@@ -38,6 +40,34 @@ int te_flag = 0;
 #define GPIO_TE			DT_GPIO_CTLR(TE_NODE, gpios) 
 #define PIN_TE			DT_GPIO_PIN(TE_NODE, gpios) 
 #define FLAGS_TE		DT_GPIO_FLAGS(TE_NODE, gpios) 
+
+
+
+// devicetree: LCD PWM
+struct pwm_csk_config {
+	uint8_t pwm_pin;
+	uint8_t pwm_func;
+	uint8_t clock_source;
+	uint8_t clock_prescaler;
+	uint8_t mode;
+	const struct device *pinmux_drv;
+};
+
+// PWM SWDIO
+#define PWM_LED0_NODE	DT_NODELABEL(pwmlcd)
+#define PINMUXA_NODE 	DT_NODELABEL(pinmuxa)
+#define SWDIO_PIN_NUM 	1
+#define SWDIO_PIN_FUNC 	0
+#define PWM1_PIN_FUNC 	11
+
+// devicetree: power lock
+#define PWR_LOCK_NODE 	DT_NODELABEL(pwrlock)
+#define GPIO_PWR_LOCK	DT_GPIO_CTLR(PWR_LOCK_NODE, gpios) 
+#define PIN_PWR_LOCK	DT_GPIO_PIN(PWR_LOCK_NODE, gpios) 
+#define FLAGS_PWR_LOCK	DT_GPIO_FLAGS(PWR_LOCK_NODE, gpios) 
+
+
+
 
 static uint8_t st7789v_porch_param[] = DT_INST_PROP(0, porch_param);
 static uint8_t st7789v_cmd2en_param[] = DT_INST_PROP(0, cmd2en_param);
@@ -77,6 +107,33 @@ struct st7789v_data {
 #else
 #define ST7789V_PIXEL_SIZE 3u
 #endif
+
+
+
+enum PIN_FUNC{
+	PWM1_FUNC,
+	SWD_FUNC
+};
+void pin_set_func(enum PIN_FUNC func){
+	const struct device *pinmuxa = DEVICE_DT_GET(PINMUXA_NODE);
+	if (!device_is_ready(pinmuxa)) {
+		LOG_ERR("pinmuxa device is not ready");
+		return;
+	}
+	switch (func)
+	{
+	case PWM1_FUNC:
+		pinmux_pin_set(pinmuxa, SWDIO_PIN_NUM, PWM1_PIN_FUNC);
+		break;
+	case SWD_FUNC:
+		pinmux_pin_set(pinmuxa, SWDIO_PIN_NUM, SWDIO_PIN_FUNC);
+		break;
+	default:
+		break;
+	}
+}
+
+
 
 static void st7789v_set_lcd_margins(struct st7789v_data *data,
 			     uint16_t x_offset, uint16_t y_offset)
@@ -475,6 +532,13 @@ static int st7789v_init(const struct device *dev)
 
 	// use hardware spi_cs
 	data->spi_config.cs = NULL;
+
+
+	pin_set_func(PWM1_FUNC);
+	int ret;
+	const struct device *pwm = DEVICE_DT_GET(PWM_LED0_NODE);
+	ret = pwm_pin_set_nsec(pwm, 1, 20000,  200, 1);
+
 
 #if DT_INST_NODE_HAS_PROP(0, pinmuxs)
 
