@@ -1,0 +1,19 @@
+manifest:
+  remotes:
+    - name: listenai
+      url-base: https://cloud.listenai.com/zephyr
+  projects:
+    - name: listenai
+      remote: zephyrproject-rtos
+      revision: zephyr-v2.6.0
+      clone-depth: 1
+      import:
+        name-allowlist:
+          - cmsis
+          - xr819s
+    - name: xr819s
+      remote: listenai
+      revision: 3c6c58e0ea84036fe14afcc622b0e1d9e3effeee
+      path: ../../../../../../modules/lib/xr819s      
+  self: 
+    west-commands: ../../../../../scripts/west-commands.yml
