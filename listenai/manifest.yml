@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: 37079965ca5e7669de4cd3d01c74d974263c5240
+      revision: 101d92e33a69ad0fcd8d8bcf945076c70a74b80b
       path: modules/hal/listenai
       groups:
         - hal
@@ -35,7 +35,7 @@ manifest:
       path: bootloader/mcuboot
     - name: sof_host
       remote: listenai
-      revision: 1cdd22c5c7a79a839b1f98df0f72dde12a851e8a
+      revision: ba730bdfeb88dd008f918e62740c9045b3438bbe
       path: modules/lib/sof_host
     - name: lisa_player
       remote: listenai

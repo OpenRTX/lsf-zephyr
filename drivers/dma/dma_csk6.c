@@ -10,7 +10,11 @@
 #include <drivers/dma.h>
 #include <logging/log.h>
 
+#ifdef CONFIG_SOC_LS_ADSP_CSK6
+#include "hal/reg/dma_venus.h"
+#else
 #include "hal/dma.h"
+#endif
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
 #define DMA_CSK6_RAM_FUNC 
@@ -206,12 +210,24 @@ csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
     ch_info->cb_info.callback(dev, ch_info->cb_info.user_data, channel, ret);
 }
 
+extern void dma_irq_handler(void);
 DMA_CSK6_RAM_FUNC
- static void
+static void
 csk_dma_irq_handler(const struct device *dev)
 {
-    extern void dma_irq_handler(void);
+    GPIO_RegDef* reg = 0x45900000;
+    reg->REG_DATAOUT.all |= (1 << 4);
     dma_irq_handler();
+    reg->REG_DATAOUT.all &= ~(1 << 4);
+}
+
+ISR_DIRECT_DECLARE(dma_direct_irq_handler)
+{
+    GPIO_RegDef* reg = 0x45900000;
+    reg->REG_DATAOUT.all |= (1 << 4);
+    dma_irq_handler();
+    reg->REG_DATAOUT.all &= ~(1 << 4);
+    return 1;
 }
 
 static int csk_dma_init(const struct device *dev)
@@ -227,8 +243,9 @@ static int csk_dma_init(const struct device *dev)
 	if (data->channels_info == NULL) {
 		return -ENOMEM;
 	}
-    IRQ_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
-                csk_dma_irq_handler, DEVICE_DT_INST_GET(0), 0);
+    
+    IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
+                dma_direct_irq_handler, Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
 	irq_enable(DT_INST_IRQN(0));
     return 0;
 }

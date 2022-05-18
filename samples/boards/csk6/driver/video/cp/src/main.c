@@ -30,6 +30,9 @@ void main(void)
 	struct video_buffer *vbuf;
 	int ret;
 
+	// xthal_set_cache_prefetch(XTHAL_PREFETCH_DISABLE);
+	// xthal_set_region_attribute((int *)0x5FF00000, 0x2000, XCHAL_CA_BYPASS, 0);
+
 	printk("Hello World! %s\n", CONFIG_BOARD);
 
 	if (!device_is_ready(ipm)) {
@@ -44,26 +47,65 @@ void main(void)
 
 	int x = 0;
 
-    /* Send msg to ap core to start the video stream */
-	ipm_register_callback(ipm, ipm_callback, NULL);
-	ipm_set_enabled(ipm, 1);
-	ipm_send(ipm, 1, 0, &x, sizeof(x));
-
-	/* Start video capture */
+	/* Start video capture. Make sure cp starts before ap. */
 	if (video_stream_start(video)) {
 		printk("Unable to start video.\n");
 		return;
 	}
 	printk("start video steam.\n");
 
+    /* Send msg to ap core to start the video stream */
+	ipm_register_callback(ipm, ipm_callback, NULL);
+	ipm_set_enabled(ipm, 1);
+	ipm_send(ipm, 1, 0, &x, sizeof(x));
+
+    uint32_t cnt = 0;
+    uint32_t err_times = 0;
+
 	uint32_t last_tick = 0;
 	while (1) {
 		ret = video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_FOREVER);
 		if (ret == 0) {
 			if (vbuf->timestamp - last_tick > 0) {
-				printk("FPS:%d.\n", 1000 / (vbuf->timestamp - last_tick));
+				int fps = 1000 / (vbuf->timestamp - last_tick);
+				if(fps != 62 && fps != 71 && fps != 66){
+					err_times++;
+				}
+				printk("FPS:%d total: %d err_time: %d rate: %d%%\n", fps, cnt++, err_times, err_times / cnt * 100);
 			}
 			last_tick = vbuf->timestamp;
-		}
+		} else {
+            printk("recv frame timeout.\n");
+        }
 	}
 }
+
+static void test_thread(void *p1, void *p2, void *p3)
+{
+    while(1) {
+        // printk("test_thread is running.\n");
+        k_msleep(10);
+    }
+}
+
+#define DELAY_MSEC 1000
+
+K_THREAD_DEFINE(bf30a2_thread_id_1, 2048,                                \
+			test_thread, NULL, NULL, NULL,               \
+			0, 0, DELAY_MSEC + 1);
+
+K_THREAD_DEFINE(bf30a2_thread_id_2, 2048,                                \
+			test_thread, NULL, NULL, NULL,               \
+			1, 0, DELAY_MSEC + 3);
+
+K_THREAD_DEFINE(bf30a2_thread_id_3, 2048,                                \
+			test_thread, NULL, NULL, NULL,               \
+			2, 0, DELAY_MSEC + 2);
+
+K_THREAD_DEFINE(bf30a2_thread_id_4, 2048,                                \
+			test_thread, NULL, NULL, NULL,               \
+			3, 0, DELAY_MSEC + 4);
+
+// K_THREAD_DEFINE(bf30a2_thread_id_5, 2048,                                \
+// 			test_thread, NULL, NULL, NULL,               \
+// 			4, 0, DELAY_MSEC + 5);

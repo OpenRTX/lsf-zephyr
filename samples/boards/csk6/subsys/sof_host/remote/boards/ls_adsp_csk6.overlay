@@ -1,11 +1,36 @@
-&spi1 {
-        miso-gpios = <&gpioa 6 0>;
-        mosi-gpios = <&gpioa 7 7>;
-        sclk-gpios = <&gpioa 8 7>;
-        cs-gpios   = <&gpioa 9 7>;
+&ls_adsp_csk6_pinctrl{
 
+		pinctrl_spi1_sclk_default: spi1_sclk_default {
+            pinctrls = < &pinmuxb 0 7 >;
+		};
+
+		pinctrl_spi1_mosi_default: spi1_mosi_default {
+            pinctrls = < &pinmuxb 1 7 >;
+		};
+
+		pinctrl_spi1_miso_default: spi1_miso_default {
+            pinctrls = < &pinmuxa 1 7 >;
+		};
+
+        pinctrl_spi1_cs_default: spi1_cs_default {
+            pinctrls = < &pinmuxa 9 7 >;
+		};
+
+        pinctrl_uart2_rx_default: uart2_rx_default {
+			pinctrls = < &pinmuxb 7 3 >;
+		};
+
+		pinctrl_uart2_tx_default: uart2_tx_default {
+			pinctrls = < &pinmuxa 18 3 >;
+		};
+
+};
+
+&spi1 {
         status = "okay";
         spi-max-frequency = <25000000>;
+		pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
+		pinctrl-names = "default";
 
         bf30a2: bf30a2@6e {
             compatible = "byd,bf30a2";
@@ -14,11 +39,4 @@
             reg = <0x6e>;
             csk6-spec;
     };
-};
-
-&uart2 {
-	current-speed = <115200>;
-	pinmuxs = <&pinmuxb 7 3>, <&pinmuxb 6 3>;
-    /* pinmux-names = "RXD", "TXD"; */
-	status = "okay";
 };

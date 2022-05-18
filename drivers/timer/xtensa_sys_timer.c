@@ -19,12 +19,14 @@
 static struct k_spinlock lock;
 static unsigned int last_count;
 
+__attribute__ ((section(".iram.text")))
 static void set_ccompare(uint32_t val)
 {
 	__asm__ volatile ("wsr.CCOMPARE" STRINGIFY(CONFIG_XTENSA_TIMER_ID) " %0"
 			  :: "r"(val));
 }
 
+__attribute__ ((section(".iram.text")))
 static uint32_t ccount(void)
 {
 	uint32_t val;
@@ -33,16 +35,17 @@ static uint32_t ccount(void)
 	return val;
 }
 
+__attribute__ ((section(".iram.text")))
 static void ccompare_isr(const void *arg)
 {
 	ARG_UNUSED(arg);
-
 	k_spinlock_key_t key = k_spin_lock(&lock);
+
 	uint32_t curr = ccount();
 	uint32_t dticks = (curr - last_count) / CYC_PER_TICK;
 
 	last_count += dticks * CYC_PER_TICK;
-
+    
 	if (!IS_ENABLED(CONFIG_TICKLESS_KERNEL)) {
 		uint32_t next = last_count + CYC_PER_TICK;
 

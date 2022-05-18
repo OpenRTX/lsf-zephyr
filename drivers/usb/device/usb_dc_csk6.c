@@ -16,7 +16,7 @@
 
 #include <sys/byteorder.h>
 
-#define LOG_LEVEL CONFIG_USB_DRIVER_LOG_LEVEL
+#define LOG_LEVEL LOG_LEVEL_ERR
 #include <logging/log.h>
 LOG_MODULE_REGISTER(usb_dc_csk);
 
