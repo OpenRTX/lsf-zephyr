@@ -28,6 +28,7 @@ LOG_MODULE_REGISTER(display_st7789v);
 // LOG_MODULE_REGISTER(display_st7789v, LOG_LEVEL_DBG);
 
 static struct k_sem te_lock;
+static int te_idle = 0;
 
 #define ST7789V_CS_PIN		DT_INST_SPI_DEV_CS_GPIOS_PIN(0)
 #define ST7789V_CMD_DATA_PIN	DT_INST_GPIO_PIN(0, cmd_data_gpios)
@@ -277,7 +278,10 @@ static int _st7789v_write(const struct device *dev,
 
 void te_interrupt_cb(const struct device *dev, struct gpio_callback *cb,
 		    uint32_t pins){
-    k_sem_give(&te_lock);
+	te_idle = gpio_pin_get(dev, PIN_TE);
+	if (te_idle) {
+		k_sem_give(&te_lock);
+	}
 }
 
 int init_te(void){
@@ -295,7 +299,7 @@ int init_te(void){
 		printk("Error: power_lock configure %d", ret);
 		return ret;
 	}
-    ret = gpio_pin_interrupt_configure(te, PIN_TE, GPIO_INT_EDGE_FALLING);
+    ret = gpio_pin_interrupt_configure(te, PIN_TE, GPIO_INT_EDGE_BOTH);
 	if (ret) {
 		return ret;
 	}
@@ -311,7 +315,9 @@ static int st7789v_write(const struct device *dev,
 			 const struct display_buffer_descriptor *desc,
 			 const void *buf)
 {
-	k_sem_take(&te_lock, K_FOREVER);
+	if (!te_idle) {
+		k_sem_take(&te_lock, K_FOREVER);
+	}
 	_st7789v_write(dev, x, y, desc, buf);
 	return 0;
 }
