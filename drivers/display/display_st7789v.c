@@ -53,6 +53,8 @@ struct st7789v_data {
 	uint16_t width;
 	uint16_t x_offset;
 	uint16_t y_offset;
+
+	uint8_t mdac;
 };
 
 #ifdef CONFIG_ST7789V_RGB565
@@ -251,14 +253,26 @@ static int st7789v_set_pixel_format(const struct device *dev,
 	return -ENOTSUP;
 }
 
+static int _st7789v_set_orientation(struct st7789v_data *data,
+			    const enum display_orientation orientation)
+{
+	uint8_t mdac = data->mdac;
+	if (orientation == DISPLAY_ORIENTATION_ROTATED_90) {
+		mdac |= ST7789V_MADCTL_MV_REVERSE_MODE | ST7789V_MADCTL_MX_RIGHT_TO_LEFT;
+	} else if (orientation == DISPLAY_ORIENTATION_ROTATED_270) {
+		mdac |= ST7789V_MADCTL_MV_REVERSE_MODE | ST7789V_MADCTL_MY_BOTTOM_TO_TOP;
+	} else if (orientation == DISPLAY_ORIENTATION_ROTATED_180) {
+		mdac |= ST7789V_MADCTL_MX_RIGHT_TO_LEFT | ST7789V_MADCTL_MY_BOTTOM_TO_TOP;
+	}
+	st7789v_transmit(data, ST7789V_CMD_MADCTL, &mdac, 1);
+	return 0;
+}
+
 static int st7789v_set_orientation(const struct device *dev,
 			    const enum display_orientation orientation)
 {
-	if (orientation == DISPLAY_ORIENTATION_NORMAL) {
-		return 0;
-	}
-	LOG_ERR("Changing display orientation not implemented");
-	return -ENOTSUP;
+	struct st7789v_data *data = (struct st7789v_data *)dev->data;
+	return _st7789v_set_orientation(data, orientation);
 }
 
 static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
@@ -304,8 +318,7 @@ static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 			 sizeof(st7789v_pwctrl1_param));
 
 	/* Memory Data Access Control */
-	tmp = DT_INST_PROP(0, mdac);
-	st7789v_transmit(p_st7789v, ST7789V_CMD_MADCTL, &tmp, 1);
+	_st7789v_set_orientation(p_st7789v, DT_INST_PROP(0, orientation));
 
 	/* Interface Pixel Format */
 	tmp = DT_INST_PROP(0, colmod);
@@ -451,6 +464,7 @@ static struct st7789v_data st7789v_data = {
 	.height = DT_INST_PROP(0, height),
 	.x_offset = DT_INST_PROP(0, x_offset),
 	.y_offset = DT_INST_PROP(0, y_offset),
+	.mdac = DT_INST_PROP(0, mdac),
 };
 
 DEVICE_DT_INST_DEFINE(0, &st7789v_init,
