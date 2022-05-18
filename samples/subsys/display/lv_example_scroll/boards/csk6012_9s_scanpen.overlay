@@ -57,6 +57,7 @@
 			height = <320>;
 			x-offset = <35>;
 			y-offset = <0>;
+			orientation = <0>;
 
 			vcom = <0x1e>;
 			gctrl = <0x35>;

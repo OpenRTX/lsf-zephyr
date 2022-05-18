@@ -52,6 +52,11 @@ properties:
       required: true
       description: The row offset in pixels of the LCD to the controller memory
 
+    orientation:
+      type: int
+      required: false
+      description: orientation
+
     vcom:
       type: int
       required: true
