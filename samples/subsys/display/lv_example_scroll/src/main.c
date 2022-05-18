@@ -6,6 +6,8 @@
 
 #include <device.h>
 #include <drivers/display.h>
+#include <drivers/pwm.h>
+#include <drivers/pinmux.h>
 #include <lvgl.h>
 // #include "demos/lv_demos.h"
 //#include "demos/benchmark/lv_demo_benchmark.h"
@@ -29,6 +31,10 @@
 // LOG_MODULE_REGISTER(app);
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
+
+#define GPIO_A_01 1
+#define GPIO_A_01_FUNC_SWDIO 0
+#define GPIO_A_01_FUNC_PWM1 11
 
 #if LV_USE_FLEX
 
@@ -152,6 +158,11 @@ void main(void)
 	lv_task_handler();
 
 	display_blanking_off(display_dev);
+
+	const struct device *pinmuxa = DEVICE_DT_GET(DT_NODELABEL(pinmuxa));
+	const struct device *pwmlcd = DEVICE_DT_GET(DT_NODELABEL(pwmlcd));
+	pinmux_pin_set(pinmuxa, GPIO_A_01, GPIO_A_01_FUNC_PWM1);
+	pwm_pin_set_nsec(pwmlcd, GPIO_A_01, 20000, 200, 1);
 
 	while (1) {
 		lv_task_handler();
