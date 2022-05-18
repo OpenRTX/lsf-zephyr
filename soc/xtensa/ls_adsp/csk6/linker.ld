@@ -23,7 +23,9 @@ OUTPUT_ARCH(xtensa)
 
 #include <devicetree.h>
 
-#if 1
+#define CP_XIP (0)
+
+#if CP_XIP
 /* #if DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
 
 #define LOAD_FROM_FLASH   1
@@ -49,8 +51,10 @@ OUTPUT_ARCH(xtensa)
 #define FLASH_START       (VECTORS_START + VECTORS_SIZE)
 #define FLASH_SIZE        (FLASH_PHY_START + FLASH_PHY_SIZE - FLASH_START)
 
+#define RESET_VECTOR        (FLASH_START)
+
 #define SDRAM0_START_X    0x60000000
-#define SDRAM0_SIZE_X     0x700000
+#define SDRAM0_SIZE_X     0x500000
 
 #else
 
@@ -64,6 +68,8 @@ OUTPUT_ARCH(xtensa)
 
 #define FLASH_START  0
 #define FLASH_SIZE   0
+
+#define RESET_VECTOR        (RESET_TEXT_ADDR)
 
 #define SDRAM0_START_X    (VECTORS_START + VECTORS_SIZE)
 #define SDRAM0_SIZE_X     0x500000 - ISR_VECTOR_SIZE
@@ -188,7 +194,7 @@ MEMORY
 
 ENTRY(CONFIG_KERNEL_ENTRY)
 
-PROVIDE(_memmap_reset_vector = FLASH_START);
+PROVIDE(_memmap_reset_vector = RESET_VECTOR);
 PROVIDE(_memmap_vecbase_reset = XCHAL_VECBASE_RESET_PADDR_IRAM);
 
 _heap_sentry = 0x64000000;
@@ -427,27 +433,51 @@ SECTIONS
     XIP_COPY_DEF(.KernelExceptionVector.text)
     XIP_COPY_DEF(.UserExceptionVector.text)
     XIP_COPY_DEF(.DoubleExceptionVector.text)
-    XIP_COPY_DEF(.iram.text)
-    XIP_COPY_DEF(.clib.data)
-    XIP_COPY_DEF(.clib.percpu.data)
-    XIP_COPY_DEF(.fw_ready)
-    XIP_COPY_DEF(.data)
 
+#if CP_XIP
+    XIP_COPY_DEF(.iram.text)
     XIP_COPY_DEF(.dram1.rodata)
     XIP_COPY_DEF(.dram1.data)
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
+
+    XIP_COPY_DEF(.clib.data)
+    XIP_COPY_DEF(.clib.percpu.data)
+    XIP_COPY_DEF(.fw_ready)
+    XIP_COPY_DEF(.data)
     XIP_COPY_DEF(.lit4)
 
     XIP_COPY_DEF(sw_isr_table)
     XIP_COPY_DEF(device_states)
-    XIP_COPY_DEF(k_sem_area)
+    XIP_COPY_DEF(initshell)
+    XIP_COPY_DEF(log_dynamic_sections)
     XIP_COPY_DEF(_static_thread_data_area)
     XIP_COPY_DEF(k_heap_area)
+    XIP_COPY_DEF(k_timer_area)
+    XIP_COPY_DEF(k_mem_slab_area)
+    XIP_COPY_DEF(k_mem_pool_area)
+    XIP_COPY_DEF(k_mutex_area)
+    XIP_COPY_DEF(k_stack_area)
+    XIP_COPY_DEF(k_msgq_area)
+    XIP_COPY_DEF(k_mbox_area)
+    XIP_COPY_DEF(k_pipe_area)
+    XIP_COPY_DEF(k_sem_area)
+    XIP_COPY_DEF(k_event_area)
+    XIP_COPY_DEF(k_queue_area)
+    XIP_COPY_DEF(k_condvar_area)
+    XIP_COPY_DEF(_net_buf_pool_area)
+#else
+    XIP_COPY_DEF(.iram.text)
+    XIP_COPY_DEF(.dram1.rodata)
+    XIP_COPY_DEF(.dram1.data)
+    XIP_COPY_DEF(.sharedmem.text)
+    XIP_COPY_DEF(.sharedmem.rodata)
+    XIP_COPY_DEF(.sharedmem.data)
+#endif
 
     __copy_table_end__ = .;
-  } > FLASH
+  } > ROMABLE_REGION
 
   .rtos.rodata : ALIGN(4)
   {
@@ -455,7 +485,7 @@ SECTIONS
     *(.rtos.rodata)
     . = ALIGN (4);
     _rtos_rodata_end = ABSOLUTE(.);
-  } > FLASH
+  } > ROMABLE_REGION
 
 
   .clib.rodata : ALIGN(4)
@@ -464,7 +494,7 @@ SECTIONS
     *(.clib.rodata)
     . = ALIGN (4);
     _clib_rodata_end = ABSOLUTE(.);
-  } > FLASH
+  } > ROMABLE_REGION
 
   .rodata : ALIGN(4)
   {
@@ -504,14 +534,14 @@ SECTIONS
     LONG(_sharedmem_bss_end)
     _bss_table_end = ABSOLUTE(.);
     _rodata_end = ABSOLUTE(.);
-  } > FLASH
+  } > ROMABLE_REGION
 
   .module_init : ALIGN(4)
   {
    _module_init_start = ABSOLUTE(.);
     *(*.module_init)
     _module_init_end = ABSOLUTE(.);
-  } > FLASH
+  } > ROMABLE_REGION
 
   .text : ALIGN(4)
   {
@@ -528,7 +558,7 @@ SECTIONS
     *(.gnu.version)
     _text_end = ABSOLUTE(.);
     _etext = .;
-  } > FLASH
+  } > ROMABLE_REGION
   
   .clib.text : ALIGN(4)
   {
@@ -536,11 +566,14 @@ SECTIONS
     *(.clib.literal .clib.text)
     . = ALIGN (4);
     _clib_text_end = ABSOLUTE(.);
-  } > FLASH
+  } > ROMABLE_REGION
 
 #include <linker/common-rom.ld>
-
-  . = ORIGIN(sdram0);
+#if CP_XIP
+  . = ORIGIN(RAMABLE_REGION);
+#else
+  . = ALIGN (4);
+#endif
   _IRAM_TEXT_LOAD_START_ = .;
   .iram.text : ALIGN(4)
   {
@@ -550,7 +583,7 @@ SECTIONS
     *(.iram0.literal .iram.literal .iram.text.literal .iram1.literal .iram0.text .iram.text .iram1)
     . = ALIGN (4);
     _iram_text_end = ABSOLUTE(.);
-  } >iram_text_start AT > FLASH
+  } >iram_text_start AT > ROMABLE_REGION
 
   .clib.data : ALIGN(4)
   {
@@ -559,7 +592,7 @@ SECTIONS
     *(.clib.data)
     . = ALIGN (4);
     _clib_data_end = ABSOLUTE(.);
-  } >sdram0 AT > FLASH
+  } >RAMABLE_REGION AT > ROMABLE_REGION
 
 
   .clib.percpu.data : ALIGN(4)
@@ -569,7 +602,7 @@ SECTIONS
     *(.clib.percpu.data)
     . = ALIGN (4);
     _clib_percpu_data_end = ABSOLUTE(.);
-  } >sdram0 AT > FLASH
+  } >RAMABLE_REGION AT > ROMABLE_REGION
 
 
   .fw_ready : ALIGN(4)
@@ -578,7 +611,7 @@ SECTIONS
     KEEP(*(".fw_ready"));
     KEEP (*(.fw_ready_metadata))
     . = ALIGN (4);
-  } >sdram0 AT > FLASH
+  } >RAMABLE_REGION AT > ROMABLE_REGION
 
   .noinit : ALIGN(4)
   {
@@ -586,7 +619,7 @@ SECTIONS
     *(.noinit)
     *(.noinit.*)
     . = ALIGN (4);
-  } >sdram0 AT > FLASH
+  } >RAMABLE_REGION AT > ROMABLE_REGION
 
   .data : ALIGN(4)
   {
@@ -608,7 +641,7 @@ SECTIONS
     *(.gna_model)
     _data_end = ABSOLUTE(.);
     . = ALIGN(4096);
-  } >sdram0 AT > FLASH
+  } >RAMABLE_REGION AT > ROMABLE_REGION
 
   .dram1.rodata : ALIGN(4)
   {
@@ -617,7 +650,7 @@ SECTIONS
     *(.dram1.rodata)
     . = ALIGN (4);
     _dram1_rodata_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > FLASH
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
 
   .dram1.data : ALIGN(4)
   {
@@ -626,7 +659,7 @@ SECTIONS
     *(.dram1.data)
     . = ALIGN (4);
     _dram1_data_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > FLASH
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
 
   .dram1.bss (NOLOAD) : ALIGN(8)
   {
@@ -635,7 +668,7 @@ SECTIONS
     *(.dram1.bss)
     . = ALIGN (8);
     _dram1_bss_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > FLASH
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
 
   .sharedmem.text : ALIGN(4)
   {
@@ -644,7 +677,7 @@ SECTIONS
     *(.sharedmem.literal .sharedmem.text)
     . = ALIGN (4);
     _sharedmem_text_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > FLASH
+  } >luna_sharedmem_data AT > ROMABLE_REGION
 
   .sharedmem.rodata : ALIGN(4)
   {
@@ -653,7 +686,7 @@ SECTIONS
     *(.sharedmem.rodata)
     . = ALIGN (4);
     _sharedmem_rodata_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > FLASH
+  } >luna_sharedmem_data AT > ROMABLE_REGION
 
   .sharedmem.data : ALIGN(4)
   {
@@ -662,7 +695,7 @@ SECTIONS
     *(.sharedmem.data)
     . = ALIGN (4);
     _sharedmem_data_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > FLASH
+  } >luna_sharedmem_data AT > ROMABLE_REGION
 
   .sharedmem.bss (NOLOAD) : ALIGN(8)
   {
@@ -672,7 +705,7 @@ SECTIONS
     . = ALIGN (8);
     _sharedmem_bss_end = ABSOLUTE(.);
     _memmap_seg_sharedmem1_end = ALIGN(0x8);
-  } >luna_sharedmem_data AT > FLASH
+  } >luna_sharedmem_data AT > ROMABLE_REGION
 
   _memmap_mem_sharedmem_max = ABSOLUTE(.);
 
@@ -683,7 +716,7 @@ SECTIONS
     *(.lit4.*)
     *(.gnu.linkonce.lit4.*)
     _lit4_end = ABSOLUTE(.);
-  } >sdram0 AT > FLASH
+  } >RAMABLE_REGION AT > ROMABLE_REGION
 
 #include <linker/common-ram.ld>
 
@@ -708,7 +741,7 @@ SECTIONS
     *(.clib.percpu.bss)
     . = ALIGN (8);
     _bss_end = ABSOLUTE(.);
-  } >sdram0
+  } >RAMABLE_REGION
 
   .heap_mem (NOLOAD) : ALIGN(8)
   {
