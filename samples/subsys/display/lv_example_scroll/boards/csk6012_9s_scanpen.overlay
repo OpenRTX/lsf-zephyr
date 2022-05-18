@@ -28,11 +28,6 @@
 			gpios = <&gpiob 4 1>;
 			label = "power_lock";
 		};
-
-		tearing: tearing {
-			gpios = <&gpiob 8 1>;
-			label = "TE";
-		};
 	};
 };
 
@@ -51,6 +46,7 @@
 			reg = <0>;
 			cmd-data-gpios = <&gpioa 14 1>;
 			reset-gpios = <&gpioa 15 1>;
+			te-gpios = <&gpiob 8 1>;
 			pinmuxs = <&pinmuxa 14 1>, <&pinmuxa 15 0>;
 
 			width = <320>;
@@ -58,6 +54,9 @@
 			x-offset = <0>;
 			y-offset = <0>;
 			orientation = <1>;
+
+			teon = <0x00>;
+			ste = <320>;
 
 			vcom = <0x1e>;
 			frctrl2 = <0x1e>;

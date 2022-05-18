@@ -27,6 +27,11 @@ properties:
         If connected directly the MCU pin should be configured
         as active low.
         
+    te-gpios:
+      type: phandle-array
+      required: false
+      description: TE pin.
+
     pinmuxs:
       type: phandle-array
       required: true
@@ -102,6 +107,16 @@ properties:
       type: int
       required: true
       description: Gamma Setting
+
+    teon:
+      type: int
+      required: false
+      description: Tearing Effect Line On Mode
+
+    ste:
+      type: int
+      required: false
+      description: Tear Scanline Setting
 
     porch-param:
       type: uint8-array
