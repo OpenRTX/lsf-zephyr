@@ -164,7 +164,7 @@ static void bl6xxx_dev_work_handler(struct k_work *work)
              * It looks like this ic is always outputs event 2 when the screen is touched,
              * and event 1 (press event) never outputs.
              */
-            dev_data->cb(dev_data->dev, chip_data.y, chip_data.x,
+            dev_data->cb(dev_data->dev, 204 - chip_data.y, 320 - chip_data.x,
             //dev_data->cb(dev_data->dev, chip_data.x, chip_data.y,
                 chip_data.evnet == BL6XXX_TOUCH_EVENT_CONTACT_OR_MOVE);
         }
