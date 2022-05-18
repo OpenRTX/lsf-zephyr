@@ -28,6 +28,8 @@ LOG_MODULE_REGISTER(display_st7789v);
 #define ST7789V_CMD_DATA_FLAGS	DT_INST_GPIO_FLAGS(0, cmd_data_gpios)
 #define ST7789V_RESET_PIN	DT_INST_GPIO_PIN(0, reset_gpios)
 #define ST7789V_RESET_FLAGS	DT_INST_GPIO_FLAGS(0, reset_gpios)
+#define ST7789V_TE_PIN		DT_INST_GPIO_PIN(0, te_gpios)
+#define ST7789V_TE_FLAGS	DT_INST_GPIO_FLAGS(0, te_gpios)
 
 static uint8_t st7789v_porch_param[] = DT_INST_PROP(0, porch_param);
 static uint8_t st7789v_cmd2en_param[] = DT_INST_PROP(0, cmd2en_param);
@@ -48,6 +50,10 @@ struct st7789v_data {
 	const struct device *reset_gpio;
 #endif
 	const struct device *cmd_data_gpio;
+
+#if DT_INST_NODE_HAS_PROP(0, te_gpios)
+	const struct device *te_gpio;
+#endif
 
 	uint16_t height;
 	uint16_t width;
@@ -156,6 +162,16 @@ static void st7789v_set_mem_area(struct st7789v_data *data, const uint16_t x,
 	st7789v_transmit(data, ST7789V_CMD_RASET, (uint8_t *)&spi_data[0], 4);
 }
 
+#if DT_INST_NODE_HAS_PROP(0, te_gpios)
+static struct k_sem te_lock;
+
+static void st7789v_te_irq_handler(const struct device *port, struct gpio_callback *cb,
+				   gpio_port_pins_t pins)
+{
+	k_sem_give(&te_lock);
+}
+#endif
+
 static int st7789v_write(const struct device *dev,
 			 const uint16_t x,
 			 const uint16_t y,
@@ -169,6 +185,10 @@ static int st7789v_write(const struct device *dev,
 	uint16_t write_cnt;
 	uint16_t nbr_of_writes;
 	uint16_t write_h;
+
+#if DT_INST_NODE_HAS_PROP(0, te_gpios)
+	k_sem_take(&te_lock, K_FOREVER);
+#endif
 
 	__ASSERT(desc->width <= desc->pitch, "Pitch is smaller then width");
 	__ASSERT((desc->pitch * ST7789V_PIXEL_SIZE * desc->height) <= desc->buf_size,
@@ -324,6 +344,16 @@ static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 	/* Memory Data Access Control */
 	_st7789v_set_orientation(p_st7789v, DT_INST_PROP(0, orientation));
 
+#if DT_INST_NODE_HAS_PROP(0, teon)
+	tmp = DT_INST_PROP(0, teon);
+	st7789v_transmit(p_st7789v, ST7789V_CMD_TEON, &tmp, 1);
+#endif
+
+#if DT_INST_NODE_HAS_PROP(0, ste)
+	uint16_t ste = sys_cpu_to_be16(DT_INST_PROP(0, ste));
+	st7789v_transmit(p_st7789v, ST7789V_CMD_STE, (uint8_t *)&ste, 2);
+#endif
+
 	/* Interface Pixel Format */
 	tmp = DT_INST_PROP(0, colmod);
 	st7789v_transmit(p_st7789v, ST7789V_CMD_COLMOD, &tmp, 1);
@@ -415,6 +445,30 @@ static int st7789v_init(const struct device *dev)
 		LOG_ERR("Couldn't configure cmd/DATA pin");
 		return -EIO;
 	}
+
+#if DT_INST_NODE_HAS_PROP(0, te_gpios)
+	k_sem_init(&te_lock, 0, 1);
+
+	data->te_gpio = device_get_binding(DT_INST_GPIO_LABEL(0, te_gpios));
+	if (data->te_gpio == NULL) {
+		LOG_ERR("Could not get GPIO port for tearing effect");
+		return -EPERM;
+	}
+
+	if (gpio_pin_configure(data->te_gpio, ST7789V_TE_PIN, GPIO_INPUT | ST7789V_TE_FLAGS)) {
+		LOG_ERR("Couldn't configure TE pin");
+		return -EIO;
+	}
+
+	if (gpio_pin_interrupt_configure(data->te_gpio, ST7789V_TE_PIN, GPIO_INT_EDGE_RISING)) {
+		LOG_ERR("Couldn't configure interrupt for TE pin");
+		return -EIO;
+	}
+
+	static struct gpio_callback te_cb;
+	gpio_init_callback(&te_cb, st7789v_te_irq_handler, BIT(ST7789V_TE_PIN));
+	gpio_add_callback(data->te_gpio, &te_cb);
+#endif
 
 	st7789v_reset_display(data);
 
