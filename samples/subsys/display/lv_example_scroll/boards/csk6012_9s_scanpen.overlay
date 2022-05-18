@@ -59,7 +59,7 @@
 			ste = <320>;
 
 			vcom = <0x1e>;
-			frctrl2 = <0x1e>;
+			frctrl2 = <0x05>;
 			gctrl = <0x35>;
 			vrhs = <0x0b>;
 			vdvs = <0x20>;
