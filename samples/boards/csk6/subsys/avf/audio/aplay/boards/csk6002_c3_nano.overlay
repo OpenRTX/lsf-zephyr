@@ -1,0 +1,27 @@
+/*
+ * Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ / {
+	 chosen {
+		 /*
+		  * shared memory reserved for the inter-processor communication
+		  */
+		 zephyr,ipc_shm = &sof_partition;
+		 zephyr,ipc = &mailbox0;
+	 };
+ 
+	 aliases {
+		 avf-audio-pwr-amp = &pwr_amp;
+	 };
+	 pwr_amp:audio_pwr_amp{
+		 compatible = "listenai,pwr-amp";
+		 enalbe-gpios = <&gpioa 4 1>;
+		 label = "audio_pwr_amp";	
+		 status = "okay";
+	 };
+ 
+ };
+ 
+ 
