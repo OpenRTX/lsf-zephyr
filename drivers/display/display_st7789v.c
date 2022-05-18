@@ -27,7 +27,7 @@ LOG_MODULE_REGISTER(display_st7789v);
 
 // LOG_MODULE_REGISTER(display_st7789v, LOG_LEVEL_DBG);
 
-int te_flag = 0;
+static struct k_sem te_lock;
 
 #define ST7789V_CS_PIN		DT_INST_SPI_DEV_CS_GPIOS_PIN(0)
 #define ST7789V_CMD_DATA_PIN	DT_INST_GPIO_PIN(0, cmd_data_gpios)
@@ -275,26 +275,15 @@ static int _st7789v_write(const struct device *dev,
 	return 0;
 }
 
-
-void set_te_flag(int flag){
-	te_flag = flag;
-	// printk("te_flag:%d\n",te_flag);
-}
-
-
 void te_interrupt_cb(const struct device *dev, struct gpio_callback *cb,
 		    uint32_t pins){
-    static int last_time = 0;
-    int now_time = k_uptime_get();
-
-    set_te_flag(1);
-    LOG_INF("te_i:%d,gap:%d\n",k_uptime_get(),now_time - last_time);
-    last_time = now_time;
-    // printk("te_interrupt_cb\n");
-
+    k_sem_give(&te_lock);
 }
+
 int init_te(void){
     static struct gpio_callback te_cb_data;
+
+	k_sem_init(&te_lock, 0, 1);
 
 	const struct device *te = DEVICE_DT_GET(GPIO_TE);
 	if (!device_is_ready(te)) {
@@ -322,20 +311,8 @@ static int st7789v_write(const struct device *dev,
 			 const struct display_buffer_descriptor *desc,
 			 const void *buf)
 {
-	while(!te_flag){
-		k_msleep(1);
-	}
-
-	static int last_time = 0;
-	int now_time = k_uptime_get();
-
+	k_sem_take(&te_lock, K_FOREVER);
 	_st7789v_write(dev, x, y, desc, buf);
-
-	// LOG_INF("[w]:[%d - %d],write_time:[%d],g:[%d]\n", now_time, k_uptime_get() , k_uptime_get() - now_time, now_time - last_time);
-
-	last_time = now_time;
-	te_flag = 0; 
-
 	return 0;
 }
 
