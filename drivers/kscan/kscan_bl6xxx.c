@@ -66,6 +66,8 @@ typedef struct bl6xxx_dev_data {
     struct gpio_callback int_gpio_cb;
     gpio_info_t int_gpio;
     gpio_info_t reset_gpio;
+    uint16_t width;
+    uint16_t height;
 } bl6xxx_dev_data_t;
 
 static int32_t bl6xxx_chip_sleep(const struct device *i2c_dev)
@@ -164,8 +166,13 @@ static void bl6xxx_dev_work_handler(struct k_work *work)
              * It looks like this ic is always outputs event 2 when the screen is touched,
              * and event 1 (press event) never outputs.
              */
-            dev_data->cb(dev_data->dev, chip_data.x, chip_data.y,
-                chip_data.evnet == BL6XXX_TOUCH_EVENT_CONTACT_OR_MOVE);
+            uint32_t row = dev_data->height - chip_data.x;
+            if (row >  dev_data->height - 1) row = dev_data->height - 1;
+
+            uint32_t column = chip_data.y;
+            if (column < 1) column = 1;
+
+            dev_data->cb(dev_data->dev, row, column, chip_data.evnet == BL6XXX_TOUCH_EVENT_CONTACT_OR_MOVE);
         }
     } else {
         LOG_ERR("[BL6XXX]Read chip data failed!\n");
@@ -268,6 +275,8 @@ static int bl6xxx_dev_init(const struct device *dev)
         .i2c_dev = DEVICE_DT_GET(DT_INST_BUS(index)),                       \
         .int_gpio = BL6XXX_DEFINE_GPIO(index, int_gpios),                   \
         .reset_gpio = BL6XXX_DEFINE_GPIO(index, reset_gpios),               \
+        .width = DT_INST_PROP(index, width),                                \
+        .height = DT_INST_PROP(index, height),                              \
     }
     
 #define BL6XXX_INIT(index)                                                  \

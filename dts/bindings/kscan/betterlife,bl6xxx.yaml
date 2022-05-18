@@ -14,3 +14,9 @@ properties:
     reset-gpios:
       type: phandle-array
       required: false
+    width:
+      type: int
+      required: true
+    height:
+      type: int
+      required: true

@@ -77,6 +77,19 @@
 		};
 };
 
+&i2c0 {
+	bl6xxx@0 {
+		compatible = "betterlife,bl6xxx";
+		reg = <0>;
+		label = "BL6XXX";
+		status = "okay";
+		int-gpios = <&gpioa 3 0>;
+		reset-gpios = <&gpioa 2 0>;
+		width = <170>;
+		height = <320>;
+	};
+};
+
 &flash0 {
 	partitions {
 		compatible = "fixed-partitions";
