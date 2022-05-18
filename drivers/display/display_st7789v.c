@@ -296,8 +296,8 @@ static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 	tmp = 0x00;
 	st7789v_transmit(p_st7789v, ST7789V_CMD_DGMEN, &tmp, 1);
 
-	/* Frame Rate Control in Normal Mode, default value */
-	tmp = 0x0f;
+	/* Frame Rate Control in Normal Mode */
+	tmp = DT_INST_PROP(0, frctrl2);
 	st7789v_transmit(p_st7789v, ST7789V_CMD_FRCTRL2, &tmp, 1);
 
 	tmp = DT_INST_PROP(0, gctrl);
