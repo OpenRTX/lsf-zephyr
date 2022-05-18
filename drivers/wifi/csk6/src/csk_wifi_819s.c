@@ -173,12 +173,8 @@ static void wlan_event_handler(uint32_t param0, uint32_t param1)
 
 static int wifi_driver_init(const struct device *dev)
 {
-    const struct csk_wifi_config *config = dev->config;
     wlan_sys_init();
     wlan_attach(wlan_event_handler);
-    if (config->mode == WLAN_MODE_STA) {
-        wlan_sta_set_autoconnect(0);
-    }
     return 0;
 }
 
@@ -188,6 +184,9 @@ static void wifi_virtual_netif_init(const struct device *dev)
     struct csk_wifi_data *data = dev->data;
     data->virtual_netif = wlan_netif_create(config->mode, csk_wifi_receive_pkt, data);
     wlan_start(data->virtual_netif);
+    if (config->mode == WLAN_MODE_STA) {
+        wlan_sta_set_autoconnect(0);
+    }
     wlan_get_mac_addr(data->virtual_netif, data->mac_addr, sizeof(data->mac_addr));
 }
 
@@ -198,7 +197,6 @@ static int wifi_sta_connect(const struct device *dev)
     struct csk_wifi_data *data = dev->data;
 
     data->is_wait_result = true;
-    wlan_sta_enable();
     wlan_sta_set((uint8_t *)data->sta_config.ssid, strlen(data->sta_config.ssid), (uint8_t *)data->sta_config.pwd);
     wlan_sta_connect();
     do {
@@ -295,7 +293,6 @@ static csk_wifi_result_t wifi_sta_disconnect(const struct device *dev)
     if ((ret != 0) || (event != WLAN_EVENT_DISCONNECTED)) {
         goto __failed;
     }
-    wlan_sta_disable();
     data->is_wait_result = false;
     return ret;
 
