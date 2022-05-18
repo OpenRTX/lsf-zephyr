@@ -242,7 +242,7 @@ static int bl6xxx_dev_init(const struct device *dev)
         return r;
     }
     r = gpio_pin_interrupt_configure(gpio, data->int_gpio.pin,
-            GPIO_INT_EDGE_TO_INACTIVE);
+            GPIO_INT_EDGE_FALLING);
 	if (r < 0) {
         LOG_ERR("[BL6XXX]Could not configure interrupt GPIO interrupt.");
         return r;
