@@ -19,7 +19,7 @@ if(BUILD_DSP_FIRMWARE)
 
   set(REMOTE_ZEPHYR_DIR ${CMAKE_CURRENT_BINARY_DIR}/sof-dsp-prefix/src/sof-dsp-build/zephyr)
 
-  if("${BOARD}" STREQUAL "csk6002_c3_nano")
+  if("${BOARD}" STREQUAL "csk6012_9s_scanpen")
     set(BOARD_REMOTE "ls_adsp_csk6")
   else()
     message(FATAL_ERROR "${BOARD} was not supported for this sample")
