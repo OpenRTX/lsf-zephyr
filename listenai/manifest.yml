@@ -43,11 +43,11 @@ manifest:
       path: modules/lib/listenai/lisa_player
     - name: zport_sal
       remote: listenai
-      revision: d52f9919eddcc33432886605ace6b024deb69cf3
+      revision: 0f5bb60cce8f6ef877ab1769b24f8635b5b68434
       path: modules/lib/listenai/zport_sal
     - name: zport_esp
       remote: listenai
-      revision: 351362c57afe163756af96e027ff6575c915cf5c
+      revision: 5dd893c2554a79f4c40d28f60d6aef7871cca4a3
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
