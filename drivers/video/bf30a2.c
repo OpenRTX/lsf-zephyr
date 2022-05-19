@@ -1250,10 +1250,7 @@ struct bf30a2_dev_data bf30a2_dev_data = {
 DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KERNEL,
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &bf30a2_driv_api);
 
-#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 K_THREAD_DEFINE(bf30a2_thread_id, 2048,                                \
 			bf30a2_thread, &bf30a2_dev_data, NULL, NULL,               \
 			K_HIGHEST_THREAD_PRIO, 0, 0);
-#endif
-
 #endif

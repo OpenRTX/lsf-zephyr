@@ -54,9 +54,7 @@ static void csk_mailbox_isr(const struct device *dev)
 #endif
 	/* send completion notification */
 	if(status & CSK_MBX_CH(CSK_MBOX_SEND_COMPLETE_REG)) {  
-#if  CONFIG_MULTITHREADING
 		k_sem_give(&data_sem);
-#endif
 #ifdef CONFIG_SOC_CSK6
 		config->mbx_base->REG_CP_MAILBOX_IRQ.all = CSK_MBX_CH(CSK_MBOX_SEND_COMPLETE_REG);  
 #elif CONFIG_SOC_LS_ADSP_CSK6
@@ -124,7 +122,7 @@ static int csk_mailbox_ipm_send(const struct device *dev, int wait, uint32_t id,
 	if (size > CSK_MBOX_REGS_MAX_NUM  * sizeof(uint32_t)) {
 		return -EMSGSIZE;
 	}
-#if  CONFIG_MULTITHREADING
+
 	if (wait == 1){
 		k_sem_take(&data_sem, K_FOREVER);
 	}
@@ -132,7 +130,6 @@ static int csk_mailbox_ipm_send(const struct device *dev, int wait, uint32_t id,
 		sem_status = k_sem_take(&data_sem, K_NO_WAIT);
 		if(sem_status == -EBUSY) return sem_status;
 	}
-#endif
 	/* xtensa not support irp_lock now */
 #ifdef CONFIG_SOC_CSK6
 	flags = irq_lock();
