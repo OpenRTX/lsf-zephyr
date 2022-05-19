@@ -143,8 +143,8 @@
             status = "okay";
             label = "VIDEO";
             reg = <0x6e>;
-            pd-gpios = <&gpioa 6 0>;
-            pwr-gpios = <&gpioa 6 0>;
+            pd-gpios = <&gpioa 5 0>;
+            pwr-gpios = <&gpioa 5 0>;
             product-id = <0x3b02>;
             spi = <&spi1>;
         };
