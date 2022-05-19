@@ -314,8 +314,8 @@ static const struct uart_driver_api csk_uart_driver_api = {
 #define CSK_UART_IRQ_HANDLER(index)                                                                \
 	static void csk_uart_irq_config_func_##index(const struct device *dev)                     \
 	{                                                                                          \
-		IRQ_CONNECT(DT_INST_IRQN(index), DT_INST_IRQ(index, priority), csk_uart_isr,       \
-			    DEVICE_DT_INST_GET(index), 0);                                         \
+ 		IRQ_CONNECT(DT_INST_IRQN(index), DT_INST_IRQ(index, priority), csk_uart_isr,       \
+			DEVICE_DT_INST_GET(index), 0);                                         \
 		irq_enable(DT_INST_IRQN(index));                                                   \
 	}
 #define CSK_UART_IRQ_CFG_FUNC_CONF(index) .irq_config_func = csk_uart_irq_config_func_##index

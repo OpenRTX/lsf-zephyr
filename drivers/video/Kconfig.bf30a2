@@ -1,9 +1,21 @@
-# OV7725
+# BF30A2
 
 # Copyright (c) 2022 listenai
 # SPDX-License-Identifier: Apache-2.0
 
 config VIDEO_BF30A2
 	bool "1/15 inch QVGA CMOS Image Sensor BF30A2"
+	help
+	  Enable driver for BF30A2 CMOS digital image sensor device.
+
+config BF30A2_UNUSED_DEQUEUE
+	bool "1/15 inch QVGA CMOS Image Sensor BF30A2"
+    default n
+	help
+	  Enable driver for BF30A2 CMOS digital image sensor device.
+
+config BF30A2_DECODE_TEST
+    bool "1/15 inch QVGA CMOS Image Sensor BF30A2"
+    default n
 	help
 	  Enable driver for BF30A2 CMOS digital image sensor device.
