@@ -56,7 +56,7 @@
 			orientation = <1>;
 
 			teon = <0x00>;
-			ste = <320>;
+			ste = <0>;
 
 			vcom = <0x1e>;
 			frctrl2 = <0x05>;
