@@ -206,26 +206,20 @@
                 status = "okay";
         };
 
-        /* sof communication slot: 1MB */
-        section0_partition: section0_partition@30600000 {
+        /* ap core slot: 1MB */
+        ap_partition: ap_partition@30600000 {
                 compatible = "listenai,csk6-psram-partition";
                 reg = <0x30600000 0x100000>;
                 status = "okay";
         };
 
-        /* section0_partition slot: 512KB */
+        /* sof communication slot: 512KB */
         sof_partition: sof_partition@30700000 {
                 compatible = "listenai,csk6-psram-partition";
                 reg = <0x30700000 0x80000>;
                 status = "okay";
         };
-
-        /* section1_partition slot: 512KB */
-        section1_partition: section1_partition@30780000 {
-                compatible = "listenai,csk6-psram-partition";
-                reg = <0x30780000 0x80000>;
-                status = "okay";
-        };        
+       
 };
 
 zephyr_udc0: &usbotg {
