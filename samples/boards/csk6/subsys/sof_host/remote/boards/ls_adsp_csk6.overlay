@@ -1,9 +1,6 @@
 &spi1 {
-        miso-gpios = <&gpioa 6 0>;
-        mosi-gpios = <&gpioa 7 7>;
-        sclk-gpios = <&gpioa 8 7>;
-        cs-gpios   = <&gpioa 9 7>;
-
+        pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
+        pinctrl-names = "default";
         status = "okay";
         spi-max-frequency = <25000000>;
 
@@ -18,7 +15,7 @@
 
 &uart2 {
 	current-speed = <115200>;
-	pinmuxs = <&pinmuxb 7 3>, <&pinmuxb 6 3>;
-    /* pinmux-names = "RXD", "TXD"; */
+    pinctrl-0 = <&pinctrl_uart2_rx_default &pinctrl_uart2_tx_default>; 
+    pinctrl-names = "default";
 	status = "okay";
 };
