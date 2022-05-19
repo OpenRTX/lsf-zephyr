@@ -66,7 +66,6 @@ static void *spi_csk_get_ctx(const struct device *dev)
 	return NULL;
 }
 
-
 static int csk_spi_configure(const struct device *dev, const struct spi_config *spi_cfg)
 {
 	struct csk_spi_data *data = dev->data;
