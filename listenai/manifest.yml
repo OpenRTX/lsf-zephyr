@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: cbeda9579a6b53854255e89beca5380706087c79
+      revision: be486c0c21f783486ab85a63af67a47bceab3c20
       path: modules/hal/listenai
       groups:
         - hal
@@ -19,7 +19,7 @@ manifest:
         - hal
     - name: sof
       remote: listenai
-      revision: 26284d56115713aa5b52b3e815f4fa45cdbe2e23
+      revision: 75af9ac99a0ebcaa4363b9322ff9968acac22735
       path: modules/audio/sof
     - name: protobuf-c
       remote: listenai
