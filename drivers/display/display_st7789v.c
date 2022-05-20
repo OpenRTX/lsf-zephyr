@@ -461,7 +461,7 @@ static int st7789v_init(const struct device *dev)
 		return -EIO;
 	}
 
-	if (gpio_pin_interrupt_configure(data->te_gpio, ST7789V_TE_PIN, GPIO_INT_EDGE_RISING)) {
+	if (gpio_pin_interrupt_configure(data->te_gpio, ST7789V_TE_PIN, GPIO_INT_EDGE_FALLING)) {
 		LOG_ERR("Couldn't configure interrupt for TE pin");
 		return -EIO;
 	}
