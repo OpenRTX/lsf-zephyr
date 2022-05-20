@@ -187,6 +187,7 @@ static int st7789v_write(const struct device *dev,
 	uint16_t write_h;
 
 #if DT_INST_NODE_HAS_PROP(0, te_gpios)
+	k_sem_reset(&te_lock);
 	k_sem_take(&te_lock, K_FOREVER);
 #endif
 
