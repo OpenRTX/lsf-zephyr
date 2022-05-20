@@ -1,3 +1,11 @@
+&spi1 {
+    status = "okay";
+    spi-max-frequency = <100000000>;
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
+	pinctrl-names = "default";
+};
+
+
 &i2c0 {
         status = "okay";
         pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
@@ -8,13 +16,10 @@
             status = "okay";
             label = "VIDEO";
             reg = <0x6e>;
-            pd-gpios = <&gpioa 1 0>;
-            pwr-gpios = <&gpioa 9 0>;
+            pd-gpios = <&gpioa 20 0>;
+            pwr-gpios = <&gpioa 5 0>;
             product-id = <0x3b02>;
-            spi = <&spi0>;
-            pwms = <&pwm2 0x2 0x0>;
-            xclk-freq = <12500>;
-            csk6-spec;
+            spi = <&spi1>;
         };
 };
 
@@ -41,5 +46,21 @@
                 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
                         pinctrls = <&pinmuxb 3 8>;
+                };
+
+				pinctrl_spi1_sclk_default: spi1_sclk_default {
+                    pinctrls = < &pinmuxb 0 7 >;
+                };
+
+                pinctrl_spi1_mosi_default: spi1_mosi_default {
+                    pinctrls = < &pinmuxb 1 7 >;
+                };
+
+                pinctrl_spi1_miso_default: spi1_miso_default {
+                    pinctrls = < &pinmuxa 20 7 >;
+                };
+
+                pinctrl_spi1_cs_default: spi1_cs_default {
+                    pinctrls = < &pinmuxa 9 7 >;
                 };
 };

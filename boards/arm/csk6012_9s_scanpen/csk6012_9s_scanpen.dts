@@ -254,6 +254,10 @@
 &uart2 {
         status = "disabled";
 };
+
+&mailbox0 {
+	status = "okay";
+};
 &dma0 {
 	dma-channels = <6>;
 	status = "okay";
