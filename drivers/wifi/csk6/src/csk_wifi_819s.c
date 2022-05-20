@@ -400,7 +400,8 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
         case WIFI_CMD_SCAN: {
             int aps_num = 0;
             csk_wifi_scan_info_t *ap_list = NULL;
-            ret = wifi_scan_list(dev, &aps_num, &ap_list);
+            const struct device *sta_dev = wifi_get_dev(WLAN_MODE_STA);
+            ret = wifi_scan_list(sta_dev, &aps_num, &ap_list);
             if (ret != 0)   break;
             wifi_scan_list_t scan_list = {0};
             scan_list.ap_list = ap_list;

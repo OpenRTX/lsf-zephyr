@@ -35,7 +35,7 @@
 
     itcm0: code@10000 {
         compatible = "listenai,csk-itcm";
-        reg = <0x00010000 (12*1024)>;
+        reg = <0x00010000 (16*1024)>;
         label = "itcm CODE";
     };
 

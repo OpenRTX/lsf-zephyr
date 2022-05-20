@@ -45,6 +45,7 @@ static int csk6_init(const struct device *arg)
 #endif
 
 #if CONFIG_CSK6_PSRAM
+	extern int32_t PSRAM_Initialize(void);
 	PSRAM_Initialize();
 #endif
 	return 0;

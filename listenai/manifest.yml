@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: 37079965ca5e7669de4cd3d01c74d974263c5240
+      revision: be40af3ab5cef528b8fa42b8a4c48d67626e2942
       path: modules/hal/listenai
       groups:
         - hal
@@ -19,7 +19,7 @@ manifest:
         - hal
     - name: sof
       remote: listenai
-      revision: 2ab31d9897f0b99f456b9f6820be8ab4368cdfa7
+      revision: 17db05053a5c4dd5e6a1cd02bef7955f22794969
       path: modules/audio/sof
     - name: protobuf-c
       remote: listenai
@@ -35,7 +35,7 @@ manifest:
       path: bootloader/mcuboot
     - name: sof_host
       remote: listenai
-      revision: 1cdd22c5c7a79a839b1f98df0f72dde12a851e8a
+      revision: a55d35368c50d4a7aeae90cc1c95fdd960387ef0
       path: modules/lib/sof_host
     - name: lisa_player
       remote: listenai
@@ -43,11 +43,11 @@ manifest:
       path: modules/lib/listenai/lisa_player
     - name: zport_sal
       remote: listenai
-      revision: d52f9919eddcc33432886605ace6b024deb69cf3
+      revision: 0f5bb60cce8f6ef877ab1769b24f8635b5b68434
       path: modules/lib/listenai/zport_sal
     - name: zport_esp
       remote: listenai
-      revision: 351362c57afe163756af96e027ff6575c915cf5c
+      revision: 5dd893c2554a79f4c40d28f60d6aef7871cca4a3
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
