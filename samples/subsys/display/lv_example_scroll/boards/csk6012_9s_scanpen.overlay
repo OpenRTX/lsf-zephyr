@@ -50,9 +50,9 @@
 			pinmuxs = <&pinmuxa 14 1>, <&pinmuxa 15 0>;
 
 			width = <320>;
-			height = <205>;
+			height = <170>;
 			x-offset = <0>;
-			y-offset = <0>;
+			y-offset = <35>;
 			orientation = <1>;
 
 			teon = <0x00>;
