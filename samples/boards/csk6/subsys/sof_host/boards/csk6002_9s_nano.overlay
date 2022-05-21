@@ -124,6 +124,9 @@
                     pinctrls = < &pinmuxa 9 7 >;
                 };
 
+                pinctrl_uart1_tx_default: uart1_tx_default {
+                    pinctrls = < &pinmuxa 8 3 >;
+                };
 };
 
 &i2c0 {
@@ -144,5 +147,12 @@
 };
 
 &uart0 {
+    current-speed = <921600>;
+};
+
+&uart1 {
+    pinctrl-0 = <&pinctrl_uart1_tx_default>; 
+    pinctrl-names = "default";
+    status = "okay";
     current-speed = <921600>;
 };

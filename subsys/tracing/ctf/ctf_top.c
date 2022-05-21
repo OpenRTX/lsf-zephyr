@@ -148,14 +148,20 @@ void sys_trace_k_thread_name_set(struct k_thread *thread, int ret)
 
 }
 
+
+
 void sys_trace_isr_enter(void)
 {
-	ctf_top_isr_enter();
+    uint8_t irq = ((SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) >>
+		     SCB_ICSR_VECTACTIVE_Pos);
+	ctf_top_isr_enter(irq);
 }
 
 void sys_trace_isr_exit(void)
 {
-	ctf_top_isr_exit();
+    uint8_t irq = ((SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) >>
+            SCB_ICSR_VECTACTIVE_Pos);
+	ctf_top_isr_exit(irq);
 }
 
 void sys_trace_isr_exit_to_scheduler(void)
