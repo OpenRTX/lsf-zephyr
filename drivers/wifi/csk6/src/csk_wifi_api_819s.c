@@ -75,6 +75,8 @@ int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, 
         ret = ret_msg.result;
         *result = CSK_WIFI_ERR_SCAN_FAILED;
         goto __exit;
+    } else {
+        *result = ret_msg.result;
     }
     wifi_scan_list_t *scan_list = ret_msg.arg;
     *ap_info = scan_list->ap_list;
@@ -95,11 +97,17 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
                    sta_config->encryption_mode < CSK_WIFI_AUTH_MAX,
                    -EINVAL);
 
+    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t current_sm = WIFI_STA_SM_PRIMARY_GET(data->status);
+    if ((current_sm != WIFI_SM_STA_DISCONNECTED) || (WIFI_SM_STA_SCAN_DONE != WIFI_SM_STA_SCAN_DONE)) {
+        LOG_ERR("current current_sm: %d",current_sm);
+        return -EINVAL;
+    }
+
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
-    struct csk_wifi_data *data = dev->data;
 
     memcpy(data->sta_config.ssid, sta_config->ssid, sizeof(data->sta_config.ssid));
     memcpy(data->sta_config.pwd, sta_config->pwd, sizeof(data->sta_config.pwd));
@@ -138,11 +146,18 @@ __exit:
 int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
 {
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
+    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t current_sm = WIFI_STA_SM_PRIMARY_GET(data->status);
+
+    if ((current_sm != WIFI_SM_STA_CONNECTED) || ((WIFI_SM_STA_SCAN_DONE != WIFI_SM_STA_SCAN_DONE))) {
+        LOG_ERR("current current_sm: %d",current_sm);
+        return -EINVAL;
+    }
 
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
     ret = wifi_send_command(dev, WIFI_CMD_STA_DISCONNECT, K_NO_WAIT);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);
