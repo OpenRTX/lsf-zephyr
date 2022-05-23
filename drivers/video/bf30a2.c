@@ -26,8 +26,8 @@
 
 LOG_MODULE_REGISTER(bf30a2);
 
-#if CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 1
-#error "CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 1"
+#if (CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 2) || (CONFIG_VIDEO_BUFFER_POOL_NUM_MAX % 2 != 0)
+#error "(CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 2) || (CONFIG_VIDEO_BUFFER_POOL_NUM_MAX % 2 != 0)"
 #endif
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
@@ -77,7 +77,6 @@ struct bf30a2_dev_data {
     void *spi_hal;
     const struct device *dev;
     struct bf20a2_chip_data chip_data;
-	struct k_work_delayable dwork;
 	struct k_fifo fifo_free;
 	struct k_fifo fifo_out;
 	struct k_fifo fifo_vbuf_in;
@@ -86,8 +85,6 @@ struct bf30a2_dev_data {
 };
 
 extern struct bf30a2_dev_data bf30a2_dev_data;
-
-#if DT_NODE_HAS_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
 #include "hal/gpio_venus.h"
@@ -98,6 +95,21 @@ extern struct bf30a2_dev_data bf30a2_dev_data;
 
 #define SPI0_CS_PIN             16
 #define SPI1_CS_PIN             9
+
+static int32_t bf30a2_dev_cs_enable(const struct device *dev, uint8_t cs_state)
+{
+#ifdef CONFIG_BF30A2_INTERNAL_CS_CTRL
+    /* Not a standard interface, implemented by pull-up and pull-down resistors. */
+    if (cs_state) {
+        IOMuxManager_ModeConfigure(CSK_IOMUX_PAD_A, SPI0_CS_PIN, HAL_IOMUX_PULLDOWN_MODE);
+    } else {
+        IOMuxManager_ModeConfigure(CSK_IOMUX_PAD_A, SPI0_CS_PIN, HAL_IOMUX_PULLUP_MODE);
+    }
+#else
+    /* Control the CS pin through a real IO port */
+#endif
+    return 0;
+}
 
 void lower_spi_cs(uint8_t index)
 {
@@ -256,11 +268,10 @@ static const struct bf30a2_reg_config bf30a2_regs_configs[] = {
 	{ 0xcf, 0xf1 },
 };
 
-#if DT_NODE_HAS_PROP(DT_DRV_INST(0), pwms)
 static int bf30a2_chip_xclk_init(const struct device *dev)
 {
+#if DT_NODE_HAS_PROP(DT_DRV_INST(0), pwms)
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
-
 	if (!device_is_ready(data->chip_data.pwm_bus.pwm)) {
 		LOG_ERR("PWM device is not ready!");
 		return -1;
@@ -274,10 +285,10 @@ static int bf30a2_chip_xclk_init(const struct device *dev)
 		LOG_ERR("PWM device config error!");
 		return -1;
 	}
+#endif
 
 	return 0;
 }
-#endif
 
 #define SPI1_CS_PIN 9
 #include "hal/gpio.h"
@@ -285,20 +296,22 @@ static int bf30a2_chip_xclk_init(const struct device *dev)
 
 static int bf30a2_chip_power_enable(const struct device *dev, uint8_t status)
 {
-	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
+	// struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
-	return gpio_pin_configure(data->chip_data.pwr_gpios.port, data->chip_data.pwr_gpios.pin,
-				  (status ? GPIO_OUTPUT_ACTIVE : GPIO_OUTPUT_INACTIVE) |
-					  data->chip_data.pwr_gpios.dt_flags);
+	// return gpio_pin_configure(data->chip_data.pwr_gpios.port, data->chip_data.pwr_gpios.pin,
+	// 			  (status ? GPIO_OUTPUT_ACTIVE : GPIO_OUTPUT_INACTIVE) |
+	// 				  data->chip_data.pwr_gpios.dt_flags);
+    return 0;
 }
 
 static int bf30a2_chip_power_down_enable(const struct device *dev, uint8_t status)
 {
-	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
+	// struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
-	return gpio_pin_configure(data->chip_data.pd_gpios.port, data->chip_data.pd_gpios.pin,
-				  (status ? GPIO_OUTPUT_ACTIVE : GPIO_OUTPUT_INACTIVE) |
-					  data->chip_data.pd_gpios.dt_flags);
+	// return gpio_pin_configure(data->chip_data.pd_gpios.port, data->chip_data.pd_gpios.pin,
+	// 			  (status ? GPIO_OUTPUT_ACTIVE : GPIO_OUTPUT_INACTIVE) |
+	// 				  data->chip_data.pd_gpios.dt_flags);
+    return 0;
 }
 
 static int bf30a2_chip_write_register(const struct device *dev, uint8_t addr, uint8_t value)
@@ -392,15 +405,11 @@ static int bf30a2_chip_config(const struct device *dev)
 
 	return 0;
 }
-#endif
-
-#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
 static int bf30a2_chip_spi_init(const struct device *dev)
 {
     return 0;
 }
-#endif
 
 static int bf30a2_chip_init(const struct device *dev)
 {
@@ -409,15 +418,11 @@ static int bf30a2_chip_init(const struct device *dev)
 	/** 
      * NOTE THAT: bf30a2 must aways be on bus i2c if the csk6_spec property is not defined.
      */
-#if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
-
-#if DT_NODE_HAS_PROP(DT_DRV_INST(0), pwms)
 	r = bf30a2_chip_xclk_init(dev);
 	if (r != 0) {
 		LOG_ERR("XCLK init error.");
 		return r;
 	}
-#endif
 
 	r = bf30a2_chip_power_enable(dev, 1);
 	if (r != 0) {
@@ -439,15 +444,12 @@ static int bf30a2_chip_init(const struct device *dev)
 		LOG_ERR("chip config error.");
 		return r;
 	}
-#endif
 
-#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 	r = bf30a2_chip_spi_init(dev);
 	if (r != 0) {
 		LOG_ERR("spi init error.");
 		return r;
 	}
-#endif
 
 	return r;
 }
@@ -838,42 +840,36 @@ static int bf30a2_driv_stream_stop(const struct device *dev)
 }
 
 static int bf30a2_driv_dequeue(const struct device *dev, enum video_endpoint_id ep,
-			       struct video_buffer **buf, k_timeout_t timeout)
+			       struct video_buffer **vbuf, k_timeout_t timeout)
 {
-#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
 	if (ep != VIDEO_EP_OUT) {
 		return -EINVAL;
 	}
 
-	*buf = k_fifo_get(&data->fifo_vbuf_out, timeout);
-	if (*buf == NULL) {
+	*vbuf = k_fifo_get(&data->fifo_vbuf_out, timeout);
+	if (*vbuf == NULL) {
 		return -EAGAIN;
 	}
 
 	return 0;
-#else
-	return -1;
-#endif
 }
 
 static int bf30a2_driv_enqueue(const struct device *dev, enum video_endpoint_id ep,
 			       struct video_buffer *buf)
 {
-#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
 	if (ep != VIDEO_EP_OUT) {
 		return -EINVAL;
 	}
 
-	k_fifo_put(&data->fifo_vbuf_in, buf);
+    if (buf != NULL && buf->buffer != NULL) {
+	    k_fifo_put(&data->fifo_vbuf_in, buf);
+    }
 
 	return 0;
-#else
-	return -1;
-#endif
 }
 
 static int bf30a2_set_ctrl(const struct device *dev, unsigned int cid, void *value)
@@ -881,10 +877,7 @@ static int bf30a2_set_ctrl(const struct device *dev, unsigned int cid, void *val
 	return 0;
 }
 
-#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
-
-BF30A2_FAST_CODE
-static inline int bf30a2_frame_check(char *in, uint32_t l, uint8_t packetId)
+BF30A2_FAST_CODE static inline int bf30a2_frame_check(char *in, uint32_t l, uint8_t packetId)
 {
 	if (in == NULL || l < 4) {
 		return -1;
@@ -953,7 +946,7 @@ static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
         return NULL;
     }
 #ifndef CONFIG_BF30A2_DECODE_TEST
-SCB_InvalidateDCache_by_Addr(info,sizeof(frames_info_t));
+    SCB_InvalidateDCache_by_Addr(info,sizeof(frames_info_t));
     if (info->w_pos < (info->frame_cnt - 1) || info->w_pos >= info->r_pos) {
         info->w_pos %= info->frame_cnt;
 		info->r_pos %= info->frame_cnt;
@@ -984,7 +977,6 @@ static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
     SCB_CleanDCache_by_Addr(info, sizeof(frames_info_t));
     return info->w_pos;
 }
-
 #endif
 
 /**
@@ -1018,7 +1010,7 @@ static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
     struct video_buffer *vbuf_out = k_fifo_get(&data->fifo_vbuf_in, K_MSEC(16));
 
     if (vbuf_out == NULL) {
-        r = 0;
+        return 0;
     }
     r = bf30a2_decode_XX(vbuf->buffer, vbuf_out->buffer, 25219, 180, 128);
 
@@ -1026,6 +1018,9 @@ static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
         vbuf_out->bytesused = 128 * 180;
         vbuf_out->timestamp = vbuf->timestamp;
         k_fifo_put(&data->fifo_vbuf_out, vbuf_out);
+    } else {
+        /* decode error */
+        k_fifo_put(&data->fifo_vbuf_in, vbuf_out);
     }
 #endif
 
@@ -1109,7 +1104,27 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 		}
 	}
 }
-#endif
+
+static int bf30a2_driv_flush(const struct device *dev,
+				    enum video_endpoint_id ep,
+				    bool cancel)
+{
+	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
+	struct video_buffer *vbuf;
+
+	if (!cancel) {
+		/* wait for all buffer to be processed */
+		do {
+			k_sleep(K_MSEC(1));
+		} while (!k_fifo_is_empty(&data->fifo_vbuf_in));
+	} else {
+		while ((vbuf = k_fifo_get(&data->fifo_vbuf_in, K_NO_WAIT))) {
+			k_fifo_put(&data->fifo_vbuf_out, vbuf);
+		}
+	}
+
+	return 0;
+}
 
 static const struct video_driver_api bf30a2_driv_api = { 
 	.set_format = bf30a2_driv_set_format,
@@ -1119,6 +1134,7 @@ static const struct video_driver_api bf30a2_driv_api = {
 	.stream_stop = bf30a2_driv_stream_stop,
 	.dequeue = bf30a2_driv_dequeue,
     .enqueue = bf30a2_driv_enqueue,
+    .flush = bf30a2_driv_flush,
 	.set_ctrl = bf30a2_set_ctrl,
 };
 
@@ -1127,20 +1143,18 @@ static int bf30a2_dev_init(const struct device *dev)
     struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
     data->dev = dev;
 
-#if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
     /* TODO: to be optimized */
     raise_spi_cs(1);
+    bf30a2_dev_cs_enable(dev, true);
+
     IOMuxManager_PinConfigure(0, 7, 20);
     #define CP_DVP_BASE        (0x4A050000)
     DVP_TypeDef *hDvp = (DVP_TypeDef *)(CP_DVP_BASE);
     // Enable clockout with a divider of 4 (clockout = hclk/2/(4+1))
     hDvp->PIXEL_CLK_DIV = 4;
     hDvp->PIXEL_CLK_EN = 1;
-#endif
 
 	bf30a2_chip_init(dev);
-
-#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
 
     /* TODO: to be optimized */
     spi_hal = SPI1();
@@ -1152,7 +1166,7 @@ static int bf30a2_dev_init(const struct device *dev)
     /* Make sure dma channel 0 is always used for bf30a2. */
     spi_recv_fixed_dma_ch_install(spi_hal, 0);
     
-    /* sr and thread */
+    /* isr and thread */
 	k_fifo_init(&data->fifo_free);
     k_fifo_init(&data->fifo_out);
 
@@ -1180,12 +1194,9 @@ static int bf30a2_dev_init(const struct device *dev)
 
         k_fifo_put(&data->fifo_vbuf_in, vbuf);
 	}
-#endif
 
 	return 0;
 }
-
-#if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
 
 #define BF30A2_SPI_CONFIG_DT(node_id, operation_, delay_)                                          \
 	{                                                                                          \
@@ -1205,41 +1216,22 @@ static int bf30a2_dev_init(const struct device *dev)
 	{                                                                               \
 	}
 
-#define BF30A2_CHIP_DATA(inst)                                                                     \
-	{                                                                                          \
-		.pd_gpios = GPIO_DT_SPEC_GET(DT_DRV_INST(inst), pd_gpios),                         \
-		.pwr_gpios = GPIO_DT_SPEC_GET(DT_DRV_INST(inst), pwr_gpios),                       \
-		.i2c_bus = I2C_DT_SPEC_GET(DT_DRV_INST(inst)),                                     \
-		.spi_bus = BF30A2_SPI_DT_SPEC_GET(                                                 \
-			DT_DRV_INST(inst), SPI_WORD_SET(8) | SPI_OP_MODE_SLAVE | SPI_TRANSFER_MSB, \
-			0),                                                                        \
-		.pwm_bus = BF30A2_PWM_DT_SPEC_GET(DT_DRV_INST(inst)),                              \
-		.product_id = DT_PROP(DT_DRV_INST(inst), product_id),                              \
-		.xclk_freq = Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), xclk_freq), (DT_PROP(DT_DRV_INST(inst), xclk_freq)),(0)),                                \
+#define BF30A2_CHIP_DATA(inst)                                                          \
+	{                                                                                   \
+		.pd_gpios = Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), pd_gpios),        \
+            (GPIO_DT_SPEC_GET(DT_DRV_INST(inst), pd_gpios)), ({0})),                    \
+		.pwr_gpios = Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), pwr_gpios),      \
+            (GPIO_DT_SPEC_GET(DT_DRV_INST(inst), pwr_gpios)), ({0})),                   \
+		.i2c_bus = I2C_DT_SPEC_GET(DT_DRV_INST(inst)),                                  \
+		.spi_bus = BF30A2_SPI_DT_SPEC_GET(                                              \
+			DT_DRV_INST(inst), SPI_WORD_SET(8) | SPI_OP_MODE_SLAVE | SPI_TRANSFER_MSB,  \
+			0),                                                                         \
+		.pwm_bus = Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), pwms),             \
+            (BF30A2_PWM_DT_SPEC_GET(DT_DRV_INST(inst))), ({0})),                        \
+		.product_id = DT_PROP(DT_DRV_INST(inst), product_id),                           \
+		.xclk_freq = Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), xclk_freq),      \
+            (DT_PROP(DT_DRV_INST(inst), xclk_freq)),(0)),                               \
 	}
-#else
-
-#define BF30A2_SPI_CONFIG_DT(node_id, operation_, delay_)                                          \
-	{                                                                                          \
-		.frequency = DT_PROP(node_id, spi_max_frequency), .operation = (operation_),       \
-		.slave = 0,                                                                        \
-		.cs = COND_CODE_1(DT_SPI_DEV_HAS_CS_GPIOS(node_id),                                \
-				  (SPI_CS_CONTROL_PTR_DT(node_id, delay_)), (NULL)),               \
-	}
-
-#define BF30A2_SPI_DT_SPEC_GET(node_id, operation_, delay_)                                        \
-	{                                                                                          \
-		.bus = DEVICE_DT_GET(DT_BUS(node_id)),                                             \
-		.config = BF30A2_SPI_CONFIG_DT(DT_BUS(node_id), operation_, delay_),               \
-	}
-
-#define BF30A2_CHIP_DATA(inst)                                                                     \
-	{                                                                                          \
-		.spi_bus = BF30A2_SPI_DT_SPEC_GET(                                                 \
-			DT_DRV_INST(inst), SPI_WORD_SET(8) | SPI_OP_MODE_SLAVE | SPI_TRANSFER_MSB, \
-			0)                                                                         \
-	}
-#endif /* end of DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c) */
 
 #if DT_NODE_HAS_STATUS(DT_DRV_INST(0), okay)
 
