@@ -1118,11 +1118,10 @@ static int bf30a2_driv_flush(const struct device *dev,
 			k_sleep(K_MSEC(1));
 		} while (!k_fifo_is_empty(&data->fifo_vbuf_in));
 	} else {
-		while ((vbuf = k_fifo_get(&data->fifo_vbuf_in, K_NO_WAIT))) {
+		while ((vbuf = k_fifo_get(&data->fifo_vbuf_in, K_NO_WAIT)) != NULL) {
 			k_fifo_put(&data->fifo_vbuf_out, vbuf);
 		}
 	}
-
 	return 0;
 }
 
