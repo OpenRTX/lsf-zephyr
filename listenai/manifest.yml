@@ -21,6 +21,14 @@ manifest:
       remote: listenai
       revision: 7afad34d3e0eaf8a6ecf7ad59c3e290daef0554b
       path: modules/audio/sof
+    - name: rimage
+      remote: listenai
+      revision: c969f30aa0e9c150453d48d075c923b84e8e06b9
+      path: modules/audio/sof/rimage
+    - name: topology
+      remote: listenai
+      revision: 4a749764d8f372a31f8c015117936746d3e31a45
+      path: modules/audio/sof/tools/topology
     - name: protobuf-c
       remote: listenai
       revision: 033eb51d64cde459bcbd69c5ab5e09267975485e
