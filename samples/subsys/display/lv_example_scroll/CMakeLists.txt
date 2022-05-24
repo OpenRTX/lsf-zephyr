@@ -11,6 +11,7 @@ target_sources(app PRIVATE
     ${MPY_APP_SRC}
     src/main.c
     src/scan_pen_font.c
+    src/noto_18.c
 )
 
 target_include_directories(app PRIVATE
