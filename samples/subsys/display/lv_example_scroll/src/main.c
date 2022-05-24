@@ -25,6 +25,8 @@
 #include <drivers/gpio.h>
 #include <logging/log.h>
 
+#include "scan_pen_font.h"
+
 // #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 // #include <logging/log.h>
 
@@ -81,11 +83,12 @@ void lv_example_scroll_2(void)
 
 		lv_obj_t *label = lv_label_create(btn);
 		if (i == 3) {
-			lv_label_set_text_fmt(label, "Panel %" LV_PRIu32 "\nno snap", i);
+			lv_label_set_text_fmt(label, "中文面板 %" LV_PRIu32 "\nno snap", i);
 			lv_obj_clear_flag(btn, LV_OBJ_FLAG_SNAPPABLE);
 		} else {
-			lv_label_set_text_fmt(label, "Panel %" LV_PRIu32, i);
+			lv_label_set_text_fmt(label, "中文面板 %" LV_PRIu32, i);
 		}
+		lv_label_set_cjk_font(label, 16);
 
 		lv_obj_center(label);
 	}
@@ -147,13 +150,15 @@ static int PSRAM_init(const struct device *unused)
 
 SYS_INIT(PSRAM_init, PRE_KERNEL_2, 0);
 
-void main(void)
+void entry(void)
 {
 	uint32_t count = 0U;
 	const struct device *display_dev;
 
 	console_init();
 	lvgl_init(NULL);
+
+	init_font_engine();
 
 	display_dev = device_get_binding(CONFIG_LV_Z_DISPLAY_DEV_NAME);
 
@@ -180,3 +185,9 @@ void main(void)
 		++count;
 	}
 }
+
+#define STACKSIZE (40 * 1024)
+#define PRIORITY 7
+
+K_THREAD_DEFINE(entry_id, STACKSIZE, entry, NULL, NULL, NULL,
+		PRIORITY, 0, 0);

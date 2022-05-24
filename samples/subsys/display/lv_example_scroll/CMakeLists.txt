@@ -10,6 +10,7 @@ include($ENV{MICROPY_SDK}/ports/zephyr/lib_micropython.cmake)
 target_sources(app PRIVATE
     ${MPY_APP_SRC}
     src/main.c
+    src/scan_pen_font.c
 )
 
 target_include_directories(app PRIVATE
