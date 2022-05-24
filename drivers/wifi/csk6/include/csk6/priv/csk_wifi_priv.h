@@ -31,6 +31,37 @@ extern "C" {
 #define WIFI_MODE_AP    10
 #define EVENT_SUBTYPE(event)  ((uint16_t)((event) & 0xFFFF))
 
+
+
+
+#define WIFI_STA_SM_PRIMARY_GET(a)      ((uint16_t)((a)))
+#define WIFI_STA_SM_PRIMARY_SET(a, b)   do {    \
+    LOG_DBG("(%d)STA_SM: current[%s], next[%s]", __LINE__, wlan_sm_str((a)), wlan_sm_str((b)));  \
+    (a) = (b);                          \
+} while(0)
+
+typedef enum {
+    /* Primary State */
+    WIFI_SM_STA_CONNECTED,
+    WIFI_SM_STA_DISCONNECTED,
+    WIFI_SM_STA_ON_CONNECT,
+    WIFI_SM_STA_ON_CONNECT_SCAN,
+    /** 
+     * 1. auth timeout --> auth failed --> disconnected
+     * 2. auth failed --> disconnected
+     */
+    WIFI_SM_STA_ON_AUTH_EXCEPTION,
+
+    /** 
+     * 1. assoc failed --> auth failed --> disconnected
+     */
+    WIFI_SM_STA_ON_ASSOC_EXCEPTION,
+    WIFI_SM_STA_ON_DISCONNECT,
+    /* Secondary State */
+    WIFI_SM_STA_ON_SCAN,
+    WIFI_SM_STA_SCAN_DONE,
+} wifi_sta_state_machine_t;
+
 struct csk_wifi_data {
     const struct device *dev;
     void *virtual_netif;
@@ -49,6 +80,8 @@ struct csk_wifi_data {
    hosted_event_callback_t hosted_event_cb;
 #else
     bool is_wait_result;
+    uint32_t status;
+    // uint32_t last_status;
 #endif
 };
 
@@ -85,6 +118,7 @@ void wifi_dispatch_callbacks(csk_wifi_event_t events, void *event_data, uint32_t
 wifi_auth_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
 #else
 csk_wifi_encryption_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
+const char *wlan_sm_str(wifi_sta_state_machine_t state);
 #endif
 
 #ifdef __cplusplus

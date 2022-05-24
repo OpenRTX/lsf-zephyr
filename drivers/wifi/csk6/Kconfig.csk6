@@ -45,7 +45,7 @@ config MAX_SCAN_APS_NUM
 
 config WLAN_API_TIMEOUT
 	int "WiFi Driver api timeout(s)"
-	default 30
+	default 60
 
 endif #XR819S
 
