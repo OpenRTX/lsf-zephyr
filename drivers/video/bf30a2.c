@@ -805,10 +805,8 @@ static int bf30a2_stream_start_internal(const struct device *dev)
 
 #define CSK_SPI1             ((CSK_SPI_RegDef *)  SPI1_BASE)
 
-static int32_t bf30a2_restart();
 static int bf30a2_driv_stream_start(const struct device *dev)
 {
-#if DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, i2c)
     int r = bf30a2_chip_config(dev);
 	if (r != 0) {
 		LOG_ERR("chip config error.");
@@ -816,12 +814,8 @@ static int bf30a2_driv_stream_start(const struct device *dev)
 	}
     lower_spi_cs(1);
 	bf30a2_chip_write_register(dev, 0xCF, 0xF0);
-#endif
 
-#if !DT_PROP(DT_DRV_INST(0), csk6_spec) || DT_INST_ON_BUS(0, spi)
     bf30a2_stream_start_internal(dev);
-    bf30a2_restart();
-#endif
 
 	return 0;
 }
@@ -928,57 +922,6 @@ static int bf30a2_decode_XX(char *in, char *out, uint32_t l, uint16_t h, uint16_
 	return len;
 }
 
-#if CONFIG_BF30A2_UNUSED_DEQUEUE
-typedef struct {
-    volatile char *addr;
-    volatile uint32_t frame_size;
-    volatile uint32_t frame_cnt;
-    volatile uint32_t w_pos;
-    volatile uint32_t r_pos;
-    volatile uint32_t tag;
-} __packed frames_info_t;
-
-Z_GENERIC_SECTION(.csk6_psram_section0) __attribute__((aligned(32))) static char swp_frames[3][180 * 128] = {0};
-
-static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
-{
-    if (info == NULL || info->addr == NULL || info->frame_cnt <= 0) {
-        return NULL;
-    }
-#ifndef CONFIG_BF30A2_DECODE_TEST
-    SCB_InvalidateDCache_by_Addr(info,sizeof(frames_info_t));
-    if (info->w_pos < (info->frame_cnt - 1) || info->w_pos >= info->r_pos) {
-        info->w_pos %= info->frame_cnt;
-		info->r_pos %= info->frame_cnt;
-    } else if ((info->w_pos == (info->frame_cnt - 1)) && (info->r_pos == 0)) {
-        /* No more free space. */
-        return NULL;
-    } else if (info->r_pos  - info->w_pos == 1) {
-        /* No more free space. */
-        return NULL;
-    }
-
-#else
-    info->w_pos = 0;
-#endif
-    info->w_pos %= info->frame_cnt;
-    int offset = info->w_pos * info->frame_size;
-    return info->addr + offset;
-}
-
-static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
-{
-    if (info == NULL || info->addr == NULL || info->frame_cnt <= 0) {
-        return -1;
-    }
-
-    info->w_pos++;
-    info->w_pos %= info->frame_cnt;
-    SCB_CleanDCache_by_Addr(info, sizeof(frames_info_t));
-    return info->w_pos;
-}
-#endif
-
 /**
  * retval < 0  : decode error.
  * retval == 0 : no free buffer to decode.
@@ -990,22 +933,6 @@ static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
 
     cache_dma_fast_inv_stage1(vbuf->buffer, vbuf->buffer + vbuf->size);
 
-#if CONFIG_BF30A2_UNUSED_DEQUEUE
-    frames_info_t *frams_info = (frames_info_t *)p;
-    char *free_buff = bf30a2_frames_info_get_free(frams_info);
-
-    if (free_buff != NULL) {
-        r = bf30a2_decode_XX(vbuf->buffer, free_buff, 25219, 179, 128);
-        if (r > 0) {
-            SCB_CleanDCache_by_Addr(free_buff, r);
-            bf30a2_frames_info_update_w_pos(frams_info);
-        }
-    } else {
-        LOG_ERR("no free space, info->w_pos:%u, info->r_pos:%u.", frams_info->w_pos,
-            frams_info->r_pos);
-        r = 0;
-    }
-#else
     struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)p;
     struct video_buffer *vbuf_out = k_fifo_get(&data->fifo_vbuf_in, K_MSEC(16));
 
@@ -1022,20 +949,8 @@ static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
         /* decode error */
         k_fifo_put(&data->fifo_vbuf_in, vbuf_out);
     }
-#endif
 
     return r;
-}
-
-static int32_t bf30a2_restart()
-{
-#if CONFIG_BF30A2_UNUSED_DEQUEUE
-    frames_info_t *frams_info = (frames_info_t *)0x30704000;
-    frams_info->w_pos = 0;
-    frams_info->r_pos = 0;
-    SCB_CleanDCache_by_Addr(frams_info, sizeof(frames_info_t));
-#endif
-    return 0;
 }
 
 static void bf30a2_thread(void *p1, void *p2, void *p3)
@@ -1050,35 +965,12 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
     uint32_t discard_cnt = 0;
 	int fps = 0;
     int r;
-    void *p;
-
-#if CONFIG_BF30A2_UNUSED_DEQUEUE
-    frames_info_t *frams_info = (frames_info_t *)0x30704000;
-    memset(frams_info, 0, sizeof(frames_info_t));
-    frams_info->addr = &swp_frames[0][0];
-    frams_info->frame_size = 180 * 128;
-    frams_info->frame_cnt = 3;
-    frams_info->w_pos = 0;
-    frams_info->r_pos = 0;
-    frams_info->tag = 0x12345678;
-    p = frams_info;
-
-    LOG_INF("##########Frames info##########", frams_info);
-    LOG_INF("info       :%p.", frams_info);
-    LOG_INF("buffer addr:%p.", frams_info->addr);
-    LOG_INF("frame  size:%u.", frams_info->frame_size);
-    LOG_INF("frame count:%d.", frams_info->frame_cnt);
-    LOG_INF("write   pos:%d.", frams_info->w_pos);
-    LOG_INF("read    pos:%d.", frams_info->r_pos);
-#else
-    p = data;
-#endif
 
 	while (1) {
 		vbuf = k_fifo_get(&data->fifo_out, K_FOREVER);
 		if (vbuf != NULL && vbuf->buffer != NULL) {
 			cnt++;
-            r = bf30a2_rda_frame_decode_proc(vbuf, p);
+            r = bf30a2_rda_frame_decode_proc(vbuf, data);
 			if (r > 0) {
                 ok_cnt++;
 			} else if (r < 0) {

@@ -64,7 +64,7 @@ static void test_thread_0(void *p1, void *p2, void *p3)
             if (buf != NULL) {
                 frame_cnt++;
                 int fps = (buf->timestamp - last_tick) > 0 ? 1000 / (buf->timestamp - last_tick) : 0;
-                LOG_INF("FPS:%d, frame count:%d, vbuf:%p.", fps, frame_cnt, buf);
+                // LOG_INF("FPS:%d, frame count:%d, vbuf:%p.", fps, frame_cnt, buf);
                 last_tick = buf->timestamp;
                 memset(buf->buffer, 0, buf->bytesused);
                 video_enqueue(video, VIDEO_EP_OUT, buf);
