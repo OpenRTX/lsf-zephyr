@@ -457,6 +457,7 @@ static int wifi_sta_connect(const struct device *dev)
             break;
         } else if (event == WLAN_EVENT_SSID_NOT_FOUND) {
             ret = CSK_WIFI_ERR_AP_NOT_FOUND;
+            wlan_sta_disable();
             LOG_ERR("WiFi AP ssid not found, event_code: %d", event);
             break;
         } else if (event == WLAN_EVENT_AUTH_TIMEOUT) {
