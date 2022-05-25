@@ -87,6 +87,11 @@ void *k_malloc(size_t size)
 
 	SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_heap_sys, k_malloc, _SYSTEM_HEAP, ret);
 
+	__ASSERT(ret,"k_malloc size 0x%x failed.",size);
+	if(!ret){
+		printk("k_malloc size 0x%x failed.",size);
+		while(1);
+	}
 	return ret;
 }
 
