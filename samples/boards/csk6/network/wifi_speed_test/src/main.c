@@ -44,7 +44,6 @@ uint8_t lorem_ipsum[NET_SIZE];
 	#define TARGET_PORT			12345
 #endif
 
-extern void Wifi_Test_Pin_Set(uint8_t pin, uint8_t value);
 K_SEM_DEFINE(ip_sem, 0, 1);
 
 static struct net_mgmt_event_callback dhcp_cb;
@@ -164,9 +163,11 @@ static void tcp_client_task(void *arg1, void *arg2, void *arg3)
 
     while(1){
         // PRINT_HEAP_INFO();
+        Wifi_Test_Pin_Set(6, 0);
         time = k_cycle_get_32();
         int wd_ret = sendall(socket_fd, lorem_ipsum, sizeof(lorem_ipsum) - 1);
         time = k_cycle_get_32() - time;
+        Wifi_Test_Pin_Set(6, 1);
         if (wd_ret < 0) {
             printk("write socket failed, closing socket... %d\n", errno);
             close(socket_fd);
@@ -185,6 +186,9 @@ __cleanup:
 csk_wifi_event_cb_t wifi_event_cb;
 void main(void)
 {
+    IOMuxManager_PinConfigure(CSK_IOMUX_PAD_A, 6, CSK_IOMUX_FUNC_DEFAULT);
+    GPIO_SetDir(GPIOA(), 1UL << 6, CSK_GPIO_DIR_OUTPUT);
+    Wifi_Test_Pin_Set(6,0);
     csk_wifi_init();
     // csk_wifi_event_cb_t *wifi_event_cb = k_malloc(sizeof(csk_wifi_event_cb_t));
     wifi_event_cb.handler = &wifi_event_handler;
