@@ -59,6 +59,14 @@ static struct csk_wifi_data csk_wifi_sta_data = {0};
 static struct csk_wifi_data csk_wifi_ap_data;
 #endif
 
+static const char *WIFI_STA_SM_STRINGS[] = {
+    FOREACH_WIFI_STA_SM(GENERATE_STRING)
+};
+
+static const char *WLAN_EVENT_STRINGS[] = {
+    FOREACH_WLAN_EVENT(GENERATE_STRING)
+};
+
 static inline int wifi_give_result(wifi_ret_msg_t *ret_msg)
 {
     if (!k_msgq_num_free_get(&wifi_result_msgq)) {
@@ -136,217 +144,250 @@ const struct device * wifi_get_dev(int mode)
     }
 }
 
-const char *wlan_event_str(wlan_event_t wlan_event)
+int wifi_sm_on_connect_scan_handler(const struct device *dev, wlan_event_t current_event)
 {
-    char *event_str = NULL;
-    switch (wlan_event) {
-        case WLAN_EVENT_CONNECTED:
-            event_str = "WLAN_EVENT_CONNECTED";
-        break;
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
 
-        case WLAN_EVENT_DISCONNECTED:
-            event_str = "WLAN_EVENT_DISCONNECTED";
-        break;
-
-        case WLAN_EVENT_SCAN_SUCCESS:
-            event_str = "WLAN_EVENT_SCAN_SUCCESS";
-        break;
-
-        case WLAN_EVENT_SCAN_FAILED:
-            event_str = "WLAN_EVENT_SCAN_FAILED";
-        break;
-
-        case WLAN_EVENT_4WAY_HANDSHAKE_FAILED:
-            event_str = "WLAN_EVENT_4WAY_HANDSHAKE_FAILED";
-        break;
-
-        case WLAN_EVENT_SSID_NOT_FOUND:
-            event_str = "WLAN_EVENT_SSID_NOT_FOUND";
-        break;
-
-        case WLAN_EVENT_AUTH_TIMEOUT:
-            event_str = "WLAN_EVENT_AUTH_TIMEOUT";
-        break;
-
-        case WLAN_EVENT_ASSOC_TIMEOUT:
-            event_str = "WLAN_EVENT_ASSOC_TIMEOUT";
-        break;
-
-        case WLAN_EVENT_CONNECT_FAILED:
-            event_str = "WLAN_EVENT_CONNECT_FAILED";
-        break;
-        
-        case WLAN_EVENT_CONNECTION_LOSS:
-            event_str = "WLAN_EVENT_CONNECTION_LOSS";
-        break;
-
-        case WLAN_EVENT_AUTH_FAILED:
-            event_str = "WLAN_EVENT_AUTH_FAILED";
-        break;
-
-        case WLAN_EVENT_ASSOC_FAILED:
-            event_str = "WLAN_EVENT_ASSOC_FAILED";
-        break;
-
-        case WLAN_EVENT_DEV_HANG:
-            event_str = "WLAN_EVENT_DEV_HANG";
-        break;
-
-        case WLAN_EVENT_AP_STA_CONNECTED:
-            event_str = "WLAN_EVENT_AP_STA_CONNECTED";
-        break;
-
-        case WLAN_EVENT_AP_STA_DISCONNECTED:
-            event_str = "WLAN_EVENT_AP_STA_DISCONNECTED";
-        break;
-
-        case WLAN_EVENT_REKEY_COMPLETE:
-            event_str = "WLAN_EVENT_REKEY_COMPLETE";
-        break;
-
-        case WLAN_EVENT_FW_CMD_TIMEOUT:
-            event_str = "WLAN_EVENT_FW_CMD_TIMEOUT";
-        break;
-
-        default: event_str = "WLAN_EVENT_ERR_UNKNOWN"; break;
+    if (primary_state != WIFI_SM_STA_ON_CONNECT_SCAN) {
+        return -ENXIO;
     }
-    return event_str;
+
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (current_event == WLAN_EVENT_SCAN_SUCCESS) {
+        LOG_INF("STA_SM[%s]: scan success", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_CONNECT);
+    } else if (current_event == WLAN_EVENT_CONNECTED) {
+        /* Second time connect request maybe will get connected event without "scan event" */
+        WIFI_STA_SM_PRIMARY_SET(data->status, WLAN_EVENT_CONNECTED);
+        wlan_event_give(&current_event);
+    } else if (current_event == WLAN_EVENT_SCAN_FAILED) {
+        LOG_ERR("STA_SM[%s]: scan failed", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
+    } else {
+        LOG_ERR("STA_SM[%s]: unknown failed", wifi_sta_sm_str);
+    }
+    return 0;
 }
 
-const char *wlan_sm_str(wifi_sta_state_machine_t state)
+int wifi_sm_on_connect_handler(const struct device *dev, wlan_event_t current_event)
 {
-    char *event_str = NULL;
-    switch (state) {
-        case WIFI_SM_STA_CONNECTED:
-            event_str = "WIFI_SM_STA_CONNECTED";
-        break;
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
 
-        case WIFI_SM_STA_DISCONNECTED:
-            event_str = "WIFI_SM_STA_DISCONNECTED";
-        break;
-
-        case WIFI_SM_STA_ON_CONNECT:
-            event_str = "WIFI_SM_STA_ON_CONNECT";
-        break;
-
-        case WIFI_SM_STA_ON_CONNECT_SCAN:
-            event_str = "WIFI_SM_STA_ON_CONNECT_SCAN";
-        break;
-
-        case WIFI_SM_STA_ON_AUTH_EXCEPTION:
-            event_str = "WIFI_SM_STA_ON_AUTH_EXCEPTION";
-        break;
-
-        case WIFI_SM_STA_ON_ASSOC_EXCEPTION:
-            event_str = "WIFI_SM_STA_ON_ASSOC_EXCEPTION";
-        break;
-
-        case WIFI_SM_STA_ON_DISCONNECT:
-            event_str = "WIFI_SM_STA_ON_DISCONNECT";
-        break;
-
-        case WIFI_SM_STA_ON_SCAN:
-            event_str = "WIFI_SM_STA_ON_SCAN";
-        break;
-
-        case WIFI_SM_STA_SCAN_DONE:
-            event_str = "WIFI_SM_STA_SCAN_DONE";
-        break;
-
-        default: break;
+    if (primary_state != WIFI_SM_STA_ON_CONNECT) {
+        return -ENXIO;
     }
-    return event_str;
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (current_event == WLAN_EVENT_CONNECTED) {
+        LOG_INF("STA_SM[%s]: connected", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_CONNECTED);
+        wlan_event_give(&current_event);
+    } else if (current_event == WLAN_EVENT_SSID_NOT_FOUND) {
+        LOG_ERR("STA_SM[%s]: ssid not found {%s}",wifi_sta_sm_str, wlan_event_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
+        wlan_event_give(&current_event);
+    } else if (current_event == WLAN_EVENT_AUTH_TIMEOUT || current_event == WLAN_EVENT_AUTH_FAILED) {
+        LOG_ERR("STA_SM[%s]: auth timeout or auth timeout failed", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_AUTH_EXCEPTION);
+    } else if (current_event == WLAN_EVENT_ASSOC_TIMEOUT || current_event == WLAN_EVENT_ASSOC_FAILED) {
+        LOG_ERR("STA_SM[%s]: assoc timeout or assoc timeout failed", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_ASSOC_EXCEPTION);
+    } else if (current_event == WLAN_EVENT_4WAY_HANDSHAKE_FAILED) {
+        LOG_ERR("STA_SM[%s]: handshake failed", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION);
+    } else if (current_event == WLAN_EVENT_DISCONNECTED) {
+        LOG_ERR("STA_SM[%s]: disconnected wait for handshake err event,", wifi_sta_sm_str);
+        // WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_ASSOC_EXCEPTION);
+    } else {
+        LOG_ERR("STA_SM[%s]: connect failed {%s}", wifi_sta_sm_str, wlan_event_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
+    }
+    return 0;
 }
 
-void wifi_sta_sm_handler(wlan_event_t wlan_event)
+int wifi_sm_on_auth_exception_handler(const struct device *dev, wlan_event_t current_event)
+{
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
+
+    if (primary_state != WIFI_SM_STA_ON_AUTH_EXCEPTION) {
+        return -ENXIO;
+    }
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (current_event == WLAN_EVENT_DISCONNECTED) {
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
+        wlan_event_give(&current_event);
+    } else if (current_event == WLAN_EVENT_4WAY_HANDSHAKE_FAILED) {
+        LOG_ERR("STA_SM[%s]: handshake failed", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION);
+    } else {
+        LOG_WRN("STA_SM[%s]: auth timeout or auth timeout failed, evt: %s",
+                wifi_sta_sm_str, wlan_event_str);
+    }
+    return 0;
+}
+
+int wifi_sm_on_assoc_exception_handler(const struct device *dev, wlan_event_t current_event)
+{
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
+
+    if (primary_state != WIFI_SM_STA_ON_ASSOC_EXCEPTION) {
+        return -ENXIO;
+    }
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (current_event == WLAN_EVENT_DISCONNECTED) {
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
+        wlan_event_give(&current_event);
+    } else {
+        LOG_WRN("STA_SM[%s]: assoc timeout or auth timeout failed, evt: %s",
+                wifi_sta_sm_str, wlan_event_str);
+    }
+    return 0;
+}
+
+int wifi_sm_on_handshake_exception_handler(const struct device *dev, wlan_event_t current_event)
+{
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
+
+    if (primary_state != WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION) {
+        return -ENXIO;
+    }
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (current_event == WLAN_EVENT_DISCONNECTED) {
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
+        wlan_event_give(&current_event);
+    } else {
+        LOG_ERR("STA_SM[%s]:  failed, evt: %s",
+                wifi_sta_sm_str, wlan_event_str);
+    }
+    return 0;
+}
+
+int wifi_sm_on_disconnect_handler(const struct device *dev, wlan_event_t current_event)
+{
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
+
+    if (primary_state != WIFI_SM_STA_ON_DISCONNECT) {
+        return -ENXIO;
+    }
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (current_event == WLAN_EVENT_DISCONNECTED) {
+        LOG_INF("STA_SM[%s]: disconnected", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
+        wlan_event_give(&current_event);
+    } else {
+        LOG_ERR("STA_SM[%s]: disconnect failed {%s}", wifi_sta_sm_str, wlan_event_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_CONNECTED);
+    }
+    return 0;
+}
+
+int wifi_sm_connected_handler(const struct device *dev, wlan_event_t current_event)
+{
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
+
+    if (primary_state != WIFI_SM_STA_CONNECTED) {
+        return -ENXIO;
+    }
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (current_event == WLAN_EVENT_DISCONNECTED) {
+        LOG_INF("STA_SM[%s]: async disconnected", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
+        wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
+    } else {
+        LOG_ERR("STA_SM[%s]: err event [%s]", wifi_sta_sm_str, wlan_event_str);
+    }
+
+    return 0;
+}
+
+int wifi_sm_disconnected_handler(const struct device *dev, wlan_event_t current_event)
+{
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
+
+    if (primary_state != WIFI_SM_STA_DISCONNECTED) {
+        return -ENXIO;
+    }
+
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    LOG_ERR("STA_SM[%s]: err event [%s]", wifi_sta_sm_str, wlan_event_str);
+
+    return 0;
+}
+
+int wifi_sm_on_scan_handler(const struct device *dev, wlan_event_t current_event)
+{
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
+
+    if (primary_state != WIFI_SM_STA_ON_SCAN) {
+        return -ENXIO;
+    }
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (current_event == WLAN_EVENT_SCAN_SUCCESS) {
+        LOG_INF("STA_SM[%s]: scan successfully", wifi_sta_sm_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_SCAN_DONE);
+        wlan_event_give(&current_event);
+    } else {
+        LOG_ERR("STA_SM[%s]: scan failed {%s}", wifi_sta_sm_str, wlan_event_str);
+        WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_SCAN_DONE);
+        wlan_event_give(&current_event);
+    }
+    return 0;
+}
+
+void wifi_sta_sm_handler(wlan_event_t current_event)
 {
     const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
     struct csk_wifi_data *data = dev->data;
     wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
-    // wifi_sta_state_machine_t secondary_state = WIFI_STA_SM_SECONDARY_GET(data->status);
-    if (primary_state == WIFI_SM_STA_ON_CONNECT_SCAN) {
-        if (wlan_event == WLAN_EVENT_SCAN_SUCCESS) {
-            LOG_INF("STA_SM[%s]: scan success", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_CONNECT);
-        } else if (wlan_event == WLAN_EVENT_CONNECTED) {
-            /* Second time connect request maybe will get connected event without "scan event" */
-            WIFI_STA_SM_PRIMARY_SET(data->status, WLAN_EVENT_CONNECTED);
-            wlan_event_give(&wlan_event);
-        } else if (wlan_event == WLAN_EVENT_SCAN_FAILED) {
-            LOG_ERR("STA_SM[%s]: scan failed", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-        } else if (wlan_event == WLAN_EVENT_AUTH_TIMEOUT || wlan_event == WLAN_EVENT_AUTH_FAILED) {
-            LOG_ERR("STA_SM[%s]: auth timeout or auth timeout failed", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_AUTH_EXCEPTION);
-        } else if (wlan_event == WLAN_EVENT_ASSOC_TIMEOUT || wlan_event == WLAN_EVENT_ASSOC_FAILED) {
-            LOG_ERR("STA_SM[%s]: assoc timeout or assoc timeout failed", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_ASSOC_EXCEPTION);
-        } else if (wlan_event == WLAN_EVENT_4WAY_HANDSHAKE_FAILED) {
-            LOG_ERR("STA_SM[%s]: handshake failed", wlan_sm_str(primary_state));
-            //
-        }
-    } else if (primary_state == WIFI_SM_STA_ON_CONNECT) {
-        if (wlan_event == WLAN_EVENT_CONNECTED) {
-            LOG_INF("STA_SM[%s]: connected", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_CONNECTED);
-            wlan_event_give(&wlan_event);
-        } else if (wlan_event == WLAN_EVENT_SSID_NOT_FOUND) {
-            LOG_ERR("STA_SM[%s]: ssid not found {%s}",wlan_sm_str(primary_state), wlan_event_str(wlan_event));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-            wlan_event_give(&wlan_event);
-        } else if (wlan_event == WLAN_EVENT_AUTH_TIMEOUT || wlan_event == WLAN_EVENT_AUTH_FAILED) {
-            LOG_WRN("STA_SM[%s]: auth timeout or auth timeout failed", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_AUTH_EXCEPTION);
-        } else if (wlan_event == WLAN_EVENT_ASSOC_TIMEOUT || wlan_event == WLAN_EVENT_ASSOC_FAILED) {
-            LOG_ERR("STA_SM[%s]: assoc timeout or assoc timeout failed", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_ON_ASSOC_EXCEPTION);
-        } else {
-            LOG_ERR("STA_SM[%s]: connect failed {%s}", wlan_sm_str(primary_state), wlan_event_str(wlan_event));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-        }
-    } else if (primary_state == WIFI_SM_STA_ON_AUTH_EXCEPTION) {
-        if (wlan_event == WLAN_EVENT_DISCONNECTED) {
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-            wlan_event_give(&wlan_event);
-        } else {
-            LOG_WRN("STA_SM[%s]: auth timeout or auth timeout failed, evt: %s", wlan_sm_str(primary_state), wlan_event_str(wlan_event));
-        }
-    } else if (primary_state == WIFI_SM_STA_ON_ASSOC_EXCEPTION) {
-        if (wlan_event == WLAN_EVENT_DISCONNECTED) {
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-            wlan_event_give(&wlan_event);
-        } else {
-            LOG_WRN("STA_SM[%s]: assoc timeout or auth timeout failed, evt: %s", wlan_sm_str(primary_state), wlan_event_str(wlan_event));
-        }
-    } else if (primary_state == WIFI_SM_STA_ON_DISCONNECT) {
-        if (wlan_event == WLAN_EVENT_DISCONNECTED) {
-            LOG_INF("STA_SM[%s]: disconnected", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-            wlan_event_give(&wlan_event);
-        } else {
-            LOG_ERR("STA_SM[%s]: disconnect failed {%s}", wlan_sm_str(primary_state), wlan_event_str(wlan_event));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_CONNECTED);
-        }
-    } else if (primary_state == WIFI_SM_STA_CONNECTED) {
-        if (wlan_event == WLAN_EVENT_DISCONNECTED) {
-            LOG_INF("STA_SM[%s]: async disconnected", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-            wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
-        } else {
-            LOG_ERR("STA_SM[%s] [WIFI_SM_STA_CONNECTED]: err event [%s]", wlan_sm_str(primary_state), wlan_event_str(wlan_event));
-        }
-    } else if (primary_state == WIFI_SM_STA_DISCONNECTED) {
-        LOG_ERR("STA_SM[%s]: err event [%s]",wlan_sm_str(primary_state), wlan_event_str(wlan_event));
-    } else if (primary_state == WIFI_SM_STA_ON_SCAN) {
-        if (wlan_event == WLAN_EVENT_SCAN_SUCCESS) {
-            LOG_INF("STA_SM[%s]: scan successfully", wlan_sm_str(primary_state));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_SCAN_DONE);
-            wlan_event_give(&wlan_event);
-        } else {
-            LOG_ERR("STA_SM[%s]: scan failed {%s}", wlan_sm_str(primary_state), wlan_event_str(wlan_event));
-            WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_SCAN_DONE);
-            wlan_event_give(&wlan_event);
-        }
+    int ret = 0;
+    ret = wifi_sm_on_connect_scan_handler(dev, current_event);
+    if (ret == 0) return;
+    ret = wifi_sm_on_connect_handler(dev, current_event);
+    if (ret == 0) return;
+    ret = wifi_sm_on_auth_exception_handler(dev, current_event);
+    if (ret == 0) return;
+    ret = wifi_sm_on_assoc_exception_handler(dev, current_event);
+    if (ret == 0) return;
+    ret = wifi_sm_on_handshake_exception_handler(dev, current_event);
+    if (ret == 0) return;
+    ret = wifi_sm_on_disconnect_handler(dev, current_event);
+    if (ret == 0) return;
+    ret = wifi_sm_on_scan_handler(dev, current_event);
+    if (ret == 0) return;
+
+    ret = wifi_sm_connected_handler(dev, current_event);
+    if (ret == 0) return;
+    ret = wifi_sm_disconnected_handler(dev, current_event);
+    if (ret == 0) return;
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    if (ret < 0) {
+        LOG_ERR("STA_SM[%s]: sm handler don't hit any events {%s}", wifi_sta_sm_str, wlan_event_str);
     }
 }
 
@@ -357,7 +398,9 @@ static void wlan_event_handler(uint32_t param0, uint32_t param1)
     struct csk_wifi_data *data = dev->data;
     wifi_sta_state_machine_t primary_state = WIFI_STA_SM_PRIMARY_GET(data->status);
 
-    LOG_DBG("Got wlan event [%s], current state[%s]  is wait: %d\n", wlan_event_str(wlan_event), wlan_sm_str(primary_state), data->is_wait_result);
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[wlan_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+    LOG_DBG("Got wlan event [%s], current state[%s]  is wait: %d\n", wlan_event_str, wifi_sta_sm_str, data->is_wait_result);
     wifi_sta_sm_handler(wlan_event);
 }
 
@@ -404,10 +447,10 @@ static int wifi_sta_connect(const struct device *dev)
             break;
         } else if (event == WLAN_EVENT_SCAN_SUCCESS) {
             LOG_INF("WiFi Scan successfully");
-            continue;
+            break;
         }  else if (event == WLAN_EVENT_DISCONNECTED) {
             LOG_WRN("WiFi station unknown exception, event_code: %d", event);
-            continue;
+            break;
         } else if (event == WLAN_EVENT_SCAN_FAILED) {
             ret = CSK_WIFI_ERR_STA_FAILED;
             LOG_ERR("WiFi Scan failed, event_code: %d", event);

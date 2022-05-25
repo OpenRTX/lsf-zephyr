@@ -31,36 +31,66 @@ extern "C" {
 #define WIFI_MODE_AP    10
 #define EVENT_SUBTYPE(event)  ((uint16_t)((event) & 0xFFFF))
 
+#define FOREACH_WIFI_STA_SM(WIFI_SM) \
+        WIFI_SM(WIFI_SM_STA_CONNECTED)   \
+        WIFI_SM(WIFI_SM_STA_DISCONNECTED)  \
+        WIFI_SM(WIFI_SM_STA_ON_CONNECT)   \
+        WIFI_SM(WIFI_SM_STA_ON_CONNECT_SCAN)  \
+        WIFI_SM(WIFI_SM_STA_ON_AUTH_EXCEPTION)  \
+        WIFI_SM(WIFI_SM_STA_ON_ASSOC_EXCEPTION)  \
+        WIFI_SM(WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION)  \
+        WIFI_SM(WIFI_SM_STA_ON_DISCONNECT)  \
+        WIFI_SM(WIFI_SM_STA_ON_SCAN)  \
+        WIFI_SM(WIFI_SM_STA_SCAN_DONE)  \
+
+#define FOREACH_WLAN_EVENT(WLAN_EVENT) \
+        WLAN_EVENT(WLAN_EVENT_CONNECTED)   \
+        WLAN_EVENT(WLAN_EVENT_DISCONNECTED)  \
+        WLAN_EVENT(WLAN_EVENT_SCAN_SUCCESS)   \
+        WLAN_EVENT(WLAN_EVENT_SCAN_FAILED)  \
+        WLAN_EVENT(WLAN_EVENT_4WAY_HANDSHAKE_FAILED)  \
+        WLAN_EVENT(WLAN_EVENT_SSID_NOT_FOUND)  \
+        WLAN_EVENT(WLAN_EVENT_AUTH_TIMEOUT)  \
+        WLAN_EVENT(WLAN_EVENT_ASSOC_TIMEOUT)  \
+        WLAN_EVENT(WLAN_EVENT_CONNECT_FAILED)  \
+        WLAN_EVENT(WLAN_EVENT_CONNECTION_LOSS)  \
+        WLAN_EVENT(WLAN_EVENT_AUTH_FAILED)  \
+        WLAN_EVENT(WLAN_EVENT_ASSOC_FAILED)  \
+        WLAN_EVENT(WLAN_EVENT_DEV_HANG)  \
+        WLAN_EVENT(WLAN_EVENT_AP_STA_CONNECTED)  \
+        WLAN_EVENT(WLAN_EVENT_AP_STA_DISCONNECTED)  \
+        WLAN_EVENT(WLAN_EVENT_REKEY_COMPLETE)  \
+        WLAN_EVENT(WLAN_EVENT_FW_CMD_TIMEOUT)  \
 
 
+#define GENERATE_ENUM(ENUM) ENUM,
+#define GENERATE_STRING(STRING) #STRING,
 
-#define WIFI_STA_SM_PRIMARY_GET(a)      ((uint16_t)((a)))
-#define WIFI_STA_SM_PRIMARY_SET(a, b)   do {    \
-    LOG_DBG("(%d)STA_SM: current[%s], next[%s]", __LINE__, wlan_sm_str((a)), wlan_sm_str((b)));  \
-    (a) = (b);                          \
-} while(0)
+typedef uint32_t wifi_fsm_t;
 
 typedef enum {
-    /* Primary State */
-    WIFI_SM_STA_CONNECTED,
-    WIFI_SM_STA_DISCONNECTED,
-    WIFI_SM_STA_ON_CONNECT,
-    WIFI_SM_STA_ON_CONNECT_SCAN,
-    /** 
+    /** WIFI_SM_STA_ON_AUTH_EXCEPTION
      * 1. auth timeout --> auth failed --> disconnected
      * 2. auth failed --> disconnected
      */
-    WIFI_SM_STA_ON_AUTH_EXCEPTION,
 
-    /** 
+    /** WIFI_SM_STA_ON_ASSOC_EXCEPTION
      * 1. assoc failed --> auth failed --> disconnected
      */
-    WIFI_SM_STA_ON_ASSOC_EXCEPTION,
-    WIFI_SM_STA_ON_DISCONNECT,
-    /* Secondary State */
-    WIFI_SM_STA_ON_SCAN,
-    WIFI_SM_STA_SCAN_DONE,
+
+    /**  WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION
+     * 1. handshake err --> disconnected
+     */
+    FOREACH_WIFI_STA_SM(GENERATE_ENUM)
 } wifi_sta_state_machine_t;
+
+#define WIFI_STA_SM_PRIMARY_GET(a)      ((uint16_t)((a)))
+#define WIFI_STA_SM_PRIMARY_SET(a, b)   do {    \
+    const char *a_sm_str = WIFI_STA_SM_STRINGS[(a)];    \
+    const char *b_sm_str = WIFI_STA_SM_STRINGS[(b)];    \
+    LOG_DBG("(%d)STA_SM: current[%s], next[%s]", __LINE__, a_sm_str, b_sm_str);  \
+    (a) = (b);                          \
+} while(0)
 
 struct csk_wifi_data {
     const struct device *dev;
@@ -80,8 +110,7 @@ struct csk_wifi_data {
    hosted_event_callback_t hosted_event_cb;
 #else
     bool is_wait_result;
-    uint32_t status;
-    // uint32_t last_status;
+    wifi_fsm_t status;
 #endif
 };
 
