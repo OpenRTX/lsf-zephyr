@@ -22,8 +22,10 @@ void main(void)
 		return;
 	}
 	while(1){
-		if(uart_poll_in(uart, &rx_char) == 0)	// 接收一个char
-			uart_poll_out(uart, rx_char);		// 发送一个char
+		if(uart_poll_in(uart, &rx_char) == 0){/*read a char*/
+            uart_poll_out(uart, rx_char);	  /*send a char*/           
+        }	
+			
 	}
 	return;
 }
