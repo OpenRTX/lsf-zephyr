@@ -7,7 +7,12 @@
 #include <zephyr.h>
 #include <sys/printk.h>
 
+#include <sys/reboot.h>
+
 void main(void)
 {
 	printk("Hello World! %s\n", CONFIG_BOARD);
+
+	sys_reboot(0);
+	k_sleep(K_MSEC(100));
 }
