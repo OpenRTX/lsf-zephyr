@@ -38,6 +38,8 @@ int csk_wifi_add_callback(csk_wifi_event_cb_t *wifi_event_cb)
 int csk_wifi_init()
 {
     int ret = 0;
+
+    sys_slist_init(&wifi_callback_list);
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
     const struct device *dev = wifi_get_dev(WLAN_MODE_STA); /* TODO: add wifi softAP support */
