@@ -690,17 +690,21 @@ BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_packet_process(struct recv
         struct video_buffer *curr_vbuf = machine->dev_data->curr_vbuf;
 
         if (next_vbuf != NULL) {
-            curr_vbuf->bytesused = 25219;
-            curr_vbuf->timestamp = k_uptime_get_32();
-            k_fifo_put(&machine->dev_data->fifo_out, curr_vbuf);
-
             /* Prepare next video buffer. */
             machine->dev_data->curr_vbuf = next_vbuf;
-            machine->buffer = next_vbuf->buffer;
         } else {
             /* Stil use current video buffer to receive frame data. */
-            machine->dev_data->curr_vbuf = curr_vbuf;
         }
+        
+        /* This is a dangerous operation when there is no valid video buffer,
+         * must ensure that the processing thread processes the data before next frame arrives.
+         * Or at least two frame buffers to receive datas.
+         */
+        curr_vbuf->bytesused = 25219;
+        curr_vbuf->timestamp = k_uptime_get_32();
+        k_fifo_put(&machine->dev_data->fifo_out, curr_vbuf);
+
+        machine->buffer = machine->dev_data->curr_vbuf->buffer;
         break;
     case MACHINE_STATE_END_AND_START_PACKET_RECEIVED:
         break;
@@ -889,7 +893,10 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 		vbuf = k_fifo_get(&data->fifo_out, K_FOREVER);
 		if (vbuf != NULL && vbuf->buffer != NULL) {
 			cnt++;
+            uint32_t frame_timestamp = vbuf->timestamp;
             r = bf30a2_rda_frame_decode_proc(vbuf, data);
+            memset(vbuf->buffer, 0, 6);
+            k_fifo_put(&data->fifo_free, vbuf);
 			if (r > 0) {
                 ok_cnt++;
 			} else if (r < 0) {
@@ -898,14 +905,12 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
                 bf30a2_recv_packet_process(&data->sta_machine, MACHINE_FLAG_IDLE | MACHINE_FLAG_SET_RETURN);
 				spi_wait_head(data->spi_hal, 3000);
 				bf30a2_recv_packet_process(&data->sta_machine, MACHINE_FLAG_RESET | MACHINE_FLAG_SET_RETURN);
-				spi_recv(data->spi_hal, &data->sta_machine.buffer, 4);
+				spi_recv(data->spi_hal, data->sta_machine.buffer, 4);
 			} else {
                 discard_cnt++;
                 LOG_ERR("No free space to decode frame.");
             }
 
-            uint32_t frame_timestamp = vbuf->timestamp;
-            k_fifo_put(&data->fifo_free, vbuf);
             if (cnt % 30 == 0) {
                 fps = frame_timestamp - last_time ? 1000 / (frame_timestamp - last_time) : 0;
                 LOG_INF("FPS:%d, T:%d, O:%d, E:%d, D:%d.",
@@ -1026,16 +1031,16 @@ static int bf30a2_driv_flush(const struct device *dev,
         return -1;
     }
 
-	if (!cancel) {
-		/* wait for all buffer to be processed */
-		do {
-			k_sleep(K_MSEC(1));
-		} while (!k_fifo_is_empty(&data->fifo_vbuf_in));
-	} else {
-		while ((vbuf = k_fifo_get(&data->fifo_vbuf_in, K_NO_WAIT)) != NULL) {
-			k_fifo_put(&data->fifo_vbuf_out, vbuf);
-		}
-	}
+	// if (!cancel) {
+	// 	/* wait for all buffer to be processed */
+	// 	do {
+	// 		k_sleep(K_MSEC(1));
+	// 	} while (!k_fifo_is_empty(&data->fifo_vbuf_in));
+	// } else {
+	// 	while ((vbuf = k_fifo_get(&data->fifo_vbuf_in, K_NO_WAIT)) != NULL) {
+	// 		k_fifo_put(&data->fifo_vbuf_out, vbuf);
+	// 	}
+	// }
 
 	return 0;
 }
@@ -1052,6 +1057,12 @@ static const struct video_driver_api bf30a2_driv_api = {
 	.set_ctrl = bf30a2_set_ctrl,
 };
 
+#define BF30A2_INTERNAL_VBUF_NUM 2
+#define BF30A2_INTERNAL_VBUF_SIZE 25220
+
+static __attribute__((aligned(32), used)) char g_buffer[BF30A2_INTERNAL_VBUF_NUM][BF30A2_INTERNAL_VBUF_SIZE] = {0};
+static struct video_buffer g_video_buffer[BF30A2_INTERNAL_VBUF_NUM] = {0};
+
 static int bf30a2_dev_init(const struct device *dev)
 {
     struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
@@ -1066,21 +1077,20 @@ static int bf30a2_dev_init(const struct device *dev)
     k_fifo_init(&data->fifo_out);
 
 	uint32_t i;
-	for (i = 0; i < CONFIG_VIDEO_BUFFER_POOL_NUM_MAX / 2; i++) {
-		struct video_buffer *vbuf = video_buffer_alloc(BF30A2_FRAME_SIZE);
-		if (vbuf == NULL) {
-			LOG_ERR("Unable to alloc video buffer, index:%d.", i);
-			return -1;
-		}
+    for (i = 0; i < BF30A2_INTERNAL_VBUF_NUM; i++) {
+        g_video_buffer[i].buffer = &g_buffer[i][0];
+        g_video_buffer[i].size = BF30A2_INTERNAL_VBUF_SIZE;
+        g_video_buffer[i].bytesused = 0;
+        g_video_buffer[i].timestamp = 0;
 
-        k_fifo_put(&data->fifo_free, vbuf);
-	}
+        k_fifo_put(&data->fifo_free, &g_video_buffer[i]);
+    }
 
     /* application <--> thread */
     k_fifo_init(&data->fifo_vbuf_in);
     k_fifo_init(&data->fifo_vbuf_out);
 
-    for (i = 0; i < CONFIG_VIDEO_BUFFER_POOL_NUM_MAX / 2; i++) {
+    for (i = 0; i < CONFIG_VIDEO_BUFFER_POOL_NUM_MAX; i++) {
 		struct video_buffer *vbuf = video_buffer_alloc(BF30A2_FRAME_SIZE);
 		if (vbuf == NULL) {
 			LOG_ERR("Unable to alloc video buffer, index:%d.", i);
