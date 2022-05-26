@@ -90,8 +90,9 @@ void *k_malloc(size_t size)
 	__ASSERT(ret,"k_malloc size 0x%x failed.",size);
 	if(!ret){
 		printk("k_malloc size 0x%x failed.",size);
-		while(1);
+		abort();
 	}
+	memset(ret,0,size);
 	return ret;
 }
 

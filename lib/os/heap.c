@@ -151,6 +151,10 @@ void sys_heap_free(struct sys_heap *heap, void *mem)
 	 * This should catch many double-free cases.
 	 * This is cheap enough so let's do it all the time.
 	 */
+	if(!chunk_used(h, c)){
+		printk("[%s %d]unexpected heap state (double-free?) for heap %p memory at %p,called:0x%08x\n",__FUNCTION__,__LINE__,heap,mem,(intptr_t)__builtin_return_address(0) - 2);
+		return;
+	}
 	__ASSERT(chunk_used(h, c),
 		 "unexpected heap state (double-free?) for memory at %p", mem);
 

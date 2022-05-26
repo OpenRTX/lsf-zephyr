@@ -53,11 +53,13 @@ static int flash_csk6_read(const struct device *dev, off_t address, void *buffer
 	if (buffer == NULL || address > FLASH_CHIP_SZ || address + length > FLASH_CHIP_SZ) {
 		return -EINVAL;
 	}
-	FLASH_OPT_ENTER();
-	if (0 != sflash_read((void *)dev->config, FLASH_BASE_ADDRESS + address, buffer, length)) {
-		iret = -EIO;
-	}
-	FLASH_OPT_EXIT();
+	// FLASH_OPT_ENTER();
+	// if (0 != sflash_read((void *)dev->config, FLASH_BASE_ADDRESS + address, buffer, length)) {
+	// 	iret = -EIO;
+	// }
+	// FLASH_OPT_EXIT();
+	char* pconst = (char*)(FLASH_BASE_ADDRESS + address);
+	memcpy(buffer,pconst,length);
 	return iret;
 }
 
@@ -69,7 +71,8 @@ static int inline flash_csk6_write_with_cp(const struct device *dev, off_t addre
 	char *pTail = (char *)buffer + length;
 	int iret = 0;
 	int32_t cpLen = 0;
-
+	printk("[%s %d]Do not run this function.\n",__FUNCTION__,__LINE__);
+	abort();
 	do {
 		cpLen = (pTail - pos) > sizeof(cbuffer) ? sizeof(cbuffer) : (pTail - pos);
 		memcpy(cbuffer, pos, cpLen);
@@ -88,7 +91,8 @@ static int flash_csk6_write(const struct device *dev, off_t address, const void 
 			       size_t length)
 {
 	int iret = 0;
-
+	printk("[%s %d]Do not run this function.\n",__FUNCTION__,__LINE__);
+	abort();
 	if (length == 0) {
 		return 0;
 	}
@@ -117,7 +121,8 @@ static int flash_csk6_write(const struct device *dev, off_t address, const void 
 static int flash_csk6_erase(const struct device *dev, off_t start, size_t len)
 {
 	int iret;
-
+	printk("[%s %d]Do not run this function.\n",__FUNCTION__,__LINE__);
+	abort();
 	if (start > FLASH_CHIP_SZ || start + len > FLASH_CHIP_SZ) {
 		return -EINVAL;
 	}

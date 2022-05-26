@@ -631,7 +631,10 @@ static inline int z_impl_gpio_pin_interrupt_configure(const struct device *port,
 	enum gpio_int_trig trig;
 	enum gpio_int_mode mode;
 
-	__ASSERT_NO_MSG((flags & GPIO_INT_DEBOUNCE) == 0);
+	//__ASSERT_NO_MSG((flags & GPIO_INT_DEBOUNCE) == 0);
+	if((flags & GPIO_INT_DEBOUNCE) != 0){
+		printk("[%s %d]GPIO_INT_DEBOUNCE,called:0x%08x\n",__FUNCTION__,__LINE__,(intptr_t)__builtin_return_address(0) - 2);
+	}
 
 	__ASSERT((flags & (GPIO_INT_DISABLE | GPIO_INT_ENABLE))
 		 != (GPIO_INT_DISABLE | GPIO_INT_ENABLE),

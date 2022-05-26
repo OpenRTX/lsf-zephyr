@@ -98,7 +98,11 @@ int z_impl_k_mutex_lock(struct k_mutex *mutex, k_timeout_t timeout)
 	k_spinlock_key_t key;
 	bool resched = false;
 
-	__ASSERT(!arch_is_in_isr(), "mutexes cannot be used inside ISRs");
+	if(arch_is_in_isr() == true){
+		printk("[%s %d]mutexes lock in ISR.\n",__FUNCTION__,__LINE__);
+		return -99;
+	}
+	//__ASSERT(!arch_is_in_isr(), "mutexes cannot be used inside ISRs");
 
 	SYS_PORT_TRACING_OBJ_FUNC_ENTER(k_mutex, lock, mutex, timeout);
 
@@ -195,7 +199,10 @@ static inline int z_vrfy_k_mutex_lock(struct k_mutex *mutex,
 int z_impl_k_mutex_unlock(struct k_mutex *mutex)
 {
 	struct k_thread *new_owner;
-
+	if(arch_is_in_isr() == true){
+		printk("[%s %d]mutexes unlock in ISR.\n",__FUNCTION__,__LINE__);
+		return -99;
+	}
 	__ASSERT(!arch_is_in_isr(), "mutexes cannot be used inside ISRs");
 
 	SYS_PORT_TRACING_OBJ_FUNC_ENTER(k_mutex, unlock, mutex);

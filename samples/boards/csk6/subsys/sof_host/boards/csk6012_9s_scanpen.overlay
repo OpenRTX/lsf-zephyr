@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /delete-node/ &storage_partition;
+// /delete-node/ &pwm1pin;
 
 / {
 	chosen {
@@ -139,4 +140,8 @@
                 pinctrl_spi1_cs_default: spi1_cs_default {
                     pinctrls = < &pinmuxa 9 7 >;
                 };
+};
+&uart0 {
+	current-speed = <921600>;
+	status = "okay";
 };

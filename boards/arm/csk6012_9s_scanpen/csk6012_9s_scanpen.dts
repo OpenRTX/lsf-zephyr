@@ -391,10 +391,31 @@
                 status = "okay";
         };
 
-        /* section1_partition slot: 512KB */
-		section1_partition: section1_partition@30780000 {
-				compatible = "listenai,csk6-psram-partition";
-				reg = <0x30780000 0x80000>;
-				status = "okay";
-		};        
+        /* section1_partition slot: 192KB */
+        section1_partition: section1_partition@30780000 {
+                        compatible = "listenai,csk6-psram-partition";
+                        reg = <0x30780000 0x2F000>;
+                        status = "okay";
+        };
+
+        /* section2_partition slot: 128KB   sof heap*/
+        section2_partition: section2_partition@307b0000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x307b0000 0x1f000>;
+                status = "okay";
+        };        
+
+        /* section3_partition slot: 64KB websocket*/
+        section3_partition: section3_partition@307d0000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x307b0000 0xf000>;
+                status = "okay";
+        };
+
+        /* section3_partition slot: 128KB wifi*/
+        section4_partition: section4_partition@307e0000 {
+                compatible = "listenai,csk6-psram-partition";
+                reg = <0x307e0000 0x1f000>;
+                status = "okay";
+        };
 };

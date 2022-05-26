@@ -118,8 +118,8 @@ int z_impl_k_sem_take(struct k_sem *sem, k_timeout_t timeout)
 {
 	int ret = 0;
 
-	__ASSERT(((arch_is_in_isr() == false) ||
-		  K_TIMEOUT_EQ(timeout, K_NO_WAIT)), "");
+	// __ASSERT(((arch_is_in_isr() == false) ||
+	// 	  K_TIMEOUT_EQ(timeout, K_NO_WAIT)), "");
 
 	k_spinlock_key_t key = k_spin_lock(&lock);
 
@@ -144,7 +144,10 @@ int z_impl_k_sem_take(struct k_sem *sem, k_timeout_t timeout)
 
 out:
 	SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_sem, take, sem, timeout, ret);
-
+	if(((arch_is_in_isr() == true) &&  (!K_TIMEOUT_EQ(timeout, K_NO_WAIT)))){
+		printk("[%s %d]wait sem in ISR.\n",__FUNCTION__,__LINE__);
+		return -99;
+	}
 	return ret;
 }
 
