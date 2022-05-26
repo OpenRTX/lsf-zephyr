@@ -72,6 +72,7 @@ typedef enum {
     /** WIFI_SM_STA_ON_AUTH_EXCEPTION
      * 1. auth timeout --> auth failed --> disconnected
      * 2. auth failed --> disconnected
+     * 3. auth failed --> handshake failed --> disconnected
      */
 
     /** WIFI_SM_STA_ON_ASSOC_EXCEPTION
@@ -111,6 +112,7 @@ struct csk_wifi_data {
 #else
     bool is_wait_result;
     wifi_fsm_t status;
+    csk_wifi_result_t err;
 #endif
 };
 
