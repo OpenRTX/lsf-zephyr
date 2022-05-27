@@ -418,6 +418,15 @@ static int wifi_driver_init(const struct device *dev)
     return 0;
 }
 
+void xr819s_wifi_off()
+{
+    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
+    struct csk_wifi_data *data = dev->data;
+    wlan_stop(data->virtual_netif);
+	wlan_netif_delete(data->virtual_netif);
+	wlan_detach();
+}
+
 static void wifi_virtual_netif_init(const struct device *dev)
 {
     const struct csk_wifi_config *config = dev->config;
