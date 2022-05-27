@@ -17,7 +17,11 @@ FUNC_NORETURN void sys_reboot(int type)
 #ifdef CONFIG_SYS_CLOCK_EXISTS
 	sys_clock_disable();
 #endif
-
+	
+#ifdef CONFIG_SOC_CSK6
+	extern int csk_flash_clear_add4(void);
+	csk_flash_clear_add4();
+#endif
 	sys_arch_reboot(type);
 
 	/* should never get here */

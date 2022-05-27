@@ -58,7 +58,7 @@
 			flash0: flash@18000000 {
 				compatible = "listenai,csk-nv-flash","soc-nv-flash";
 				label = "FLASH_INN";
-				reg = <0x18000000 DT_SIZE_M(8)>;
+				reg = <0x18000000 DT_SIZE_M(32)>;
 				write-block-size = <1>;
 				erase-block-size = <4096>;
 			};
