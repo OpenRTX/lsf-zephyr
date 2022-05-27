@@ -93,6 +93,7 @@ lisa_err_t lisa_thread_delete(lisa_thread_t *thread)
 			LISA_LOGE(TAG, "[%s %d]lisa_mem_alloc FAILED!", __FUNCTION__, __LINE__);
 		}
 		k_thread_abort(thread->thread_id);
+		k_thread_join(&thread->handle, K_FOREVER);
 		return LISA_OK;
 	}
 

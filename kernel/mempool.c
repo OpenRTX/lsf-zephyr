@@ -57,7 +57,7 @@ void k_free(void *ptr)
 }
 
 #if (CONFIG_HEAP_MEM_POOL_SIZE > 0)
-
+#define PRINT_HEAP_INFO()  {extern struct k_heap _system_heap;sys_heap_print_info(&_system_heap.heap,0);}
 K_HEAP_DEFINE(_system_heap, CONFIG_HEAP_MEM_POOL_SIZE);
 #define _SYSTEM_HEAP (&_system_heap)
 
@@ -74,6 +74,12 @@ void *k_aligned_alloc(size_t align, size_t size)
 
 	void *ret = z_heap_aligned_alloc(_SYSTEM_HEAP, align, size);
 
+	if(!ret){
+		printk("[%s %d][heap_error]_system_heap.heap %p\n",__FUNCTION__,__LINE__,_system_heap.heap);
+		PRINT_HEAP_INFO();
+		return ret;
+	}
+	__ASSERT(ret,"k_malloc size 0x%x failed.called:0x%08x",size,(intptr_t)__builtin_return_address(0) - 2);
 	SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_heap_sys, k_aligned_alloc, _SYSTEM_HEAP, ret);
 
 	return ret;
@@ -86,12 +92,9 @@ void *k_malloc(size_t size)
 	void *ret = k_aligned_alloc(sizeof(void *), size);
 
 	SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_heap_sys, k_malloc, _SYSTEM_HEAP, ret);
+			
+	__ASSERT(ret,"k_malloc size 0x%x failed.called:0x%08x",size,(intptr_t)__builtin_return_address(0) - 2);
 
-	__ASSERT(ret,"k_malloc size 0x%x failed.",size);
-	if(!ret){
-		printk("k_malloc size 0x%x failed.",size);
-		abort();
-	}
 	memset(ret,0,size);
 	return ret;
 }
@@ -105,7 +108,7 @@ void *k_calloc(size_t nmemb, size_t size)
 
 	if (size_mul_overflow(nmemb, size, &bounds)) {
 		SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_heap_sys, k_calloc, _SYSTEM_HEAP, NULL);
-
+		__ASSERT(ret,"k_calloc size 0x%x failed.called:0x%08x",bounds,(intptr_t)__builtin_return_address(0) - 2);
 		return NULL;
 	}
 

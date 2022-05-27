@@ -167,7 +167,7 @@ static int flash_csk6_init(const struct device *dev)
 {
 	unsigned int key;
 
-	((FLASH_DEV*)((void *)dev->config))->ext_addr4_mode = FLASH_CHIP_SZ > DT_SIZE_M(16) ? 1 : 0;
+	((FLASH_DEV*)((void *)dev->config))->ext_addr4_mode = 0;
 
 	key = irq_lock();
 	sflash_init((void *)dev->config);

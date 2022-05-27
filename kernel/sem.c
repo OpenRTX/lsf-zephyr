@@ -118,8 +118,8 @@ int z_impl_k_sem_take(struct k_sem *sem, k_timeout_t timeout)
 {
 	int ret = 0;
 
-	// __ASSERT(((arch_is_in_isr() == false) ||
-	// 	  K_TIMEOUT_EQ(timeout, K_NO_WAIT)), "");
+	__ASSERT(((arch_is_in_isr() == false) ||
+		  K_TIMEOUT_EQ(timeout, K_NO_WAIT)), "");
 
 	k_spinlock_key_t key = k_spin_lock(&lock);
 
