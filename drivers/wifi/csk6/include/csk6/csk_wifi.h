@@ -151,7 +151,14 @@ typedef struct csk_wifi_event_cb {
  * 
  * @return 0 if successful, negative errno code on failure.
  */
-int csk_wifi_init();
+int csk_wifi_init(void);
+
+/**
+ * @brief CSK WiFi driver deinitialize
+ * 
+ * @return 0 if successful, negative errno code on failure.
+ */
+int csk_wifi_deinit(void);
 
 /**
  * @brief Add an wifi event callback
@@ -161,6 +168,17 @@ int csk_wifi_init();
  * @return 0 if successful, negative errno code on failure.
  */
 int csk_wifi_add_callback(csk_wifi_event_cb_t *wifi_event_cb);
+
+/**
+ * @brief Remove an wifi event callback
+ * 
+ * @param wifi_event_cb[in] Application's callback structure pointer.
+ * 
+ * @return
+ *        0: successful
+ *        -ENXIO: wifi event callback not found
+ */
+int csk_wifi_remove_callback(csk_wifi_event_cb_t *wifi_event_cb);
 
 /**
  * @brief Scan the neighboring AP device

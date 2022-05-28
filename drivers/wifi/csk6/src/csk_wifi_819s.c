@@ -411,20 +411,17 @@ static void wlan_event_handler(uint32_t param0, uint32_t param1)
     wifi_sta_sm_handler(wlan_event);
 }
 
-static int wifi_driver_init(const struct device *dev)
+static int wifi_driver_init(void)
 {
     wlan_sys_init();
     wlan_attach(wlan_event_handler);
     return 0;
 }
 
-void wifi_driver_deinit()
+static int wifi_driver_deinit(void)
 {
-    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
-    struct csk_wifi_data *data = dev->data;
-    wlan_stop(data->virtual_netif);
-	wlan_netif_delete(data->virtual_netif);
 	wlan_detach();
+    return 0;
 }
 
 static void wifi_virtual_netif_init(const struct device *dev)
@@ -437,6 +434,13 @@ static void wifi_virtual_netif_init(const struct device *dev)
         wlan_sta_set_autoconnect(0);
     }
     wlan_get_mac_addr(data->virtual_netif, data->mac_addr, sizeof(data->mac_addr));
+}
+
+static void wifi_virtual_netif_deinit(const struct device *dev)
+{
+    struct csk_wifi_data *data = dev->data;
+    wlan_stop(data->virtual_netif);
+	wlan_netif_delete(data->virtual_netif);
 }
 
 static int wifi_sta_connect(const struct device *dev)
@@ -622,11 +626,22 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
     struct csk_wifi_data *data = dev->data;
 
     switch (command) {
-        case WIFI_CMD_AP_INIT:
-        case WIFI_CMD_STA_INIT: {
-            ret = wifi_driver_init(dev);
+        case WIFI_CMD_INIT: {
+            ret = wifi_driver_init();
             if (ret != 0)   break;
-            wifi_virtual_netif_init(dev);
+        #ifdef CONFIG_CSK_WIFI_STATION
+            const struct device *sta_dev = wifi_get_dev(WLAN_MODE_STA);
+            wifi_virtual_netif_init(sta_dev);
+        #endif
+        } break;
+
+        case WIFI_CMD_DEINIT: {
+        #ifdef CONFIG_CSK_WIFI_STATION
+            const struct device *sta_dev = wifi_get_dev(WLAN_MODE_STA);
+            wifi_virtual_netif_deinit(sta_dev);
+        #endif
+            ret = wifi_driver_deinit();
+            if (ret != 0)   break;
         } break;
 
         case WIFI_CMD_STA_CONNECT: {
@@ -797,7 +812,6 @@ static int csk_eth_dev_init(const struct device *dev)
     data->is_wait_result = false;
     data->status = 0;
     WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-    // WIFI_STA_SM_SECONDARY_SET(data->status, WIFI_SM_STA_SCAN_DONE);
     k_sem_give(&init_sem);
     return 0;
 }

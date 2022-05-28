@@ -15,12 +15,11 @@ K_MUTEX_DEFINE(wifi_api_mutex);
 
 static sys_slist_t wifi_callback_list;
 
-
-
 void wifi_dispatch_callbacks(csk_wifi_event_t events, void *event_data, uint32_t event_data_len)
 {
     sys_slist_t *list = &wifi_callback_list;
     csk_wifi_event_cb_t *cb, *tmp;
+    /* Fixme: should add mutex prevent the race condition */
     SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, cb, tmp, node) {
         if (cb->events & events) {
             cb->handler(cb->events & events, event_data, event_data_len, cb->arg);
@@ -28,23 +27,77 @@ void wifi_dispatch_callbacks(csk_wifi_event_t events, void *event_data, uint32_t
     }
 }
 
+static int wifi_remove_callback(csk_wifi_event_cb_t *wifi_event_cb)
+{
+    int ret = -ENXIO;
+    sys_slist_t *list = &wifi_callback_list;
+    csk_wifi_event_cb_t *cb, *tmp;
+    SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, cb, tmp, node) {
+        if (cb == wifi_event_cb) {
+            sys_slist_find_and_remove(list, &cb->node);
+            ret = 0;
+            break;
+        }
+    }
+    return ret;
+}
+
+static void wifi_clean_callbacks(void)
+{
+    sys_slist_t *list = &wifi_callback_list;
+    csk_wifi_event_cb_t *cb, *tmp;
+    SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, cb, tmp, node) {
+        sys_slist_find_and_remove(list, &cb->node);
+    }
+}
+
 int csk_wifi_add_callback(csk_wifi_event_cb_t *wifi_event_cb)
 {
     CSK_WIFI_CHECK(wifi_event_cb != NULL, -EINVAL);
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
     sys_slist_prepend(&wifi_callback_list, &wifi_event_cb->node);
+    k_mutex_unlock(&wifi_api_mutex);
     return 0;
 }
 
-int csk_wifi_init()
+int csk_wifi_remove_callback(csk_wifi_event_cb_t *wifi_event_cb)
+{
+    CSK_WIFI_CHECK(wifi_event_cb != NULL, -EINVAL);
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    int ret = wifi_remove_callback(wifi_event_cb);
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+int csk_wifi_init(void)
 {
     int ret = 0;
 
     sys_slist_init(&wifi_callback_list);
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    const struct device *dev = wifi_get_dev(WLAN_MODE_STA); /* TODO: add wifi softAP support */
 
-    ret = wifi_send_command(dev, WIFI_CMD_STA_INIT, K_NO_WAIT);
+    ret = wifi_send_command(NULL, WIFI_CMD_INIT, K_NO_WAIT);
+    if (ret != 0)   goto __exit;
+    ret = wifi_take_result(&ret_msg, K_FOREVER);
+    if (ret != 0)   goto __exit;
+    ret = ret_msg.result;
+    k_mutex_unlock(&wifi_api_mutex);
+    return 0;
+
+__exit:
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+int csk_wifi_deinit(void)
+{
+    int ret = 0;
+
+    wifi_ret_msg_t ret_msg;
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    wifi_clean_callbacks();
+    ret = wifi_send_command(NULL, WIFI_CMD_DEINIT, K_NO_WAIT);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, K_FOREVER);
     if (ret != 0)   goto __exit;

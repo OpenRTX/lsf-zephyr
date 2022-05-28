@@ -117,6 +117,8 @@ struct csk_wifi_data {
 };
 
 typedef enum {
+    WIFI_CMD_INIT,
+    WIFI_CMD_DEINIT,
     WIFI_CMD_STA_INIT,
     WIFI_CMD_STA_CONNECT,
     WIFI_CMD_STA_DISCONNECT,
