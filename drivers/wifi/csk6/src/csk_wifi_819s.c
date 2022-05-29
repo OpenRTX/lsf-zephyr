@@ -460,44 +460,30 @@ static int wifi_sta_connect(const struct device *dev)
             ret = wlan_ret;
             data->err = CSK_WIFI_ERR_STA_FAILED;
             WIFI_STA_SM_PRIMARY_SET(data->status, WIFI_SM_STA_DISCONNECTED);
-            LOG_ERR("connect timeout");
+            LOG_ERR("WiFi station unknown exception, connect timeout !!!");
             break;
         }
+        const char *wlan_event_str = WLAN_EVENT_STRINGS[event];
         if (event == WLAN_EVENT_CONNECTED) {
             LOG_INF("WiFi station connect successfully");
             break;
         } else if (event == WLAN_EVENT_SCAN_SUCCESS) {
             LOG_INF("WiFi Scan successfully");
             break;
-        }  else if (event == WLAN_EVENT_DISCONNECTED) {
-            LOG_WRN("WiFi station unknown exception, event_code: %d", event);
-            break;
         } else if (event == WLAN_EVENT_SCAN_FAILED) {
-            LOG_ERR("WiFi Scan failed, event_code: %d", event);
+            LOG_ERR("WiFi Scan failed, please retry again, take event: %s", wlan_event_str);
             break;
         } else if (event == WLAN_EVENT_SSID_NOT_FOUND) {
             wlan_sta_disable();
-            LOG_ERR("WiFi AP ssid not found, event_code: %d", event);
-            break;
-        } else if (event == WLAN_EVENT_AUTH_TIMEOUT) {
-            LOG_ERR("WiFi station authentication timeout, event_code: %d", event);
-            break;
-        } else if (event == WLAN_EVENT_ASSOC_TIMEOUT) {
-            LOG_ERR("WiFi station association timeout, event_code: %d", event);
-            break;
-        } else if (event == WLAN_EVENT_ASSOC_FAILED) {
-            LOG_ERR("WiFi station association failed, event_code: %d", event);
-            break;
-        } else if (event == WLAN_EVENT_4WAY_HANDSHAKE_FAILED) {
-            LOG_ERR("WiFi station 4-way handshake failed, event_code: %d", event);
+            LOG_ERR("WiFi AP ssid not found, take event: %s", wlan_event_str);
             break;
         } else {
-            LOG_ERR("WiFi station unknown exception, event_code: %d", event);
+            LOG_ERR("WiFi station connect failed, please retry again, take event: %s", wlan_event_str);
             break;
         }
     } while (1); /* station connect request will trigger scan operation */
     data->is_wait_result = false;
-    ret = data->err;
+    ret = data->err;  /* Fixme: fix the wrong ret val */
 
     return ret;
 }
