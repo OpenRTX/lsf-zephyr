@@ -11,13 +11,12 @@
 
 int cmd_etf_cli_exec(const char **argv, const size_t argc)
 {
-    return etf_cli_main(argv);
+	return etf_cli_main(argv);
 }
 
 
 int cmd_etf_init()
 {
-    
-    etf_init();
-    return 0;
+	etf_init();
+	return 0;
 }

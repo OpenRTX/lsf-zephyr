@@ -11,7 +11,8 @@
 LOG_MODULE_REGISTER(csk_wifi_819s_etf, LOG_LEVEL_DBG);
 
 void main(void)
-{    LOG_DBG("Hello csk_wifi_819s_etf");
+{
+	LOG_DBG("Hello csk_wifi_819s_etf");
 
-    cmd_etf_init();
+	cmd_etf_init();
 }

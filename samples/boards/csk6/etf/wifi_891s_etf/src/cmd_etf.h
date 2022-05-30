@@ -36,7 +36,6 @@
 extern "C" {
 #endif
 
-
 int cmd_etf_cli_exec(const char **argv, const size_t argc);
 
 int cmd_etf_init();

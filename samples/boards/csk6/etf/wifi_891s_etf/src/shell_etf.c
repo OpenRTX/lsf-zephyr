@@ -1,5 +1,5 @@
 /*
- * 
+ *
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -55,19 +55,20 @@ static int cmd_etf_disconnect(const struct shell *shell, size_t argc, char **arg
 static int cmd_etf(const struct shell *shell, size_t argc, char **argv)
 {
 	LOG_DBG("cmd_etf, argc: %d", argc);
-	
+
 	size_t argc_without_prefix_cmd = argc - 1;
 	char **argv_without_prefix_cmd = argv + 1;
+
 	return cmd_etf_cli_exec((const char **)(argv_without_prefix_cmd), argc_without_prefix_cmd);
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_etf,
-	/* Alphabetically sorted to ensure correct Tab autocompletion. */
-    /*SHELL_CMD_ARG(syntax, subcmd, help, handler, mand, opt)*/
-	SHELL_CMD_ARG(disconnect,	   NULL,	"disconnect for etf",	   &cmd_etf_disconnect,  0, 0),
+                                /* Alphabetically sorted to ensure correct Tab autocompletion. */
+                                /*SHELL_CMD_ARG(syntax, subcmd, help, handler, mand, opt)*/
+			       SHELL_CMD_ARG(disconnect,          NULL,        "disconnect for etf",      &cmd_etf_disconnect,  0, 0),
 
-	SHELL_SUBCMD_SET_END /* Array terminated. */
-);
+			       SHELL_SUBCMD_SET_END /* Array terminated. */
+			       );
 
 
 SHELL_CMD_REGISTER(etf, &sub_etf, "etf related commands.", &cmd_etf);
