@@ -16,11 +16,11 @@
 		 zephyr,flash_controller = &flash;
 		 zephyr,uart-mcumgr = &uart0;
 	 };
- 
+
 	 aliases {
 		 avf-audio-pwr-amp = &pwr_amp;
 	 };
- 
+
 	 fstab {
 		 compatible = "zephyr,fstab";
 		 lfs1: lfs1 {
@@ -36,17 +36,17 @@
 			 block-cycles = <512>;
 		 };
 	 };
- 
+
 	 pwr_amp:audio_pwr_amp{
 		 compatible = "listenai,pwr-amp";
 		 enalbe-gpios = <&gpioa 4 1>;
-		 label = "audio_pwr_amp";	
+		 label = "audio_pwr_amp";
 		 status = "okay";
 	 };
- 
+
  };
- 
-  
+
+
  &flash0 {
 	 partitions {
 		 compatible = "fixed-partitions";
@@ -63,43 +63,43 @@
 			 label = "storage";
 			 reg = <0x460000 0x03a0000>;
 		 };
- 
- 
+
+
 	 };
  };
- 
+
  &zephyr_udc0 {
 	 cdc_acm_uart0 {
 		 compatible = "zephyr,cdc-acm-uart";
 		 label = "CDC_ACM_0";
 	 };
  };
- 
+
  &gpt0 {
 	 status = "okay";
 	 pwm5: pwm5 {
 		 status = "disabled";
 	 };
- 
+
 	 pwm4: pwm4 {
 		 status = "disabled";
 	 };
- 
+
 	 pwm6: pwm6 {
 		 status = "disabled";
-	 };	
+	 };
  };
- 
+
  &spi0 {
 	 status = "okay";
 	 spi-max-frequency = <25000000>;
  };
- 
- 
+
+
 &spi1 {
     status = "okay";
     spi-max-frequency = <100000000>;
-    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>; 
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>;
 	pinctrl-names = "default";
 };
 
@@ -107,7 +107,7 @@
                  pinctrl_i2c0_scl_default: i2c0_scl_default{
                          pinctrls = <&pinmuxb 2 8>;
                  };
-                 
+
                  pinctrl_i2c0_sda_default: i2c0_sda_default{
                          pinctrls = <&pinmuxb 3 8>;
                  };
@@ -128,7 +128,7 @@
 
 &i2c0 {
         status = "okay";
-        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
         pinctrl-names = "default";
 
         bf30a2: bf30a2@6e {
@@ -136,8 +136,7 @@
             status = "okay";
             label = "VIDEO";
             reg = <0x6e>;
-            pd-gpios = <&gpioa 5 0>;
-            pwr-gpios = <&gpioa 5 0>;
+            xclk-gpios = <&gpioa 7 0>;
             product-id = <0x3b02>;
             spi = <&spi1>;
         };
