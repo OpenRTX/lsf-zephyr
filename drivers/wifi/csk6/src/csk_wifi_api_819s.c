@@ -155,8 +155,8 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
     const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
     struct csk_wifi_data *data = dev->data;
     wifi_sta_state_machine_t current_sm = WIFI_STA_SM_PRIMARY_GET(data->status);
-    if ((current_sm != WIFI_SM_STA_DISCONNECTED) || (WIFI_SM_STA_SCAN_DONE != WIFI_SM_STA_SCAN_DONE)) {
-        LOG_ERR("current current_sm: %d",current_sm);
+    if ((current_sm != WIFI_SM_STA_DISCONNECTED) && (current_sm != WIFI_SM_STA_SCAN_DONE)) {
+        LOG_ERR("connect faied, current current_sm: %d", current_sm);
         return -EINVAL;
     }
 
@@ -205,8 +205,8 @@ int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
     struct csk_wifi_data *data = dev->data;
     wifi_sta_state_machine_t current_sm = WIFI_STA_SM_PRIMARY_GET(data->status);
 
-    if ((current_sm != WIFI_SM_STA_CONNECTED) || ((WIFI_SM_STA_SCAN_DONE != WIFI_SM_STA_SCAN_DONE))) {
-        LOG_ERR("current current_sm: %d",current_sm);
+    if ((current_sm != WIFI_SM_STA_CONNECTED) && (current_sm != WIFI_SM_STA_SCAN_DONE)) {
+        LOG_ERR("disconnect failed, current current_sm: %d", current_sm);
         return -EINVAL;
     }
 
