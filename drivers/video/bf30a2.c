@@ -240,7 +240,7 @@ static const struct bf30a2_reg_config bf30a2_regs_configs[] = {
 	{ 0xb2, 0x98 },
 	{ 0xb3, 0xc4 },
 	{ 0xb4, 0x0C },
-	{ 0x00, 0x42 },
+	{ 0x00, 0x4A },
 	{ 0x13, 0x07 },
 	{ 0xf1, 0x09 },
 	{ 0xa0, 0x8E },
@@ -945,7 +945,7 @@ typedef struct {
     volatile uint32_t tag;
 } __packed frames_info_t;
 
-Z_GENERIC_SECTION(.csk6_psram_section0) __attribute__((aligned(32))) static char swp_frames[3][180 * 128] = {0};
+Z_GENERIC_SECTION(.psram_section) __attribute__((aligned(32))) static char swp_frames[3][180 * 128] = {0};
 
 static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 {
