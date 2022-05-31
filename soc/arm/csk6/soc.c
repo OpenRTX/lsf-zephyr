@@ -38,8 +38,7 @@ static int csk6_init(const struct device *arg)
 	BootClock_Init();
 	outw(ABB_BASE, inw(ABB_BASE)); //write 0 to bit16
 	SCB_EnableICache();
-	SCB_DisableDCache();
-	// SCB_EnableDCache();
+	SCB_EnableDCache();
 	/*TODO: will rewrite later*/
 #ifdef CONFIG_HAS_CSK6_GPT
 	GPT_Init_Handler();
