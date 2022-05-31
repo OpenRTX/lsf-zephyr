@@ -26,9 +26,8 @@ static void sec_counter_callback(const struct device *dev,
 void rtc_thread(void *v1, void *v2, void *v3){
 	const struct device *rtc = NULL;
 	uint32_t ticks = 0;
-	printk("======RTC device sample start======\n");
 
-    rtc = DEVICE_DT_GET(DT_NODELABEL(rtc1));
+	rtc = DEVICE_DT_GET(DT_NODELABEL(rtc1));
 	printk("RTC name: %s\n", rtc->name);
 
 	if (rtc == NULL) {
@@ -39,29 +38,35 @@ void rtc_thread(void *v1, void *v2, void *v3){
 		printk("RTC: Device is not ready.\n");
 	}
 
+	/*get rtc top value*/
 	uint32_t rtc_top_value = counter_get_top_value(rtc);
 	printk("RTC top value is %ds\n", rtc_top_value);
 
-	counter_start(rtc);			// start counter
-	k_msleep(1000);
-	counter_get_value(rtc, &ticks);
-	printk("RTC value: %ds\n", ticks);
+	printk("======RTC device alarm start======\n");
+	/* start counter */
+	counter_start(rtc);
 
-	printk("======RTC device alarm sample start======\n");
+	/* config a 2s alarm */
 	uint32_t now;
+	uint32_t delay_time = 2; /*(S)*/
 	struct counter_alarm_cfg alarm_cfg;
 	alarm_cfg.flags = 0;
 	alarm_cfg.callback = sec_counter_callback;
-	counter_get_value(rtc,&now);
-	alarm_cfg.ticks = now + 2;  				// After 2s alarm
+	/* Get current counter value */
+	counter_get_value(rtc, &now);
+	printk("get current counter value: %ds\n", ticks);
+	alarm_cfg.ticks = now + delay_time; /* callback after 2S from now*/
 	alarm_cfg.user_data = &alarm_cfg;
+
+	/* set alarm, the currently supported channel id is 0 */
 	counter_set_channel_alarm(rtc, 0, &alarm_cfg);
+
+	/* get ticks value after alarm end */
 	k_msleep(3000);
 	counter_get_value(rtc, &ticks);
-	printk("RTC value: %ds\n", ticks);
-	printk("======RTC device alarm sample end======\n");
+	printk("get counter value after alarm end: %ds\n", ticks);
 
-	printk("======RTC device sample end======\n");
+	printk("======RTC device alarm end======\n");
 }
 
 void main(void)
