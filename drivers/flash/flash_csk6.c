@@ -9,14 +9,12 @@
 
 #define FLASH_WRITE_BLK_SZ DT_PROP(SOC_NV_FLASH_NODE, write_block_size)
 #define FLASH_ERASE_BLK_SZ DT_PROP(SOC_NV_FLASH_NODE, erase_block_size)
-#define FLASH_CHIP_SZ DT_REG_SIZE_BY_IDX(SOC_NV_FLASH_NODE, 0)
-#define FLASH_BASE_ADDRESS DT_REG_ADDR_BY_IDX(SOC_NV_FLASH_NODE, 0)
 
 #include <string.h>
 #include <kernel.h>
 #include <drivers/flash.h>
 #include "hal/spiflash.h"
-#include "mem.h"   // for macro "DT_SIZE_M"
+#include "mem.h" // for macro "DT_SIZE_M"
 
 #define FALSH_DISABLE_IRQ (1)
 #if FALSH_DISABLE_IRQ
@@ -32,12 +30,12 @@ typedef struct {
 } csk6_flash_config_t;
 
 csk6_flash_config_t csk6_flash_config = { .flash_dev = {
-							.base_addr = DT_INST_REG_ADDR(0),
-							.d_width = 4,
-							.sclk_div = 0, //divider is 1
-							.run_mod = RUN_WITH_INT,
-							.timeout = 0,
-						} };
+						  .base_addr = DT_INST_REG_ADDR(0),
+						  .d_width = 4,
+						  .sclk_div = 0, //divider is 1
+						  .run_mod = RUN_WITH_INT,
+						  .timeout = 0,
+					  } };
 
 static const struct flash_parameters flash_csk6_parameters = {
 	.write_block_size = FLASH_WRITE_BLK_SZ,
@@ -50,11 +48,13 @@ static int flash_csk6_read(const struct device *dev, off_t address, void *buffer
 	if (length == 0) {
 		return 0;
 	}
-	if (buffer == NULL || address > FLASH_CHIP_SZ || address + length > FLASH_CHIP_SZ) {
+	if (buffer == NULL || address > DT_SIZE_M(CONFIG_FLASH_CHIP_SIZE) ||
+	    address + length > DT_SIZE_M(CONFIG_FLASH_CHIP_SIZE)) {
 		return -EINVAL;
 	}
 	FLASH_OPT_ENTER();
-	if (0 != sflash_read((void *)dev->config, FLASH_BASE_ADDRESS + address, buffer, length)) {
+	if (0 !=
+	    sflash_read((void *)dev->config, CONFIG_FLASH_BASE_ADDRESS + address, buffer, length)) {
 		iret = -EIO;
 	}
 	FLASH_OPT_EXIT();
@@ -62,9 +62,14 @@ static int flash_csk6_read(const struct device *dev, off_t address, void *buffer
 }
 
 /*If from data address in soc flash area ,copy to ram area first*/
-#define ADDRESS_IS_IN_SOC_FLASH_AREA(address) (((address >= FLASH_BASE_ADDRESS)&&(address < FLASH_BASE_ADDRESS + FLASH_CHIP_SZ))?1:0)
-static int inline flash_csk6_write_with_cp(const struct device *dev, off_t address, const void *buffer,size_t length){
-
+#define ADDRESS_IS_IN_SOC_FLASH_AREA(address)                                                      \
+	(((address >= CONFIG_FLASH_BASE_ADDRESS) &&                                                \
+	  (address < CONFIG_FLASH_BASE_ADDRESS + DT_SIZE_M(CONFIG_FLASH_CHIP_SIZE))) ?             \
+		 1 :                                                                               \
+		       0)
+static int inline flash_csk6_write_with_cp(const struct device *dev, off_t address,
+					   const void *buffer, size_t length)
+{
 	char cbuffer[32];
 	char *pos = (char *)buffer;
 	char *pTail = (char *)buffer + length;
@@ -75,7 +80,7 @@ static int inline flash_csk6_write_with_cp(const struct device *dev, off_t addre
 		cpLen = (pTail - pos) > sizeof(cbuffer) ? sizeof(cbuffer) : (pTail - pos);
 		memcpy(cbuffer, pos, cpLen);
 		if (0 != sflash_write((void *)dev->config,
-				      FLASH_BASE_ADDRESS + address + (pos - (char *)buffer),
+				      CONFIG_FLASH_BASE_ADDRESS + address + (pos - (char *)buffer),
 				      cbuffer, cpLen)) {
 			iret = -EIO;
 			break;
@@ -86,24 +91,25 @@ static int inline flash_csk6_write_with_cp(const struct device *dev, off_t addre
 	return iret;
 }
 static int flash_csk6_write(const struct device *dev, off_t address, const void *buffer,
-			       size_t length)
+			    size_t length)
 {
 	int iret = 0;
 
 	if (length == 0) {
 		return 0;
 	}
-	if (buffer == NULL || address > FLASH_CHIP_SZ || address + length > FLASH_CHIP_SZ) {
+	if (buffer == NULL || address > DT_SIZE_M(CONFIG_FLASH_CHIP_SIZE) ||
+	    address + length > DT_SIZE_M(CONFIG_FLASH_CHIP_SIZE)) {
 		return -EINVAL;
 	}
 
 	FLASH_OPT_ENTER();
 	sflash_write_protection_set((void *)dev->config, false);
-	if(0 != ADDRESS_IS_IN_SOC_FLASH_AREA((uint32_t)buffer)){
-		iret = flash_csk6_write_with_cp(dev,address,buffer,length);
-	}
-	else{
-		if (0 != sflash_write((void *)dev->config, FLASH_BASE_ADDRESS + address, buffer, length)) {
+	if (0 != ADDRESS_IS_IN_SOC_FLASH_AREA((uint32_t)buffer)) {
+		iret = flash_csk6_write_with_cp(dev, address, buffer, length);
+	} else {
+		if (0 != sflash_write((void *)dev->config, CONFIG_FLASH_BASE_ADDRESS + address,
+				      buffer, length)) {
 			iret = -EIO;
 		} else {
 			iret = 0;
@@ -119,14 +125,15 @@ static int flash_csk6_erase(const struct device *dev, off_t start, size_t len)
 {
 	int iret;
 
-	if (start > FLASH_CHIP_SZ || start + len > FLASH_CHIP_SZ) {
+	if (start > DT_SIZE_M(CONFIG_FLASH_CHIP_SIZE) ||
+	    start + len > DT_SIZE_M(CONFIG_FLASH_CHIP_SIZE)) {
 		return -EINVAL;
 	}
 
 	FLASH_OPT_ENTER();
 	sflash_write_protection_set((void *)dev->config, false);
 
-	if (0 != sflash_erase((void *)dev->config, FLASH_BASE_ADDRESS + start, len)) {
+	if (0 != sflash_erase((void *)dev->config, CONFIG_FLASH_BASE_ADDRESS + start, len)) {
 		iret = -EIO;
 	} else {
 		iret = 0;
@@ -145,7 +152,7 @@ static const struct flash_pages_layout flash_csk6_pages_layout = {
 };
 
 void flash_csk6_page_layout(const struct device *dev, const struct flash_pages_layout **layout,
-			       size_t *layout_size)
+			    size_t *layout_size)
 {
 	*layout = &flash_csk6_pages_layout;
 	*layout_size = 1;
@@ -163,7 +170,7 @@ static int flash_csk6_init(const struct device *dev)
 {
 	unsigned int key;
 
-	((FLASH_DEV*)((void *)dev->config))->ext_addr4_mode = FLASH_CHIP_SZ > DT_SIZE_M(16) ? 1 : 0;
+	((FLASH_DEV *)((void *)dev->config))->ext_addr4_mode = CONFIG_FLASH_CHIP_SIZE > 16 ? 1 : 0;
 
 	key = irq_lock();
 	sflash_init((void *)dev->config);
