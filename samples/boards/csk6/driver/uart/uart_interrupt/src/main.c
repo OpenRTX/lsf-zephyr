@@ -12,6 +12,8 @@
 #include <drivers/uart.h>
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 #define UART0		DT_NODELABEL(uart0)
+#define UART1		DT_NODELABEL(uart1)
+
 uint8_t rx_buffer[100];
 
 static void uart_rx_callback(const struct device *dev, void *user_data){
@@ -29,19 +31,28 @@ static void uart_rx_callback(const struct device *dev, void *user_data){
 
 void main(void)
 {
-	const struct device *uart = DEVICE_DT_GET(UART0);
-	if(!device_is_ready(uart)){
-		LOG_ERR("device:%s is not ready!", uart->name);
+	const struct device *uart0 = DEVICE_DT_GET(UART0);
+
+	if(!device_is_ready(uart0)){
+		LOG_ERR("device:%s is not ready!", uart0->name);
 		return;
 	}
+	LOG_INF("devices %s is ready", uart0->name);
 
-	LOG_INF("devices %s is ready", uart->name);
+	const struct device *uart1 = DEVICE_DT_GET(UART1);
+	if(!device_is_ready(uart1)){
+		LOG_ERR("device:%s is not ready!", uart1->name);
+		return;
+	}
+	LOG_INF("devices %s is ready", uart1->name);
 
 	/* Define the application callback function */
-	uart_irq_callback_user_data_set(uart, uart_rx_callback, NULL);
+	uart_irq_callback_user_data_set(uart0, uart_rx_callback, NULL);
+	uart_irq_callback_user_data_set(uart1, uart_rx_callback, NULL);
 
 	/* Enable rx interrupts */
-	uart_irq_rx_enable(uart);
+	uart_irq_rx_enable(uart0);
+	uart_irq_rx_enable(uart1);
 
 	while(1){
 		k_msleep(20);
