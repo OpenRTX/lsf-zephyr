@@ -1,0 +1,184 @@
+/*--------------------------------------------------------------+
+ |																|
+ |	ivTTSInUse.h - AiSound 4 Kernel API	            			|
+ |																|
+ |		Copyright (c) 1999-2008, ANHUI USTC iFLYTEK CO.,LTD.	|
+ |		All rights reserved.									|
+ |																|
+ +--------------------------------------------------------------*/
+
+#ifndef IFLYTEK_VOICE_TTS_INUSE_H
+#define IFLYTEK_VOICE_TTS_INUSE_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define IV_WATCH_EXT            0           /* WatchCB扩展，输出更多信息 */
+
+#define ivTTS_PARAM_VE_AMPLIFY			0x00000601	/* voice effect - amplify */
+#define ivTTS_PARAM_VE_ECHO				0x00000602	/* voice effect - echo */
+#define ivTTS_PARAM_VE_REVERB			0x00000603	/* voice effect - reverb */
+#define ivTTS_PARAM_VE_CHROUS			0x00000604	/* voice effect - chrous */
+#define ivTTS_PARAM_VE_PITCH			0x00000605	/* voice effect - pitch adjust */
+
+#define ivTTS_PARAM_READ_PUNCTUATIONS	0x00000300	/* whether read punctuations */
+#define ivTTS_PARAM_OUTPUT_VOICE		0x00000400	/* output voice or not */
+#define ivTTS_PARAM_PHONEME_WATCH		0x00000402	/* how to watch phoneme, e.g. Chinese Pin-Yin */
+#define ivTTS_PARAM_WATCH_CALLBACK		0x00000403	/* watch callback entry */
+#define ivTTS_PARAM_VOLUME_INCREASE		0X00000505	/* volume value increase */
+#define ivTTS_PARAM_SPEED_INCREASE      0x00000512  /* voice speed increase multiple */
+#define ivTTS_PARAM_FUNCTION_TPYE		0x00002001  /* task to function */
+#define ivTTS_PARAM_VOICE_NUM    		0x00002002  /* get the number of the voice roles */
+#define ivTTS_PARAM_VOICE_INFO  		0x00002003  /* get the voice roles information */
+#define ivTTS_PARAM_PRINT_BEST_UNIT_CALLBACK	0x00002004  /* output the best unit information */
+#define ivTTS_PARAM_EQUALIZER           0x00002005   /*usgfte equalizer*/
+
+
+
+/* constants for values of parameter ivTTS_PARAM_PHONEME_WATCH */
+#define ivTTS_PHONEME_NONE				0			/* none (default) */
+#define ivTTS_PHONEME_PINYIN			1			/* Chinese Pin-Yin */
+
+/* constants for values of parameter ivTTS_PARAM_VOLUME_INCREASE */
+/* the range of volume value is from 0 to 10 */
+#define ivTTS_VOLUME_INCREASE_MIN				0		/* minimized volume (default) */
+#define ivTTS_VOLUME_INCREASE_MAX				10		/* maximized volume */
+
+/* constants for values of parameter ivTTS_PARAM_SPEED_INCREASE */
+#define ivTTS_SPEED_INCREASE_NORMAL				0		/* the fastest speed is double (default) */
+#define ivTTS_SPEED_INCREASE_FOURFOLD			1		/* Fourfold speed */
+#define ivTTS_SPEED_INCREASE_EIGHTFOLD			2		/*four~eighth speed*/
+
+/* constants for values of parameter ivTTS_PARAM_TEXT_MARK */
+#define ivTTS_TEXTMARK_CSSML			2			/* CSSML */
+
+/* constants for values of parameter ivTTS_PARAM_LANGUAGE */
+#define ivTTS_LANGUAGE_FRENCH			3			/* French */
+
+/* constants for values of parameter ivTTS_PARAM_SPEAK_STYLE */
+#define ivTTS_STYLE_VIVID				2			/* vivid speak style */
+
+/* constants for values of parameter ivTTS_PARAM_FUNCTION_TPYE */
+#define ivTTS_FUNCTION_TPYE_NO			0
+#define ivTTS_FUNCTION_TPYE_YES			1
+
+
+
+/* constants for values of parameter ivTTS_PARAM_EQUALIZER */
+typedef struct EqualizerEffect      CEqualizerEffect,ivPtr PEqualizerEffect;
+struct EqualizerEffect 
+{
+    ivInt32     nflag;/* 0表示有资源配置使用资源配置，无则不使用eq效果，1表示可以自由设计以下十个参数，2、3使用默认配置 */
+    ivInt32     nEqBand1; /* 支持范围-12~12 */
+    ivInt32     nEqBand2; /* 支持范围-12~12 */
+    ivInt32     nEqBand3; /* 支持范围-12~12 */
+    ivInt32     nEqBand4; /* 支持范围-12~12 */
+    ivInt32     nEqBand5; /* 支持范围-12~12 */
+    ivInt32     nEqBand6; /* 支持范围-12~12 */
+    ivInt32     nEqBand7; /* 支持范围-12~12 */
+    ivInt32     nEqBand8; /* 支持范围-12~12 */
+    ivInt32     nEqBand9; /* 支持范围-12~12 */
+    ivInt32     nEqBand10; /* 支持范围-12~12 */
+
+};
+
+
+/* watch callback type */
+typedef ivTTSErrID (ivProc ivTTSCB_Watch)(
+		ivPointer		pParameter,		/* [in] user callback parameter */
+		ivUInt16		nSylType,		/* [in] syllable type */
+		ivCPointer		pcSylText,		/* [in] syllable text buffer */
+		ivSize			nTextLen,		/* [in] syllable text length */
+		ivCPointer		pcSylPhone,		/* [in] syllable phoneme buffer */
+        ivSize			nPhoneLen 	    /* [in] syllable phoneme length */
+#if IV_WATCH_EXT
+        , ivCPointer    pWatchExtInfo   /* [in] syllable ExtInfo  */
+#endif
+        );
+
+/* synthesize and fetch some pcm data on an instance */
+ivTTSErrID ivCall ivTTS_FetchNext(
+								  ivHTTS		hTTS,		/* [in] handle to an instance */
+								  ivPointer		pData,		/* [in] pointer of pcm data buffer */
+								  ivSize ivPtr	pSize );	/* [in/out] data size */
+
+/* Grapheme To Phoneme Watch CallBack */
+typedef ivTTSErrID (ivProc ivTTSCB_WatchG2P)(
+	ivPointer  pParameter,  /* [in] pParameter user callback parameter */
+	ivUInt16   nG2PType,    /* [in] nG2PType phonetic alphabet type    */
+	ivCPointer pcSylPhone,  /* [in] nG2PType phonetic alphabet type    */
+	ivSize     nPhoneLen ); /* [in] nPhoneLen  syllable phoneme length */
+
+/* Print the best unit info that generated by catenation rear */
+typedef ivTTSErrID (ivProc ivTTSCB_PrintBestUnits)(
+	ivPointer	pParameter,	/* [in] user callback parameter */
+	ivUInt32	nLanguage,	/* [in] the language of unit */
+	ivUInt32	nUnitID,	/* [in] the unit id */
+	ivUInt32	nSentNum,	/* [in] the sentence number of unit */
+	ivUInt32	nOffset		/* [in] the offset of unit in the sentence */
+	);
+
+/* constants for values of parameter ivTTS_PARAM_OUTPUT_STYLE */
+#define ivTTS_OUTPUT_STYLE_G2P				0x00000002  /*set the output style as Pinyin*/
+
+/* constants for values of parameter wSylType */
+#define ivTTS_SYL_SYMBOL				0			/* symbol */
+#define ivTTS_SYL_PROMPT				1			/* prompt */
+#define ivTTS_SYL_CHINESE				2			/* chinese syllable */
+#define ivTTS_SYL_ENGLISH				3			/* english syllable */
+
+#define ivTTS_SYL_ENDL1				(ivUInt16)-1	/* end L1 */
+#define ivTTS_SYL_ENDL3				(ivUInt16)-3	/* end L3 */
+#define ivTTS_SYL_ENDSENT			(ivUInt16)-5	/* end sentense */
+
+
+/* structure for output command */
+typedef struct tagTTSOutputCommand ivTTTSOutputCommand;
+typedef ivTTTSOutputCommand ivPtr ivPTTSOutputCommand;
+
+struct tagTTSOutputCommand
+{
+	ivUInt32		dwCommand;		/* command name */
+	ivUInt32		dwParam1;		/* parameter 1 */
+	ivUInt32		dwParam2;		/* parameter 2 */
+};
+
+/* constants for values of command name */
+#define ivTTS_OUTCMD_SILENCE			0			/* output silence (dwParam1 is the length by ms) */
+#define ivTTS_OUTCMD_RESET				1			/* reset the decoder */
+
+/* constants for values of parameter wCode */
+#define ivTTS_CODE_COMMAND				0x0000		/* command */
+
+typedef struct tagResParam ivTResParam, ivPtr ivPResParam;
+struct tagResParam
+{
+	ivCStrA   lpActiveKey;  /* Active Key */
+	ivInt32   nResBufLen;   /* Encrypted resource buffer length */
+	ivPointer pResBuf;      /* Encrypted resource buffer */
+	ivPointer pCBParam;     /* user define callback parameter */
+};
+
+/* software encrypt interface */
+
+/* create an instance (Decrypt version) */
+#define ivTTS_Create_Decrypt(phTTS, pHeap, nHeapSize, pCBParam, pResPackDesc, nResPackCount,pUserInfo) \
+	ivTTS_CreateGecrypt(phTTS, pHeap, nHeapSize, pCBParam, pResPackDesc, nResPackCount,pUserInfo, AISOUND_SDK_USERID)
+
+ivTTSErrID ivCall ivTTS_CreateGecrypt(
+									  ivHTTS ivPtr      phTTS,          /* [out] handle to an instance */
+									  ivPointer         pHeap,          /* [in] heap for instance */
+									  ivSize            nHeapSize,      /* [in] size of the heap */
+									  ivPointer         pCBParam,       /* [in] user callback parameter */
+									  ivPResPackDescExt pResPackDesc,   /* [in] resource pack description array */
+									  ivSize            nResPackCount,  /* [in] resource pack count */
+									  ivPTTSUserInfo    pUserInfo,      /* [in] TTS User Info */
+									  ivCStrA           pUserID);       /* [in] SDK ID */
+
+#ifdef __cplusplus
+}
+#endif
+									  
+#endif /* !IFLYTEK_VOICE_TTS_INUSE_H */
+

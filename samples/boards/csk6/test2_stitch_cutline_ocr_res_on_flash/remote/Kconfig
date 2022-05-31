@@ -1,0 +1,64 @@
+config SOF_AI_CV
+	bool "Sof camera image ai"
+	default n
+	help
+	  Select for Sof camera image ai support.
+	  This will cause cv to include camera image ai library.
+
+config SOF_AI_CUTLINE_RES_ADDR
+	hex "Sof cutline algorithm resource address"
+	default 0x68800000
+	depends on SOF_AI_CV
+	help
+	  Sof cutline algorithm resource address.
+	
+config SOF_AI_CUTLINE_RES_SIZE
+	hex "Sof cutline algorithm resource size"
+	default 430632
+	depends on SOF_AI_CV
+	help
+	  Sof cutline algorithm resource size.
+
+config SOF_AI_OCR_RES_ADDR
+	hex "Sof ocr algorithm resource address"
+	default 0x68880000
+	depends on SOF_AI_CV
+	help
+	  Sof ocr algorithm resource address.
+
+config SOF_AI_OCR_RES_SIZE
+	hex "Sof ocr algorithm resource size"
+	default 2523608
+	depends on SOF_AI_CV
+	help
+	  Sof ocr algorithm resource size.
+
+config SOF_AI_TTS_RES_ADDR
+	hex "Sof tts algorithm resource address"
+	default 0x68b00000
+	depends on SOF_AI_CV
+	help
+	  Sof tts algorithm resource address.
+
+config SOF_AI_TTS_RES_SIZE
+	hex "Sof tts algorithm resource size"
+	default 0
+	depends on SOF_AI_CV
+	help
+	  Sof tts algorithm resource size.
+
+config SOF_AI_TRANS_RES_ADDR
+	hex "Sof translate algorithm resource address"
+	default 0x68f80000
+	depends on SOF_AI_CV
+	help
+	  Sof translate algorithm resource address.
+
+config SOF_AI_TRANS_RES_SIZE
+	hex "Sof translate algorithm resource size"
+	default 0
+	depends on SOF_AI_CV
+	help
+	  Sof translate algorithm resource size.
+
+source "Kconfig.zephyr"

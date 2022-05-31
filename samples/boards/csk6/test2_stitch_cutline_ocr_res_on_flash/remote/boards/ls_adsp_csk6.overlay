@@ -1,0 +1,27 @@
+&ls_adsp_csk6_pinctrl{
+
+		pinctrl_spi1_sclk_default: spi1_sclk_default {
+            pinctrls = < &pinmuxb 0 7 >;
+		};
+
+		pinctrl_spi1_mosi_default: spi1_mosi_default {
+            pinctrls = < &pinmuxb 1 7 >;
+		};
+
+		pinctrl_spi1_miso_default: spi1_miso_default {
+            pinctrls = < &pinmuxa 1 7 >;
+		};
+
+        pinctrl_spi1_cs_default: spi1_cs_default {
+            pinctrls = < &pinmuxa 9 7 >;
+		};
+
+        pinctrl_uart2_rx_default: uart2_rx_default {
+			pinctrls = < &pinmuxb 7 3 >;
+		};
+
+		pinctrl_uart2_tx_default: uart2_tx_default {
+			pinctrls = < &pinmuxa 18 3 >;
+		};
+
+};

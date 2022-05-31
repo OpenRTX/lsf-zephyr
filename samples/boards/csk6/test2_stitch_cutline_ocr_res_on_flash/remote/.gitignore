@@ -1,0 +1,4 @@
+# don't ignore *.a
+!*.a
+!*.bin
+
