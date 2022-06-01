@@ -7,7 +7,6 @@
                 pinctrl_uart0_tx_default: uart0_tx_default{
                         pinctrls = <&pinmuxb 11 2>;
                 };
-
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
                         pinctrls = <&pinmuxb 2 8>;
                 };
