@@ -21,7 +21,7 @@ OUTPUT_ARCH(xtensa)
 #include "linker-defs.h"
 
 
-#include <devicetree.h>
+//#include <devicetree.h>
 
 #define CP_XIP (0)
 
