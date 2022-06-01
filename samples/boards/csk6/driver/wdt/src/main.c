@@ -13,14 +13,14 @@
 #define WDT_FEED_TRIES 10
 
 #ifndef WDT_MAX_WINDOW
-#define WDT_MAX_WINDOW 16000
+#define WDT_MAX_WINDOW 2000
 #endif
 
 #define WDT_ALLOW_CALLBACK 1
 
 #if WDT_ALLOW_CALLBACK
 static void wdt_callback(const struct device *wdt_dev, int channel_id)
-{	
+{
 	static bool is_handled = false;
 
 	if (!is_handled) {
