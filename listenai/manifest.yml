@@ -43,7 +43,7 @@ manifest:
       path: modules/lib/listenai/lisa_player
     - name: zport_sal
       remote: listenai
-      revision: 0f5bb60cce8f6ef877ab1769b24f8635b5b68434
+      revision: 746484202173ac51ce45d3017f9ea7e08e271727
       path: modules/lib/listenai/zport_sal
     - name: zport_esp
       remote: listenai
