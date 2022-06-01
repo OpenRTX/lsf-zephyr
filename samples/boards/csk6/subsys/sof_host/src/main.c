@@ -70,6 +70,8 @@ static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 	int cnt = info->frame_cnt;
 	char *addr = info->addr;
 
+	w %= info->frame_cnt;
+
 	if (w > r) {
 		if ((r + cnt - w) <= 1) {
 			LOG_ERR("No free space to copy datas, w:%d, r=%d.", w, r);
