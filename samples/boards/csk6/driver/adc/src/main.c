@@ -13,6 +13,10 @@
 
 #define ADC_NUM_CHANNELS	DT_PROP_LEN(DT_PATH(zephyr_user), io_channels)
 
+#if ADC_NUM_CHANNELS > 3
+#error "Currently only 1 or 2 channels supported in this sample"
+#endif
+
 #define ADC_NODE		DT_PHANDLE(DT_PATH(zephyr_user), io_channels)
 
 /* Common settings supported by most ADCs */
@@ -104,6 +108,6 @@ void main(void)
 		}
 		printk("\n");
 
-		k_sleep(K_MSEC(1000));
+		k_sleep(K_MSEC(5000));
 	}
 }
