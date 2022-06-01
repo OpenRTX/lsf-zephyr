@@ -28,39 +28,69 @@
 extern "C" {
 #endif
 
+#define CSK_WIFI_CHECK(cond, ret_val) ({                                      \
+    if (!(cond)) {                                                            \
+        LOG_ERR("%s:%d Check failed", __FUNCTION__, __LINE__);                \
+        return (ret_val);                                                     \
+    }                                                                         \
+})
+
+
+#define CSK_WIFI_CHECK_RETURN(cond, ret_val, format, ...) ({                  \
+    if (!(cond)) {                                                            \
+        LOG_ERR("%s:%d Check failed", __FUNCTION__, __LINE__);                \
+        LOG_ERR(format, ##__VA_ARGS__);                                       \
+        return (ret_val);                                                     \
+    }                                                                         \
+})
+
+
+#define CSK_WIFI_CHECK_GOTO(cond, label, format, ...) ({                      \
+    if (!(cond)) {                                                            \
+        LOG_ERR("%s:%d Check failed", __FUNCTION__, __LINE__);                \
+        LOG_ERR(format, ##__VA_ARGS__);                                       \
+        goto label;                                                           \
+    }                                                                         \
+})
+
 #define WIFI_MODE_AP    10
 #define EVENT_SUBTYPE(event)  ((uint16_t)((event) & 0xFFFF))
 
-#define FOREACH_WIFI_STA_SM(WIFI_SM) \
-        WIFI_SM(WIFI_SM_STA_CONNECTED)   \
-        WIFI_SM(WIFI_SM_STA_DISCONNECTED)  \
-        WIFI_SM(WIFI_SM_STA_ON_CONNECT)   \
-        WIFI_SM(WIFI_SM_STA_ON_CONNECT_SCAN)  \
-        WIFI_SM(WIFI_SM_STA_ON_AUTH_EXCEPTION)  \
-        WIFI_SM(WIFI_SM_STA_ON_ASSOC_EXCEPTION)  \
-        WIFI_SM(WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION)  \
-        WIFI_SM(WIFI_SM_STA_ON_DISCONNECT)  \
-        WIFI_SM(WIFI_SM_STA_ON_SCAN)  \
-        WIFI_SM(WIFI_SM_STA_SCAN_DONE)  \
+#define FOREACH_WIFI_STA_SM(WIFI_SM)                                          \
+        WIFI_SM(WIFI_SM_ON_STARTUP)                                           \
+        WIFI_SM(WIFI_SM_STARTUP_DONE)                                         \
+        WIFI_SM(WIFI_SM_STA_CONNECTED)                                        \
+        WIFI_SM(WIFI_SM_STA_DISCONNECTED)                                     \
+        WIFI_SM(WIFI_SM_STA_ON_CONNECT)                                       \
+        WIFI_SM(WIFI_SM_STA_ON_CONNECT_SCAN)                                  \
+        WIFI_SM(WIFI_SM_STA_ON_AUTH_EXCEPTION)                                \
+        WIFI_SM(WIFI_SM_STA_ON_ASSOC_EXCEPTION)                               \
+        WIFI_SM(WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION)                           \
+        WIFI_SM(WIFI_SM_ON_CMDTIMEOUT_EXCEPTION)                              \
+        WIFI_SM(WIFI_SM_STA_ON_DISCONNECT)                                    \
+        WIFI_SM(WIFI_SM_STA_ON_SCAN)                                          \
+        WIFI_SM(WIFI_SM_STA_SCAN_DONE)                                        \
 
-#define FOREACH_WLAN_EVENT(WLAN_EVENT) \
-        WLAN_EVENT(WLAN_EVENT_CONNECTED)   \
-        WLAN_EVENT(WLAN_EVENT_DISCONNECTED)  \
-        WLAN_EVENT(WLAN_EVENT_SCAN_SUCCESS)   \
-        WLAN_EVENT(WLAN_EVENT_SCAN_FAILED)  \
-        WLAN_EVENT(WLAN_EVENT_4WAY_HANDSHAKE_FAILED)  \
-        WLAN_EVENT(WLAN_EVENT_SSID_NOT_FOUND)  \
-        WLAN_EVENT(WLAN_EVENT_AUTH_TIMEOUT)  \
-        WLAN_EVENT(WLAN_EVENT_ASSOC_TIMEOUT)  \
-        WLAN_EVENT(WLAN_EVENT_CONNECT_FAILED)  \
-        WLAN_EVENT(WLAN_EVENT_CONNECTION_LOSS)  \
-        WLAN_EVENT(WLAN_EVENT_AUTH_FAILED)  \
-        WLAN_EVENT(WLAN_EVENT_ASSOC_FAILED)  \
-        WLAN_EVENT(WLAN_EVENT_DEV_HANG)  \
-        WLAN_EVENT(WLAN_EVENT_AP_STA_CONNECTED)  \
-        WLAN_EVENT(WLAN_EVENT_AP_STA_DISCONNECTED)  \
-        WLAN_EVENT(WLAN_EVENT_REKEY_COMPLETE)  \
-        WLAN_EVENT(WLAN_EVENT_FW_CMD_TIMEOUT)  \
+#define FOREACH_WLAN_EVENT(WLAN_EVENT)                                        \
+        WLAN_EVENT(WLAN_EVENT_CONNECTED)                                      \
+        WLAN_EVENT(WLAN_EVENT_DISCONNECTED)                                   \
+        WLAN_EVENT(WLAN_EVENT_SCAN_SUCCESS)                                   \
+        WLAN_EVENT(WLAN_EVENT_SCAN_FAILED)                                    \
+        WLAN_EVENT(WLAN_EVENT_4WAY_HANDSHAKE_FAILED)                          \
+        WLAN_EVENT(WLAN_EVENT_SSID_NOT_FOUND)                                 \
+        WLAN_EVENT(WLAN_EVENT_AUTH_TIMEOUT)                                   \
+        WLAN_EVENT(WLAN_EVENT_ASSOC_TIMEOUT)                                  \
+        WLAN_EVENT(WLAN_EVENT_CONNECT_FAILED)                                 \
+        WLAN_EVENT(WLAN_EVENT_CONNECTION_LOSS)                                \
+        WLAN_EVENT(WLAN_EVENT_AUTH_FAILED)                                    \
+        WLAN_EVENT(WLAN_EVENT_ASSOC_FAILED)                                   \
+        WLAN_EVENT(WLAN_EVENT_DEV_HANG)                                       \
+        WLAN_EVENT(WLAN_EVENT_AP_STA_CONNECTED)                               \
+        WLAN_EVENT(WLAN_EVENT_AP_STA_DISCONNECTED)                            \
+        WLAN_EVENT(WLAN_EVENT_REKEY_COMPLETE)                                 \
+        WLAN_EVENT(WLAN_EVENT_FW_CMD_TIMEOUT)                                 \
+        WLAN_EVENT(WLAN_EVENT_FW_STARTUP_DONE)                                \
+        WLAN_EVENT(WLAN_EVENT_MAX)                                            \
 
 
 #define GENERATE_ENUM(ENUM) ENUM,
@@ -81,6 +111,10 @@ typedef enum {
 
     /**  WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION
      * 1. handshake err --> disconnected
+     */
+
+    /**  WIFI_SM_ON_CMDTIMEOUT_EXCEPTION
+     * 1. cmd timeout --> disconnected
      */
     FOREACH_WIFI_STA_SM(GENERATE_ENUM)
 } wifi_sta_state_machine_t;
@@ -110,11 +144,15 @@ struct csk_wifi_data {
 #ifdef CONFIG_ESP_HOSTED
    hosted_event_callback_t hosted_event_cb;
 #else
-    bool is_wait_result;
-    wifi_fsm_t status;
+    bool sta_is_connected;
     csk_wifi_result_t err;
 #endif
 };
+
+typedef enum {
+    CSK_WIFI_MODE_STA,
+    CSK_WIFI_MODE_MAX,
+} csk_wifi_mode_t;
 
 typedef enum {
     WIFI_CMD_INIT,
@@ -140,8 +178,6 @@ typedef struct {
 
 #if CONFIG_ESP_HOSTED
 const struct device * wifi_get_dev(wifi_mode_t mode);
-#else
-const struct device * wifi_get_dev(int mode);
 #endif
 int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts);
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout);
@@ -150,6 +186,9 @@ void wifi_dispatch_callbacks(csk_wifi_event_t events, void *event_data, uint32_t
 #if CONFIG_ESP_HOSTED
 wifi_auth_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
 #else
+extern const char *WIFI_STA_SM_STRINGS[];
+const struct device * wifi_obj_get_dev(csk_wifi_mode_t mode);
+wifi_sta_state_machine_t wifi_obj_get_sm(void);
 csk_wifi_encryption_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
 const char *wlan_sm_str(wifi_sta_state_machine_t state);
 #endif

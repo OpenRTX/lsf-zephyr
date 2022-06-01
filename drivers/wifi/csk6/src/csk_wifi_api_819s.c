@@ -3,14 +3,6 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(csk_wifi, CONFIG_WIFI_LOG_LEVEL);
 
-#define CSK_WIFI_CHECK(cond, ret_val) ({                                      \
-    if (!(cond)) {                                                            \
-        LOG_ERR("%s(%d): Check failed", __FUNCTION__, __LINE__);              \
-        return (ret_val);                                                     \
-    }                                                                         \
-})
-
-
 K_MUTEX_DEFINE(wifi_api_mutex);
 
 static sys_slist_t wifi_callback_list;
@@ -112,8 +104,13 @@ __exit:
 
 int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, k_timeout_t timeout)
 {
+    *result = CSK_WIFI_ERR_SCAN_FAILED;
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
 
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    const char* wifi_sm_str = WIFI_STA_SM_STRINGS[current_sm];
+    CSK_WIFI_CHECK_RETURN(current_sm != WIFI_SM_ON_STARTUP, -EAGAIN,
+                            "Invalid State, current_sm: %s", wifi_sm_str);
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
@@ -147,18 +144,22 @@ __exit:
 
 int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *result, k_timeout_t timeout)
 {
+    *result = CSK_WIFI_ERR_STA_FAILED;
     CSK_WIFI_CHECK(sta_config != NULL && result != NULL, -EINVAL);
     CSK_WIFI_CHECK(sta_config->encryption_mode >= 0 &&
                    sta_config->encryption_mode < CSK_WIFI_AUTH_MAX,
                    -EINVAL);
 
-    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
     struct csk_wifi_data *data = dev->data;
-    wifi_sta_state_machine_t current_sm = WIFI_STA_SM_PRIMARY_GET(data->status);
-    if ((current_sm != WIFI_SM_STA_DISCONNECTED) && (current_sm != WIFI_SM_STA_SCAN_DONE)) {
-        LOG_ERR("connect faied, current current_sm: %d", current_sm);
-        return -EINVAL;
-    }
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    const char* wifi_sm_str = WIFI_STA_SM_STRINGS[current_sm];
+    CSK_WIFI_CHECK_RETURN(current_sm == WIFI_SM_STA_DISCONNECTED ||
+                            current_sm == WIFI_SM_STA_SCAN_DONE ||
+                            current_sm == WIFI_SM_STARTUP_DONE,  -EAGAIN,
+                            "Invalid State, current_sm: %s", wifi_sm_str);
+    CSK_WIFI_CHECK_RETURN(data->sta_is_connected == false, -EAGAIN,
+                            "Invalid State, Staion has connected");
 
     int ret = 0;
     wifi_ret_msg_t ret_msg;
@@ -200,15 +201,18 @@ __exit:
 
 int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
 {
+    *result = CSK_WIFI_ERR_STA_FAILED;
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
-    const struct device *dev = wifi_get_dev(WLAN_MODE_STA);
-    struct csk_wifi_data *data = dev->data;
-    wifi_sta_state_machine_t current_sm = WIFI_STA_SM_PRIMARY_GET(data->status);
 
-    if ((current_sm != WIFI_SM_STA_CONNECTED) && (current_sm != WIFI_SM_STA_SCAN_DONE)) {
-        LOG_ERR("disconnect failed, current current_sm: %d", current_sm);
-        return -EINVAL;
-    }
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    const char* wifi_sm_str = WIFI_STA_SM_STRINGS[current_sm];
+    CSK_WIFI_CHECK_RETURN(current_sm == WIFI_SM_STA_CONNECTED ||
+                            current_sm == WIFI_SM_STA_SCAN_DONE,-EAGAIN,
+                            "Invalid State, current_sm: %s", wifi_sm_str);
+    CSK_WIFI_CHECK_RETURN(data->sta_is_connected == true, -EAGAIN,
+                            "Invalid State, Staion has disconnected");
 
     int ret = 0;
     wifi_ret_msg_t ret_msg;
