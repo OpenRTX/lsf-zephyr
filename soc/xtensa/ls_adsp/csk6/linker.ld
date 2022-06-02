@@ -23,7 +23,7 @@ OUTPUT_ARCH(xtensa)
 
 //#include <devicetree.h>
 
-#define CP_XIP (0)
+#define CP_XIP (1)
 
 #if CP_XIP
 /* #if DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
@@ -418,6 +418,7 @@ SECTIONS
   } >vector_double_text AT > VECTORS
 
 #define XIP_COPY_DEF(name) LONG (LOADADDR(name)) LONG (ADDR(name)) LONG (SIZEOF(name))
+#define XIP_BSS_DEF(name) LONG (ADDR(name)) LONG (SIZEOF(name))
 
   .copy.table :
   {
@@ -435,13 +436,16 @@ SECTIONS
     XIP_COPY_DEF(.DoubleExceptionVector.text)
 
 #if CP_XIP
+    /* text */
     XIP_COPY_DEF(.iram.text)
     XIP_COPY_DEF(.dram1.rodata)
     XIP_COPY_DEF(.dram1.data)
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
+    XIP_COPY_DEF(.ai_lib.text)
 
+    /* data */
     XIP_COPY_DEF(.clib.data)
     XIP_COPY_DEF(.clib.percpu.data)
     XIP_COPY_DEF(.fw_ready)
@@ -453,10 +457,11 @@ SECTIONS
     XIP_COPY_DEF(initshell)
     XIP_COPY_DEF(log_dynamic_sections)
     XIP_COPY_DEF(_static_thread_data_area)
-    XIP_COPY_DEF(k_heap_area)
+
     XIP_COPY_DEF(k_timer_area)
     XIP_COPY_DEF(k_mem_slab_area)
     XIP_COPY_DEF(k_mem_pool_area)
+    XIP_COPY_DEF(k_heap_area)
     XIP_COPY_DEF(k_mutex_area)
     XIP_COPY_DEF(k_stack_area)
     XIP_COPY_DEF(k_msgq_area)
@@ -467,6 +472,11 @@ SECTIONS
     XIP_COPY_DEF(k_queue_area)
     XIP_COPY_DEF(k_condvar_area)
     XIP_COPY_DEF(_net_buf_pool_area)
+
+    /* XIP_COPY_DEF(uart_mux) */
+    /* XIP_COPY_DEF(usb_descriptor) */
+    /* XIP_COPY_DEF(usb_data) */
+    /* XIP_COPY_DEF(usb_bos_desc) */
 #else
     XIP_COPY_DEF(.iram.text)
     XIP_COPY_DEF(.dram1.rodata)
@@ -477,6 +487,18 @@ SECTIONS
 #endif
 
     __copy_table_end__ = .;
+
+    /* bss table */
+    . = ALIGN(4);
+    __bss_table_start__ = .;
+    XIP_BSS_DEF(.dram1.bss)
+    XIP_BSS_DEF(.sharedmem.bss)
+    
+    XIP_BSS_DEF(.noinit)
+    XIP_BSS_DEF(.bss)
+    . = ALIGN(4);
+    __bss_table_end__ = .;
+
   } > ROMABLE_REGION
 
   .rtos.rodata : ALIGN(4)
@@ -534,6 +556,7 @@ SECTIONS
     LONG(_sharedmem_bss_end)
     _bss_table_end = ABSOLUTE(.);
     _rodata_end = ABSOLUTE(.);
+    . = ALIGN(4);
   } > ROMABLE_REGION
 
   .module_init : ALIGN(4)
@@ -542,6 +565,55 @@ SECTIONS
     *(*.module_init)
     _module_init_end = ABSOLUTE(.);
   } > ROMABLE_REGION
+
+#if CP_XIP
+  .ai_lib.text : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _ai_lib_text_start = ABSOLUTE(.);
+
+    /* *libthinker.a: *(.text .text.* .literal .literal.*) */
+
+    *libcjson.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *libluna.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *libistitch.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *libls_cutline.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *libls_ocr.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *libls_trans.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *libhifi_dsp.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *libthinker.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *libtts.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    *xa_mp3_dec.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    sched.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    work.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipes.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    queue.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    timeout.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mailbox.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    thread.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    msg_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mutex.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    init.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    device.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    stack.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    fatal.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mem_slab.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    condvar.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mempool.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    kheap.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    sem.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    banner.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    system_work_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    errno.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    main_weak.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+	
+    . = ALIGN (4);
+    _ai_lib_text_end = ABSOLUTE(.);    
+  } >RAMABLE_REGION AT > ROMABLE_REGION
+#endif
 
   .text : ALIGN(4)
   {
@@ -718,7 +790,11 @@ SECTIONS
     _lit4_end = ABSOLUTE(.);
   } >RAMABLE_REGION AT > ROMABLE_REGION
 
+  . = ALIGN (8);
+  _common-ram_start_ = .;
 #include <linker/common-ram.ld>
+  . = ALIGN (8);
+  _common-ram_end_ = .;
 
   .bss (NOLOAD) : ALIGN(8)
   {

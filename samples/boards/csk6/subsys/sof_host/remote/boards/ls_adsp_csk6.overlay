@@ -40,3 +40,7 @@
             csk6-spec;
     };
 };
+
+&uart2 {
+	current-speed = <921600>;
+};
