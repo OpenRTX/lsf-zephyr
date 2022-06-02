@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 menuconfig WIFI_MANAGER
-	bool "ESP-Hosted support"
+	bool "WiFi Manager Support"
 	select NVS
 	select FLASH
 	select FLASH_PAGE_LAYOUT
@@ -10,7 +10,16 @@ menuconfig WIFI_MANAGER
 
 
 if WIFI_MANAGER
+
+	config WIFI_MGR_WORKQ_STACK
+		int "WiFi Manager Workq Stack"
+		default 1024
+
+	config WIFI_MGR_WORKQ_PRIORITY
+		int "WiFi Manager Workq priority"
+		default 5
+
 	module = WIFI_MANAGER
 	module-str = wifi_manager
 	source "subsys/logging/Kconfig.template.log_config"
-endif
+endif #WIFI_MANAGER
