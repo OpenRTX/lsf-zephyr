@@ -24,7 +24,7 @@ if SOC_CSK6
 
 	config CSK6_PSRAM
 		bool "Enable CSK6 PSRAM"
-		default n
+		default y
 		help
 			Enable CSK6 PSRAM
 
