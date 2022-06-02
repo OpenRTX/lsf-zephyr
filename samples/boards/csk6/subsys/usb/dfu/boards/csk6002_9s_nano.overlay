@@ -1,0 +1,20 @@
+&flash0 {
+    /*
+     * For more information, see:
+     * http: //docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+     */
+    partitions {
+    
+            /* application image slot: 512KB */
+            slot0_partition: partition@40000 {
+                    label = "image-0";
+                    reg = <0x40000 0x80000>;
+            };
+
+            /* backup slot: 512KB */
+            slot1_partition: partition@c0000 {
+                    label = "image-1";
+                    reg = <0xc0000 0x80000>;
+            };
+    };
+};

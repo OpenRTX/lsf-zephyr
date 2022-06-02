@@ -1,0 +1,4 @@
+tests:
+  sample.board.csk6.driver.uart:
+    platform_allow: csk6002_9s_nano
+    tags: csk6

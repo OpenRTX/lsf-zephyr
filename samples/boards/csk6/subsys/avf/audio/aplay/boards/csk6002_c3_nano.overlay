@@ -8,7 +8,7 @@
 		 /*
 		  * shared memory reserved for the inter-processor communication
 		  */
-		 zephyr,ipc_shm = &sof_partition;
+		 zephyr,ipc_shm = &psram_share;
 		 zephyr,ipc = &mailbox0;
 	 };
  

@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.20.0)
 
 set(REMOTE_ZEPHYR_DIR ${CMAKE_CURRENT_BINARY_DIR}/openamp_remote-prefix/src/openamp_remote-build/zephyr)
 
-if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano")
+if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano" OR "${BOARD}" STREQUAL "csk6002_9s_nano")
   set(BOARD_REMOTE "ls_adsp_csk6")
 else()
   message(FATAL_ERROR "${BOARD} was not supported for this sample")
@@ -27,7 +27,7 @@ add_subdirectory(./src)
 #target_sources(app PRIVATE src/main.c )
 include(ExternalProject)
 
-if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano")
+if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano" OR "${BOARD}" STREQUAL "csk6002_9s_nano")
 set(ENV{XCC_USE_CLANG} "1")
 set(ENV{ZEPHYR_TOOLCHAIN_VARIANT} "xcc")
 endif()
@@ -42,7 +42,7 @@ ExternalProject_Add(
   BUILD_ALWAYS True
 )
 
-if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano")
+if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano" OR "${BOARD}" STREQUAL "csk6002_9s_nano")
 unset(ENV{XCC_USE_CLANG})
 unset(ENV{ZEPHYR_TOOLCHAIN_VARIANT})
 endif()
