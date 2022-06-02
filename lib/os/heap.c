@@ -146,7 +146,7 @@ void sys_heap_free(struct sys_heap *heap, void *mem)
 	}
 	struct z_heap *h = heap->heap;
 	chunkid_t c = mem_to_chunkid(h, mem);
-    //printk("heap:%p free mem:%p, c:%d.\n", h, mem, c);
+
 	/*
 	 * This should catch many double-free cases.
 	 * This is cheap enough so let's do it all the time.
@@ -240,9 +240,7 @@ void *sys_heap_alloc(struct sys_heap *heap, size_t bytes)
 	}
 
 	set_chunk_used(h, c, true);
-    void *m = chunk_mem(h, c);
-    //printk("heap:%p alloc mem:%p.\n", h, m);
-	return m;
+	return chunk_mem(h, c);
 }
 
 void *sys_heap_aligned_alloc(struct sys_heap *heap, size_t align, size_t bytes)
