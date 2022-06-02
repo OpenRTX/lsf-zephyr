@@ -8,11 +8,11 @@ compatible: "byd,bf30a2"
 properties:
     pd-gpios:
       type: phandle-array
-      required: true
+      required: false
       description: pd-gpios
     pwr-gpios:
       type: phandle-array
-      required: true
+      required: false
       description: power-gpios
     product-id:
       type: int
@@ -42,5 +42,10 @@ properties:
       type: int
       required: false
       description: xclk-freq
+    xclk-gpios:
+      type: phandle-array
+      required: false
+      description: xclk-gpios
+
 
 include: i2c-device.yaml

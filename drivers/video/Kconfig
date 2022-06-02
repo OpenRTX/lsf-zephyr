@@ -31,6 +31,14 @@ config VIDEO_BUFFER_POOL_ALIGN
 	int "Alignment of the video pool’s buffer"
 	default 64
 
+config VIDEO_CUSTOM_SECTION
+    bool "custom video mem pool section"
+    default n
+
+config VIDEO_CUSTOM_SECTION_NAME
+    string "custom video mem pool section name"
+    default ""
+
 source "drivers/video/Kconfig.mcux_csi"
 
 source "drivers/video/Kconfig.sw_generator"
