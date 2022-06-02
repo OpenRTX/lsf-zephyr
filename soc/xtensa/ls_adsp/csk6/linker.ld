@@ -76,11 +76,17 @@ OUTPUT_ARCH(xtensa)
 
 #endif /* end of DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
 
-
+#if CP_XIP
+#define SECTION_PROLOGUE(name, options, align) name options : align
+#define GROUP_ROM_LINK_IN(vregion, lregion) > lregion
+#define SECTION_DATA_PROLOGUE(name, options, align) SECTION_PROLOGUE(name, options, align)
+#define GROUP_DATA_LINK_IN(vregion, lregion) > vregion AT > lregion
+#else
 #define SECTION_PROLOGUE(name, options, align) name options : align
 #define GROUP_ROM_LINK_IN(vregion, lregion) > lregion
 #define SECTION_DATA_PROLOGUE(name, options, align) SECTION_PROLOGUE(name, options, align)
 #define GROUP_DATA_LINK_IN(vregion, lregion) > vregion
+#endif
 
 PROVIDE(__memctl_default = 0x00000000);
 PROVIDE(_MemErrorHandler = 0x00000000);
@@ -572,8 +578,8 @@ SECTIONS
     . = ALIGN (4);
     _ai_lib_text_start = ABSOLUTE(.);
 
-    /* *libthinker.a: *(.text .text.* .literal .literal.*) */
-
+    /* ai lib */
+#if 0
     *libcjson.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
     *libluna.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
     *libistitch.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
@@ -584,7 +590,46 @@ SECTIONS
     *libthinker.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
     *libtts.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
     *xa_mp3_dec.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
+#endif
 
+#if 1
+    /* hal_listenai text */
+    ClockManager.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    IOMuxManager.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    adc_pdm_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    apc_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    cache_cp.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dac_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dma_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    gpio_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mbox.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    spi.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    uart.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    venus_cp.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    /* zephyr drivers */
+    sys_clock_init.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    xtensa_sys_timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dma_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipm_csk.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    uart_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    uart_console.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    spi_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pinmux_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+#endif
+
+#if 0
+    /* hal_xtensa(can't be copyed) */
+    /* int_asm.S.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+    /* interrupts.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+    /* soc.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+#endif
+
+    /* asm */
+
+    /* sof */
+
+    /* kernel */
     sched.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     work.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     pipes.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
