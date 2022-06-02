@@ -54,9 +54,9 @@ typedef struct frame_info {
 	uint32_t sum;
 } __packed frame_info_t;
 
-Z_GENERIC_SECTION(.csk6_psram_section0)
+Z_GENERIC_SECTION(.psram_section)
 __attribute__((aligned(32),
-	       used)) static char swp_frames[6][sizeof(frame_info_t) + 180 * 128] = { 0 };
+	       used)) static char swp_frames[5][sizeof(frame_info_t) + 180 * 128] = { 0 };
 
 static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 {
@@ -128,7 +128,7 @@ void video_ap2cp_thread(void *p1, void *p2, void *p3)
 	memset(info, 0, sizeof(frames_info_t));
 	info->addr = &swp_frames[0][0];
 	info->frame_size = 180 * 128 + sizeof(frame_info_t);
-	info->frame_cnt = 6;
+	info->frame_cnt = 5;
 	info->w_pos = 0;
 	info->r_pos = 0;
 	info->tag = 0x12345678;
