@@ -1,23 +1,32 @@
 &csk6002_9s_nano_pinctrl{
+                /* UART alternate function */
+                pinctrl_uart0_rx_default: uart0_rx_default{
+                        pinctrls = <&pinmuxb 10 2>;
+                };
+                
+                pinctrl_uart0_tx_default: uart0_tx_default{
+                        pinctrls = <&pinmuxb 11 2>;
+                };
+
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
-                        pinctrls = <&pinmuxa 4 8>;
+                        pinctrls = <&pinmuxb 2 8>;
                 };
                 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
-                        pinctrls = <&pinmuxa 5 8>;
+                        pinctrls = <&pinmuxb 3 8>;
                 };    
 
                 pinctrl_spi0_sclk_default: spi0_sclk_default {
-                        pinctrls = < &pinmuxa 19 6 >;
+                        pinctrls = < &pinmuxa 15 6 >;
                 };
                 pinctrl_spi0_mosi_default: spi0_mosi_default {
-                        pinctrls = < &pinmuxa 18 6 >;
+                        pinctrls = < &pinmuxa 10 6 >;
                 };
                 pinctrl_spi0_miso_default: spi0_miso_default {
                         pinctrls = < &pinmuxa 17 6 >;
                 };
                 pinctrl_spi0_cs_default: spi0_cs_default {
-                        pinctrls = < &pinmuxa 20 6 >;
+                        pinctrls = < &pinmuxa 12 6 >;
                 }; 
 };
 
@@ -32,8 +41,8 @@
             status = "okay";
             spi-max-frequency = <20000000>;
             reg = <0>;
-            cmd-data-gpios = <&gpioa 8 1>;
-            reset-gpios = <&gpioa 9 0>;
+            cmd-data-gpios = <&gpioa 14 1>;
+            reset-gpios = <&gpiob 6 1>;
             width = <320>;
             height = <170>;
             x-offset = <0>;
@@ -80,8 +89,8 @@
                 reg = <0>;
                 label = "BL6XXX";
                 status = "okay";
-                int-gpios = <&gpioa 16 0>;
-                reset-gpios = <&gpioa 15 0>;
+                int-gpios = <&gpioa 3 0>;
+                reset-gpios = <&gpioa 2 0>;
         };
 };
 
