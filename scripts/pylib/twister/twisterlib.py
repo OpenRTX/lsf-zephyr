@@ -817,18 +817,22 @@ class DeviceHandler(Handler):
             stdout = stderr = None
             with subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
                 try:
-                    (stdout, stderr) = proc.communicate(timeout=30)
-                    logger.debug(stdout.decode())
+                    (stdout, stderr) = proc.communicate(timeout=180)
+                    # ignore unencodable unicode chars
+                    logger.debug(stdout.decode(errors = "ignore"))
 
                     if proc.returncode != 0:
-                        self.instance.reason = "Device issue (Flash?)"
+                        self.instance.status = "error"
+                        self.instance.reason = "Device issue (Flash error?)"
                         with open(d_log, "w") as dlog_fp:
                             dlog_fp.write(stderr.decode())
                         os.write(write_pipe, b'x')  # halt the thread
                         out_state = "flash_error"
                 except subprocess.TimeoutExpired:
+                    logger.warning("Flash operation timed out.")
                     proc.kill()
                     (stdout, stderr) = proc.communicate()
+                    self.instance.status = "error"
                     self.instance.reason = "Device issue (Timeout)"
 
             with open(d_log, "w") as dlog_fp:
