@@ -19,7 +19,6 @@ config HAS_CSK6
 	select HAS_CMSIS_CORE
 	depends on SOC_CSK6
 
-
 if SOC_CSK6
 
 	config CSK6_PSRAM
@@ -27,5 +26,11 @@ if SOC_CSK6
 		default y
 		help
 			Enable CSK6 PSRAM
+
+	config SRAM_NOCAHE
+		bool
+		default y
+		help
+			disable sram cache.
 
 endif # SOC_CSK6

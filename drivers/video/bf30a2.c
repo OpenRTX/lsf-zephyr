@@ -874,8 +874,9 @@ static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
 {
 	int r = -1;
 
+#ifndef CONFIG_SRAM_NOCAHE
 	cache_dma_fast_inv_stage1(vbuf->buffer, vbuf->buffer + vbuf->size);
-
+#endif
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)p;
 	struct video_buffer *vbuf_out = k_fifo_get(&data->fifo_vbuf_in, K_MSEC(16));
 
@@ -1179,5 +1180,5 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &bf30a2_driv_api);
 
 K_THREAD_DEFINE(bf30a2_thread_id, 2048, bf30a2_thread, &bf30a2_dev_data, NULL, NULL,
-		K_HIGHEST_THREAD_PRIO, 0, 0);
+		0, 0, 0);
 #endif
