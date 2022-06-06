@@ -100,12 +100,17 @@ static inline int wifi_give_result(wifi_ret_msg_t *ret_msg)
 {
     if (!k_msgq_num_free_get(&wifi_result_msgq)) {
         wifi_reset_result(); /* clean the message queue */
+        LOG_WRN("Give result, clean history wifi result");
     }
     return k_msgq_put(&wifi_result_msgq, ret_msg, K_NO_WAIT);
 }
 
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout)
 {
+    if (k_msgq_num_used_get(&wifi_result_msgq)) {
+        wifi_reset_result(); /* clean the message queue */
+        LOG_WRN("Take result, clean history wifi result");
+    }
     return k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
 }
 
