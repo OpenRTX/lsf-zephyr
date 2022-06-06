@@ -50,7 +50,7 @@ class CskBinaryRunner(ZephyrBinaryRunner):
         cmd_flash.extend(['--serial', self.port])
         if self.baud is not None:
             cmd_flash.extend(['--baud', self.baud])
-        cmd_flash.extend(['--reset-nanokit'])
+        cmd_flash.extend(['--reset-delay', '1'])
         cmd_flash.extend([hex(self.addr), self.bin_file])
 
         self.logger.info("Flashing CSK chip on {} ({}bps)".format(
