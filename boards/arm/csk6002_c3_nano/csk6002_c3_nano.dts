@@ -185,10 +185,10 @@
                         reg = <0x160000 0x5000>;
                 };
 
-                /* storage: for storage */
-                storage_partition: partition@700000 {
+                /* storage: 6.625MB for storage */
+                storage_partition: partition@165000 {
                         label = "storage";
-                        reg = <0x700000 0x100000>;
+                        reg = <0x165000 0x6a0000>;
                 };
 
         };
