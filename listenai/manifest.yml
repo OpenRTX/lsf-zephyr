@@ -56,7 +56,7 @@ manifest:
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
-      revision: ee6c6c99927311f4572e0366b7c261ce5d8f051a
+      revision: 1fcc4d2ebe130c19a8bc4836912876fa4a9b3f1f
       path: modules/lib/xr819s
 
   self:
