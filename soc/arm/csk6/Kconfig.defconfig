@@ -19,7 +19,9 @@ DT_CSK6_FLASH := $(dt_nodelabel_path,flash0)
 DT_CSK6_FLASH_WRITE_BLOCK_SIZE := $(dt_node_int_prop_int,$(DT_CSK6_FLASH),write-block-size)
 
 config FLASH_WRITE_BLOCK_SIZE
-	int "Number of flash write block size"
-	default "$(DT_CSK6_FLASH_WRITE_BLOCK_SIZE)"
+	int
+	default "$(DT_CSK6_FLASH_WRITE_BLOCK_SIZE)" if "$(dt_node_has_prop,flash0,write-block-size)"
 	default 1
+	help
+	  Number of flash write block size
 endif
