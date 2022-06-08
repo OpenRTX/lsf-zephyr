@@ -160,8 +160,6 @@ static const struct flash_parameters *flash_csk6_get_parameters(const struct dev
 static int flash_csk6_init(const struct device *dev)
 {
 	unsigned int key;
-	((FLASH_DEV *)((void *)dev->config))->ext_addr4_mode = FLASH_WRITE_BLK_SZ == 4 ? 1 : 0;
-
 	key = irq_lock();
 	sflash_init((void *)dev->config);
 	irq_unlock(key);
