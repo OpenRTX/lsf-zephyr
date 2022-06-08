@@ -31,10 +31,12 @@ typedef struct {
 } csk6_flash_config_t;
 
 csk6_flash_config_t csk6_flash_config = { .flash_dev = {
-							.base_addr = DT_INST_REG_ADDR(0),
-							.spi_enum = FLASH_SPI_1_INN,
-							.w_protect = false,
-						} };
+						  .base_addr = DT_INST_REG_ADDR(0),
+						  .d_width = FLASH_WRITE_BLK_SZ,
+						  .sclk_div = 0, //divider is 1
+						  .run_mod = RUN_WITH_INT,
+						  .timeout = 0,
+					  } };
 
 static const struct flash_parameters flash_csk6_parameters = {
 	.write_block_size = FLASH_WRITE_BLK_SZ,
@@ -52,6 +54,7 @@ static int flash_csk6_read(const struct device *dev, off_t address, void *buffer
 	}
 	FLASH_OPT_ENTER();
 	if (0 != sflash_read((void *)dev->config, FLASH_BASE_ADDRESS + address, buffer, length)) {
+		printk("sflash_read iret =%d\n", iret);
 		iret = -EIO;
 	}
 	FLASH_OPT_EXIT();
@@ -158,7 +161,7 @@ static int flash_csk6_init(const struct device *dev)
 {
 	unsigned int key;
 	key = irq_lock();
-	sflash_init();
+	sflash_init((void *)dev->config);
 	irq_unlock(key);
 	return 0;
 }
