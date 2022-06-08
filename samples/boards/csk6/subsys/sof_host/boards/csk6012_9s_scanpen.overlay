@@ -44,7 +44,7 @@
 
 };
 
-// /delete-node/ &hifi4_partition;
+/delete-node/ &hifi4_partition;
  
 &flash0 {
 	partitions {
@@ -53,8 +53,12 @@
 		#size-cells = <1>;
         /* filesystem: 2.625MB */
         filesystem_part: partition@260000 {
-					label = "filesystem";
-					reg = <0x260000 0x2a0000>;
+			label = "filesystem";
+			reg = <0x260000 0x400000>;
+		};
+		hifi4_partition: partition@660000 {
+			label = "cp-image";
+			reg = < 0x660000 0x1a0000>;
 		};
 	};
 };
