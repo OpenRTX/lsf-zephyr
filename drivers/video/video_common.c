@@ -7,9 +7,21 @@
 
 #include <drivers/video.h>
 
+
+
+#ifdef CONFIG_VIDEO_CUSTOM_SECTION
+
+#define K_HEAP_CUSTOM_SECTION_DEFINE(name, bytes) \
+    Z_HEAP_DEFINE_IN_SECT(name, bytes, __attribute__((section(CONFIG_VIDEO_CUSTOM_SECTION_NAME))))
+
+K_HEAP_CUSTOM_SECTION_DEFINE(video_buffer_pool,
+	      CONFIG_VIDEO_BUFFER_POOL_SZ_MAX *
+	      CONFIG_VIDEO_BUFFER_POOL_NUM_MAX);
+#else
 K_HEAP_DEFINE(video_buffer_pool,
 	      CONFIG_VIDEO_BUFFER_POOL_SZ_MAX *
 	      CONFIG_VIDEO_BUFFER_POOL_NUM_MAX);
+#endif
 
 static struct video_buffer video_buf[CONFIG_VIDEO_BUFFER_POOL_NUM_MAX];
 

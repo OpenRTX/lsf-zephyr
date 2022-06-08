@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: 491dd519444b4622892db3831fc1a5e7e4c2e612
+      revision: ca7922dd91661741f284b74dcd301d3cc4062bd9
       path: modules/hal/listenai
       groups:
         - hal
@@ -18,8 +18,9 @@ manifest:
       groups:
         - hal
     - name: sof
+      submodules: true
       remote: listenai
-      revision: 1bbfa3ef7040f9c9a8ef35b4236de4b0cdea2880
+      revision: 54019e47fcd5403496c94d2a6cc28b8678b82487
       path: modules/audio/sof
     - name: protobuf-c
       remote: listenai
@@ -43,7 +44,7 @@ manifest:
       path: modules/lib/listenai/lisa_player
     - name: zport_sal
       remote: listenai
-      revision: 0f5bb60cce8f6ef877ab1769b24f8635b5b68434
+      revision: 746484202173ac51ce45d3017f9ea7e08e271727
       path: modules/lib/listenai/zport_sal
     - name: zport_esp
       remote: listenai
@@ -51,11 +52,11 @@ manifest:
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
-      revision: 508846eb1241cdead4720c4f98ee3532c918737f
+      revision: d23ae0521e704265ddafab95cbf1883048aeb0a6
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
-      revision: f3dd550a1e1d9276ac1c5744accfc766ad764c66
+      revision: ee6c6c99927311f4572e0366b7c261ce5d8f051a
       path: modules/lib/xr819s
 
   self:

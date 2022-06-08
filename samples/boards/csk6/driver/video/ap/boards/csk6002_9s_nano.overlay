@@ -2,7 +2,7 @@
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
                         pinctrls = <&pinmuxb 2 8>;
                 };
-                
+
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
                         pinctrls = <&pinmuxb 3 8>;
                 };
@@ -31,13 +31,13 @@
 &spi1 {
     status = "okay";
     spi-max-frequency = <100000000>;
-    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>; 
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>;
 	pinctrl-names = "default";
 };
 
 &i2c0 {
         status = "okay";
-        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
         pinctrl-names = "default";
 
         bf30a2: bf30a2@6e {
@@ -49,5 +49,6 @@
             pwr-gpios = <&gpioa 5 0>;
             product-id = <0x3b02>;
             spi = <&spi1>;
+	    xclk-gpios = <&gpioa 7 0>;
         };
 };

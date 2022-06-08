@@ -151,7 +151,14 @@ typedef struct csk_wifi_event_cb {
  * 
  * @return 0 if successful, negative errno code on failure.
  */
-int csk_wifi_init();
+int csk_wifi_init(void);
+
+/**
+ * @brief CSK WiFi driver deinitialize
+ * 
+ * @return 0 if successful, negative errno code on failure.
+ */
+int csk_wifi_deinit(void);
 
 /**
  * @brief Add an wifi event callback
@@ -163,13 +170,26 @@ int csk_wifi_init();
 int csk_wifi_add_callback(csk_wifi_event_cb_t *wifi_event_cb);
 
 /**
+ * @brief Remove an wifi event callback
+ * 
+ * @param wifi_event_cb[in] Application's callback structure pointer.
+ * 
+* @retval 0: Success
+ *@retval -ENXIO(6) wifi event callback not found
+ */
+int csk_wifi_remove_callback(csk_wifi_event_cb_t *wifi_event_cb);
+
+/**
  * @brief Scan the neighboring AP device
  * 
  * @param ap_info[in/out] Pointer to WiFi AP information structure
  * @param result[out] Pointer to WIFI operation result
- * @param timeout[in] How long to try to connect WIFI Access Point
- * 
- * @return The number of AP imformation, negative errno code on failure.
+ * @param timeout[in] How long to try to scan neighboring WIFI Access Point
+ *
+ * @return  Number of neighboring APs imformation
+ * @retval -EAGAIN(11) errno code if timeout or invalid state
+ * @retval -ENOMEM(12) errno code if insufficient memory
+ * @retval -EIO(5) errno code if wlan driver exceptions occur
  */
 int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, k_timeout_t timeout);
 
@@ -188,7 +208,9 @@ int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, 
  * @param result[out] Pointer to WIFI operation result
  * @param timeout[in] How long to try to connect WIFI Access Point
  *
- * @return 0 if successful, negative errno code on failure.
+ * @retval 0 Success
+ * @retval -EAGAIN(11) errno code if timeout or invalid state
+ * @retval -EIO(5) errno code if other wifi error reason occured
  */
 int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *result, k_timeout_t timeout);
 
@@ -206,6 +228,8 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
  * @param timeout[in] How long to try to disconnect from WIFI Access Point
  *
  * @return 0 if successful, negative errno code on failure.
+ * @retval -EAGAIN(11) errno code if timeout or invalid state
+ * @retval -EIO(5) errno code if other wifi error reason occured
  */
 int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout);
 #endif

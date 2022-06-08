@@ -20,7 +20,7 @@ zephyr/boards/arm/csk6002_9s_nano/csk6002_9s_nano.dts
 boards/csk6002_9s_nano.overlay
 /* UART alternate function */
 pinctrl_uart0_rx_default: uart0_rx_default{
-        pinctrls = <&pinmuxa 6 2>;              //rx pin
+        pinctrls = <&pinmuxa 2 2>;              //rx pin
 };
 
 pinctrl_uart0_tx_default: uart0_tx_default{
