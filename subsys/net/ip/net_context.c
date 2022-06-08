@@ -1826,6 +1826,7 @@ enum net_verdict net_context_packet_received(struct net_conn *conn,
 {
 	struct net_context *context = find_context(conn);
 	enum net_verdict verdict = NET_DROP;
+	size_t pkt_len = net_pkt_remaining_data(pkt);
 
 	NET_ASSERT(context);
 	NET_ASSERT(net_pkt_iface(pkt));
@@ -1854,6 +1855,11 @@ enum net_verdict net_context_packet_received(struct net_conn *conn,
 	k_mutex_unlock(&context->lock);
 
 	context->recv_cb(context, pkt, ip_hdr, proto_hdr, 0, user_data);
+	
+	/* Update the tcp recv wnd after the recv_cb */
+	if (net_context_get_ip_proto(context) == IPPROTO_TCP) {
+		net_context_update_recv_wnd(context, pkt_len);
+	}
 
 	verdict = NET_OK;
 
