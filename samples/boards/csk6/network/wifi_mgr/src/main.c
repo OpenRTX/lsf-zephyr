@@ -47,6 +47,12 @@ static void scandone_cb(wifi_mgr_scan_info_t *aps_info, int ap_num, void *arg)
 
 void main(void)
 {
+	for (int i = 2; i >= 0; i--) {
+        printk("Waiting for Reboot ...%d\n", i);
+        k_msleep(1000);
+    }
+    sys_reboot(SYS_REBOOT_WARM);
+	
     int ret = wifi_mgr_init();
     if (ret != 0) {
         printk("wifi manager init failed\n");
