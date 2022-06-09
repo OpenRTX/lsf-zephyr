@@ -32,7 +32,7 @@ typedef struct {
 
 csk6_flash_config_t csk6_flash_config = { .flash_dev = {
 						  .base_addr = DT_INST_REG_ADDR(0),
-						  .d_width = FLASH_WRITE_BLK_SZ,
+						  .d_width = 4,
 						  .sclk_div = 0, //divider is 1
 						  .run_mod = RUN_WITH_INT,
 						  .timeout = 0,
@@ -77,7 +77,7 @@ static int inline flash_csk6_write_with_cp(const struct device *dev, off_t addre
 		if (0 != sflash_write((void *)dev->config, FLASH_BASE_ADDRESS + address+(pos - (char*)buffer), cbuffer, cpLen)) {
 			iret = -EIO;
 			break;
-		} 		
+		}
 		pos += cpLen;
 	}while((uint32_t)pos < (uint32_t)buffer + length);
 
