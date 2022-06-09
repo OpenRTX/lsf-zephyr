@@ -55,10 +55,8 @@ void sys_arch_reboot(int type)
 	set_boot_pins_to_high();
 
 	/* Fix a issue in 32M flash */
-#if (CONFIG_FLASH_WRITE_BLOCK_SIZE == 4)
 	extern int csk_flash_clear_add4(void);
 	csk_flash_clear_add4();
-#endif
 
 	NVIC_SystemReset();
 }
