@@ -19,10 +19,8 @@ FUNC_NORETURN void sys_reboot(int type)
 #endif
 
 #if CONFIG_SOC_CSK6
-#if (CONFIG_FLASH_WRITE_BLOCK_SIZE == 4)
 	extern int csk_flash_clear_add4(void);
 	csk_flash_clear_add4();
-#endif
 #endif
 	sys_arch_reboot(type);
 
