@@ -1,3 +1,4 @@
+#include "sys/printk.h"
 #include <init.h>
 #include <arch/cpu.h>
 
@@ -5,7 +6,9 @@
 #include "autoconf.h"
 #include "hal/venus_ap.h"
 #include "hal/reg/cmn_sysctrl_reg_venus.h"
+#include "drivers/gpio.h"
 
+#define GPIO_PORT DT_LABEL(DT_NODELABEL(gpiob))
 #define SYSTEM_CLK ((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)
 
 volatile static const char __attribute__((section(".vectors")))
@@ -26,6 +29,37 @@ static void GPT_Init_Handler(void)
 	IP_SYSCTRL->REG_MISC_CLK_CFG1.bit.ENA_GPT_CLKT0 = 0x1;
 }
 #endif
+
+/**
+ * @brief  Make sure the two boot pins are pull up. Avoid the mcu reboot to rom_boot.
+ */
+static void set_boot_pins_to_high(void)
+{
+	int boot0_pin = 0;
+	int boot1_pin = 1;
+	const struct device *dev = device_get_binding(GPIO_PORT);
+	gpio_pin_configure(dev, boot0_pin, GPIO_PULL_UP);
+	gpio_pin_configure(dev, boot1_pin, GPIO_PULL_UP);
+}
+
+
+/* Overrides the weak ARM implementation:
+   Set general purpose retention register and reboot */
+void sys_arch_reboot(int type)
+{
+	ARG_UNUSED(type);
+
+	set_boot_pins_to_high();
+
+	/* Fix a issue in 32M flash */
+#if (CONFIG_FLASH_WRITE_BLOCK_SIZE == 4)
+	extern int csk_flash_clear_add4(void);
+	csk_flash_clear_add4();
+#endif
+
+	NVIC_SystemReset();
+}
+
 
 static int csk6_init(const struct device *arg)
 {
