@@ -5,6 +5,8 @@
 #include "autoconf.h"
 #include "hal/venus_ap.h"
 #include "hal/reg/cmn_sysctrl_reg_venus.h"
+#include "hal/gpio.h"
+#include "hal/IOMuxManager.h"
 
 #define SYSTEM_CLK ((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)
 
@@ -26,6 +28,41 @@ static void GPT_Init_Handler(void)
 	IP_SYSCTRL->REG_MISC_CLK_CFG1.bit.ENA_GPT_CLKT0 = 0x1;
 }
 #endif
+
+/**
+ * @brief  Make sure the two boot pins are pull up. Avoid the mcu reboot to rom_boot.
+ */
+static void set_boot_pins_to_high(void)
+{
+	int boot0_pin = 0;
+	int boot1_pin = 1;
+	int boot_port = CSK_IOMUX_PAD_B;
+
+	/* make sure PB0 and PB1 are input PULL_UP */
+	GPIO_SetDir(GPIOB(), 1UL << boot0_pin, CSK_GPIO_DIR_INPUT);
+	GPIO_SetDir(GPIOB(), 1UL << boot1_pin, CSK_GPIO_DIR_INPUT);
+	IOMuxManager_ModeConfigure(boot_port, boot0_pin, HAL_IOMUX_PULLUP_MODE);
+	IOMuxManager_ModeConfigure(boot_port, boot1_pin, HAL_IOMUX_PULLUP_MODE);
+}
+
+
+/* Overrides the weak ARM implementation:
+   Set general purpose retention register and reboot */
+void sys_arch_reboot(int type)
+{
+	ARG_UNUSED(type);
+
+	set_boot_pins_to_high();
+
+	/* Fix a issue in 32M flash */
+#if (CONFIG_FLASH_WRITE_BLOCK_SIZE == 4)
+	extern int csk_flash_clear_add4(void);
+	csk_flash_clear_add4();
+#endif
+
+	NVIC_SystemReset();
+}
+
 
 static int csk6_init(const struct device *arg)
 {
