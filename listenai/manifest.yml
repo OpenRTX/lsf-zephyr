@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: ca7922dd91661741f284b74dcd301d3cc4062bd9
+      revision: 795decf9824e00542320266b6d7738510e05c04a
       path: modules/hal/listenai
       groups:
         - hal
@@ -52,7 +52,7 @@ manifest:
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
-      revision: d23ae0521e704265ddafab95cbf1883048aeb0a6
+      revision: db7d01b19b920253aee9de2833ded127f13bb541
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
