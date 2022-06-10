@@ -1564,7 +1564,7 @@ static void tcp_queue_recv_data(struct tcp *conn, struct net_pkt *pkt,
 					 conn->queue_recv_data->buffer);
 			conn->queue_recv_data->buffer = pkt->buffer;
 			inserted = true;
-		} else {
+		} else if(conn->recv_win > (net_pkt_get_len(conn->queue_recv_data) + len + NET_IPV6_MTU * 2) ){
 			struct net_buf *last;
 
 			last = net_buf_frag_last(conn->queue_recv_data->buffer);
