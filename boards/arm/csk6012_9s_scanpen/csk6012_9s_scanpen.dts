@@ -378,7 +378,7 @@
         };
 
         /* sof communication slot: 1MB */
-        section0_partition: section0_partition@30600000 {
+        psram_ap: section0_partition: section0_partition@30600000 {
                 compatible = "listenai,csk6-psram-partition";
                 reg = <0x30600000 0x100000>;
                 status = "okay";
