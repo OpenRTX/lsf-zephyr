@@ -1645,6 +1645,8 @@ static void tcp_out_of_order_data(struct tcp *conn, struct net_pkt *pkt,
 	/* We received out-of-order data. Try to queue it.
 	 */
 	tcp_queue_recv_data(conn, pkt, data_len, seq);
+
+	tcp_out(conn, ACK);
 }
 
 /* TCP state machine, everything happens here */
