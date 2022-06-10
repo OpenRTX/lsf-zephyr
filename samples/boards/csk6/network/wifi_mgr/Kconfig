@@ -4,11 +4,11 @@ menu "Example Configuration"
 
     config EXAMPLE_WIFI_SSID
         string "WiFi SSID"
-        default "TP-LINK_LINGSI"
+        default "LINGSI_2.4G"
 
     config EXAMPLE_WIFI_PASSWORD
         string "WiFi password"
-        default "a123456789"
+        default "LS$123456VIP#"
 
 endmenu
 
