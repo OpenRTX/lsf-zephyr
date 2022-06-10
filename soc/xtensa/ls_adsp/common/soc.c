@@ -52,8 +52,15 @@ void __memmap_init(void)
 		uint32_t wlen;
 	} __copy_table_t;
 
+	typedef struct {
+		uint32_t *src;
+		uint32_t wlen;
+	} __bss_table_t;
+
 	extern const __copy_table_t __copy_table_start__;
 	extern const __copy_table_t __copy_table_end__;
+	extern const __bss_table_t __bss_table_start__;
+	extern const __bss_table_t __bss_table_end__;
 
 	for (__copy_table_t const *pTable = &__copy_table_start__; pTable < &__copy_table_end__;
 	     ++pTable) {
@@ -62,6 +69,12 @@ void __memmap_init(void)
 		}
 	}
 
+	for (__bss_table_t const *pTable = &__bss_table_start__; pTable < &__bss_table_end__;
+	     ++pTable) {
+		for (uint32_t i = 0u; i < pTable->wlen/4; ++i) {
+			pTable->src[i] = 0;
+		}
+	}
 }
 
 void xtensa_real_exit(int status)
