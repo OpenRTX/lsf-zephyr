@@ -6,11 +6,11 @@ Overview
 
 This sample shows how to use the API interface provided by Aplay to play audio. 
 In this sample project, includes the firmware and topology file resources required 
-for DSP operation (only supporrt PCM 16bits 48000 format).Developers can replace files 
+for DSP operation (only supporrt PCM 16bits 16000 format).Developers can replace files 
 according to project requirements.
 Hardware info:
 GIPOA04  ->  Power amplifier enable
-LINE_LN  ->  Audio output
+LINE_LP/LINE_LN  ->  Audio output
 
 
 Building

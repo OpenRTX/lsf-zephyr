@@ -15,13 +15,13 @@ generate_inc_file_for_target(
 
 generate_inc_file_for_target(
   app
-  resource/csk6_default_pcm.tplg
+  resource/csk6_default.tplg
   ${gen_dir}/dsp_tplg.inc
 )
 
 generate_inc_file_for_target(
   app
-  resource/earthquake_48k_16bit.wav
+  resource/audio.wav
   ${gen_dir}/test_audio.inc
 )
 
