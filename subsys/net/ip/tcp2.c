@@ -1613,6 +1613,12 @@ static bool tcp_data_received(struct tcp *conn, struct net_pkt *pkt,
 		return false;
 	}
 
+	uint8_t retry_times = 0;
+	while(conn->recv_win < NET_IPV6_MTU){
+		k_msleep(1 + retry_times);
+		if(retry_times++ > 10) break;
+	}
+
 	net_stats_update_tcp_seg_recv(conn->iface);
 	conn_ack(conn, *len);
 	tcp_out(conn, ACK);
