@@ -126,6 +126,9 @@ static ALWAYS_INLINE k_spinlock_key_t k_spin_lock(struct k_spinlock *l)
 	k.key = arch_irq_lock();
 
 #ifdef CONFIG_SPIN_VALIDATE
+	if (!z_spin_lock_valid(l)) {
+		while(1);
+	}
 	__ASSERT(z_spin_lock_valid(l), "Recursive spinlock %p", l);
 # ifdef CONFIG_KERNEL_COHERENCE
 	__ASSERT_NO_MSG(z_spin_lock_mem_coherent(l));

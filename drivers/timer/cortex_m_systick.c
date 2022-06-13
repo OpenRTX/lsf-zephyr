@@ -117,7 +117,9 @@ void sys_clock_isr(void *arg)
 {
 	ARG_UNUSED(arg);
 	uint32_t dticks;
-
+#ifdef CONFIG_TRACE
+	sys_trace_isr_enter();
+#endif
 	/* Update overflow_cyc and clear COUNTFLAG by invoking elapsed() */
 	elapsed();
 
@@ -147,13 +149,16 @@ void sys_clock_isr(void *arg)
 		sys_clock_announce(1);
 	}
 	z_arm_int_exit();
+#ifdef CONFIG_TRACE
+	sys_trace_isr_exit();
+#endif
 }
 
 int sys_clock_driver_init(const struct device *dev)
 {
 	ARG_UNUSED(dev);
 
-	NVIC_SetPriority(SysTick_IRQn, _IRQ_PRIO_OFFSET);
+	NVIC_SetPriority(SysTick_IRQn, _IRQ_PRIO_OFFSET + 3);
 	last_load = CYC_PER_TICK - 1;
 	overflow_cyc = 0U;
 	SysTick->LOAD = last_load;

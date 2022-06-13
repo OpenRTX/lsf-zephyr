@@ -17,9 +17,9 @@
 #endif
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
-#define DMA_CSK6_RAM_FUNC 
+#define DMA_CSK6_RAM_FUNC
 #else
-#define DMA_CSK6_RAM_FUNC __attribute__ ((section (".itcm"))) 
+#define DMA_CSK6_RAM_FUNC __attribute__ ((section (".itcm")))
 #endif /* end of CONFIG_SOC_LS_ADSP_CSK6 */
 
 LOG_MODULE_REGISTER(dma_csk6, CONFIG_DMA_LOG_LEVEL);
@@ -215,27 +215,32 @@ ISR_DIRECT_DECLARE(dma_direct_irq_handler)
     extern void dma_irq_handler(void);
     dma_irq_handler();
 
-    return 1;
+    return 0;
 }
 
 static int csk_dma_init(const struct device *dev)
 {
 	struct csk_dma_data *data = dev->data;
-    const struct csk_dma_config *config = dev->config;
+	const struct csk_dma_config *config = dev->config;
 	int ret = dma_initialize();
-    if (ret != 0) {
-        return -EIO; /* unknown exception */
-    }
+	if (ret != 0) {
+		return -EIO; /* unknown exception */
+	}
 
 	data->channels_info = k_calloc(config->dma_channels_num, sizeof(struct channel_info));
 	if (data->channels_info == NULL) {
 		return -ENOMEM;
 	}
-    
-    IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
-                dma_direct_irq_handler, Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
+#ifdef CONFIG_ZERO_LATENCY_IRQS
+	IRQ_DIRECT_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), dma_direct_irq_handler,
+			   IRQ_ZERO_LATENCY);
 	irq_enable(DT_INST_IRQN(0));
-    return 0;
+#else
+	IRQ_DIRECT_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), dma_direct_irq_handler,
+			   0);
+	irq_enable(DT_INST_IRQN(0));
+#endif
+	return 0;
 }
 
 static struct csk_dma_config csk_dma_0_config = {

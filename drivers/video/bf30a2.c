@@ -127,6 +127,15 @@ enum {
 	MACHINE_FLAG_SET_RETURN = 1 << 7,
 };
 
+#define BF30A2_INTERNAL_VBUF_NUM 2
+#define BF30A2_INTERNAL_VBUF_SIZE 25220
+
+static __attribute__((
+	aligned(32),
+	used)) char g_buffer[BF30A2_INTERNAL_VBUF_NUM][BF30A2_INTERNAL_VBUF_SIZE] = { 0 };
+static struct video_buffer g_video_buffer[BF30A2_INTERNAL_VBUF_NUM] = { 0 };
+static uint8_t g_video_buffer_index = 0;
+
 void bf30a2_spi_evt_callback(unsigned int event_info, unsigned int xfer_bytes,
 			     unsigned int usr_param);
 
@@ -649,12 +658,15 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 
 		/* prepare video buffer. */
 		if (machine->dev_data->curr_vbuf == NULL) {
-			machine->dev_data->curr_vbuf =
-				k_fifo_get(&machine->dev_data->fifo_free, K_NO_WAIT);
+			// machine->dev_data->curr_vbuf =
+			// 	k_fifo_get(&machine->dev_data->fifo_free, K_NO_WAIT);
+			g_video_buffer_index = 0;
+			machine->dev_data->curr_vbuf = &g_video_buffer[g_video_buffer_index];
 		}
 
 		if (machine->dev_data->curr_vbuf == NULL) {
-			LOG_ERR("Get video buffer failed.");
+			// LOG_ERR("Get video buffer failed.");
+			k_panic();
 			return -1;
 		}
 		machine->buffer = machine->dev_data->curr_vbuf->buffer;
@@ -695,8 +707,9 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 		machine->next_state = MACHINE_STATE_INIT;
 		machine->sub_state = 0;
 
-		struct video_buffer *next_vbuf =
-			k_fifo_get(&machine->dev_data->fifo_free, K_NO_WAIT);
+		// struct video_buffer *next_vbuf =
+		// 	k_fifo_get(&machine->dev_data->fifo_free, K_NO_WAIT);
+		struct video_buffer *next_vbuf = &g_video_buffer[g_video_buffer_index];
 		struct video_buffer *curr_vbuf = machine->dev_data->curr_vbuf;
 
 		if (next_vbuf != NULL) {
@@ -712,10 +725,12 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 		 * Or at least two frame buffers to receive datas.
 		 */
 		curr_vbuf->bytesused = 25219;
-		curr_vbuf->timestamp = k_uptime_get_32();
-		k_fifo_put(&machine->dev_data->fifo_out, curr_vbuf);
+		// curr_vbuf->timestamp = k_uptime_get_32();
+		curr_vbuf->timestamp = 0;
+		// k_fifo_put(&machine->dev_data->fifo_out, curr_vbuf);
 
 		machine->buffer = machine->dev_data->curr_vbuf->buffer;
+		g_video_buffer_index = !g_video_buffer_index;
 		break;
 	case MACHINE_STATE_END_AND_START_PACKET_RECEIVED:
 		break;
@@ -909,15 +924,21 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 	uint32_t discard_cnt = 0;
 	int fps = 0;
 	int r;
-
+	uint8_t i = 0;
 	while (1) {
-		vbuf = k_fifo_get(&data->fifo_out, K_FOREVER);
+		// vbuf = k_fifo_get(&data->fifo_out, K_FOREVER);
+		if (i == g_video_buffer_index) {
+			k_msleep(1);
+			continue;
+		}
+		i = g_video_buffer_index;
+		vbuf = &g_video_buffer[i];
 		if (vbuf != NULL && vbuf->buffer != NULL) {
 			cnt++;
 			uint32_t frame_timestamp = vbuf->timestamp;
 			r = bf30a2_rda_frame_decode_proc(vbuf, data);
 			memset(vbuf->buffer, 0, 6);
-			k_fifo_put(&data->fifo_free, vbuf);
+			// k_fifo_put(&data->fifo_free, vbuf);
 			if (r > 0) {
 				ok_cnt++;
 			} else if (r < 0) {
@@ -936,11 +957,11 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 				LOG_ERR("No free space to decode frame.");
 			}
 
-			if (cnt % 30 == 0) {
+			if (cnt % 1 == 0) {
 				fps = frame_timestamp - last_time ?
 					      1000 / (frame_timestamp - last_time) :
 					      0;
-				LOG_INF("FPS:%d, T:%d, O:%d, E:%d, D:%d.", fps, cnt, ok_cnt,
+				printk("FPS:%d, T:%d, O:%d, E:%d, D:%d.\n", fps, cnt, ok_cnt,
 					error_cnt, discard_cnt);
 			}
 			last_time = frame_timestamp;
@@ -1081,14 +1102,6 @@ static const struct video_driver_api bf30a2_driv_api = {
 	.set_ctrl = bf30a2_set_ctrl,
 };
 
-#define BF30A2_INTERNAL_VBUF_NUM 2
-#define BF30A2_INTERNAL_VBUF_SIZE 25220
-
-static __attribute__((
-	aligned(32),
-	used)) char g_buffer[BF30A2_INTERNAL_VBUF_NUM][BF30A2_INTERNAL_VBUF_SIZE] = { 0 };
-static struct video_buffer g_video_buffer[BF30A2_INTERNAL_VBUF_NUM] = { 0 };
-
 static int bf30a2_dev_init(const struct device *dev)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
@@ -1180,5 +1193,5 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &bf30a2_driv_api);
 
 K_THREAD_DEFINE(bf30a2_thread_id, 2048, bf30a2_thread, &bf30a2_dev_data, NULL, NULL,
-		0, 0, 0);
+		-16, 0, 0);
 #endif

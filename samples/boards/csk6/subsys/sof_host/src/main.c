@@ -147,6 +147,11 @@ void video_ap2cp_thread(void *p1, void *p2, void *p3)
 	int frame_cnt = 0;
 	int discard_cnt = 0;
 
+	int8_t irq_num;
+
+	for (irq_num = -14; irq_num < 32; irq_num++) {
+		LOG_INF("irq_num:%d, irq prio:%d.", irq_num, NVIC_GetPriority(irq_num));
+	}
 	while (1) {
 		vbuf = NULL;
 		video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_FOREVER);
