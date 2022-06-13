@@ -23,7 +23,7 @@ OUTPUT_ARCH(xtensa)
 
 //#include <devicetree.h>
 
-#define CP_XIP (0)
+#define CP_XIP (1)
 
 #if CP_XIP
 /* #if DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
