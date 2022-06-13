@@ -3,14 +3,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-/delete-node/ &storage_partition;
+ /delete-node/ &storage_partition;
 
  / {
 	 chosen {
 		 /*
 		  * shared memory reserved for the inter-processor communication
 		  */
-		 zephyr,ipc_shm = &sof_partition;
+		 zephyr,ipc_shm = &psram_share;
 		 zephyr,ipc = &mailbox0;
 		 zephyr,flash_sysfs_storage = &filesystem_part;
 		 zephyr,flash_controller = &flash;
@@ -24,7 +24,7 @@
 	 };
  
 	  aliases {
-		  avf-audio-pwr-amp = &pwr_amp;
+		 avf-audio-pwr-amp = &pwr_amp;
 	  };
  
  
@@ -53,12 +53,10 @@
  
  };
  
- /delete-node/ &hifi4_partition;
   
  &flash0 {
-	reg = <0x18000000 DT_SIZE_M(32)>;
-	write-block-size = <1>;
-
+	 reg = <0x18000000 DT_SIZE_M(32)>;
+	 write-block-size = <4>;
 	 partitions {
 		 compatible = "fixed-partitions";
 		 #address-cells = <1>;
@@ -66,14 +64,8 @@
 		 /* filesystem: 2.625MB */
 		 filesystem_part: partition@260000 {
 					 label = "filesystem";
-					 reg = <0x260000 0x400000>;
-		};
-
-		hifi4_partition: partition@660000 {
-			label = "cp-image";
-			reg = <0x660000 0x100000>;
-		};
-
+					 reg = <0x260000 0x2a0000>;
+			 };
 	 };
  };
  
@@ -91,6 +83,7 @@
 			 pwr-gpios = <&gpioa 5 0>;
 			 product-id = <0x3b02>;
 			 spi = <&spi1>;
+			 xclk-gpios = <&gpioa 11 0>;
 		 };
  };
  
@@ -150,6 +143,6 @@
  };
  
  &uart0 {
-	current-speed = <921600>;
-	status = "okay";
-};
+	 current-speed = <921600>;
+	 status = "okay";
+ };
