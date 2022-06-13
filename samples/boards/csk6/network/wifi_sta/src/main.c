@@ -2,33 +2,35 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr.h>
 #include <stdlib.h>
 #include <sys/printk.h>
 #include <sys/sys_heap.h>
 
-#include <net/net_if.h>
-#include <net/net_core.h>
-#include <net/net_context.h>
-#include <net/net_mgmt.h>
+// #include <net/net_if.h>
+// #include <net/net_core.h>
+// #include <net/net_context.h>
+// #include <net/net_mgmt.h>
 
+#include "lwip/sockets.h"
 
 #include "csk6/csk_wifi.h"
 
 static csk_wifi_event_cb_t wifi_event_cb;
-static struct net_mgmt_event_callback dhcp_cb;
-static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
-{
-    if (mgmt_event != NET_EVENT_IPV4_DHCP_BOUND) {
-        return;
-    }
+// static struct net_mgmt_event_callback dhcp_cb;
+// static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
+// {
+//     if (mgmt_event != NET_EVENT_IPV4_DHCP_BOUND) {
+//         return;
+//     }
 
-    char buf[NET_IPV4_ADDR_LEN];
+//     char buf[NET_IPV4_ADDR_LEN];
 
-    printk("Your address: %s\n", net_addr_ntop(AF_INET, &iface->config.dhcpv4.requested_ip, buf, sizeof(buf)));
-    printk("Lease time: %u seconds\n", iface->config.dhcpv4.lease_time);
-    printk("Subnet: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
-    printk("Router: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
-}
+//     // printk("Your address: %s\n", net_addr_ntop(AF_INET, &iface->config.dhcpv4.requested_ip, buf, sizeof(buf)));
+//     // printk("Lease time: %u seconds\n", iface->config.dhcpv4.lease_time);
+//     // printk("Subnet: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
+//     // printk("Router: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
+// }
 
 static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32_t data_len, void *arg)
 {
@@ -77,12 +79,12 @@ void main(void)
         sta_config.ssid, sta_config.pwd, sta_config.bssid, sta_config.channel,
         sta_config.rssi);
     printk("------------------------------------------------------------------------\n");
-    net_mgmt_init_event_callback(&dhcp_cb, handler_cb, NET_EVENT_IPV4_DHCP_BOUND);
-    net_mgmt_add_event_callback(&dhcp_cb);
-    struct net_if *iface = net_if_get_default();
-    if (!iface) {
-        printk("wifi interface not available");
-        return;
-    }
-    net_dhcpv4_start(iface);
+    // net_mgmt_init_event_callback(&dhcp_cb, handler_cb, NET_EVENT_IPV4_DHCP_BOUND);
+    // net_mgmt_add_event_callback(&dhcp_cb);
+    // struct net_if *iface = net_if_get_default();
+    // if (!iface) {
+    //     printk("wifi interface not available");
+    //     return;
+    // }
+    // net_dhcpv4_start(iface);
 }

@@ -58,6 +58,10 @@ manifest:
       remote: listenai
       revision: 8d50e96799ba2e54a13fd499417ecc784bcf36fa
       path: modules/lib/xr819s
+    - name: lwip
+      remote: listenai
+      revision: 0000000000000000000000000000000000000000
+      path: modules/lib/lwip
 
   self:
     import:

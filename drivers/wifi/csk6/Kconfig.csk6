@@ -23,6 +23,11 @@ choice
 		select GPIO
 endchoice
 
+config CSK_NET_OFFLOAD
+	bool "csk network offloading"
+	select NET_OFFLOAD
+	default n
+
 config CSK_WIFI_STATION
 	bool "WiFi Station Enable"
 
