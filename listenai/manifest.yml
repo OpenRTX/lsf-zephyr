@@ -59,7 +59,7 @@ manifest:
       revision: ee6c6c99927311f4572e0366b7c261ce5d8f051a
       path: modules/lib/xr819s
     - name: lvgl8
-      revision: 3b4c5a38baee06a8a7b8399445c655b1cdd41129
+      revision: 2386f165ce42fcfd0acad3ade300074f28c4d41b
       path: modules/lib/gui/lvgl8
       url: git@cloud.listenai.com:zephyr/lvgl8.git
 
