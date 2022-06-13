@@ -58,6 +58,10 @@ manifest:
       remote: listenai
       revision: ee6c6c99927311f4572e0366b7c261ce5d8f051a
       path: modules/lib/xr819s
+    - name: lvgl8
+      revision: 3b4c5a38baee06a8a7b8399445c655b1cdd41129
+      path: modules/lib/gui/lvgl8
+      url: git@cloud.listenai.com:zephyr/lvgl8.git
 
   self:
     import:
