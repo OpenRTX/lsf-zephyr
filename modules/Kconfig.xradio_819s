@@ -29,7 +29,7 @@ config XR_UMAC_STACK
 
 config XR_UMAC_PRIORITY
 	int "XR819S uamc Thread priority"
-	default 5
+	default 0
 
 config XR_WPAS_STACK
 	int "XR819S wpas Thread Stack"
@@ -37,7 +37,7 @@ config XR_WPAS_STACK
 
 config XR_WPAS_PRIORITY
 	int "XR819S wpas Thread priority"
-	default 5
+	default 0
 
 config XR_WORKQUEUE_STACK
 	int "XR819S workqueue Thread Stack"
@@ -45,7 +45,7 @@ config XR_WORKQUEUE_STACK
 
 config XR_WORKQUEUE_PRIORITY
 	int "XR819S workqueue Thread priority"
-	default 5
+	default 0
 
 config XR_BH_STACK
 	int "XR819S BH Thread Stack"
@@ -53,7 +53,7 @@ config XR_BH_STACK
 
 config XR_BH_PRIORITY
 	int "XR819S BH Thread priority"
-	default 4
+	default -1
 
 config XR_WLAN_RESET_STACK
 	int "XR819S wlan_reset Thread Stack"
@@ -61,7 +61,7 @@ config XR_WLAN_RESET_STACK
 
 config XR_WLAN_RESET_PRIORITY
 	int "XR819S wlan_reset Thread priority"
-	default 3
+	default -2
 
 config XR_RX_PROC_STACK
 	int "XR819S rx_proc Thread Stack"
@@ -69,7 +69,15 @@ config XR_RX_PROC_STACK
 
 config XR_RX_PROC_PRIORITY
 	int "XR819S rx_proc Thread priority"
-	default 2
+	default 1
+
+config XR_OSTIMER_WORKQ_STACK
+	int "OS Timer Workq Stack Size"
+	default 2048
+
+config XR_GPIO_WORKQ_STACK
+	int "GPIO Workq Stack Size"
+	default 2048
 
 endmenu  #Threads Configuration
 
