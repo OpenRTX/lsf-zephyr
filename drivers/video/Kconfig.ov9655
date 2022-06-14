@@ -1,0 +1,28 @@
+# OV9655
+
+# Copyright (c) 2022 listenai
+# SPDX-License-Identifier: Apache-2.0
+
+config VIDEO_OV9655
+	bool "OV9655 CMOS digital image sensor"
+	depends on I2C
+	help
+	  Enable driver for OV9655 CMOS digital image sensor device.
+
+config VIDEO_OV9655_MANUAL_UV
+	bool "Use fixed UV value"
+	depends on VIDEO_OV9655
+	help
+	  Use fixed value as UV output instead of chip output
+	
+config VIDEO_OV9655_MANUAL_U_VALUE
+	int "fixed U value"
+	default 170
+	help
+	  fixed value as U output instead of chip output
+	  
+config VIDEO_OV9655_MANUAL_V_VALUE
+	int "fixed V value"
+	default 85
+	help
+	  fixed value as V output instead of chip output
