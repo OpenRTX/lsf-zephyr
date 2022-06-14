@@ -790,7 +790,7 @@ static void csk_wifi_receive_pkt(struct mbuf *mb, uint16_t len, void *arg)
     
     struct net_pkt* pkt = NULL;
     if (mb) {
-        pkt = net_pkt_rx_alloc_with_buffer(netif, len, AF_UNSPEC, 0, K_NO_WAIT);
+        pkt = net_pkt_rx_alloc_with_buffer(netif, len, AF_UNSPEC, 0, K_MSEC(CONFIG_NET_RX_ALLOC_TIMEOUT));
         if (pkt == NULL) {
             goto __cleanup;
         }
