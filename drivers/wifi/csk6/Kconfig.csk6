@@ -47,6 +47,10 @@ config WLAN_API_TIMEOUT
 	int "WiFi Driver api timeout(s)"
 	default 30
 
+config NET_RX_ALLOC_TIMEOUT
+	int "Net rx allocate buffer timeout(ms)"
+	default 100
+
 endif #XR819S
 
 endif #WIFI_CSK6
