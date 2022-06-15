@@ -39,7 +39,7 @@ void main(void)
 #endif
 
     /* Make spi transaction package buffers */
-	const int tx_package_num = 10;
+	const int tx_package_num = 1;
 	struct spi_buf *tx_package = k_calloc(tx_package_num, sizeof(struct spi_buf));
 	if (tx_package == NULL) {
 		printk("tx_package calloc failed\n");
@@ -55,11 +55,7 @@ void main(void)
 		}
 
 		for (int num = 0; num < UINT8_MAX_NUM; num++) {
-			if (tx_count % 2) {
-				temp_buf[num] = UINT8_MAX_NUM - num;
-			} else {
-				temp_buf[num] = num;
-			}
+			temp_buf[num] = num;
 		}
 		tx_package[tx_count].len = UINT8_MAX_NUM;
 		tx_package[tx_count].buf = temp_buf;
@@ -70,6 +66,6 @@ void main(void)
 	while (1) {
 		printk("spi master sending data ...\n");
 		spi_write(spi, &spi_cfg, &tx_set);
-		k_msleep(1000);
+		k_msleep(100);
 	}
 }
