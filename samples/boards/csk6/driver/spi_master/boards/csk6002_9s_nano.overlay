@@ -17,5 +17,4 @@
             pinctrl_spi0_sclk_default: spi0_sclk_default{
                     pinctrls = <&pinmuxa 19 6>;
             };
-            
 };

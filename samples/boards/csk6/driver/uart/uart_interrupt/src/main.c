@@ -18,13 +18,12 @@ uint8_t rx_buffer[100];
 
 static void uart_rx_callback(const struct device *dev, void *user_data)
 {
-	/* 进入中断处理调用 */
 	uart_irq_update(dev);
-	while (uart_irq_is_pending(dev)) { /*查询是否有中断挂起*/
+	while (uart_irq_is_pending(dev)) {
 		if (uart_irq_rx_ready(dev)) {
 			int recv_len;
-			recv_len = uart_fifo_read(dev, rx_buffer, 1); /* 读取字符串*/
-			uart_fifo_fill(dev, rx_buffer, recv_len); /* 发送字符串*/
+			recv_len = uart_fifo_read(dev, rx_buffer, 1);
+			uart_fifo_fill(dev, rx_buffer, recv_len);
 		}
 	}
 }
