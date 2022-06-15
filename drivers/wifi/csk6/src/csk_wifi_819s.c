@@ -107,10 +107,10 @@ static inline int wifi_give_result(wifi_ret_msg_t *ret_msg)
 
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout)
 {
-    if (k_msgq_num_used_get(&wifi_result_msgq)) {
-        wifi_reset_result(); /* clean the message queue */
-        LOG_WRN("Take result, clean history wifi result");
-    }
+    // if (k_msgq_num_used_get(&wifi_result_msgq)) {
+    //     wifi_reset_result(); /* clean the message queue */
+    //     LOG_WRN("Take result, clean history wifi result");
+    // }
     return k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
 }
 
@@ -197,6 +197,9 @@ int wifi_sm_on_connect_scan_handler(const struct device *dev, wlan_event_t curre
         wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
         data->err = CSK_WIFI_ERR_AP_NOT_FOUND;
         wlan_event_give(&current_event);
+    } else if (current_event == WLAN_EVENT_4WAY_HANDSHAKE_FAILED) {
+        LOG_ERR("STA_SM[%s]: handshake failed", wifi_sta_sm_str);
+        wifi_obj_set_sm(WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION);
     } else {
         LOG_ERR("STA_SM[%s]: unknown failed", wifi_sta_sm_str);
     }

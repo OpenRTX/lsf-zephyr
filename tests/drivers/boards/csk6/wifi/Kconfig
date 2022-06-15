@@ -4,11 +4,11 @@ menu "Example Configuration"
 
     config EXAMPLE_WIFI_SSID
         string "WiFi SSID"
-        default "ubuntu"
+        default "TreeNewbee"
 
     config EXAMPLE_WIFI_PASSWORD
         string "WiFi password"
-        default "123456789"
+        default "wifishare123@"
 
 endmenu
 
