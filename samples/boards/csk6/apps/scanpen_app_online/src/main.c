@@ -13,6 +13,8 @@ extern void sof_domain(void);
 extern void network_domain(void);
 extern void start_scanpen_online();
 extern void lisa_heap_info(void);
+
+#define PRINT_HEAP_INFO()  {extern struct k_heap _system_heap;sys_heap_print_info(&_system_heap.heap,0);}
 void main(void)
 {
 
@@ -41,6 +43,7 @@ void main(void)
 
 	while (1) {
 		lisa_heap_info();
+		PRINT_HEAP_INFO();
 		k_msleep(2000);
 
 	}

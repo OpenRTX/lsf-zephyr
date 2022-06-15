@@ -44,6 +44,7 @@ void *lisa_mem_alloc(uint32_t size)
 	void *ret = sys_heap_aligned_alloc(&z_malloc_heap,
 					   __alignof__(z_max_align_t),
 					   size);
+	__ASSERT(ret,"lisa_mem_alloc size %d failed\n",size);
 	if (ret == NULL && size != 0) {
 		errno = ENOMEM;
 	}
