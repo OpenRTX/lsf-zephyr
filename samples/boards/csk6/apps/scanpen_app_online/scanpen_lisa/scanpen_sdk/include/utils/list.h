@@ -33,11 +33,7 @@
 #define __READ_ONCE(x) (*(const volatile __unqual_scalar___typeof__(x) *)&(x))
 #endif
 
-#define READ_ONCE(x)                                                                               \
-	({                                                                                         \
-		compiletime_assert_rwonce_type(x);                                                 \
-		__READ_ONCE(x);                                                                    \
-	})
+#define READ_ONCE(x)    (x)                
 
 struct list_head {
 	struct list_head *next, *prev;
