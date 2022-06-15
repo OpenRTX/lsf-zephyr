@@ -102,7 +102,7 @@ MEMORY
     LINKER_DT_REGION_FROM_NODE(SDRAM2, rw, DT_NODELABEL(sdram2))
     LINKER_DT_REGION_FROM_NODE(BACKUP_SRAM, rw, DT_NODELABEL(backup_sram))
 	/* CSK6 PSRAM FOR AP PARTITION*/
-    LINKER_DT_REGION_FROM_NODE(PSRAM_AP, rw, DT_NODELABEL(psram_ap))
+    LINKER_DT_REGION_FROM_NODE(PSRAMAP, rw, DT_NODELABEL(psram_ap))
     /* Used by and documented in include/linker/intlist.ld */
     IDT_LIST (wx) : ORIGIN = 0xFFFFF7FF, LENGTH = 2K
     }
