@@ -83,8 +83,8 @@ void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 			break;
 		case TTS_PLAY_OVER:
 			LISA_LOGD(TAG, "TTS_PLAY_OVER \n");
-			lisa_tts_stop(tts_handler);
-			lisa_tts_destroy(tts_handler);
+			//lisa_tts_stop(tts_handler);
+			//lisa_tts_destroy(tts_handler);
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
