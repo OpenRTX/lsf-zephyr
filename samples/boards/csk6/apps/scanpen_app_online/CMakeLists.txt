@@ -21,6 +21,9 @@ if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano"  O
   # add_subdirectory(scanpen_lisa/scanpen_app)
   # zephyr_compile_options(-fno-short-enums)
   #zephyr_ld_options(-fno-short-enums)
+  if((CONFIG_MBEDTLS_ENABLE_HEAP) AND (CONFIG_CODE_DATA_RELOCATION))
+    zephyr_code_relocate( ${ZEPHYR_BASE}/modules/mbedtls/zephyr_init.c PSRAMAP_BSS)
+  endif()
 endif()
 
 
