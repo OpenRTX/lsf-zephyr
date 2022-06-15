@@ -105,7 +105,7 @@ lisa_tts_handler_t *lisa_tts_create(const lisa_tts_params_t * const params)
 	}
 
 	ctx->ttscb = params->ttscb;
-	atts_set_fmt(ctx->tts,  ctx);
+	// atts_set_fmt(ctx->tts,  ctx);
 
 
 	_tts_set_status(ctx, TTS_STATUS_INIT);
@@ -153,7 +153,7 @@ int8_t lisa_tts_play(lisa_tts_handler_t *handler, const char *text)
 		LISA_LOGE(TAG, "[%s %d]tts not init", __FUNCTION__, __LINE__);
 		return -1;
 	}
-
+	atts_set_fmt(ctx->tts,  ctx);
 	atts_start(ctx->tts);
 	k_msleep(100);
 	ret = atts_play(ctx->tts, text, strlen(text));

@@ -31,6 +31,8 @@ static volatile lisa_thread_t *s_cam2cp_thread = NULL;
 
 static char ocr_result[1024] = {0};
 
+static volatile uint32_t tts_done = 0;
+
 
 typedef struct {
 	volatile char *addr;
@@ -83,8 +85,9 @@ void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 			break;
 		case TTS_PLAY_OVER:
 			LISA_LOGD(TAG, "TTS_PLAY_OVER \n");
-			lisa_tts_stop(tts_handler);
-			lisa_tts_destroy(tts_handler);
+			// lisa_tts_stop(tts_handler);
+			tts_done = 1;
+			// lisa_tts_destroy(tts_handler);
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
@@ -114,19 +117,40 @@ void  offline_recognize_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
 	char trans_data[1024] = {0};
+
+	/* create translate */
+	trans_handler = lisa_translate_create();
+
+	/* create tts */
+	lisa_tts_params_t params;
+	memset(&params, 0, sizeof(lisa_tts_params_t));
+	params.ttscb = _tts_cb;
+	tts_handler = lisa_tts_create(&params);
+	LISA_LOGD(TAG, "TTS_INIT_DONE \n");
+
 	while (true) {
 		lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
 
-		trans_handler = lisa_translate_create();
+		// trans_handler = lisa_translate_create();
 		lisa_translate_exec(trans_handler, ocr_result, trans_data, 1024, 40000);
-		lisa_translate_destroy(trans_handler);
+		// lisa_translate_destroy(trans_handler);
 
-		lisa_tts_params_t params;
-		memset(&params, 0, sizeof(lisa_tts_params_t));
-		params.ttscb = _tts_cb;
-		tts_handler = lisa_tts_create(&params);
+		// lisa_tts_params_t params;
+		// memset(&params, 0, sizeof(lisa_tts_params_t));
+		// params.ttscb = _tts_cb;
+		// tts_handler = lisa_tts_create(&params);
 
 		lisa_tts_play(tts_handler, trans_data);
+
+
+		while(!tts_done){
+			k_msleep(100);
+		}
+
+		lisa_tts_stop(tts_handler);
+		tts_done = 0;
+		
+		k_msleep(100);
 	}
 
 }
@@ -297,9 +321,9 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 	/* long button has the PRESS/RELEASE state */
 	if (sta == PRESS) {
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
-		lisa_translate_destroy(trans_handler);
-		lisa_tts_stop(tts_handler);
-		lisa_tts_destroy(tts_handler);
+		// lisa_translate_destroy(trans_handler);
+		// lisa_tts_stop(tts_handler);
+		// lisa_tts_destroy(tts_handler);
 		_video_init();
 		lisa_vcapture_start(vcap_handler);
 	} else if (sta == RELEASE) {
