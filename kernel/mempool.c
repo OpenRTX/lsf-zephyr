@@ -86,7 +86,8 @@ void *k_malloc(size_t size)
 	void *ret = k_aligned_alloc(sizeof(void *), size);
 
 	SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_heap_sys, k_malloc, _SYSTEM_HEAP, ret);
-	__ASSERT(ret,"k_malloc size %d failed\n",size);
+	__ASSERT(ret,"k_malloc size %d failed,called:0x%08x\n",size,(intptr_t)__builtin_return_address(0) - 2);
+
 	return ret;
 }
 
