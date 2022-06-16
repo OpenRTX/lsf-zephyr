@@ -11,5 +11,6 @@ supported:
   - uart
   - ipm
   - wifi
+  - csk_wifi
 ram: 320
 flash: 8000
