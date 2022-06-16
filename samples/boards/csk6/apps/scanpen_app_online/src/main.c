@@ -20,13 +20,13 @@ void main(void)
 
 	printk("sizeof(struct net_pkt)=%d bytes \n",sizeof(struct net_pkt));
 #ifdef CONFIG_SOF_HOST
-	//s_fs_mount();
+	s_fs_mount();
 #endif
 
 /*Initialization of the SOF must be performed before wifi is enabled，
 **because of heap space limitations,*/
 #ifdef CONFIG_SOF_HOST
-	//sof_domain();
+	sof_domain();
 #endif
 
 
@@ -36,15 +36,15 @@ void main(void)
 
 
 #ifdef CONFIG_MCUMGR
-	//mcumgr_domain();
+	mcumgr_domain();
 #endif
 
-	//start_scanpen_online();
+	start_scanpen_online();
 
 	while (1) {
 		lisa_heap_info();
 		PRINT_HEAP_INFO();
-		k_msleep(2000);
+		k_msleep(60000);
 
 	}
 }

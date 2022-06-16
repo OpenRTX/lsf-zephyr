@@ -46,7 +46,7 @@
 
 	pwr_amp:audio_pwr_amp{
 		 compatible = "listenai,pwr-amp";
-		 enable-gpios = <&gpioa 0 1>;
+		 enable-gpios = <&gpioa 5 1>;
 		 label = "audio_pwr_amp";	
 		 status = "okay";
 	 };
@@ -115,6 +115,11 @@
 
                 pinctrl_pwm2_default: pwm2_default{
                     pinctrls = <&pinmuxb 6 11>;
+                };
+
+				
+                pinctrl_pwm1_default: pwm1_default{
+                    pinctrls = <&pinmuxa 5 11>;
                 };
 
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
