@@ -10,7 +10,9 @@
 
 extern void example_vcapture_mem_register(void* pmalloc,void* pcalloc,void* pfree);
 void sof_domain(void){
- //   example_vcapture_mem_register(lisa_mem_alloc,lisa_mem_calloc,lisa_mem_free);
+#if(CONFIG_AVF_EXAMPLE)
+    example_vcapture_mem_register(lisa_mem_alloc,lisa_mem_calloc,lisa_mem_free);
+#endif
     avf_stream_platform_register();
 }
 
