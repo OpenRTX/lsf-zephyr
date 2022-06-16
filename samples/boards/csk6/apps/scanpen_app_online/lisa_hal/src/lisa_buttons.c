@@ -104,7 +104,7 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 	if (val >= 0) {
 		gpio_pin_set_dt(&led, !val);
 	}
-//	LISA_LOGD(TAG, "Button pressed val %d \n", val);
+	LISA_LOGD(TAG, "Button pressed val %d \n", val);
 
 	buttons_st = val ? KEY1 : 0;
 

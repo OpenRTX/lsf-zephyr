@@ -127,11 +127,11 @@
                         label = "power_lock";
                 };
                 pwm1pin: pwm1pin {
-                        gpios = <&gpioa 1 0>;
+                        gpios = <&gpioa 5 0>;
                         label = "power_lock";
                 };
                 fy_key: fykey {
-                        gpios = <&gpioa 13 1>;
+                        gpios = <&gpiob 5 1>;
                         label = "power_lock";
                 };
 
