@@ -54,7 +54,7 @@ OUTPUT_ARCH(xtensa)
 #define RESET_VECTOR        (FLASH_START)
 
 #define SDRAM0_START_X    0x60000000
-#define SDRAM0_SIZE_X     0x500000
+#define SDRAM0_SIZE_X     SDRAM0_SIZE
 
 #else
 
@@ -72,7 +72,7 @@ OUTPUT_ARCH(xtensa)
 #define RESET_VECTOR        (RESET_TEXT_ADDR)
 
 #define SDRAM0_START_X    (VECTORS_START + VECTORS_SIZE)
-#define SDRAM0_SIZE_X     0x500000 - ISR_VECTOR_SIZE
+#define SDRAM0_SIZE_X     SDRAM0_SIZE - ISR_VECTOR_SIZE
 
 #endif /* end of DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
 
