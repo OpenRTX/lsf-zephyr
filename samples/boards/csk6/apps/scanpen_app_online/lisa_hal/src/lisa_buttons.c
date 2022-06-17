@@ -51,6 +51,8 @@
 #include <lisa_buttons.h>
 
 #include "list.h"
+#include <logging/log.h>
+LOG_MODULE_DECLARE(lisa_button, LOG_LEVEL_DBG);
 #define TAG "lisa_button"
 
 typedef struct {
@@ -105,7 +107,6 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 		gpio_pin_set_dt(&led, !val);
 	}
 	LISA_LOGD(TAG, "Button pressed val %d \n", val);
-
 	buttons_st = val ? KEY1 : 0;
 
 	lisa_semaphore_give(buttons_sem);
@@ -127,7 +128,7 @@ lisa_err_t zephyr_button_init(void)
 		return;
 	}
 
-	ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_BOTH | GPIO_INT_DEBOUNCE);
+	ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_BOTH );
 	if (ret != 0) {
 		LISA_LOGE(TAG, "Error %d: failed to configure interrupt on %s pin %d\n", ret,
 				button.port->name, button.pin);
@@ -465,7 +466,7 @@ static void buttons_process_thread(void *arg)
 		 * must release it or let it in invalid state first.
 		 */
 		if (current_tiggered_obj) release_current_tiggered_obj(buttons_state);
-
+		LISA_LOGD(TAG, "Button pressed obj %d \n", obj);
 		/* if find one button object, then press and record it. */
 		if (obj) {
 			if (!obj->en) continue;

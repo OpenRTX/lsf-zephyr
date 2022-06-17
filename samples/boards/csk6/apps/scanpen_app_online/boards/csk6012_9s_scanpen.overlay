@@ -51,6 +51,24 @@
 		 status = "okay";
 	 };
 
+	 gpio,user {
+		compatible = "listenai,csk-gpio-user";
+		pwrlock: powerlock {
+				gpios = <&gpiob 5 1>;
+				label = "power_lock";
+		};
+		pwm1pin: pwm1pin {
+				gpios = <&gpioa 5 0>;
+				label = "power_lock";
+		};
+		fy_key: fykey {
+				gpios = <&gpiob 5 1>;
+				label = "power_lock";
+		};
+
+
+};
+
 };
 
  
