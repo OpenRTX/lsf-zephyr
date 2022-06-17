@@ -12,8 +12,8 @@
 #define WS_SEND_RETRY_TXT_COUNT (10)
 #define WS_SEND_RETRY_BIN_COUNT (5)
 #define WS_SEND_RETRY_DELAY (50000)  // 20ms
-#define SEND_STACK_SIZE (10 * 1024)
-#define RECV_STACK_SIZE (5 * 512)
+#define SEND_STACK_SIZE (4 * 1024)
+#define RECV_STACK_SIZE (4 * 512)
 #define WS_QUEUE_COUNT 150
 
 #define TAG "RWS"

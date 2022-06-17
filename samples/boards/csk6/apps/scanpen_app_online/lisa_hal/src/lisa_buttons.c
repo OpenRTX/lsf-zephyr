@@ -430,15 +430,16 @@ static void buttons_process_thread(void *arg)
 
 	while (buttons_thread_run_flag) {
 		/* wait a button trigger or button timer time is up */
+		LISA_LOGD(TAG, "[%s %d]Button wait buttons_sem\n",__FUNCTION__,__LINE__);
 		lisa_semaphore_take(buttons_sem, LISA_WAIT_FOREVER);
-
+		LISA_LOGD(TAG, "[%s %d]Button get buttons_sem\n",__FUNCTION__,__LINE__);
 		/* if button timer time is up, then process the timer event. */
 		if (buttons_timer_time_up) {
 			button_timer_event();
 			buttons_timer_time_up = false;
 			continue;
 		}
-
+		LISA_LOGD(TAG, "[%s %d]Button tester buttons_sem\n",__FUNCTION__,__LINE__);
 		/* get all the buttons' state form low levle buttons */
 		// TODO
 		//		if (button_impl.low_level_get_state)
@@ -446,7 +447,7 @@ static void buttons_process_thread(void *arg)
 		//		else
 		//			buttons_state = 0;
 		buttons_state = buttons_st;
-
+LISA_LOGD(TAG, "[%s %d]Button tester buttons_sem\n",__FUNCTION__,__LINE__);
 		/* if the buttons state not change, then continue
 		 * sometimes the AD buttons will trigger by mistake.
 		 */
@@ -459,9 +460,10 @@ static void buttons_process_thread(void *arg)
 			s[31 - i] = (n & (1 << i)) == 0 ? '0' : '1';
 		BUTTON_DEBUG("%s", s);
 #endif
+LISA_LOGD(TAG, "[%s %d]Button tester buttons_sem\n",__FUNCTION__,__LINE__);
 		/* get button's object based on state */
 		obj = get_buttons_obj(buttons_state);
-
+LISA_LOGD(TAG, "[%s %d]Button tester buttons_sem\n",__FUNCTION__,__LINE__);
 		/* if not NULL, that mean one button object has been pressed,
 		 * must release it or let it in invalid state first.
 		 */
@@ -481,8 +483,9 @@ static void buttons_process_thread(void *arg)
 			else if (obj->func == REPEAT_LONG_BUTTON)
 				repeat_long_button_press(obj);
 		}
+		LISA_LOGD(TAG, "[%s %d]Button pressed over\n",__FUNCTION__,__LINE__);
 	}
-
+	LISA_LOGD(TAG, "[%s %d]Button pressed exit\n",__FUNCTION__,__LINE__);
 	lisa_thread_delete(buttons_thread);
 }
 

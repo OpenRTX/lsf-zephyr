@@ -490,6 +490,7 @@ void ocr_recognize_thread(void *arg)
 						image_param.debug = s_debug_mode;
 						image_param.tokenization = true;
 						image_param.dictionary = true;
+						image_param.debug_image = true
 						image_param.single_line = s_singleline;
 						LISA_LOGD(TAG, "lisa evs rec image start");
 						lisa_evs_rec_image_start(s_handle->rec, s_request_id, &image_param);

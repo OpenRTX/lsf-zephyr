@@ -1179,5 +1179,5 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &bf30a2_driv_api);
 
 K_THREAD_DEFINE(bf30a2_thread_id, 2048, bf30a2_thread, &bf30a2_dev_data, NULL, NULL,
-		K_HIGHEST_THREAD_PRIO, 0, 0);
+		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
 #endif
