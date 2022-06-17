@@ -36,7 +36,7 @@ manifest:
       path: bootloader/mcuboot
     - name: sof_host
       remote: listenai
-      revision: e3f04a1447489b43839aa18127040d0a3307541e
+      revision: 12db71a309b4b98b89ebb9f9391a004d3aabea34
       path: modules/lib/sof_host
     - name: lisa_player
       remote: listenai
@@ -56,7 +56,7 @@ manifest:
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
-      revision: ee6c6c99927311f4572e0366b7c261ce5d8f051a
+      revision: 9a2aeaff2b5d5c9ae764b6df197506cf75712bb6
       path: modules/lib/xr819s
 
   self:
