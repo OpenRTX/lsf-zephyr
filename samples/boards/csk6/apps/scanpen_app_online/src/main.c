@@ -18,6 +18,13 @@ extern void lisa_heap_info(void);
 void main(void)
 {
 
+        int8_t irq_num;
+
+        for (irq_num = -14; irq_num < 32; irq_num++) {
+                printk("irq_num:%d, irq prio:%d, enabled:%d.\n", irq_num, NVIC_GetPriority(irq_num),
+                        __NVIC_GetEnableIRQ(irq_num));
+        }
+
 	printk("sizeof(struct net_pkt)=%d bytes \n",sizeof(struct net_pkt));
 #ifdef CONFIG_SOF_HOST
 	s_fs_mount();
