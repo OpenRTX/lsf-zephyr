@@ -31,7 +31,7 @@ config CSK_WIFI_SOFTAP
 
 config WIFI_CTRL_STACK_SIZE
 	int "Control Task Stack Size"
-	default 8192
+	default 2048
 
 config WIFI_CTRL_PRIORITY
 	int "Control Task Priority"
