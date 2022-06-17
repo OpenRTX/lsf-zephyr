@@ -179,7 +179,7 @@ MEMORY
         len = MEM_VECT_TEXT_SIZE
   iram_text_start :
                 org = XCHAL_DOUBLEEXC_VECTOR_PADDR_IRAM + MEM_VECT_TEXT_SIZE,
-        len = (IRAM_BASE + IRAM_SIZE) - (XCHAL_DOUBLEEXC_VECTOR_PADDR + MEM_VECT_TEXT_SIZE)
+        len = (IRAM_BASE + IRAM_SIZE) - (XCHAL_DOUBLEEXC_VECTOR_PADDR_IRAM + MEM_VECT_TEXT_SIZE)
 #ifdef CONFIG_GEN_ISR_TABLES
   IDT_LIST :
                 org = IDT_BASE,
@@ -449,6 +449,7 @@ SECTIONS
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
+    /*XIP_COPY_DEF(.dram1.text_rodata)*/
     XIP_COPY_DEF(.ai_lib.text_rodata)
 
     /* data */
@@ -490,6 +491,7 @@ SECTIONS
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
+    /* XIP_COPY_DEF(.dram1.text_rodata) */
 #endif
 
     __copy_table_end__ = .;
@@ -497,8 +499,10 @@ SECTIONS
     /* bss table */
     . = ALIGN(4);
     __bss_table_start__ = .;
+#if 0
     XIP_BSS_DEF(.dram1.bss)
     XIP_BSS_DEF(.sharedmem.bss)
+#endif
     
     XIP_BSS_DEF(.noinit)
     XIP_BSS_DEF(.bss)
@@ -507,63 +511,175 @@ SECTIONS
 
   } > ROMABLE_REGION
 
-  .rtos.rodata : ALIGN(4)
+  .dram1.rodata : ALIGN(4)
   {
-    _rtos_rodata_start = ABSOLUTE(.);
-    *(.rtos.rodata)
     . = ALIGN (4);
-    _rtos_rodata_end = ABSOLUTE(.);
-  } > ROMABLE_REGION
+    _dram1_rodata_start = ABSOLUTE(.);
+    *(.dram1.rodata)
+    . = ALIGN (4);
+    _dram1_rodata_end = ABSOLUTE(.);
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
 
-
-  .clib.rodata : ALIGN(4)
+  .dram1.data : ALIGN(4)
   {
-    _clib_rodata_start = ABSOLUTE(.);
-    *(.clib.rodata)
     . = ALIGN (4);
-    _clib_rodata_end = ABSOLUTE(.);
-  } > ROMABLE_REGION
+    _dram1_data_start = ABSOLUTE(.);
+    *(.dram1.data)
+    . = ALIGN (4);
+    _dram1_data_end = ABSOLUTE(.);
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
 
-#if CP_XIP
+  .dram1.bss (NOLOAD) : ALIGN(8)
+  {
+    . = ALIGN (8);
+    _dram1_bss_start = ABSOLUTE(.);
+    *(.dram1.bss)
+    . = ALIGN (8);
+    _dram1_bss_end = ABSOLUTE(.);
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
+
+#if 0
+  .dram1.text_rodata : ALIGN(8)
+  {
+    . = ALIGN (8);
+    _iram_text_rodata_start = ABSOLUTE(.);
+
+    /* xclib */
+    *libgcc.a:*(.rodata .rodata.*)
+    *libc.a:*(.rodata .rodata.*)
+    *libm.a:*(.rodata .rodata.*)
+    *libhal.a:*(.rodata .rodata.*)
+
+    /* hal_listenai drivers */
+    ClockManager.c.obj*(.rodata .rodata.*)
+    IOMuxManager.c.obj*(.rodata .rodata.*)
+    adc_pdm_venus.c.obj*(.rodata .rodata.*)
+    apc_venus.c.obj*(.rodata .rodata.*)
+    cache_cp.c.obj*(.rodata .rodata.*)
+    dac_venus.c.obj*(.rodata .rodata.*)
+    dma_venus.c.obj*(.rodata .rodata.*)
+    gpio_venus.c.obj*(.rodata .rodata.*)
+    mbox.c.obj*(.rodata .rodata.*)
+    spi.c.obj*(.rodata .rodata.*)
+    uart.c.obj*(.rodata .rodata.*)
+    venus_cp.c.obj*(.rodata .rodata.*)
+
+    /* zephyr drivers */
+    sys_clock_init.c.obj*(.rodata .rodata.*)
+    xtensa_sys_timer.c.obj*(.rodata .rodata.*)
+    dma_csk6.c.obj*(.rodata .rodata.*)
+    ipm_csk.c.obj*(.rodata .rodata.*)
+    uart_csk6.c.obj*(.rodata .rodata.*)
+    uart_console.c.obj*(.rodata .rodata.*)
+    spi_csk6.c.obj*(.rodata .rodata.*)
+    pinmux_csk6.c.obj*(.rodata .rodata.*)
+
+    /* kernel */
+    sched.c.obj*(.rodata .rodata.*)
+
+    . = ALIGN (8);
+    _iram_text_rodata_end = ABSOLUTE(.);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+#endif
+
+  .sharedmem.text : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _sharedmem_text_start = ABSOLUTE(.);
+    *(.sharedmem.literal .sharedmem.text)
+    . = ALIGN (4);
+    _sharedmem_text_end = ABSOLUTE(.);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+
+  .sharedmem.rodata : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _sharedmem_rodata_start = ABSOLUTE(.);
+    *(.sharedmem.rodata)
+    . = ALIGN (4);
+    _sharedmem_rodata_end = ABSOLUTE(.);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+
+  .sharedmem.data : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _sharedmem_data_start = ABSOLUTE(.);
+    *(.sharedmem.data)
+    . = ALIGN (4);
+    _sharedmem_data_end = ABSOLUTE(.);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+
+  .sharedmem.bss (NOLOAD) : ALIGN(8)
+  {
+    . = ALIGN (8);
+    _sharedmem_bss_start = ABSOLUTE(.);
+    *(.sharedmem.bss)
+    . = ALIGN (8);
+    _sharedmem_bss_end = ABSOLUTE(.);
+    _memmap_seg_sharedmem1_end = ALIGN(0x8);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+
+  .iram.text : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _stext = .;
+    _iram_text_start = ABSOLUTE(.);
+    *(.iram0.literal .iram.literal .iram.text.literal .iram1.literal .iram0.text .iram.text .iram1)
+
+    /* kernel */
+    sched.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    opi_psram_cpy.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    stack.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    system_work_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    . = ALIGN (4);
+    _iram_text_end = ABSOLUTE(.);
+  } >iram_text_start AT > ROMABLE_REGION
+
+  #if CP_XIP
   .ai_lib.text_rodata : ALIGN(4)
   {
     . = ALIGN (4);
     _ai_lib_text_rodata_start = ABSOLUTE(.);
-
+  
     /* xclib */
-    *libgcc.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    *libc.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    *libm.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    *libhal.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-
-    /* ai lib */
-    *libluna.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    *libtts.a:*(.rodata .rodata.*)
-    /* *libtts.a:*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+    *libgcc.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libc.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libm.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libhal.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
 
     /* hal_listenai drivers */
-    ClockManager.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    IOMuxManager.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    adc_pdm_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    apc_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    cache_cp.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    dac_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    dma_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    gpio_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    mbox.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    spi.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    uart.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    venus_cp.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ClockManager.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    IOMuxManager.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    adc_pdm_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    apc_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    cache_cp.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    dac_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    dma_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    gpio_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    mbox.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    spi.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    uart.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    venus_cp.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
 
     /* zephyr drivers */
-    sys_clock_init.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    xtensa_sys_timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    dma_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    ipm_csk.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    uart_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    uart_console.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    spi_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    pinmux_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    sys_clock_init.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    xtensa_sys_timer.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    dma_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    ipm_csk.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    uart_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    uart_console.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    spi_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    pinmux_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+
+
+    /* ai lib */
+    *libluna.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libtts.a:*(.rodata .rodata.*)
+    /* *libtts.a:*(.text .text.* .rodata .rodata.* .literal .literal.*) */
 
 #if 0
     /* hal_xtensa(can't be copyed) */
@@ -573,7 +689,7 @@ SECTIONS
 #endif
 
     /* arch xtensa core */
-#if 0
+#if 1
     cpu_idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     /* fatal.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
     /* window_vectors.S.obj */
@@ -585,7 +701,7 @@ SECTIONS
     debug_helpers_asm.S.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
 #endif
 
-#if 0
+#if 1
     /* arch common */
     sw_isr_common.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
 
@@ -651,6 +767,23 @@ SECTIONS
 #endif
 
     /* sof */
+    zephyr_ll.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-schedule.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-stream.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    cache_attr.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    zephyr_domain.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    schedule.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    wrapper.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc-common.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc-helper.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    dummy-dma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    edma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    sdma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
 #if 0
     dummy-dma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     edma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
@@ -755,6 +888,22 @@ SECTIONS
   } >RAMABLE_REGION AT > ROMABLE_REGION
 #endif
 
+  .rtos.rodata : ALIGN(4)
+  {
+    _rtos_rodata_start = ABSOLUTE(.);
+    *(.rtos.rodata)
+    . = ALIGN (4);
+    _rtos_rodata_end = ABSOLUTE(.);
+  } > ROMABLE_REGION
+
+  .clib.rodata : ALIGN(4)
+  {
+    _clib_rodata_start = ABSOLUTE(.);
+    *(.clib.rodata)
+    . = ALIGN (4);
+    _clib_rodata_end = ABSOLUTE(.);
+  } > ROMABLE_REGION
+
   .rodata : ALIGN(4)
   {
     _rodata_start = ABSOLUTE(.);
@@ -830,17 +979,6 @@ SECTIONS
 
 #include <linker/common-rom.ld>
 
-  _IRAM_TEXT_LOAD_START_ = .;
-  .iram.text : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _stext = .;
-    _iram_text_start = ABSOLUTE(.);
-    *(.iram0.literal .iram.literal .iram.text.literal .iram1.literal .iram0.text .iram.text .iram1)
-    . = ALIGN (4);
-    _iram_text_end = ABSOLUTE(.);
-  } >iram_text_start AT > ROMABLE_REGION
-
   .clib.data : ALIGN(4)
   {
     . = ALIGN (4);
@@ -898,72 +1036,6 @@ SECTIONS
     _data_end = ABSOLUTE(.);
     . = ALIGN(4096);
   } >RAMABLE_REGION AT > ROMABLE_REGION
-
-  .dram1.rodata : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _dram1_rodata_start = ABSOLUTE(.);
-    *(.dram1.rodata)
-    . = ALIGN (4);
-    _dram1_rodata_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > ROMABLE_REGION
-
-  .dram1.data : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _dram1_data_start = ABSOLUTE(.);
-    *(.dram1.data)
-    . = ALIGN (4);
-    _dram1_data_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > ROMABLE_REGION
-
-  .dram1.bss (NOLOAD) : ALIGN(8)
-  {
-    . = ALIGN (8);
-    _dram1_bss_start = ABSOLUTE(.);
-    *(.dram1.bss)
-    . = ALIGN (8);
-    _dram1_bss_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > ROMABLE_REGION
-
-  .sharedmem.text : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _sharedmem_text_start = ABSOLUTE(.);
-    *(.sharedmem.literal .sharedmem.text)
-    . = ALIGN (4);
-    _sharedmem_text_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > ROMABLE_REGION
-
-  .sharedmem.rodata : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _sharedmem_rodata_start = ABSOLUTE(.);
-    *(.sharedmem.rodata)
-    . = ALIGN (4);
-    _sharedmem_rodata_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > ROMABLE_REGION
-
-  .sharedmem.data : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _sharedmem_data_start = ABSOLUTE(.);
-    *(.sharedmem.data)
-    . = ALIGN (4);
-    _sharedmem_data_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > ROMABLE_REGION
-
-  .sharedmem.bss (NOLOAD) : ALIGN(8)
-  {
-    . = ALIGN (8);
-    _sharedmem_bss_start = ABSOLUTE(.);
-    *(.sharedmem.bss)
-    . = ALIGN (8);
-    _sharedmem_bss_end = ABSOLUTE(.);
-    _memmap_seg_sharedmem1_end = ALIGN(0x8);
-  } >luna_sharedmem_data AT > ROMABLE_REGION
-
-  _memmap_mem_sharedmem_max = ABSOLUTE(.);
 
   .lit4 : ALIGN(4)
   {

@@ -21,7 +21,7 @@
 
 #define ISR_VECTOR_SIZE  0x400 + 0x298
 #define IRAM_BASE	0x5FF00000
-#define IRAM_SIZE	0x2000
+#define IRAM_SIZE	0x4000
 /* FIXME: temp modify, Just to distinguish between mailbox addresses, will re-partition later  */
 #define SDRAM0_BASE	0x60000000 + ISR_VECTOR_SIZE
 #define SDRAM0_SIZE	0x5b0000 - ISR_VECTOR_SIZE
