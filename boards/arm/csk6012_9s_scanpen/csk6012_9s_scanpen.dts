@@ -123,7 +123,7 @@
         gpio,user {
                 compatible = "listenai,csk-gpio-user";
                 pwrlock: powerlock {
-                        gpios = <&gpiob 4 1>;
+                        gpios = <&gpiob 5 1>;
                         label = "power_lock";
                 };
                 pwm1pin: pwm1pin {
