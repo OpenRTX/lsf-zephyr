@@ -73,7 +73,7 @@
 
  
 &flash0 {
-	reg = <0x18000000 DT_SIZE_M(32)>;
+	reg = <0x18000000 DT_SIZE_M(8)>;
 	write-block-size = <4>;
 	partitions {
 		compatible = "fixed-partitions";

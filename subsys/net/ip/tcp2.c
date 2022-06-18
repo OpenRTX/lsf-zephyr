@@ -2794,7 +2794,7 @@ void net_tcp_init(void)
 	/* Use private workqueue in order not to block the system work queue.
 	 */
 	k_work_queue_start(&tcp_work_q, work_q_stack,
-			   K_KERNEL_STACK_SIZEOF(work_q_stack), THREAD_PRIORITY,
+			   K_KERNEL_STACK_SIZEOF(work_q_stack), 0,
 			   NULL);
 
 	k_thread_name_set(&tcp_work_q.thread, "tcp_work");
