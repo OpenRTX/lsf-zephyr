@@ -139,7 +139,7 @@ void bf30a2_spi_evt_callback(unsigned int event_info, unsigned int xfer_bytes,
 
 #define SPI1_CS_PIN 9
 
-static int32_t bf30a2_dev_cs_enable(const struct device *dev, uint8_t cs_state)
+BF30A2_FAST_CODE static int32_t bf30a2_dev_cs_enable(const struct device *dev, uint8_t cs_state)
 {
 	/* Not a standard interface, implemented by pull-up and pull-down resistors. */
 	if (cs_state) {
@@ -334,7 +334,7 @@ static int bf30a2_chip_power_down_enable(const struct device *dev, uint8_t statu
 	return 0;
 }
 
-static int bf30a2_chip_write_register(const struct device *dev, uint8_t addr, uint8_t value)
+BF30A2_FAST_CODE static int bf30a2_chip_write_register(const struct device *dev, uint8_t addr, uint8_t value)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 	uint8_t wr_addr[2];
@@ -350,7 +350,7 @@ static int bf30a2_chip_write_register(const struct device *dev, uint8_t addr, ui
 	return i2c_transfer(data->chip_data.i2c_bus.bus, &msgs, 1, data->chip_data.i2c_bus.addr);
 }
 
-static int bf30a2_chip_read_register(const struct device *dev, uint8_t addr, uint8_t *buf,
+BF30A2_FAST_CODE static int bf30a2_chip_read_register(const struct device *dev, uint8_t addr, uint8_t *buf,
 				     uint32_t buf_size)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
@@ -518,7 +518,7 @@ static int bf30a2_driv_get_caps(const struct device *dev, enum video_endpoint_id
 	return 0;
 }
 
-int32_t spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
+BF30A2_FAST_CODE int32_t spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
 {
 	int32_t stat;
 	if (spi == NULL) {
@@ -689,7 +689,7 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 		}
 		break;
 	case MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED_V2:
-		bf30a2_recv_next_packet(machine->dummy_buffer, (13));
+		//bf30a2_recv_next_packet(machine->dummy_buffer, (13));
 
 		machine->offset = 0;
 		machine->next_state = MACHINE_STATE_INIT;
@@ -803,7 +803,7 @@ BF30A2_FAST_CODE void bf30a2_spi_evt_callback(unsigned int event_info, unsigned 
 	}
 }
 
-static int bf30a2_stream_start_internal(const struct device *dev)
+BF30A2_FAST_CODE static int bf30a2_stream_start_internal(const struct device *dev)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 	/* reset state-machine */
@@ -827,7 +827,7 @@ BF30A2_FAST_CODE static inline int bf30a2_frame_check(char *in, uint32_t l, uint
 	return 0;
 }
 
-static int bf30a2_decode(char *in, char *out, uint32_t l, uint16_t h, uint16_t w)
+BF30A2_FAST_CODE static int bf30a2_decode(char *in, char *out, uint32_t l, uint16_t h, uint16_t w)
 {
 	uint16_t i = 0;
 	uint32_t offset = 0;
@@ -870,7 +870,7 @@ static int bf30a2_decode(char *in, char *out, uint32_t l, uint16_t h, uint16_t w
  * retval == 0 : no free buffer to decode.
  * retval >= 0 : decode success.
  */
-static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
+BF30A2_FAST_CODE static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
 {
 	int r = -1;
 
@@ -896,7 +896,7 @@ static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
 	return r;
 }
 
-static void bf30a2_thread(void *p1, void *p2, void *p3)
+BF30A2_FAST_CODE static void bf30a2_thread(void *p1, void *p2, void *p3)
 {
 	__ASSERT(p1 != NULL, "Param is null.");
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)p1;
@@ -918,6 +918,7 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 			memset(vbuf->buffer, 0, 6);
 			k_fifo_put(&data->fifo_free, vbuf);
 			if (r > 0) {
+				bf30a2_recv_next_packet(data->sta_machine.dummy_buffer, (13));
 				ok_cnt++;
 			} else if (r < 0) {
 				error_cnt++;
@@ -932,6 +933,7 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 				spi_recv(data->spi_hal, data->sta_machine.buffer, 4);
 			} else {
 				discard_cnt++;
+				bf30a2_recv_next_packet(data->sta_machine.dummy_buffer, (13));
 				LOG_ERR("No free space to decode frame.");
 			}
 
@@ -947,13 +949,13 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 	}
 }
 
-static int bf30a2_driv_set_format(const struct device *dev, enum video_endpoint_id ep,
+BF30A2_FAST_CODE static int bf30a2_driv_set_format(const struct device *dev, enum video_endpoint_id ep,
 				  struct video_format *fmt)
 {
 	return 0;
 }
 
-static int bf30a2_driv_get_format(const struct device *dev, enum video_endpoint_id ep,
+BF30A2_FAST_CODE static int bf30a2_driv_get_format(const struct device *dev, enum video_endpoint_id ep,
 				  struct video_format *fmt)
 {
 	if (fmt == NULL) {
@@ -968,7 +970,7 @@ static int bf30a2_driv_get_format(const struct device *dev, enum video_endpoint_
 	return 0;
 }
 
-static int bf30a2_driv_stream_start(const struct device *dev)
+BF30A2_FAST_CODE static int bf30a2_driv_stream_start(const struct device *dev)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
@@ -989,7 +991,7 @@ static int bf30a2_driv_stream_start(const struct device *dev)
 	return 0;
 }
 
-static int bf30a2_driv_stream_stop(const struct device *dev)
+BF30A2_FAST_CODE static int bf30a2_driv_stream_stop(const struct device *dev)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
@@ -1007,7 +1009,7 @@ static int bf30a2_driv_stream_stop(const struct device *dev)
 	return 0;
 }
 
-static int bf30a2_driv_dequeue(const struct device *dev, enum video_endpoint_id ep,
+BF30A2_FAST_CODE static int bf30a2_driv_dequeue(const struct device *dev, enum video_endpoint_id ep,
 			       struct video_buffer **vbuf, k_timeout_t timeout)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
@@ -1024,7 +1026,7 @@ static int bf30a2_driv_dequeue(const struct device *dev, enum video_endpoint_id 
 	return 0;
 }
 
-static int bf30a2_driv_enqueue(const struct device *dev, enum video_endpoint_id ep,
+BF30A2_FAST_CODE static int bf30a2_driv_enqueue(const struct device *dev, enum video_endpoint_id ep,
 			       struct video_buffer *buf)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
@@ -1040,12 +1042,12 @@ static int bf30a2_driv_enqueue(const struct device *dev, enum video_endpoint_id 
 	return 0;
 }
 
-static int bf30a2_set_ctrl(const struct device *dev, unsigned int cid, void *value)
+BF30A2_FAST_CODE static int bf30a2_set_ctrl(const struct device *dev, unsigned int cid, void *value)
 {
 	return 0;
 }
 
-static int bf30a2_driv_flush(const struct device *dev, enum video_endpoint_id ep, bool cancel)
+BF30A2_FAST_CODE static int bf30a2_driv_flush(const struct device *dev, enum video_endpoint_id ep, bool cancel)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 	struct video_buffer *vbuf;
@@ -1088,7 +1090,7 @@ static __attribute__((
 	used)) char g_buffer[BF30A2_INTERNAL_VBUF_NUM][BF30A2_INTERNAL_VBUF_SIZE] = { 0 };
 static struct video_buffer g_video_buffer[BF30A2_INTERNAL_VBUF_NUM] = { 0 };
 
-static int bf30a2_dev_init(const struct device *dev)
+BF30A2_FAST_CODE static int bf30a2_dev_init(const struct device *dev)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
@@ -1179,5 +1181,5 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &bf30a2_driv_api);
 
 K_THREAD_DEFINE(bf30a2_thread_id, 2048, bf30a2_thread, &bf30a2_dev_data, NULL, NULL,
-		K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
+		K_HIGHEST_THREAD_PRIO, 0, 0);
 #endif
