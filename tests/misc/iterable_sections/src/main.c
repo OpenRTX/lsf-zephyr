@@ -5,6 +5,7 @@
  */
 
 #include <ztest.h>
+#include <hahahahahahaha.h>
 
 struct test_ram {
 	int i;
