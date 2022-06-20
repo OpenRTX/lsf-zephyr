@@ -13,11 +13,10 @@ void main(void)
 	printk("lisa porting test on %s !\n", CONFIG_BOARD);
 
 	_wifi_init();
-	k_sleep(K_MSEC(5000));
-	
-	lisa_https_test();
+
+	// lisa_https_test();
 	//  lisa_os_test();
-	// lisa_websocket_test();
+	lisa_websocket_test();
 
 	while (1) {
 		k_sleep(K_MSEC(5000));

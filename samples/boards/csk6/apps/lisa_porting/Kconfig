@@ -4,12 +4,12 @@ menu "Example Configuration"
 
     config EXAMPLE_WIFI_SSID
         string "WiFi SSID"
-        default "TP-LINK_BA83"
+        default "TreeNewbear"
         #default "TP-LINK_LINGSI"
 
     config EXAMPLE_WIFI_PASSWORD
         string "WiFi password"
-        default "ab123456"
+        default "csk_wifi_connect"
         #default "a123456789"
 
 endmenu

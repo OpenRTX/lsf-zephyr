@@ -3,7 +3,7 @@
 
 #include <string.h>
 #include <stdint.h>
-#include <lisa_err.h>
+#include "lisa_err.h"
 
 typedef enum {
 	LISA_WS_OK = 0,
@@ -34,6 +34,7 @@ typedef enum {
 	LISA_WS_TEXT,
 	LISA_WS_BIN,
 	LISA_WS_BIN_FLASH,
+	LISA_WS_DATA_MAX,
 } lisa_ws_data_type_e;
 
 typedef struct {
@@ -62,6 +63,7 @@ typedef struct {
 } url_info_t;
 
 typedef struct {
+	void *ws_mngt;
 	url_info_t u_info;
 	lisa_ws_status_e ws_status;
 	uint32_t timeout_ms;
@@ -72,46 +74,46 @@ typedef struct {
 
 /**
  * @brief init
- * @param  req
- * @return lisa_ws_t*
+ * @param  req              
+ * @return lisa_ws_t* 
  */
 lisa_ws_t *lisa_ws_init(lisa_ws_request_t *req);
 
 /**
  * @brief connect
- * @param  ins
- * @return lisa_ws_err_e
+ * @param  ins              
+ * @return lisa_ws_err_e 
  */
 lisa_ws_err_e lisa_ws_connect(lisa_ws_t *ins);
 
 /**
  * @brief disconnect
- * @param  ins
- * @return lisa_ws_err_e
+ * @param  ins              
+ * @return lisa_ws_err_e 
  */
 lisa_ws_err_e lisa_ws_disconnect(lisa_ws_t *ins);
 
 /**
  * @brief send text
- * @param  ins
- * @param  text
- * @return lisa_ws_err_e
+ * @param  ins              
+ * @param  text             
+ * @return lisa_ws_err_e 
  */
 lisa_ws_err_e lisa_ws_send_text(lisa_ws_t *ins, const uint8_t *text);
 
 /**
  * @brief send binary
- * @param  ins
- * @param  buf
- * @param  len
- * @return lisa_ws_err_e
+ * @param  ins              
+ * @param  buf              
+ * @param  len              
+ * @return lisa_ws_err_e 
  */
 lisa_ws_err_e lisa_ws_send_binary(lisa_ws_t *ins, const void *buf, uint32_t len);
 
 /**
  * @brief clean up
- * @param  ins
- * @return lisa_ws_err_e
+ * @param  ins              
+ * @return lisa_ws_err_e 
  */
 lisa_ws_err_e lisa_ws_cleanup(lisa_ws_t *ins);
 
