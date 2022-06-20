@@ -57,7 +57,7 @@ GDATA(z_arm_tls_ptr)
  * preemption, or z_arm_svc in case of cooperative switching.
  */
 
-SECTION_FUNC(TEXT, z_arm_pendsv)
+SECTION_FUNC(itcm, z_arm_pendsv)
 
 #ifdef CONFIG_INSTRUMENT_THREAD_SWITCHING
     /* Register the context switch */

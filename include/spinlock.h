@@ -36,6 +36,7 @@ struct k_spinlock {
 	 * ID in the bottom two bits.
 	 */
 	uintptr_t thread_cpu;
+	uint32_t owner;
 #endif
 
 #if defined(CONFIG_CPLUSPLUS) && !defined(CONFIG_SMP) && \
@@ -64,7 +65,7 @@ struct k_spinlock {
 #ifdef CONFIG_SPIN_VALIDATE
 bool z_spin_lock_valid(struct k_spinlock *l);
 bool z_spin_unlock_valid(struct k_spinlock *l);
-void z_spin_lock_set_owner(struct k_spinlock *l);
+void z_spin_lock_set_owner(struct k_spinlock *l, uint32_t owner);
 BUILD_ASSERT(CONFIG_MP_NUM_CPUS <= 4, "Too many CPUs for mask");
 
 # ifdef CONFIG_KERNEL_COHERENCE
@@ -126,7 +127,16 @@ static ALWAYS_INLINE k_spinlock_key_t k_spin_lock(struct k_spinlock *l)
 	k.key = arch_irq_lock();
 
 #ifdef CONFIG_SPIN_VALIDATE
-	__ASSERT(z_spin_lock_valid(l), "Recursive spinlock %p", l);
+	if (z_spin_lock_valid(l) == false) {
+		int8_t irq_num;
+		printk("is in isr:%d.\n", __get_IPSR());
+		for (irq_num = -14; irq_num < 32; irq_num++) {
+			printk("irq_num:%d, irq prio:%d, enabled:%d\n.", irq_num, NVIC_GetPriority(irq_num),
+				__NVIC_GetEnableIRQ(irq_num));
+        	}
+		while(1);
+	}
+	// __ASSERT(z_spin_lock_valid(l), "Recursive spinlock %p, owner:%x", l, l->owner);
 # ifdef CONFIG_KERNEL_COHERENCE
 	__ASSERT_NO_MSG(z_spin_lock_mem_coherent(l));
 # endif
@@ -138,7 +148,7 @@ static ALWAYS_INLINE k_spinlock_key_t k_spin_lock(struct k_spinlock *l)
 #endif
 
 #ifdef CONFIG_SPIN_VALIDATE
-	z_spin_lock_set_owner(l);
+	z_spin_lock_set_owner(l, (uint32_t)__builtin_return_address(0));
 #endif
 	return k;
 }

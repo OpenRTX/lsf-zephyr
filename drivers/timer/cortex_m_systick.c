@@ -153,7 +153,7 @@ int sys_clock_driver_init(const struct device *dev)
 {
 	ARG_UNUSED(dev);
 
-	NVIC_SetPriority(SysTick_IRQn, _IRQ_PRIO_OFFSET);
+	NVIC_SetPriority(SysTick_IRQn, _IRQ_PRIO_OFFSET + 6);
 	last_load = CYC_PER_TICK - 1;
 	overflow_cyc = 0U;
 	SysTick->LOAD = last_load;

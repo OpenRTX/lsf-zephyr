@@ -44,7 +44,7 @@ GTEXT(z_arm_int_exit)
  *
  * @return N/A
  */
-SECTION_FUNC(TEXT, _isr_wrapper)
+SECTION_FUNC(itcm, _isr_wrapper)
 
 #if defined(CONFIG_CPU_CORTEX_M)
 	push {r0,lr}		/* r0, lr are now the first items on the stack */

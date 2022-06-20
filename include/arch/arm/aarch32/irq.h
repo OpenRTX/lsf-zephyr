@@ -165,15 +165,12 @@ static inline void arch_isr_direct_footer(int maybe_swap)
 }
 
 #define ARCH_ISR_DIRECT_DECLARE(name) \
-	static inline int name##_body(void); \
+	static inline void name##_body(void); \
 	__attribute__ ((interrupt ("IRQ"))) void name(void) \
 	{ \
-		int check_reschedule; \
-		ISR_DIRECT_HEADER(); \
-		check_reschedule = name##_body(); \
-		ISR_DIRECT_FOOTER(check_reschedule); \
+		name##_body(); \
 	} \
-	static inline int name##_body(void)
+	static inline void name##_body(void)
 
 #if defined(CONFIG_DYNAMIC_DIRECT_INTERRUPTS)
 

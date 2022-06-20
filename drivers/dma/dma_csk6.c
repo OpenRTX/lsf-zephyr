@@ -17,9 +17,9 @@
 #endif
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
-#define DMA_CSK6_RAM_FUNC 
+#define DMA_CSK6_RAM_FUNC
 #else
-#define DMA_CSK6_RAM_FUNC __attribute__ ((section (".itcm"))) 
+#define DMA_CSK6_RAM_FUNC __attribute__ ((section (".itcm")))
 #endif /* end of CONFIG_SOC_LS_ADSP_CSK6 */
 
 LOG_MODULE_REGISTER(dma_csk6, CONFIG_DMA_LOG_LEVEL);
@@ -213,9 +213,9 @@ csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
 ISR_DIRECT_DECLARE(dma_direct_irq_handler)
 {
     extern void dma_irq_handler(void);
+    __set_PRIMASK(1);
     dma_irq_handler();
-
-    return 1;
+    __set_PRIMASK(0);
 }
 
 static int csk_dma_init(const struct device *dev)
@@ -231,9 +231,10 @@ static int csk_dma_init(const struct device *dev)
 	if (data->channels_info == NULL) {
 		return -ENOMEM;
 	}
-    
-    IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
-                dma_direct_irq_handler, Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
+
+	IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
+		dma_direct_irq_handler, 0);
+	NVIC_SetPriority(DT_INST_IRQN(0), 0);
 	irq_enable(DT_INST_IRQN(0));
     return 0;
 }
