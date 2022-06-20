@@ -16,6 +16,7 @@ LOG_MODULE_REGISTER(_wifi_, LOG_LEVEL_DBG);
 
 #include "csk6/csk_wifi.h"
 
+K_SEM_DEFINE(ip_sem, 0, 1);
 
 static csk_wifi_event_cb_t wifi_event_cb;
 static struct net_mgmt_event_callback dhcp_cb;
@@ -31,6 +32,7 @@ static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, 
     printk("Lease time: %u seconds\n", iface->config.dhcpv4.lease_time);
     printk("Subnet: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
     printk("Router: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
+    k_sem_give(&ip_sem);
 }
 
 static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32_t data_len, void *arg)
@@ -46,6 +48,7 @@ static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32
 
 void _wifi_init(void)
 {
+    csk_wifi_init();
     wifi_event_cb.handler = &wifi_event_handler;
     wifi_event_cb.events = CSK_WIFI_EVT_STA_CONNECTED | CSK_WIFI_EVT_STA_DISCONNECTED;
     wifi_event_cb.arg = NULL;
@@ -82,4 +85,6 @@ void _wifi_init(void)
         return;
     }
     net_dhcpv4_start(iface);
+
+    k_sem_take(&ip_sem, K_FOREVER);
 }
