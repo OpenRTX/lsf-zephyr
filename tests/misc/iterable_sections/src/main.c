@@ -30,6 +30,8 @@ void test_ram(void)
 {
 	int out = 0;
 
+	miaomiaomiao();
+
 	STRUCT_SECTION_FOREACH(test_ram, t) {
 		out = (out << 8) | t->i;
 		t->i |= CHECK_BIT;
