@@ -17,6 +17,7 @@
 #define RECV_STACK_SIZE (8 * 512)
 #define WS_QUEUE_COUNT 150
 #define	WS_SEND_DATA_TIMEOUT	100
+#define WS_DEFAULT_BUFFER_SIZE	2048
 
 #define TAG "lisa_ws"
 
@@ -31,6 +32,9 @@ static lisa_ws_t *g_lisa_ws = NULL;
 static ze_websocket_client_handle_t s_client = NULL;
 static bool g_connected = false;
 static bool g_stop = false;
+static uint32_t remain_len = 0;
+static bool is_recombination = false;
+static uint8_t *recom_buf = NULL;
 
 K_MUTEX_DEFINE(s_ws_conn_mutex);
 
@@ -101,6 +105,7 @@ lisa_ws_t *lisa_ws_init(lisa_ws_request_t *req)
 			.user_context = handle,
 			.headers = "Origin: http://www.listenai.com\r\n",
 			.disable_auto_reconnect = false,
+			.buffer_size = WS_DEFAULT_BUFFER_SIZE,
 	};
 	char url[512] = {0};
 	sprintf(url, "%s://%s:%s%s", handle->u_info.scheme, handle->u_info.host, handle->u_info.port, handle->u_info.path);
@@ -160,8 +165,31 @@ static void _lisa_ws_cb(ze_websocket_client_handle_t *client, ze_websocket_event
 			}
 			LISA_LOGD(TAG, "received=%.*s", data->data_len, (char *)data->data_ptr);
 
-			_callback_ws_on_data(data->data_ptr, data->data_len, data_type);
-
+			if (is_recombination) {
+				memcpy(recom_buf + (data->payload_len - remain_len), data->data_ptr, data->data_len);
+				remain_len -= data->data_len;
+				if (remain_len == 0) {
+					is_recombination = false;
+					printk("%s\n", recom_buf);
+					_callback_ws_on_data(recom_buf, data->payload_len, data_type);
+					lisa_mem_free(recom_buf);
+					recom_buf = NULL;
+				}
+			} else {
+				if (data->data_len == data->payload_len) {
+					_callback_ws_on_data(data->data_ptr, data->data_len, data_type);
+				} else {
+					recom_buf = lisa_mem_alloc(data->payload_len);
+					if (recom_buf == NULL) {
+						LISA_LOGE(TAG, "no memory, recv data failed");
+						break;
+					}
+					remain_len = data->payload_len;
+					memcpy(recom_buf + (data->payload_len - remain_len), data->data_ptr, data->data_len);
+					remain_len -= data->data_len;
+					is_recombination = true;
+				}
+			}
 			break;
 		case WEBSOCKET_EVENT_ERROR:
 			LISA_LOGE(TAG, "WEBSOCKET_EVENT_ERROR");
