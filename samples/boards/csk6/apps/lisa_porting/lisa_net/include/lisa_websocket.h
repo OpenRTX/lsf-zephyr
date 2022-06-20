@@ -34,6 +34,7 @@ typedef enum {
 	LISA_WS_TEXT,
 	LISA_WS_BIN,
 	LISA_WS_BIN_FLASH,
+	LISA_WS_DATA_MAX,
 } lisa_ws_data_type_e;
 
 typedef struct {
