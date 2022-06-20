@@ -128,7 +128,7 @@ enum {
 };
 
 #define BF30A2_INTERNAL_VBUF_NUM 2
-#define BF30A2_INTERNAL_VBUF_SIZE 25220
+#define BF30A2_INTERNAL_VBUF_SIZE 25248
 
 static __attribute__((
 	aligned(32),
@@ -709,7 +709,7 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 
 		// struct video_buffer *next_vbuf =
 		// 	k_fifo_get(&machine->dev_data->fifo_free, K_NO_WAIT);
-		struct video_buffer *next_vbuf = &g_video_buffer[g_video_buffer_index];
+		struct video_buffer *next_vbuf = &g_video_buffer[!g_video_buffer_index];
 		struct video_buffer *curr_vbuf = machine->dev_data->curr_vbuf;
 
 		if (next_vbuf != NULL) {
@@ -944,7 +944,7 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 		curr_time = k_uptime_get_32();
 		if (vbuf != NULL && vbuf->buffer != NULL) {
 			r = bf30a2_rda_frame_decode_proc(vbuf, data);
-			memset(vbuf->buffer, 0, 100);
+			memset(vbuf->buffer, 0, 180 * 128);
 			if (r > 0) {
 				ok_cnt++;
 			} else if (r < 0) {
@@ -964,12 +964,12 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 			}
 
 		}
-		if (cnt % 30 == 0) {
+		if (cnt % 1 == 0) {
 			fps = curr_time - last_time ?
 					1000 / (curr_time - last_time) :
 					0;
 			LOG_INF("FPS:%d, T:%d, O:%d, E:%d, D:%d, vbuf:%p.\n", fps, cnt, ok_cnt,
-				error_cnt, discard_cnt, vbuf);
+				error_cnt, discard_cnt, vbuf->buffer);
 		}
 		last_time = curr_time;
 	}

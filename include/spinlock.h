@@ -128,15 +128,23 @@ static ALWAYS_INLINE k_spinlock_key_t k_spin_lock(struct k_spinlock *l)
 
 #ifdef CONFIG_SPIN_VALIDATE
 	if (z_spin_lock_valid(l) == false) {
+		__set_PRIMASK(1);
 		int8_t irq_num;
-		printk("is in isr:%d.\n", __get_IPSR());
+		printk("Spinlock %p is invalid, caller:%p\n", l, __builtin_return_address(0));
+		printk("\nl:%p, l->thread_cpu:%x, l->owner:%x.\n", l ,l->thread_cpu, l->owner);
+
+		uint8_t irq = ((SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) >>
+			SCB_ICSR_VECTACTIVE_Pos);
+		printk("is in isr:%d., irq:%d\n", __get_IPSR() > 0, irq);
 		for (irq_num = -14; irq_num < 32; irq_num++) {
 			printk("irq_num:%d, irq prio:%d, enabled:%d\n.", irq_num, NVIC_GetPriority(irq_num),
 				__NVIC_GetEnableIRQ(irq_num));
         	}
-		while(1);
+		__set_PRIMASK(1);
+		while(1) {
+		}
 	}
-	// __ASSERT(z_spin_lock_valid(l), "Recursive spinlock %p, owner:%x", l, l->owner);
+	__ASSERT(z_spin_lock_valid(l), "Recursive spinlock %p, owner:%x", l, l->owner);
 # ifdef CONFIG_KERNEL_COHERENCE
 	__ASSERT_NO_MSG(z_spin_lock_mem_coherent(l));
 # endif

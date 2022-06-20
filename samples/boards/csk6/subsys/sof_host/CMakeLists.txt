@@ -49,6 +49,36 @@ if(BUILD_DSP_FIRMWARE)
 
   unset(ENV{XCC_USE_CLANG})
   unset(ENV{ZEPHYR_TOOLCHAIN_VARIANT})
-  target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ./src) 
+  target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ./src)
 
 endif()
+
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/kernel/sched.c SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/kernel/timer.c SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/kernel/thread.c SRAM_TEXT)
+
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/prep_c.c SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cpu_idle.S SRAM_TEXT)
+
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/swap.c SRAM_TEXT)
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/swap_helper.S SRAM_TEXT) #+20
+
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/vector_table.S SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/thread.c SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/timing.c SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/reset.S SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/thread.S SRAM_TEXT)
+
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/irq_manage.c SRAM_TEXT) # +40
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/irq_relay.S SRAM_TEXT) -5
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/isr_wrapper.S SRAM_TEXT) - 5
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/exc_exit.S SRAM_TEXT) -8
+
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/soc/arm/csk6/cache.c SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/soc/arm/csk6/mpu_regions.c SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/include/arch/arm/aarch32/asm_inline_gcc.h SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/include/arch/arm/aarch32/irq.h SRAM_TEXT)
+
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/drivers/dma/dma_csk6.c SRAM_TEXT)
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/../modules/hal/listenai/csk6/drivers/cm33/dma.c SRAM_TEXT)
+# zephyr_code_relocate($ENV{ZEPHYR_BASE}/../modules/hal/listenai/csk6/drivers/cm33/cache_ap.c SRAM_TEXT)

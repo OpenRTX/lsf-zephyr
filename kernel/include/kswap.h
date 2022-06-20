@@ -164,7 +164,7 @@ static inline int z_swap_irqlock(unsigned int key)
 
 static inline int z_swap(struct k_spinlock *lock, k_spinlock_key_t key)
 {
-	return do_swap(key.key, lock, 1);
+	return do_swap(key.key, lock, 1);1
 }
 
 static inline void z_swap_unlocked(void)

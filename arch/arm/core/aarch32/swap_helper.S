@@ -135,6 +135,7 @@ out_fp_endif:
 #elif defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
     movs.n r0, #_EXC_IRQ_DEFAULT_PRIO
     msr BASEPRI_MAX, r0
+    cpsid i
     isb /* Make the effect of disabling interrupts be realized immediately */
 #elif defined(CONFIG_ARMV7_R)
     /*
@@ -287,6 +288,7 @@ _thread_irq_disabled:
 #elif defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
     /* restore BASEPRI for the incoming thread */
     msr BASEPRI, r0
+    cpsie i
 
 #ifdef CONFIG_FPU_SHARING
     /* Assess whether switched-in thread had been using the FP registers. */

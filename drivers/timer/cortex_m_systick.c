@@ -115,6 +115,10 @@ static uint32_t elapsed(void)
 /* Callout out of platform assembly, not hooked via IRQ_CONNECT... */
 void sys_clock_isr(void *arg)
 {
+	if (NVIC_GetPriority(SysTick_IRQn) != _IRQ_PRIO_OFFSET) {
+		k_panic();
+	}
+	int k = arch_irq_lock();
 	ARG_UNUSED(arg);
 	uint32_t dticks;
 
@@ -147,13 +151,14 @@ void sys_clock_isr(void *arg)
 		sys_clock_announce(1);
 	}
 	z_arm_int_exit();
+	arch_irq_unlock(k);
 }
 
 int sys_clock_driver_init(const struct device *dev)
 {
 	ARG_UNUSED(dev);
 
-	NVIC_SetPriority(SysTick_IRQn, _IRQ_PRIO_OFFSET + 6);
+	NVIC_SetPriority(SysTick_IRQn, _IRQ_PRIO_OFFSET);
 	last_load = CYC_PER_TICK - 1;
 	overflow_cyc = 0U;
 	SysTick->LOAD = last_load;
