@@ -192,6 +192,10 @@ int wifi_sm_on_connect_scan_handler(const struct device *dev, wlan_event_t curre
         wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
         data->err = CSK_WIFI_ERR_AP_NOT_FOUND;
         wlan_event_give(&current_event);
+    } else if (current_event == WLAN_EVENT_4WAY_HANDSHAKE_FAILED) {
+        /* Not sure whether will go into here */
+        LOG_ERR("STA_SM[%s]: handshake failed", wifi_sta_sm_str);
+        wifi_obj_set_sm(WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION);
     } else {
         LOG_ERR("STA_SM[%s]: unknown failed", wifi_sta_sm_str);
     }
