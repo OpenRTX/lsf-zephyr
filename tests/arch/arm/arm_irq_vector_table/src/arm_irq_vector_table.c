@@ -242,6 +242,10 @@ vth __irq_vector_table _irq_vector_table[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	mcux_lpc_ostick_isr
 };
+#elif defined (CONFIG_SOC_CSK6)
+vth __irq_vector_table _irq_vector_table[32] = {
+	isr0, isr1, isr2,
+};
 #else
 vth __irq_vector_table _irq_vector_table[] = {
 	isr0, isr1, isr2
