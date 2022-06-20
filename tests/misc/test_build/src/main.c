@@ -9,6 +9,7 @@
 #include <zephyr.h>
 #include <sys/printk.h>
 #include <hahahahahahahah.h>
+---
 
 /*
  * The hello world demo has two threads that utilize semaphores and sleeping
@@ -38,6 +39,7 @@ void helloLoop(const char *my_name,
 {
 	while (1) {
 		/* take my semaphore */
+		miao();
 		k_sem_take(my_sem, K_FOREVER);
 
 		/* say "hello" */
