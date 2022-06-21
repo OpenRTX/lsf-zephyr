@@ -15,6 +15,7 @@
 		zephyr,flash_sysfs_storage = &filesystem_part;
 		zephyr,flash_controller = &flash;
 		zephyr,uart-mcumgr = &uart0;
+		zephyr,psramap = &psram_ap;
 		/*
 		 *zephyr,code-partition = &slot0_partition;
 		 */
