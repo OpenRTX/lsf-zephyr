@@ -123,7 +123,7 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
                             help='''use ip accessing a J-Link remotely,
                             e.g. --ip=192.168.56.1 to acess J-Link which ip is 192.168.56.1,
                             need open JLinkRemoteServer firstly to start J-Link remote server,
-                            reference: https://www.segger.com/products/debug-probes/j-link/tools/j-link-remote-server/ 
+                            reference: https://www.segger.com/products/debug-probes/j-link/tools/j-link-remote-server/
                             reference: http://www.bmrtech.com/Tech/tech_show/249.html''')
 
         parser.set_defaults(reset_after_load=False)
@@ -225,7 +225,7 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
         server_cmd = ([self.gdbserver] +
                        # only USB connections supported
                        # add IP connection support
-                      ['-select', 
+                      ['-select',
                       ('ip' + f'={self.ip}') if self.ip else ('usb' + (f'={self.did}' if self.did else '')),
                        '-port', str(self.gdb_port),
                        '-if', self.iface,
@@ -333,6 +333,6 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
 
             self.logger.info('Flashing file: {}'.format(flash_file))
             kwargs = {}
-            if not self.logger.isEnabledFor(logging.DEBUG):
-                kwargs['stdout'] = subprocess.DEVNULL
+            # if not self.logger.isEnabledFor(logging.DEBUG):
+            # kwargs['stdout'] = subprocess.DEVNULL
             self.check_call(cmd, **kwargs)
