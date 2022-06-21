@@ -232,8 +232,11 @@ static int csk_dma_init(const struct device *dev)
 		return -ENOMEM;
 	}
     
-    IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
-                dma_direct_irq_handler, Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
+#ifdef CONFIG_ZERO_LATENCY_IRQS
+    IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority), dma_direct_irq_handler, IRQ_ZERO_LATENCY);
+#else
+    IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority), dma_direct_irq_handler, 0);
+#endif
 	irq_enable(DT_INST_IRQN(0));
     return 0;
 }

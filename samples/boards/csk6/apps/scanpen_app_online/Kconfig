@@ -8,6 +8,7 @@ DT_CHOSEN_Z_FLASH_SYSFS_STORAGE := zephyr,flash_sysfs_storage
 DT_CHOSEN_Z_FLASH_CONTROLLER := zephyr,flash_controller
 DT_CHOSEN_Z_INN_FLASH := zephyr,flash
 DT_CHOSEN_Z_IPC_SHM := zephyr,ipc_shm
+DT_CHOSEN_Z_PSRAM_AP := zephyr,psramap
 
 if DISK_DRIVER_FLASH
 
@@ -44,6 +45,15 @@ config SOF_IPC_SHM_SIZE
 	help
 	  This option specifies size of the memory region to be used
 	  for the SOF IPC shared memory
+
+
+config PSRAMAP_BASE_ADDRESS
+	hex 
+	default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_PSRAM_AP))"
+
+config PSRAMAP_SIZE
+	hex
+	default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_PSRAM_AP))"
 
 menu "Example Configuration"
 
