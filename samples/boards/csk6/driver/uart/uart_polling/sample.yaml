@@ -1,4 +1,10 @@
 tests:
   sample.board.csk6.driver.uart:
     platform_allow: csk6002_9s_nano
+    timeout: 20
     tags: csk6
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "devices UART_0 is ready"
