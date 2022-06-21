@@ -21,6 +21,43 @@ if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano"  O
   # add_subdirectory(scanpen_lisa/scanpen_app)
   # zephyr_compile_options(-fno-short-enums)
   #zephyr_ld_options(-fno-short-enums)
+
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/kernel/sched.c SRAM_TEXT)
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/kernel/timer.c SRAM_TEXT)
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/kernel/thread.c SRAM_TEXT)
+  
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/prep_c.c SRAM_TEXT)
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cpu_idle.S SRAM_TEXT)
+  
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/swap.c SRAM_TEXT)
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/swap_helper.S SRAM_TEXT)
+  
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/vector_table.S SRAM_TEXT)
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/thread.c SRAM_TEXT)
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/timing.c SRAM_TEXT)
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/reset.S SRAM_TEXT)
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/thread.S SRAM_TEXT)
+  
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/irq_manage.c SRAM_TEXT)
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/irq_relay.S SRAM_TEXT)
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/isr_wrapper.S SRAM_TEXT)
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/arch/arm/core/aarch32/cortex_m/exc_exit.S SRAM_TEXT)
+  
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/soc/arm/csk6/cache.c SRAM_TEXT)
+  # # zephyr_code_relocate($ENV{ZEPHYR_BASE}/soc/arm/csk6/mpu_regions.c SRAM_TEXT)
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/include/arch/arm/aarch32/asm_inline_gcc.h SRAM_TEXT)
+  # zephyr_code_relocate($ENV{ZEPHYR_BASE}/include/arch/arm/aarch32/irq.h SRAM_TEXT)
+  
+  zephyr_code_relocate($ENV{ZEPHYR_BASE}/drivers/dma/dma_csk6.c ITCM_TEXT)
+  zephyr_code_relocate($ENV{ZEPHYR_BASE}/../modules/hal/listenai/csk6/drivers/cm33/dma.c ITCM_TEXT)
+  zephyr_code_relocate($ENV{ZEPHYR_BASE}/drivers/video/bf30a2.c ITCM_TEXT)
+  
+  if((CONFIG_MBEDTLS_ENABLE_HEAP) AND (CONFIG_CODE_DATA_RELOCATION))
+    zephyr_code_relocate( ${ZEPHYR_BASE}/modules/mbedtls/zephyr_init.c PSRAMAP_BSS)
+  endif()
+
+ 
+  zephyr_compile_options(-g3 -gdwarf-2)
 endif()
 
 
