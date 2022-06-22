@@ -146,6 +146,10 @@ void sys_clock_isr(void *arg)
 	} else {
 		sys_clock_announce(1);
 	}
+
+    extern void badcode_bf30a2_thread_switch(void);
+    badcode_bf30a2_thread_switch();
+
 	z_arm_int_exit();
 }
 

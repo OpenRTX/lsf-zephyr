@@ -872,6 +872,21 @@ static int bf30a2_decode(char *in, char *out, uint32_t l, uint16_t h, uint16_t w
 	return len;
 }
 
+K_SEM_DEFINE(g_sem_bf30a2, 0, 1);
+
+static uint8_t inline badcode_is_need_switch()
+{
+        static uint8_t i = 0;
+        return i != g_video_buffer_index ? (i = g_video_buffer_index) >= 0 : 0;
+}
+
+void badcode_bf30a2_thread_switch(void)
+{
+        if (badcode_is_need_switch()) {
+                k_sem_give(&g_sem_bf30a2);
+        }
+}
+
 /**
  * retval < 0  : decode error.
  * retval == 0 : no free buffer to decode.
@@ -916,20 +931,13 @@ static void bf30a2_thread(void *p1, void *p2, void *p3)
 	uint32_t discard_cnt = 0;
 	int fps = 0;
 	int r;
-	uint8_t i = 0;
 	uint32_t curr_time;
 	while (1) {
 		// vbuf = k_fifo_get(&data->fifo_out, K_FOREVER);
-		if (i == g_video_buffer_index) {
-			k_msleep(1);
-			continue;
-		}
-		i = g_video_buffer_index;
-		if (i >= 2) {
-			k_panic();
-		}
+		k_sem_take(&g_sem_bf30a2, K_FOREVER);
+
 		cnt++;
-		vbuf = &g_video_buffer[i];
+		vbuf = &g_video_buffer[g_video_buffer_index];
 		curr_time = k_uptime_get_32();
 		if (vbuf != NULL && vbuf->buffer != NULL) {
 			r = bf30a2_rda_frame_decode_proc(vbuf, data);
