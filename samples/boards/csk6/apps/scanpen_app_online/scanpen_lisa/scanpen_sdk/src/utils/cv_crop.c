@@ -126,6 +126,69 @@ int stitch_img_T(uint8_t *in_img, uint8_t *ou_img, CVSize *in_size, CVSize *ou_s
 	return ret;
 }
 
+int stitch_img_T_len(uint8_t *in_img, uint8_t *ou_img, CVSize *in_size, CVSize *ou_size, CVSize *last_stitch, int *shift, int in_status, int x_len, int y_len)
+{
+	int i;
+	int ret = CV_CROP_NO_ERR;
+	const int height = in_size->height;
+	const int width  = in_size->width;
+	if (NULL == in_img || NULL == ou_img || NULL == ou_size || NULL == last_stitch || NULL == shift)
+	{
+		return CV_CROP_ERR_INVALID_PARAM;
+	}	
+	
+	if (ISTITCH_ISTATUS_BEGIN_GLOBAL_ == in_status)
+	{
+		last_stitch->y = 0;
+		last_stitch->x = 0 + ((x_len - 180) >> 1);
+	}
+	else if (ISTITCH_ISTATUS_BEGIN_BATCH_ == in_status)
+	{
+		last_stitch->y = 0;
+	}
+	
+	if (last_stitch->x < 0)	//y_shift < 0 over bound
+	{
+		ret = CV_CROP_ERR_OVER_BOUND;
+		last_stitch->x = 0;
+	}	
+	if ((last_stitch->x + width) > x_len)	//y_shift > 0 over bound
+	{
+		ret = CV_CROP_ERR_OVER_BOUND;
+		last_stitch->x = x_len - width;
+	}
+
+	if ( (last_stitch->y + height) > y_len)
+	{
+		return CV_CROP_ERR_OUTBUF_NOT_ENOUGH;
+	}
+	
+#if 0	
+	for (i = 0; i < height; i++)
+	{
+		int32_t I_offset = i * width;
+		int32_t O_offset = (i + last_stitch->y) * x_len + last_stitch->x;
+		memcpy(&ou_img[O_offset], &in_img[I_offset], width);
+	}
+#else
+	int32_t I_offset = 0;
+	int32_t O_offset = last_stitch->y * x_len + last_stitch->x;
+	for (i = 0; i < height; i++)
+	{
+		memcpy(&ou_img[O_offset], &in_img[I_offset], width);
+		I_offset += width;
+		O_offset += x_len;
+	}
+#endif
+	
+	ou_size->height = last_stitch->y + height;
+	ou_size->width  = x_len;
+	last_stitch->y += height;
+	last_stitch->x += (int32_t)shift[1]; //w
+	
+	return ret;
+}
+
 #if 0
 int stitch_img_ORI(uint8_t *in_img, uint8_t *ou_img, CVSize *in_size, CVSize *ou_size, int in_status)
 {
