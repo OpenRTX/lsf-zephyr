@@ -305,7 +305,7 @@ static void create_cam2cp_thread()
 	lisa_thread_attr_t thread_attr;
 	thread_attr.name = "cam2cp_thread";
 	thread_attr.stack_size = 2 * 1024;
-	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+	thread_attr.priority = OS_PRIORITY_BELOW_NORMAL;  // OS_PRIORITY_NORMAL
 
 	s_cam2cp_thread = lisa_thread_create(&thread_attr, video_ap2cp_thread, NULL);
 	if (s_cam2cp_thread == NULL) {
