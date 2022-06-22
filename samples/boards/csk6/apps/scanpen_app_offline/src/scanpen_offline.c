@@ -68,6 +68,7 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 		//	LISA_LOGD(TAG, "vcapture msg VCAPTURE_DATA \n");
 		} break;
 		case VCAPTURE_OCR:
+			memset(ocr_result, 0, sizeof(ocr_result));
 			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
 			memcpy(ocr_result, data, len);
 			break;

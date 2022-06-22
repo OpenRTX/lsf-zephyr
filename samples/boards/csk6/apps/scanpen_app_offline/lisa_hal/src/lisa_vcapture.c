@@ -40,7 +40,7 @@ typedef struct {
 } vcapture_msgq_data_t;
 
 typedef struct {
-	char result_str[128];
+	char result_str[1024];
 	struct k_sem compelete_sem;
 } vcapture_ocr_t;
 
