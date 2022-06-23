@@ -35,9 +35,18 @@ typedef struct {
 typedef struct {
 		uint16_t tag; //标记
 		uint32_t len; // 数据长度
-		uint16_t checksum; 
+		uint16_t checksum;
 		uint8_t *data;
 } ocr_frame_t;
+
+#pragma pack(1)
+typedef struct {
+		uint16_t tag; //标记
+		uint32_t len; // 数据长度
+		uint16_t checksum;
+		uint8_t *data;
+} text_frame_t;
+#pragma pack()
 
 typedef enum {
 	LISA_IMAGE_FRAME_NONE,
@@ -45,6 +54,15 @@ typedef enum {
 	LISA_IMAGE_FRAME_CONTINUE,
 	LISA_IMAGE_FRAME_END,
 } lisa_image_transfer_status_e;
+
+typedef enum {
+	LISA_UP_TEXT_NONE,
+	LISA_UP_TEXT_OCR,
+	LISA_UP_TEXT_TRANSLATE,
+	LISA_UP_TEXT_WORD_SEARCH,
+	LISA_UP_AUDIO,
+	LISA_UP_IMAGE,
+} lisa_spi_upload_type_e;
 
 
 /**
@@ -94,5 +112,15 @@ lisa_err_t lisa_evs_parser_cp_data();
  * @return lisa_err_t 
  */
 lisa_err_t lisa_evs_parser_cp_init(read_cp_data read_cb);
+
+/**
+ * @brief  spi pack
+ * @param  dst
+ * @param  src
+ * @param  len
+ * @param  type
+ * @return lisa_err_t
+ */
+lisa_err_t lisa_evs_pack_spi_data(uint8_t *dst, uint8_t *src, uint32_t len, lisa_spi_upload_type_e type);
 
 #endif //__LISA_EVS_SDK_SPI_PARSER_H__

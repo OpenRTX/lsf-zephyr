@@ -17,6 +17,7 @@
 #include "lisa_tts.h"
 #include "lisa_uart_port.h"
 #include "lisa_uart_recv.h"
+#include "lisa_evs_cp_data_parser.h"
 
 //#include "lisa_evs_uuid.h"
 #include <fs/fs.h>
@@ -65,7 +66,7 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			lisa_semaphore_give(s_ocr_res_sema);
 			break;
 		case VCAPTURE_DATA: {
-			LISA_LOGD(TAG, "vcapture msg VCAPTURE_DATA \n");
+			LISA_LOGD(TAG, "vcapture msg VCAPTURE_DATA len:%d \n", len);
 		} break;
 		case VCAPTURE_OCR:
 			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
@@ -99,6 +100,13 @@ void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 	switch (type) {
 		case e_cmd_scan_tts_text:
 			LISA_LOGD(TAG, "tts text :%s, len:%d\n", data, len);
+			// spi pack
+			uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(len);
+			lisa_evs_pack_spi_data(text_pack, data, len, LISA_UP_TEXT_OCR);
+			// spi send
+			lisa_spi_write(data, len);
+			// pack free
+			if(text_pack) lisa_mem_free(text_pack);
 			break;
 		case e_cmd_scan_translate_text:
 			LISA_LOGD(TAG, "translate text :%s, len:%d\n", data, len);
@@ -351,7 +359,8 @@ void ocr_test_offline_start()
 {
 	pen_head_button_init();
 	create_cam2cp_thread();
+	lisa_evs_parser_cp_init(NULL);
 	s_ocr_res_sema = lisa_semaphore_create(1);
 	create_offline_recognize_thread();
-	prot_recv_task(NULL);
+	prot_recv_task(_uart_recv_cb);
 }
