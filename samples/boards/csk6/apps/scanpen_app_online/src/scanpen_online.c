@@ -49,7 +49,7 @@
 #define PRODUCT_DEVICE_ID ("test_kzl")
 
 //ota_secret_id，iflyos平台分配
-//https://device.iflyos.cn/product/auto-update 
+//https://device.iflyos.cn/product/auto-update
 //从设备控制台=>自动更新=>加密密钥 获取
 #define PRODUCT_OTA_SECRET_ID ("7c7e25414ec0389d6a3d68645d93fea804aa972b")
 
@@ -98,19 +98,28 @@ typedef struct {
 	volatile uint32_t frame_size;
 	volatile uint32_t frame_cnt;
 	volatile uint32_t w_pos;
-	volatile uint32_t r_pos;
 	volatile uint32_t tag;
+} __attribute__((aligned(32))) swap_block_ap_t;
+
+typedef struct {
+	volatile uint32_t r_pos;
+} __attribute__((aligned(32))) swap_block_cp_t;
+
+typedef struct {
+	swap_block_ap_t ap_share;
+	swap_block_cp_t cp_share;
 } __packed frames_info_t;
 
 typedef struct frame_info {
 	uint32_t id;
 	uint32_t sum;
-} __packed frame_info_t;
+} __attribute__((aligned(32))) frame_info_t;
 
 Z_GENERIC_SECTION(.psram_section)
 __attribute__((aligned(32),
 	       used)) static char swp_frames[5][sizeof(frame_info_t) + 180 * 128] = { 0 };
 
+#define BUILD_CHECK(x) do {char var[!!(x) - 1] __attribute__((unused));} while(0)
 
 
 // 单行扫描
@@ -824,17 +833,17 @@ void run_device_init()
 
 static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 {
-	if (info == NULL || info->addr == NULL || info->frame_cnt <= 0) {
+	if (info == NULL || info->ap_share.addr == NULL || info->ap_share.frame_cnt <= 0) {
 		return NULL;
 	}
 
-	SCB_InvalidateDCache_by_Addr(info, sizeof(frames_info_t));
-	int r = info->r_pos;
-	int w = info->w_pos;
-	int cnt = info->frame_cnt;
-	char *addr = info->addr;
+	// SCB_InvalidateDCache_by_Addr(info, sizeof(frames_info_t));
+	int r = info->cp_share.r_pos;
+	int w = info->ap_share.w_pos;
+	int cnt = info->ap_share.frame_cnt;
+	char *addr = info->ap_share.addr;
 
-	w %= info->frame_cnt;
+	w %= info->ap_share.frame_cnt;
 
 	if (w > r) {
 		if ((r + cnt - w) <= 1) {
@@ -848,20 +857,20 @@ static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 		}
 	}
 
-	return info->addr + w * info->frame_size;
+	return info->ap_share.addr + w * info->ap_share.frame_size;
 }
 
 static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
 {
-	if (info == NULL || info->addr == NULL || info->frame_cnt <= 0) {
+	if (info == NULL || info->ap_share.addr == NULL || info->ap_share.frame_cnt <= 0) {
 		return -1;
 	}
 
-	info->w_pos++;
-	info->w_pos %= info->frame_cnt;
-	SCB_CleanDCache_by_Addr(info, sizeof(frames_info_t));
+	info->ap_share.w_pos++;
+	info->ap_share.w_pos %= info->ap_share.frame_cnt;
+	// SCB_CleanDCache_by_Addr(info, sizeof(frames_info_t));
 
-	return info->w_pos;
+	return info->ap_share.w_pos;
 }
 
 #define VIDEO_DEV DT_LABEL(DT_INST(0, byd_bf30a2))
@@ -882,7 +891,7 @@ static lisa_thread_t *s_cam2cp_thread = NULL;
 void video_ap2cp_thread(void *p1)
 {
 	struct video_buffer *vbuf = NULL;
-	frames_info_t *info = (frames_info_t *)0x30704000;
+	frames_info_t *info = (frames_info_t *)0x30784000;
 
 	const struct device *video = device_get_binding(VIDEO_DEV);
 
@@ -891,26 +900,30 @@ void video_ap2cp_thread(void *p1)
 		return;
 	}
 	memset(info, 0, sizeof(frames_info_t));
-	info->addr = &swp_frames[0][0];
-	info->frame_size = 180 * 128 + sizeof(frame_info_t);
-	info->frame_cnt = 5;
-	info->w_pos = 0;
-	info->r_pos = 0;
-	info->tag = 0x12345678;
+	info->ap_share.addr = &swp_frames[0][0];
+	info->ap_share.frame_size = 180 * 128 + sizeof(frame_info_t);
+	info->ap_share.frame_cnt = 5;
+	info->ap_share.w_pos = 0;
+	info->cp_share.r_pos = 0;
+	info->ap_share.tag = 0x12345678;
 
 	LISA_LOGI(TAG, "##########Frames info##########");
 	LISA_LOGI(TAG, "info       :%p.", info);
-	LISA_LOGI(TAG, "buffer addr:%p.", info->addr);
-	LISA_LOGI(TAG, "frame  size:%u.", info->frame_size);
-	LISA_LOGI(TAG, "frame count:%d.", info->frame_cnt);
-	LISA_LOGI(TAG, "write   pos:%d.", info->w_pos);
-	LISA_LOGI(TAG, "read    pos:%d.", info->r_pos);
+	LISA_LOGI(TAG, "buffer addr:%p.", info->ap_share.addr);
+	LISA_LOGI(TAG, "frame  size:%u.", info->ap_share.frame_size);
+	LISA_LOGI(TAG, "frame count:%d.", info->ap_share.frame_cnt);
+	LISA_LOGI(TAG, "write   pos:%d.", info->ap_share.w_pos);
+	LISA_LOGI(TAG, "read    pos:%d.", info->cp_share.r_pos);
+	LISA_LOGI(TAG, "sizeof(frame_info_t):%d, sizeof(swap_block_ap_t):%d.", sizeof(frame_info_t), sizeof(swap_block_ap_t));
 
 	uint32_t last_tick = 0;
 	int id = 0;
 	int fps = 0;
 	int frame_cnt = 0;
 	int discard_cnt = 0;
+
+	BUILD_CHECK(sizeof(frames_info_t) % 32 == 0);
+
 	while (1) {
 		vbuf = NULL;
 		video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_FOREVER);
@@ -918,11 +931,23 @@ void video_ap2cp_thread(void *p1)
 		/* send datas to cp core */
 		char *buffer = bf30a2_frames_info_get_free(info);
 		if (buffer != NULL) {
+			if ((buffer < info->ap_share.addr) || (buffer >= (info->ap_share.addr + info->ap_share.frame_size * info->ap_share.frame_cnt))) {
+				LISA_LOGI(TAG, "##########Frames info##########");
+				LISA_LOGI(TAG, "info       :%p.", info);
+				LISA_LOGI(TAG, "buffer addr:%p.", info->ap_share.addr);
+				LISA_LOGI(TAG, "frame  size:%u.", info->ap_share.frame_size);
+				LISA_LOGI(TAG, "frame count:%d.", info->ap_share.frame_cnt);
+				LISA_LOGI(TAG, "write   pos:%d.", info->ap_share.w_pos);
+				LISA_LOGI(TAG, "read    pos:%d.", info->cp_share.r_pos);
+
+				LISA_LOGI(TAG, "buffer:%p.", buffer);
+				k_panic();
+			}
 			frame_info_t *frame_info = (frame_info_t *)buffer;
 			frame_info->id = id++;
 			memcpy(buffer + sizeof(frame_info_t), vbuf->buffer, 180 * 128);
 			frame_info->sum = calc_sum(buffer + sizeof(frame_info_t), 180 * 128);
-			SCB_CleanDCache_by_Addr(buffer, info->frame_size);
+			SCB_CleanDCache_by_Addr(buffer, info->ap_share.frame_size);
 			bf30a2_frames_info_update_w_pos(info);
 			fps = vbuf->timestamp - last_tick > 0 ?
 				      1000 / (vbuf->timestamp - last_tick) :
