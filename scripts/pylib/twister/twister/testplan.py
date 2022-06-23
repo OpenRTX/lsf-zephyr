@@ -9,12 +9,8 @@ import mmap
 import sys
 import re
 import subprocess
-import shutil
-import queue
 import glob
 import logging
-from distutils.spawn import find_executable
-import colorama
 import json
 import collections
 from typing import List
@@ -956,13 +952,6 @@ class TestPlan:
         self.options = env.options
         self.env = env
 
-        self.roots = self.options.testsuite_root
-        if not isinstance(self.options.board_root, list):
-            self.board_roots = [self.options.board_root]
-        else:
-            self.board_roots = self.options.board_root
-        self.outdir = os.path.abspath(self.options.outdir)
-
         # Keep track of which test cases we've filtered out and why
         self.testsuites = {}
         self.quarantine = {}
@@ -1243,10 +1232,8 @@ class TestPlan:
 
 
     def add_configurations(self):
-
-        for board_root in self.board_roots:
+        for board_root in self.env.board_roots:
             board_root = os.path.abspath(board_root)
-
             logger.debug("Reading platform configuration files under %s..." %
                          board_root)
 
@@ -1277,7 +1264,7 @@ class TestPlan:
         return testcases
 
     def add_testsuites(self, testsuite_filter=[]):
-        for root in self.roots:
+        for root in self.env.test_roots:
             root = os.path.abspath(root)
 
             logger.debug("Reading test case configuration files under %s..." % root)
@@ -1674,7 +1661,7 @@ class TestPlan:
                 platform = self.get_platform(ts["platform"])
                 if filter_platform and platform.name not in filter_platform:
                     continue
-                instance = TestInstance(self.testsuites[testsuite], platform, self.outdir)
+                instance = TestInstance(self.testsuites[testsuite], platform, self.env.outdir)
                 if ts.get("run_id"):
                     instance.run_id = ts.get("run_id")
 
@@ -1803,7 +1790,7 @@ class TestPlan:
             # list of instances per testsuite, aka configurations.
             instance_list = []
             for plat in platform_scope:
-                instance = TestInstance(ts, plat, self.outdir)
+                instance = TestInstance(ts, plat, self.env.outdir)
                 if runnable:
                     tfilter = 'runnable'
                 else:
@@ -2004,7 +1991,7 @@ class TestPlan:
         """
 
         links_dir_name = "twister_links"  # folder for all links
-        links_dir_path = os.path.join(self.outdir, links_dir_name)
+        links_dir_path = os.path.join(self.env.outdir, links_dir_name)
         if not os.path.exists(links_dir_path):
             os.mkdir(links_dir_path)
 
