@@ -16,6 +16,7 @@
 #include "lisa_translate.h"
 #include "lisa_tts.h"
 #include "lisa_uart_port.h"
+#include "lisa_uart_recv.h"
 
 //#include "lisa_evs_uuid.h"
 #include <fs/fs.h>
@@ -64,7 +65,7 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			lisa_semaphore_give(s_ocr_res_sema);
 			break;
 		case VCAPTURE_DATA: {
-		//	LISA_LOGD(TAG, "vcapture msg VCAPTURE_DATA \n");
+			LISA_LOGD(TAG, "vcapture msg VCAPTURE_DATA \n");
 		} break;
 		case VCAPTURE_OCR:
 			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
@@ -86,6 +87,24 @@ void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 			LISA_LOGD(TAG, "TTS_PLAY_OVER \n");
 			//lisa_tts_stop(tts_handler);
 			//lisa_tts_destroy(tts_handler);
+			break;
+		default:
+			LISA_LOGE(TAG, "unsupport tts msg\n");
+			break;
+	}
+}
+
+void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
+{
+	switch (type) {
+		case e_cmd_scan_tts_text:
+			LISA_LOGD(TAG, "tts text :%s, len:%d\n", data, len);
+			break;
+		case e_cmd_scan_translate_text:
+			LISA_LOGD(TAG, "translate text :%s, len:%d\n", data, len);
+			break;
+		case e_cmd_scan_word_search_text:
+			LISA_LOGD(TAG, "word_search text :%s, len:%d\n", data, len);
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");

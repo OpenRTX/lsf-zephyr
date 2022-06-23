@@ -65,6 +65,8 @@ typedef enum {
 	e_cmd_scan_tts_auth_code= 0x54,
 	e_cmd_manual_adjust_info= 0x55,
 	e_cmd_manual_adjust_abs_info = 0x56,
+	e_cmd_scan_translate_text = 0x57,
+	e_cmd_scan_word_search_text=0x58,
 	e_cmd_proto_version     = 0xFE,         // uart proto version
 	e_cmd_heart_beat		= 0xFF			// heart beat
 } recv_cmd_type_e;
@@ -253,6 +255,17 @@ typedef union {
 } recv_cmd_pack_e;
 
 extern uint8_t esr_result_option;
+
+/**
+ * @brief uart receive data callback
+ *
+ * @param type  type: tts/translate/word_search
+ * @param data  record data pointer
+ * @param len	record len
+ *
+ * @retval  null
+ */
+typedef void (*lisa_uart_recv_cb)(recv_cmd_type_e type, void *data, uint32_t len);
 
 bool frame_recv_proc(void *arg);
 

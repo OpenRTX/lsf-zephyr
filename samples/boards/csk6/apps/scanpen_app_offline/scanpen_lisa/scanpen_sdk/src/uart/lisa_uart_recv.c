@@ -14,7 +14,7 @@ static frame_desc_u *head = &cmd_pack;
 static recv_cmd_pack_e *p_recv_cmd = NULL; // receive command package
 static frame_info_e e_frame_info = e_frame_ready;
 // static uint8_t history_baudrate = 1; // default: 115200
-
+static lisa_uart_recv_cb s_uart_rx_callback = NULL;
 
 static frame_info_e recv_proc_uart_set(frame_desc_u *head)
 {
@@ -74,7 +74,7 @@ static frame_info_e recv_proc_scan_set_para(frame_desc_u *head)
 	return e_frame_info;
 }
 
-static frame_info_e recv_proc_scan_tts_text(frame_desc_u *head)
+static frame_info_e recv_proc_scan_text(frame_desc_u *head)
 {
 	p_recv_cmd = (recv_cmd_pack_e *)&(head->frame_u.data_t.data[0]);
 	e_frame_info = e_frame_error_argv;
@@ -83,6 +83,12 @@ static frame_info_e recv_proc_scan_tts_text(frame_desc_u *head)
 	// 	LISA_LOGW(TAG, "not offline ocr mode, current mode[%d], update mode[%d]", scan_cur_mode_get(), scan_update_mode_get());
 	// 	return e_frame_info;
 	// }
+
+	uint32_t txt_len = 0;
+	memcpy(&txt_len, &p_recv_cmd->tts_txt.len[0], 4);
+	LISA_LOGI(TAG, "text cmd:%d, txt:%s, len:%d", p_recv_cmd->tts_txt.cmd, &p_recv_cmd->tts_txt.data[0], txt_len);
+
+	s_uart_rx_callback(p_recv_cmd->tts_txt.cmd, &p_recv_cmd->tts_txt.data[0], txt_len);
 
 #if EN_ALGO_TTS
 	uint32_t txt_len = 0;
@@ -213,6 +219,8 @@ bool frame_recv_proc(void *arg)
 	bool flag = 0;//(shell_dbg_level(FETCH_INIT) >= LL_DBG);
 	uint8_t chk = 0;
 
+	s_uart_rx_callback = (lisa_uart_recv_cb)arg;
+
 	// 1. receive HDR_L
 	to_recv = 1;
 	prot_read_data(&head->frame_data[0], to_recv, portMAX_DELAY);
@@ -329,7 +337,9 @@ bool frame_recv_proc(void *arg)
 		e_frame_info = recv_proc_scan_set_para(head);
 		break;
 	case e_cmd_scan_tts_text:
-		e_frame_info = recv_proc_scan_tts_text(head);
+	case e_cmd_scan_translate_text:
+	case e_cmd_scan_word_search_text:
+		e_frame_info = recv_proc_scan_text(head);
 		break;
 	case e_cmd_manual_adjust_info:
 		e_frame_info = recv_proc_manual_adjust_info(head);
