@@ -15,6 +15,7 @@
 #include "lisa_vcapture.h"
 #include "lisa_translate.h"
 #include "lisa_tts.h"
+#include "lisa_uart_port.h"
 
 //#include "lisa_evs_uuid.h"
 #include <fs/fs.h>
@@ -333,4 +334,5 @@ void ocr_test_offline_start()
 	create_cam2cp_thread();
 	s_ocr_res_sema = lisa_semaphore_create(1);
 	create_offline_recognize_thread();
+	prot_recv_task(NULL);
 }

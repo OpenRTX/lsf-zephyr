@@ -90,7 +90,6 @@ zephyr_library_sources(src/lisa_evs_sync.c)
 zephyr_library_sources(src/lisa_evs_feedback_notebook.c)
 zephyr_library_sources(src/lisa_evs.c)
 zephyr_library_sources(src/pref/lisa_evs_pref.c)
-
-
-
-
+zephyr_library_sources(src/uart/lisa_uart_port.c)
+zephyr_library_sources(src/uart/lisa_uart_recv.c)
+zephyr_library_sources(src/uart/lisa_uart_send.c)

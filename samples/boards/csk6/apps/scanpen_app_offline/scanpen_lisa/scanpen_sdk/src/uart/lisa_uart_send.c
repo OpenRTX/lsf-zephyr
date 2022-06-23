@@ -1,234 +1,311 @@
+#include "lisa_uart_recv.h"
 #include "lisa_uart_send.h"
-#include <lisa_queue.h>
-#include <lisa_mem.h>
 #include <lisa_log.h>
-#include "lisa_uart_protocol.h"
 
-#define TAG "lisa_uart_send"
-#define UART_QUEUE_CNT (5)
+#undef	TAG
+#define TAG	"[SEND]"
 
-static algo_t s_algo __attribute__((aligned(32))) = {0};
-static lisa_queue_t* g_send_queue = NULL;
+#define FRAME_DEVRPT_FID				(0xFF)
+#define FRAEM_LEN_MINUS_DATA			(9)			// 9 = FRAME_LEN - DAT_LEN
+#define FRAME_HEADER_LEN			    (6)			// header len
+#define FRAME_HEADER_CHK_LEN			(5)			// header check len
+#define SEND_FRAME_RIGISTER_TYPE		(0xFF)		// must be 0xFF, no use
+#define SEND_FARME_RIGISTER_ADDR		(0)			// must be 0x00, no use
+#define FRAME_DATA_CHK_LEN_MINUS_DATA	(2)			// FRAME_DATA_CHK_LEN - DAT_LEN
 
-typedef enum {
-	e_algo_none = 0,
-	e_algo_init = 1,
-	e_algo_start = 2,
-	e_algo_stop = 3,
-	e_algo_deinit = 4,
-	e_algo_i2s_ch_sel = 5,
-	e_algo_i2s_test = 6,
-	e_algo_heartbeat = 7,
-	e_algo_version_query = 8,
-	e_algo_all_version_query = 9,
-	e_algo_cst_kw = 10,
-	// scan pen
-	e_algo_scan_work_mode = 11,
-	e_algo_scan_set_para = 12,
-	e_algo_scan_tts_text = 13,
-	e_algo_scan_tts_auth = 14,
-	e_algo_scan_adjustment = 15,
-	e_algo_last,
-} algo_config_type_e;
+static up_cmd_pack_u u_send_cmd_pack = { { 0 } };	// send_cmd_pack
+static frame_desc_u u_send_frame = { { 0 } };		// send frame
 
-typedef struct {
-	algo_config_type_e msg;
-} algo_msg_t;
-
-static down_cmd_pack_u u_send_cmd_pack __attribute__((aligned(32))) = {{0}};
-static cmd_cst_kw_t _cst_kw;
-
-static void send_proc_esr(algo_config_type_e e_algo_config)
+// pack send data into an protocol frame
+static void pack_send(void *data, short len, uint8_t fid)
 {
-	switch (e_algo_config) {
-		case e_algo_init:
-			break;
-		case e_algo_start:
-			u_send_cmd_pack.cmd_esr.cmd = e_cmd_esr;
-			u_send_cmd_pack.cmd_esr.voice_id[0] = 0;
-			u_send_cmd_pack.cmd_esr.voice_id[1] = 0;
+	// header packet
+	u_send_frame.frame_u.header_t.tag = FRM_HDR_TAG;
+	u_send_frame.frame_u.header_t.len = len + FRAEM_LEN_MINUS_DATA;
+	u_send_frame.frame_u.header_t.frame_id = fid;
+	u_send_frame.frame_u.header_t.head_check
+		= -prot_pack_check(&u_send_frame, FRAME_HEADER_CHK_LEN);
+	// data packet
+	u_send_frame.frame_u.data_t.type = SEND_FRAME_RIGISTER_TYPE;
+	u_send_frame.frame_u.data_t.address = SEND_FARME_RIGISTER_ADDR;
+	memcpy(&u_send_frame.frame_u.data_t.data[0], data, len);
+	u_send_frame.frame_u.data_t.data[len]
+		= -prot_pack_check(&u_send_frame.frame_u.data_t.type, len + FRAME_DATA_CHK_LEN_MINUS_DATA);
+	// send data to cache pool
+	prot_send_data(&u_send_frame, u_send_frame.frame_u.header_t.len);
+}
 
-			u_send_cmd_pack.cmd_esr.mode = s_algo.mode;
-			u_send_cmd_pack.cmd_esr.beam = 1;  // if esr then beam always 1
-			u_send_cmd_pack.cmd_esr.loop = 1;  // always loop
-			u_send_cmd_pack.cmd_esr.timeout = 10;  // always wait	//TODO
+// up send ready status(directly send, without thread wrapping)
+void send_proc_frame_ready(void)
+{
+	int len = sizeof(up_cmd_pack_frame_info_t);
+	// header packet
+	u_send_frame.frame_u.header_t.tag = FRM_HDR_TAG;
+	u_send_frame.frame_u.header_t.len = len + FRAEM_LEN_MINUS_DATA;
+	u_send_frame.frame_u.header_t.frame_id = 0;
+	u_send_frame.frame_u.header_t.head_check
+		= -prot_pack_check(&u_send_frame, FRAME_HEADER_CHK_LEN);
+	// data packet
+	u_send_frame.frame_u.data_t.type = SEND_FRAME_RIGISTER_TYPE;
+	u_send_frame.frame_u.data_t.address = SEND_FARME_RIGISTER_ADDR;
+	u_send_frame.frame_u.data_t.data[0] = e_up_cmd_communicate_status;
+	u_send_frame.frame_u.data_t.data[1] = e_frame_ready;
+	u_send_frame.frame_u.data_t.data[2]
+		= -prot_pack_check(&u_send_frame.frame_u.data_t.type, len + FRAME_DATA_CHK_LEN_MINUS_DATA);
+	// send packet visa uart directlly
+	// bool uart_app_send(void *data, int len, int ticks);
+	// uart_app_send(&u_send_frame, u_send_frame.frame_u.header_t.len, portMAX_DELAY);
+}
 
-			lisa_uart_pack_send((void *)&u_send_cmd_pack, 5);
+// up send communicate status
+void send_proc_frame_info(frame_info_e e_frame_info, uint8_t fid)
+{
+	u_send_cmd_pack.frame_info.cmd = e_up_cmd_communicate_status;
+	u_send_cmd_pack.frame_info.type = e_frame_info;
+	pack_send(&u_send_cmd_pack, sizeof(up_cmd_pack_frame_info_t), FRAME_DEVRPT_FID == fid ? -fid : fid);
+}
 
+// up send software version
+void send_proc_soft_version(void)
+{
+	u_send_cmd_pack.soft_version.cmd = e_up_cmd_software_version;
+	u_send_cmd_pack.soft_version.version[0] = VERSION_MAJOR;
+	u_send_cmd_pack.soft_version.version[1] = VERSION_MINOR;
+	u_send_cmd_pack.soft_version.version[2] = VERSION_RESVE;
+	// u_send_cmd_pack.soft_version.version[3] = VERSION_BUILD - 1000;
+	pack_send(&u_send_cmd_pack, sizeof(up_cmd_pack_soft_version_t), FRAME_DEVRPT_FID);
+}
+
+// up send system status
+void send_proc_system_status(uint32_t status)
+{
+	u_send_cmd_pack.system_status.cmd = e_up_cmd_system_status;
+}
+
+// up send MINI-ESR result
+void send_proc_esr_result(uint16_t key_id, uint16_t score, const char *text)
+{
+	// int len = 0;
+	// switch(esr_result_option){
+	// case e_esr_result_keyid_text:
+	// 	if(0 == key_id) key_id = 501;
+	// 	u_send_cmd_pack.esr_result.esr_result_t.cmd = e_up_cmd_esr_result;
+	// 	u_send_cmd_pack.esr_result.esr_result_t.keyword_id[0] = key_id & (0x00ff);
+	// 	u_send_cmd_pack.esr_result.esr_result_t.keyword_id[1] = (key_id >> 8) & (0x00ff);
+	// 	u_send_cmd_pack.esr_result.esr_result_t.id_score[0] = score & (0x00ff);
+	// 	u_send_cmd_pack.esr_result.esr_result_t.id_score[1] = (score >> 8) & (0x00ff);
+	// 	len += 5;
+	// 	cae_get_realtime_angle(u_send_cmd_pack.esr_result.esr_result_t.angle, ESR_ANGLE_LEN);
+	// 	len += ESR_ANGLE_LEN;
+	// 	strncpy((char *)&u_send_cmd_pack.esr_result.esr_result_t.id_text[0]
+	// 		, text, sizeof(u_send_cmd_pack.esr_result.data));
+	// 	int len_txt = strlen((char *)&u_send_cmd_pack.esr_result.esr_result_t.id_text[0]);
+	// 	if (strlen(text) != len_txt)
+	// 		LISA_LOGW(TAG, "trunc:%s(%d)", text, strlen(text));
+	// 	len += len_txt;
+	// 	break;
+	// case e_esr_result_keyid:
+	// 	u_send_cmd_pack.esr_opt_result.esr_id_t.cmd = e_up_cmd_esr_result;
+	// 	u_send_cmd_pack.esr_opt_result.esr_id_t.keyword_id[0] = key_id & (0x00ff);
+	// 	u_send_cmd_pack.esr_opt_result.esr_id_t.keyword_id[1] = (key_id >> 8) & (0x00ff);
+	// 	len += 2;
+	// 	break;
+	// case e_esr_result_text:
+	// 	u_send_cmd_pack.esr_opt_result.esr_text_t.cmd = e_up_cmd_esr_result;
+	// 	strncpy((char *)&u_send_cmd_pack.esr_opt_result.esr_text_t.id_text[0]
+	// 		, text, sizeof(u_send_cmd_pack.esr_opt_result.data));
+	// 	len = strlen((char *)&u_send_cmd_pack.esr_opt_result.esr_text_t.id_text[0]);
+	// 	if (strlen(text) != len)
+	// 		LISA_LOGW(TAG, "trunc:%s(%d)", text, strlen(text));
+	// 	len += 2;
+	// 	break;
+	// default:
+	// 	break;
+	// }
+	// pack_send(&u_send_cmd_pack, len, FRAME_DEVRPT_FID);
+}
+
+// if MINI-ESR timeout, up send
+void send_proc_esr_err_result(esr_error_type_e e_type)
+{
+	u_send_cmd_pack.esr_error_result.cmd = e_up_cmd_esr_error_result;
+	u_send_cmd_pack.esr_error_result.type = e_type;
+	pack_send(&u_send_cmd_pack, sizeof(up_cmd_pack_esr_err_result_t), FRAME_DEVRPT_FID);
+}
+
+// when play end, up send message
+void send_proc_play_end(void)
+{
+	u_send_cmd_pack.play_end.cmd = e_up_cmd_play_end;
+	pack_send(&u_send_cmd_pack, sizeof(up_cmd_pack_play_end_t), FRAME_DEVRPT_FID);
+}
+
+// send heart beat
+void send_proc_heart_beat(void)
+{
+#if EN_HEART_BEAT
+	u_send_cmd_pack.play_end.cmd = e_up_cmd_heart_beat;
+	pack_send(&u_send_cmd_pack, sizeof(up_cmd_pack_heart_beat_t), FRAME_DEVRPT_FID);
+#endif//EN_HEART_BEAT
+}
+
+void send_proc_proto_version(void)
+{
+	// u_send_cmd_pack.proto_version.cmd = e_up_cmd_proto_verison;
+	// u_send_cmd_pack.proto_version.ver = UART_PROTO_VERSION;
+	// pack_send(&u_send_cmd_pack, sizeof(up_cmd_pack_proto_version_t), FRAME_DEVRPT_FID);
+}
+
+void send_proc_scan_work_status(uint8_t stu)
+{
+	int len = 0;
+	int wait_ms = 5;
+
+	u_send_cmd_pack.scan_work_status.cmd = e_up_cmd_scan_work_status;
+	u_send_cmd_pack.scan_work_status.work_status = stu;
+
+	len = sizeof(up_cmd_scan_work_status_t);
+	pack_send((void *)&u_send_cmd_pack, len, wait_ms);
+}
+
+void send_proc_adjust_work_status(uint8_t stu,uint8_t x_shift, uint8_t y_shift)
+{
+	int wait_ms = 5;
+
+	u_send_cmd_pack.adjust_work_status.cmd = e_up_cmd_adjust_work_status;
+	u_send_cmd_pack.adjust_work_status.adjust_status = stu;
+	u_send_cmd_pack.adjust_work_status.x_shift = x_shift;
+	u_send_cmd_pack.adjust_work_status.y_shift = y_shift;
+	pack_send((void *)&u_send_cmd_pack, sizeof(up_cmd_adjust_work_status_t), wait_ms);
+}
+
+void send_proc_tts_encryptcode(char *code, int size)
+{
+	u_send_cmd_pack.tts_encryptcode.cmd = e_up_cmd_tts_encryptcode;
+
+	memcpy(&u_send_cmd_pack.tts_encryptcode.len[0], &size, sizeof(int));
+
+	memcpy(&u_send_cmd_pack.tts_encryptcode.data[0], code, size);
+
+	int len = size + sizeof(cmd_scan_tts_encryptcode_t);
+	pack_send(&u_send_cmd_pack, len, FRAME_DEVRPT_FID);
+}
+
+static void send_master_ver(void)
+{
+	u_send_cmd_pack.all_version.cmd = e_up_cmd_all_version;
+	u_send_cmd_pack.all_version.type = version_query_master;
+	u_send_cmd_pack.all_version.ver_1 = VERSION_MAJOR;
+	u_send_cmd_pack.all_version.ver_2 = VERSION_MINOR;
+	u_send_cmd_pack.all_version.ver_3 = VERSION_RESVE;
+	pack_send((void *)&u_send_cmd_pack, sizeof(up_cmd_pack_all_version_t), 5);
+}
+
+static void send_stitch_ver(void)
+{
+	u_send_cmd_pack.all_version.cmd = e_up_cmd_all_version;
+	u_send_cmd_pack.all_version.type = version_query_stitch;
+	u_send_cmd_pack.all_version.ver_1 = STITCH_VERSION_MAJOR;
+	u_send_cmd_pack.all_version.ver_2 = STITCH_VERSION_MINOR;
+	u_send_cmd_pack.all_version.ver_3 = STITCH_VERSION_RESVE;
+	pack_send((void *)&u_send_cmd_pack, sizeof(up_cmd_pack_all_version_t), 5);
+}
+
+static void send_chipid_ver(void)
+{
+	u_send_cmd_pack.chipid_version.cmd = e_up_cmd_all_version;
+	u_send_cmd_pack.chipid_version.type = version_query_chipid;
+	u_send_cmd_pack.chipid_version.chipid = 0;// get_chip_id();
+	pack_send((void *)&u_send_cmd_pack, sizeof(chipid_version_t), 5);
+}
+
+static void send_cutline_ver(void)
+{
+	u_send_cmd_pack.all_version.cmd = e_up_cmd_all_version;
+	u_send_cmd_pack.all_version.type = version_query_cutline;
+	u_send_cmd_pack.all_version.ver_1 = CUTLINE_VERSION_MAJOR;
+	u_send_cmd_pack.all_version.ver_2 = CUTLINE_VERSION_MINOR;
+	u_send_cmd_pack.all_version.ver_3 = CUTLINE_VERSION_RESVE;
+	pack_send((void *)&u_send_cmd_pack, sizeof(up_cmd_pack_all_version_t), 5);
+}
+
+static void send_ocr_ver(void)
+{
+	u_send_cmd_pack.all_version.cmd = e_up_cmd_all_version;
+	u_send_cmd_pack.all_version.type = version_query_ocr;
+	u_send_cmd_pack.all_version.ver_1 = OCR_VERSION_MAJOR;
+	u_send_cmd_pack.all_version.ver_2 = OCR_VERSION_MINOR;
+	u_send_cmd_pack.all_version.ver_3 = OCR_VERSION_RESVE;
+	pack_send((void *)&u_send_cmd_pack, sizeof(up_cmd_pack_all_version_t), 5);
+}
+
+static void send_tts_engine_ver(void)
+{
+	u_send_cmd_pack.all_version.cmd = e_up_cmd_all_version;
+	u_send_cmd_pack.all_version.type = version_query_tts_engine;
+	u_send_cmd_pack.all_version.ver_1 = 6;
+	u_send_cmd_pack.all_version.ver_2 = 0;
+	u_send_cmd_pack.all_version.ver_3 = 5;
+	pack_send((void *)&u_send_cmd_pack, sizeof(up_cmd_pack_all_version_t), 5);
+}
+
+static void send_tts_pronunciation(void)
+{
+	u_send_cmd_pack.tts_role_id.cmd = e_up_cmd_all_version;
+	u_send_cmd_pack.tts_role_id.type = version_query_tts_pronunciation;
+#if EN_ALGO_TTS
+	u_send_cmd_pack.tts_role_id.role_id = tts_get_role_id();
+#else
+	u_send_cmd_pack.tts_role_id.role_id = 0;
+#endif
+	pack_send((void *)&u_send_cmd_pack, sizeof(up_cmd_pack_tts_role_t), 5);
+}
+
+void send_proc_version(all_version_query_e type)
+{
+	switch (type) {
+		case version_query_fw_stitch:
+			send_master_ver();
+			lisa_thread_mdelay(5);
+			send_stitch_ver();
 			break;
-		case e_algo_deinit:
+		case version_query_master:
+			send_master_ver();
 			break;
-		case e_algo_heartbeat:
-			//printf("[ALGO:%s:%d] e_algo_heartbeat.\n", __FUNCTION__, __LINE__);
-			u_send_cmd_pack.cmd_heartbeat.cmd = e_cmd_heartbeat;
-			lisa_uart_pack_send((void *)&u_send_cmd_pack, 1);
+		case version_query_stitch:
+			send_stitch_ver();
 			break;
-		case e_algo_all_version_query:
-			u_send_cmd_pack.all_version.cmd = e_cmd_all_ver_query;
-			u_send_cmd_pack.all_version.type = s_algo.query_type;
-			lisa_uart_pack_send((void *)&u_send_cmd_pack, 2);
+		case version_query_chipid:
+			send_chipid_ver();
 			break;
-		case e_algo_scan_work_mode:
-			u_send_cmd_pack.workmode.cmd = e_cmd_scan_work_mode;
-			u_send_cmd_pack.workmode.mode = s_algo.scan_mode;
-			lisa_uart_pack_send((void *)&u_send_cmd_pack, 2);
+		case version_query_cutline:
+			send_cutline_ver();
 			break;
-		case e_algo_scan_set_para:
-			u_send_cmd_pack.scan_para.cmd = e_cmd_scan_set_para;
-			u_send_cmd_pack.scan_para.type = s_algo.scan_param_type;
-			u_send_cmd_pack.scan_para.data = s_algo.scan_param;
-			lisa_uart_pack_send((void *)&u_send_cmd_pack, 4);
+		case version_query_ocr:
+			send_ocr_ver();
 			break;
-		case e_algo_scan_tts_text: {
-			uint32_t txt_len = strlen(s_algo.tts_text);
-			u_send_cmd_pack.scan_txt.cmd = e_cmd_scan_tts_txt;
-			memcpy(&u_send_cmd_pack.scan_txt.len[0], &txt_len, 4);
-			memcpy(&u_send_cmd_pack.scan_txt.data[0], s_algo.tts_text, txt_len);
-			lisa_uart_pack_send((void *)&u_send_cmd_pack, 1+4+txt_len);
-			lisa_mem_free(s_algo.tts_text);
+		case version_query_tts_engine:
+			send_tts_engine_ver();
 			break;
-		}
-		case e_algo_scan_tts_auth: {
-			uint32_t auth_len = s_algo.tts_authlen;
-			u_send_cmd_pack.auth_code.cmd = e_cmd_scan_tts_auth;
-			memcpy(&u_send_cmd_pack.auth_code.len[0], &auth_len, 4);
-			memcpy(&u_send_cmd_pack.auth_code.data[0], s_algo.tts_auth_code, auth_len);
-			lisa_uart_pack_send((void *)&u_send_cmd_pack, 1+4+auth_len);
-			lisa_mem_free(s_algo.tts_auth_code);
+		case version_query_tts_pronunciation:
+			send_tts_pronunciation();
 			break;
-		}
-		case e_algo_scan_adjustment: {
-			u_send_cmd_pack.adjustment.cmd = e_cmd_scan_adjustment;
-			u_send_cmd_pack.adjustment.data[0] = (s_algo.adjust_x_offset >> 8);
-			u_send_cmd_pack.adjustment.data[1] = (s_algo.adjust_x_offset & 0x00FF);
-			u_send_cmd_pack.adjustment.data[2] = (s_algo.adjust_y_offset >> 8);
-			u_send_cmd_pack.adjustment.data[3] = (s_algo.adjust_y_offset & 0x00FF);
-			lisa_uart_pack_send((void *)&u_send_cmd_pack, 5);
+		case version_query_all_version:
+			send_master_ver();
+			lisa_thread_mdelay(5);
+			send_stitch_ver();
+			lisa_thread_mdelay(5);
+			send_cutline_ver();
+			lisa_thread_mdelay(5);
+			send_ocr_ver();
+			lisa_thread_mdelay(5);
+			send_tts_engine_ver();
+			lisa_thread_mdelay(5);
+			send_tts_pronunciation();
+			lisa_thread_mdelay(5);
+			send_chipid_ver();
 			break;
-		}
 		default:
 			break;
 	}
-}
-
-lisa_err_t listen_send_uart_frame()
-{
-	algo_msg_t msg = {0};
-
-	lisa_err_t ret = lisa_queue_receive(g_send_queue, &msg, sizeof(algo_msg_t), 0);
-	if (LISA_OK == ret) {
-		if (msg.msg < e_algo_last) {
-			send_proc_esr(msg.msg);
-		} else {
-			LISA_LOGE(TAG, "unknow uart msg");
-		}
-	}
-	return ret;
-}
-
-lisa_err_t lisa_uart_send_init(int wait_ms)
-{
-	if (g_send_queue == NULL) {
-		g_send_queue = lisa_queue_create(UART_QUEUE_CNT, "lisa_uart_send_queue", sizeof(algo_msg_t));
-	}
-	
-	algo_msg_t msg = {0};
-	msg.msg = e_algo_init;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), wait_ms);
-	return ret;
-}
-
-lisa_err_t lisa_uart_send_deinit(int wait_ms)
-{
-	algo_msg_t msg = {0};
-	msg.msg = e_algo_deinit;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), wait_ms);
-	return ret;
-}
-
-lisa_err_t lisa_uart_send_start(listen_algo_mode_e mode, int wait_ms)
-{
-	if (mode >= e_listen_algo_mode_cnt) {
-		LISA_LOGE(TAG, "algo deinit mode error");
-		return LISA_FAIL;
-	}
-	s_algo.mode = mode;
-	algo_msg_t msg = {0};
-	msg.msg = e_algo_start;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), wait_ms);
-	return ret;
-}
-
-lisa_err_t lisa_uart_send_heartbeat(void)
-{
-	algo_msg_t msg = {0};
-	msg.msg = e_algo_heartbeat;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), 0);
-	return ret;
-}
-
-// lisa_err_t lisa_csk_all_version(void)
-// {
-// 	algo_msg_t msg = {0};
-// 	msg.msg = e_algo_all_version_query;
-// 	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), 0);
-// 	return ret;
-// }
-
-lisa_err_t lisa_uart_set_scan_mode(scan_mode_e mode, int wait_ms)
-{
-	algo_msg_t msg = {0};
-	msg.msg = e_algo_scan_work_mode;
-	s_algo.scan_mode = mode;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), wait_ms);
-	return ret;
-}
-
-lisa_err_t lisa_uart_scan_tts_text(const uint8_t* const text, uint32_t len)
-{
-	algo_msg_t msg = {0};
-	s_algo.tts_text = lisa_mem_alloc(len + 1);
-	strcpy(s_algo.tts_text, text);
-	msg.msg = e_algo_scan_tts_text;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), 0);
-	return ret;
-}
-
-lisa_err_t lisa_uart_get_csk_version(all_version_query_e type)
-{
-	algo_msg_t msg = {0};
-	msg.msg = e_algo_all_version_query;
-	s_algo.query_type = type;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), 0);
-	return ret;
-}
-
-lisa_err_t lisa_uart_set_scan_param(listen_scan_param_type_e type, uint16_t data)
-{
-	algo_msg_t msg = {0};
-	msg.msg = e_algo_scan_set_para;
-	s_algo.scan_param_type = type;
-	s_algo.scan_param = data;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), 0);
-	return ret;
-}
-
-lisa_err_t lisa_uart_scan_tts_auth(uint8_t *code, uint32_t len)
-{
-	algo_msg_t msg = {0};
-	s_algo.tts_auth_code = lisa_mem_alloc(len);
-	s_algo.tts_authlen = len;
-	memcpy(s_algo.tts_auth_code, code, len);
-	msg.msg = e_algo_scan_tts_auth;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), 0);
-	return ret;
-}
-
-lisa_err_t lisa_uart_adjustment(int16_t x_offset, int16_t y_offset) {
-	algo_msg_t msg = {0};
-	s_algo.adjust_x_offset = x_offset;
-	s_algo.adjust_y_offset = y_offset;
-	msg.msg = e_algo_scan_adjustment;
-	lisa_err_t ret = lisa_queue_push(g_send_queue, &msg, sizeof(algo_msg_t), 0);
-	return ret;
 }
