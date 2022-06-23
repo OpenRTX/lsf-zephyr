@@ -201,7 +201,7 @@ static void _send_thread(void *param)
 			.task_prio = OS_PRIORITY_HIGH,
 			.user_context = ins,
 			.headers = "Origin: http://www.listenai.com\r\n",
-			.disable_auto_reconnect = true,
+			.disable_auto_reconnect = false,
 	};
 	char url[512] = {0};
 
