@@ -126,7 +126,29 @@ static uint8_t bl6xxx_chip_id_read(const struct device *i2c_dev)
 
 static uint32_t bl6xxx_chip_uid_read(const struct device *i2c_dev)
 {
-    return 0;
+    int32_t ret;
+    uint8_t buf[BL6XXX_GP_UID_DATA_SIZE] = {0};
+    uint8_t reg = BL6XXX_SELF_UID_REG;
+
+    ret = i2c_write(i2c_dev, &reg, sizeof(reg), BL6133_CHIP_ADDR);
+    if (ret < 0) {
+        LOG_ERR("[BL6XXX]read data failed, ret:%d.\n", ret);
+        return ret;
+    }
+
+    ret = i2c_read(i2c_dev, buf, sizeof(buf), BL6133_CHIP_ADDR);
+    if (ret < 0) {
+        LOG_ERR("[BL6XXX]read data failed, ret:%d.\n", ret);
+        return ret;
+    }
+    
+    if(buf[0] == 0){
+        ret = -ENODATA;
+        LOG_ERR("[BL6XXX]read uid failed, ret:%d.\n", ret);
+        return ret;
+    }
+    
+    return ret;
 }
 
 static int32_t bl6xxx_chip_init(const struct device *i2c_dev)
@@ -139,9 +161,15 @@ static int32_t bl6xxx_chip_init(const struct device *i2c_dev)
      * We will improve it in future versions.
      * Just only make complier happy at here. 
      */
+    int32_t ret = 0;
+
+    ret = bl6xxx_chip_uid_read(i2c_dev);
+    if(ret != 0){
+        LOG_ERR("[BL6XXX]init failed, ret:%d.\n", ret);
+        return ret;
+    }
     (void)bl6xxx_chip_sleep(i2c_dev);
     (void)bl6xxx_chip_id_read(i2c_dev);
-    (void)bl6xxx_chip_uid_read(i2c_dev);
 
     return 0;
 }
