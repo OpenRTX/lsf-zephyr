@@ -67,6 +67,7 @@ static void output_init(void)
 	}
 }
 
+/*中断回调函数*/
 __attribute__ ((section (".itcm"))) int csk_gpio_isr(void)
 {
 
@@ -113,13 +114,14 @@ static void input_init(void){
 }
 
 void gpio_init(void){
-	output_init();
-	input_init();
+	output_init();//初始化输出的GPIO引脚 GPIOA5
+	input_init();//初始化输入的中断触发引脚 GPIOB4
 }
 
 
 
 #define ARRAY_INDEX_MAX   (20)
+/*数据存粹在PSRAM中，并且开启cache*/
 Z_GENERIC_SECTION(.psram_section) static char psram_buffer[ARRAY_INDEX_MAX][32*1024];
 Z_GENERIC_SECTION(.psram_section) static uint32_t ui32_psram_counter;
 void main(void)
