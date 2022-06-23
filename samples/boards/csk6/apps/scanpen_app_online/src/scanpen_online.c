@@ -56,7 +56,7 @@
 #define L1FS_FILE_PATH(file_name) ("/lfs1/" #file_name)
 #define URL_GET_OTA_INFO ("http://ota.iflyos.cn/ota/client/check/packages")
 
-#define IMAGE_MSG_QUE_CNT (24)  //需要是2的倍数
+#define IMAGE_MSG_QUE_CNT (256)  //需要是2的倍数
 
 extern lisa_image_transfer_status_e g_img_status;
 static char s_request_access_token[80] = {0};
@@ -688,9 +688,9 @@ static void create_send_ocr_simulation_image_thread()
 void run_ocr_recognition()
 {
 	if (!s_send_ocr_simulation_image_buffer) {
-		unsigned char *buffer = lisa_mem_alloc(64 * 1024);
+		unsigned char *buffer = lisa_mem_alloc(256 * 1024);
 
-		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 64 * 1024);
+		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 256* 1024);
 
 		s_ocr_image_sema = lisa_semaphore_create(2);
 		create_cp_task_protocol_thread();
@@ -1185,12 +1185,12 @@ void ocr_test_online_start()
 	g_img_status = LISA_IMAGE_FRAME_NONE;
 	if (!s_send_ocr_simulation_image_buffer) {
 	printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
-		unsigned char *buffer = lisa_mem_alloc(32 * 1024);
+		unsigned char *buffer = lisa_mem_alloc(256 * 1024);
 		if (!buffer) {
 			LISA_LOGE(TAG, "buffer malloc failed \n");
 		}
 
-		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 32 * 1024);
+		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 256 * 1024);
 
 		s_ocr_image_sema = lisa_semaphore_create(2);
 		create_cp_task_protocol_thread();

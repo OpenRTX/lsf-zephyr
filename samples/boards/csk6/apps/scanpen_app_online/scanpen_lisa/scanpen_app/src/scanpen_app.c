@@ -706,9 +706,9 @@ static void create_send_ocr_simulation_image_thread()
 void run_ocr_recognition()
 {
 	if (!s_send_ocr_simulation_image_buffer) {
-		unsigned char *buffer = lisa_mem_alloc(64 * 1024);
+		unsigned char *buffer = lisa_mem_alloc(256 * 1024);
 
-		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 64 * 1024);
+		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 256 * 1024);
 
 		s_ocr_image_sema = lisa_semaphore_create(2);
 		create_cp_task_protocol_thread();
@@ -1850,12 +1850,12 @@ void ocr_test_online_start()
 	s_singleline = true;
 
 	if (!s_send_ocr_simulation_image_buffer) {
-		unsigned char *buffer = lisa_mem_alloc(32 * 1024);
+		unsigned char *buffer = lisa_mem_alloc(256 * 1024);
 		if (!buffer) {
 			LISA_LOGE(TAG, "buffer malloc failed \n");
 		}
 
-		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 32 * 1024);
+		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 256 * 1024);
 
 		s_ocr_image_sema = lisa_semaphore_create(2);
 		create_cp_task_protocol_thread();
