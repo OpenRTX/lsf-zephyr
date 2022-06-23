@@ -1,0 +1,4 @@
+tests:
+  sample.board.csk6.dma_memcpy:
+    platform_allow: csk6002_c3_nano
+    tags: csk6
