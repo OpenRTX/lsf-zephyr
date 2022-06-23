@@ -582,10 +582,10 @@ BF30A2_FAST_CODE int32_t spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
 					     (uint32_t)(&(spi->reg->DATA)),
 					     (uint32_t)spi->info->xfer.rx_buf, num, control,
 					     config_low, config_high, 0, 0);
-		if (stat == -1) {
-			LOG_ERR("%s: Failed to call dma_channel_configure!!\r\n", __func__);
-			dma_channel_disable(spi->info->rx_dyn_dma_ch, false);
-			spi->info->rx_dyn_dma_ch = DMA_CHANNEL_ANY;
+		if (stat < 0) {
+			LOG_ERR("%s: Failed to call dma_channel_configure!!stat %d\r\n", __func__,stat);
+			// dma_channel_disable(spi->info->rx_dyn_dma_ch, false);
+			// spi->info->rx_dyn_dma_ch = DMA_CHANNEL_ANY;
 			if (dma_only)
 				return CSK_DRIVER_ERROR;
 			break;
