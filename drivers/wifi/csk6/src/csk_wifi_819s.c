@@ -694,8 +694,8 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
                 break;
             } else {
             }
-            ret = wifi_sta_get_connected_info(dev);
-            if (ret != 0)   break;
+            // ret = wifi_sta_get_connected_info(dev);
+            // if (ret != 0)   break;
             net_if_up(data->netif);
             net_eth_carrier_on(data->netif);
             wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTED,

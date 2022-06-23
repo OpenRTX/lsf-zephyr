@@ -46,7 +46,7 @@
 //正式集成的时候需要从设备中获取，不同的设备deviceid不一样，不能重复！！！
 //https://device.iflyos.cn/product/device-id
 //从上述链接导入设备白名单，并且确保每台设备device_id不一样，否则产生设备竞争，导致设备和账号异常。
-#define PRODUCT_DEVICE_ID ("test0008")
+#define PRODUCT_DEVICE_ID ("test_kzl")
 
 //ota_secret_id，iflyos平台分配
 //https://device.iflyos.cn/product/auto-update 
@@ -56,7 +56,7 @@
 #define L1FS_FILE_PATH(file_name) ("/lfs1/" #file_name)
 #define URL_GET_OTA_INFO ("http://ota.iflyos.cn/ota/client/check/packages")
 
-#define IMAGE_MSG_QUE_CNT (24)  //需要是2的倍数
+#define IMAGE_MSG_QUE_CNT (48)  //需要是2的倍数
 
 extern lisa_image_transfer_status_e g_img_status;
 static char s_request_access_token[80] = {0};
@@ -64,19 +64,32 @@ static char s_request_id[40] = {0};
 
 static lisa_evs_t *s_handle = NULL;
 
-static lisa_thread_t *s_ocr_recognize_thread = NULL;
-static int s_ocr_recognize_run = 0;
+// static void ocr_recognize_thread(void *arg1, void *arg2, void *arg3);
+// K_THREAD_DEFINE(ocr_recogize_thr, 2048,
+// 				ocr_recognize_thread, NULL, NULL, NULL,
+// 				OS_PRIORITY_NORMAL, 0, 0);
+K_MUTEX_DEFINE(img_send_mutex);
+
+static void cp_task_protocol_thread(void *arg1, void *arg2, void *arg3);
+K_THREAD_DEFINE(read_avf_data_thr, 2048,
+				cp_task_protocol_thread, NULL, NULL, NULL,
+				5, 0, 0);
+K_SEM_DEFINE(read_avf_data_sem, 0, 1);
+
 static lisa_thread_t *s_offline_recognize_thread = NULL;
 static lisa_thread_t *s_send_ocr_simulation_image_thread = NULL;
-static lisa_thread_t *s_cp_task_protocol_thread = NULL;
-static int s_cp_task_run = 0;
+// static lisa_thread_t *s_cp_task_protocol_thread = NULL;
+// static int s_cp_task_run = 0;
 static lisa_thread_t *s_test_send_audio_thread = NULL;
 
-static lisa_queue_t *s_image_queue = NULL;
+// static lisa_queue_t *s_image_queue = NULL;
 static bool s_ws_connected = false;
 
-static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
-static lisa_semaphore_t *s_ocr_image_sema = NULL;
+#define	IMAGE_STREAM_BUFFER_SIZE	(128 * 1024)
+struct k_pipe image_stream_pipe;
+unsigned char *image_stread_pipe_buffer = NULL;
+// static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
+// static lisa_semaphore_t *s_ocr_image_sema = NULL;
 static lisa_semaphore_t *s_ocr_res_sema = NULL;
 static bool s_debug_mode = false;
 
@@ -158,6 +171,7 @@ void disconnect_ws()
 
 static lisa_vcapture_handler_t *vcap_handler = NULL;
 static char ocr_result[1024] = {0};
+//avf sysworkq
 void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 {
 	switch (msg) {
@@ -182,7 +196,7 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			recv_image.status = LISA_IMAGE_FRAME_NONE;
 			recv_image.data = (char *)data;
 			recv_image.size = len;
-			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image);
+			send_ocr_simulation_image_once(&recv_image);
 		} break;
 		case VCAPTURE_OCR:
 			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
@@ -216,6 +230,7 @@ static int _video_init()
  * @param len
  * @param status
  */
+//send image cb
 void scan_image_cb(char *data, int len, lisa_image_transfer_status_e status)
 {
 	if (status == LISA_IMAGE_FRAME_END) {
@@ -236,11 +251,19 @@ void scan_image_cb(char *data, int len, lisa_image_transfer_status_e status)
 	} else {
 		recv_image.data = NULL;
 	}
-	ret = lisa_queue_push(s_image_queue, (void *)&recv_image, sizeof(lisa_image_msg_t), 0);
-	if (ret != LISA_OK) {
-		LISA_LOGE(TAG, "send img_msg failed! ret: %d", ret);
-		if (recv_image.data != NULL) lisa_mem_free(recv_image.data);
+	int mutex_ret = k_mutex_lock(&img_send_mutex, K_NO_WAIT);
+	if (mutex_ret < 0) {
+		printk("------lock failed\n");
+		return;
 	}
+	if (status == LISA_IMAGE_FRAME_START || status == LISA_IMAGE_FRAME_CONTINUE) {
+		lisa_evs_rec_send_image(s_handle->rec, recv_image.data, recv_image.size);
+	} else if (status == LISA_IMAGE_FRAME_END) {
+		lisa_evs_rec_image_end(s_handle->rec, s_request_id);
+	} else {
+		printk("-------unknown img frame\n");
+	}
+	k_mutex_unlock(&img_send_mutex);
 }
 
 /**
@@ -252,15 +275,25 @@ void scan_image_cb(char *data, int len, lisa_image_transfer_status_e status)
  * @param wait_ms
  * @return int
  */
-int recv_ocr_simulation_image_once(
-		struct lisa_ring_buffer *ring_buffer, uint8_t *data, unsigned int len, int wait_ms)
+//vcap
+int recv_ocr_simulation_image_once(uint8_t *data, unsigned int len, int wait_ms)
 {
-	int ret = lisa_ring_buffer_get(ring_buffer, data, len);
-	while (ret <= 0) {
-		lisa_semaphore_take(s_ocr_image_sema, LISA_WAIT_FOREVER);
-		ret = lisa_ring_buffer_get(ring_buffer, data, len);
+	size_t bytes_read;
+	if (wait_ms == LISA_WAIT_FOREVER) {
+		k_pipe_get(&image_stream_pipe, data, len, &bytes_read, 1, K_FOREVER);
+	} else {
+		k_pipe_get(&image_stream_pipe, data, len, &bytes_read, 1, K_MSEC(wait_ms));
 	}
-	return ret;
+	if (bytes_read < len) {
+		printk("---could not read target len, %d  %d\n", bytes_read, len);
+	}
+	return bytes_read;
+	// int ret = lisa_ring_buffer_get(ring_buffer, data, len);
+	// while (ret <= 0) {
+	// 	lisa_semaphore_take(s_ocr_image_sema, LISA_WAIT_FOREVER);
+	// 	ret = lisa_ring_buffer_get(ring_buffer, data, len);
+	// }
+	// return ret;
 }
 
 /**
@@ -269,22 +302,28 @@ int recv_ocr_simulation_image_once(
  * @param ring_buffer
  * @param data
  */
-void send_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer, lisa_image_msg_t *data)
+//avf sysworkq
+void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 {
-	bool need_wake = false;
-	if (lisa_ring_buffer_len(ring_buffer) <= 0) {
-		need_wake = true;
+	size_t bytes_written;
+	k_pipe_put(&image_stream_pipe, data->data, data->size, &bytes_written, data->size, K_NO_WAIT);
+	if (bytes_written != data->size) {
+		printk("----------------------bug, pipe full, lossing avf data!!!\n");
 	}
+	// bool need_wake = false;
+	// if (lisa_ring_buffer_len(ring_buffer) <= 0) {
+	// 	need_wake = true;
+	// }
 
-	int ret = lisa_ring_buffer_put(ring_buffer, data->data, data->size);
-	if (need_wake) {
-		lisa_semaphore_give(s_ocr_image_sema);
-	}
-	if (ret != data->size) {
-		LISA_LOGE(TAG, "write stream full \n");
-	}
+	// int ret = lisa_ring_buffer_put(ring_buffer, data->data, data->size);
+	// if (need_wake) {
+	// 	lisa_semaphore_give(s_ocr_image_sema);
+	// }
+	// if (ret != data->size) {
+	// 	LISA_LOGE(TAG, "write stream full \n");
+	// }
 
-	lisa_thread_mdelay(15);
+	// lisa_thread_mdelay(15);
 }
 
 /**
@@ -332,7 +371,7 @@ static void send_ocr_simulation_image_thread(void *arg)
 			recv_image.size = cp_frame_size;
 			fs_read(&fp, recv_image.data, recv_image.size);
 			send_total += recv_image.size;
-			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image);
+			send_ocr_simulation_image_once(&recv_image);
 		} else {
 			LISA_LOGD(TAG, "send_uart_scan_end\n");
 			lisa_thread_mdelay(100);
@@ -342,7 +381,7 @@ static void send_ocr_simulation_image_thread(void *arg)
 			recv_image.size = cp_mock_data_len - send_total;
 			fs_read(&fp, recv_image.data, recv_image.size);
 			send_total += recv_image.size;
-			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image);
+			send_ocr_simulation_image_once(&recv_image);
 
 			break;
 		}
@@ -360,7 +399,7 @@ static void send_ocr_simulation_image_thread(void *arg)
 				recv_image.size = cp_frame_size;
 				fs_read(&fp, recv_image.data, recv_image.size);
 				send_total += recv_image.size;
-				send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image);
+				send_ocr_simulation_image_once(&recv_image);
 			} else {
 				LISA_LOGD(TAG, "send_uart_scan_end\n");
 				lisa_thread_mdelay(100);
@@ -370,7 +409,7 @@ static void send_ocr_simulation_image_thread(void *arg)
 				recv_image.size = cp_mock_data_len - send_total;
 				fs_read(&fp, recv_image.data, recv_image.size);
 				send_total += recv_image.size;
-				send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image);
+				send_ocr_simulation_image_once(&recv_image);
 				break;
 			}
 		}
@@ -399,7 +438,7 @@ ERR_OPEN_FILE:
  */
 uint32_t _read_cp_buffer(uint8_t *data, unsigned int len, int wait_ms)
 {
-	return recv_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, data, len, wait_ms);
+	return recv_ocr_simulation_image_once(data, len, wait_ms);
 }
 
 /**
@@ -407,118 +446,17 @@ uint32_t _read_cp_buffer(uint8_t *data, unsigned int len, int wait_ms)
  *
  * @param argv
  */
-void cp_task_protocol_thread(void *argv)
+// data from avf (ringbuf)
+static void cp_task_protocol_thread(void *arg1, void *arg2, void *arg3)
 {
 	lisa_evs_parser_cp_init(_read_cp_buffer);
-	while (s_cp_task_run) {
+	while (1) {
+		k_sem_take(&read_avf_data_sem, K_FOREVER);
 		if (lisa_evs_parser_cp_data()) {
 		} else {
 		}
-	}
-
-	if (s_cp_task_protocol_thread) {
-		lisa_thread_t *temp = s_cp_task_protocol_thread;
-		s_cp_task_protocol_thread = NULL;
-		lisa_thread_delete(temp);
-	}
-}
-
-/**
- * @brief ocr识别线程
- *
- * @param arg
- */
-void ocr_recognize_thread(void *arg)
-{
-	LISA_LOGI(TAG, "%s", __FUNCTION__);
-// 设置扫描模式
-#if 0
-#if (OCR_MODE == OCR_SINGLELINE)
-	listenai_set_scan_mode(e_scan_mode_singleline);
-#else
-	listenai_set_scan_mode(e_scan_mode_multiline);
-#endif
-#endif
-
-	// 注册图像回调
-	lisa_evs_register_image_callback(scan_image_cb);
-
-	// cp图片消息队列
-	s_image_queue = lisa_queue_create(IMAGE_MSG_QUE_CNT, "img_msg", sizeof(lisa_image_msg_t));
-	if (s_image_queue == NULL) {
-		LISA_LOGE(TAG, "create img_msg queue failed!");
-		return;
-	}
-
-	printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
-	lisa_image_msg_t send_image;
-	memset(&send_image, 0, sizeof(lisa_image_msg_t));
-	static uint32_t image_index = 0;
-	LISA_LOGI(TAG, "%s Enter While", __FUNCTION__);
-	while (s_ocr_recognize_run) {
-		if (lisa_queue_receive(s_image_queue, &send_image, sizeof(lisa_image_msg_t),
-					10) == LISA_OK) {
-			if (!s_ws_connected) {
-				LISA_LOGE(TAG, "websocket is disconnected, can't scan image");
-				if (send_image.data) lisa_mem_free(send_image.data);
-				continue;
-			}
-			switch (send_image.status) {
-				case LISA_IMAGE_FRAME_START:
-					if (image_index == -1) {
-						printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
-						lisa_evs_uuid_generate_string(s_request_id);
-						lisa_evs_rec_image_param_t image_param = EVS_REC_IMG_PARAM_INIT(
-										// 模拟中文分词
-										// .tokenization = true,
-										// .dictionary = true,
-										// .resources = true,
-										.rec_mode = EVS_REC_MODE_OCR_TRANS_TTS);
-						image_param.debug = s_debug_mode;
-						image_param.tokenization = true;
-						image_param.dictionary = true;
-						image_param.single_line = s_singleline;
-						LISA_LOGD(TAG, "lisa evs rec image start");
-						lisa_evs_rec_image_start(s_handle->rec, s_request_id, &image_param);
-					}
-					// image_index = 0;
-					image_index++;
-					lisa_evs_rec_send_image(s_handle->rec, send_image.data, send_image.size);
-					break;
-				case LISA_IMAGE_FRAME_CONTINUE:
-					image_index++;
-					lisa_evs_rec_send_image(s_handle->rec, send_image.data, send_image.size);
-					break;
-				case LISA_IMAGE_FRAME_END:
-					image_index++;
-					if (send_image.data != NULL) {
-						lisa_evs_rec_send_image(s_handle->rec, send_image.data, send_image.size);
-					}
-
-					if (image_index <= 48 && !s_singleline) {  // test
-						lisa_evs_rec_send_image_enter(s_handle->rec);
-						LISA_LOGD(TAG, "send image count: %d\n", image_index);
-					} else {
-						lisa_evs_rec_image_end(s_handle->rec, s_request_id);
-						LISA_LOGD(TAG, "send image count: %d\n", image_index);
-						image_index = 0;
-					}
-					break;
-				default:
-					break;
-			}
-			if (send_image.data) {
-				lisa_mem_free(send_image.data);
-			}
-		}
-	}
-
-	if (s_ocr_recognize_thread) {
-		printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
-		lisa_thread_t *temp_thread = s_ocr_recognize_thread;
-		s_ocr_recognize_thread = NULL;
-		lisa_thread_delete(temp_thread);
-		image_index = 0;
+		k_sem_give(&read_avf_data_sem);
+		k_yield();
 	}
 }
 
@@ -595,62 +533,6 @@ const static lisa_dictionary_lookup_cb_t s_dictionary_lookup_cb = {
 };
 
 /**
- * @brief Create a cp task protocol thread object
- *
- */
-void create_cp_task_protocol_thread()
-{
-	/*
-	 *if (s_cp_task_protocol_thread) {
-	 *    return;
-	 *}
-	 */
-	// 1. cp_task_protocol_thread
-	lisa_thread_attr_t thread_attr;
-	thread_attr.name = "cp_task_protocol_thread";
-	thread_attr.stack_size = 2 * 1024;
-	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
-
-	s_cp_task_run = 1;
-	//解析图片
-	s_cp_task_protocol_thread = lisa_thread_create(&thread_attr, cp_task_protocol_thread, NULL);
-	if (s_cp_task_protocol_thread == NULL) {
-		LISA_LOGE(TAG, "thread_create: cp_task_protocol_thread failed");
-		return;
-	}
-}
-
-/**
- * @brief Create a ocr recognize thread object
- *
- */
-void create_ocr_recognize_thread()
-{
-	/*
-	 *if (s_ocr_recognize_thread) {
-	 *    return;
-	 *}
-	 */
-
-    printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
-	// 2. ocr_thread
-	lisa_thread_attr_t thread_attr;
-	thread_attr.name = "ocr_recognize_thread";
-	thread_attr.stack_size = 2 * 1024;
-	// thread_attr.stack_size = K_THREAD_STACK_SIZEOF(ocr_recognize_stack_area);
-	// thread_attr.stack = ocr_recognize_stack_area;
-	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
-
-	s_ocr_recognize_run = 1;
-	//接受组装并发送图片到云端
-	s_ocr_recognize_thread = lisa_thread_create(&thread_attr, ocr_recognize_thread, NULL);
-	if (s_ocr_recognize_thread == NULL) {
-		LISA_LOGE(TAG, "thread_create: ocr_recognize_thread failed");
-		return;
-	}
-}
-
-/**
  * @brief Create a send ocr simulation image thread object
  *
  */
@@ -670,25 +552,6 @@ static void create_send_ocr_simulation_image_thread()
 		LISA_LOGE(TAG, "thread_create: send_ocr_simulation_image_thread failed");
 		return;
 	}
-}
-
-/**
- * @brief 启动ocr识别
- *
- */
-void run_ocr_recognition()
-{
-	if (!s_send_ocr_simulation_image_buffer) {
-		unsigned char *buffer = lisa_mem_alloc(64 * 1024);
-
-		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 64 * 1024);
-
-		s_ocr_image_sema = lisa_semaphore_create(2);
-		create_cp_task_protocol_thread();
-		create_ocr_recognize_thread();
-	}
-
-	create_send_ocr_simulation_image_thread();
 }
 
 /**
@@ -1107,6 +970,7 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 {
 	/* long button has the PRESS/RELEASE state */
 	if (sta == PRESS) {
+		printk("--------------------------pen head button cb\n");
 		ocr_test_online_start();
 		g_img_status = LISA_IMAGE_FRAME_START;
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
@@ -1158,46 +1022,38 @@ void ocr_test_online_start()
 	s_singleline = true;
 
 	g_img_status = LISA_IMAGE_FRAME_NONE;
-	if (!s_send_ocr_simulation_image_buffer) {
-	printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
-		unsigned char *buffer = lisa_mem_alloc(32 * 1024);
-		if (!buffer) {
-			LISA_LOGE(TAG, "buffer malloc failed \n");
-		}
-
-		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 32 * 1024);
-
-		s_ocr_image_sema = lisa_semaphore_create(2);
-		create_cp_task_protocol_thread();
-		create_ocr_recognize_thread();
+	if (image_stread_pipe_buffer != NULL) {
+		printk("--------------err, ocr double start\n");
+		return;
 	}
 
-	//_video_init();
-	//pen_head_button_init();
+	image_stread_pipe_buffer = lisa_mem_alloc(IMAGE_STREAM_BUFFER_SIZE);
+	if (!image_stread_pipe_buffer) {
+		LISA_LOGE(TAG, "buffer malloc failed \n");
+		printk("----buffer malloc failed\n");
+		return;
+	}
+
+	k_pipe_init(&image_stream_pipe, image_stread_pipe_buffer, IMAGE_STREAM_BUFFER_SIZE);
+	k_sem_give(&read_avf_data_sem);
+	lisa_evs_register_image_callback(scan_image_cb);
 }
 
 void ocr_test_online_stop()
 {
+	lisa_evs_register_image_callback(NULL);
+	k_sem_take(&read_avf_data_sem, K_FOREVER);
+	k_mutex_lock(&img_send_mutex, K_FOREVER);
+	lisa_evs_rec_image_end(s_handle->rec, s_request_id);
+	k_mutex_unlock(&img_send_mutex);
 
-	//lisa_vcapture_stop(vcap_handler);
-	//lisa_vcapture_destroy(vcap_handler);
-
-	if (g_img_status == LISA_IMAGE_FRAME_CONTINUE) {
-		g_img_status = LISA_IMAGE_FRAME_END;
-		if (s_ws_connected)
-			lisa_evs_rec_image_end(s_handle->rec, s_request_id);
-	}
-	
-	s_cp_task_run = 0;
-	s_ocr_recognize_run = 0;
-//	lisa_thread_delete(s_ocr_recognize_thread);
-//	lisa_thread_delete(s_cp_task_protocol_thread);
-	lisa_semaphore_delete(s_ocr_image_sema);
-	
-	lisa_ring_buffer_free(s_send_ocr_simulation_image_buffer);
-	s_send_ocr_simulation_image_buffer = NULL;
-	/*s_ocr_recognize_thread = NULL;*/
-	/*s_cp_task_protocol_thread = NULL;*/
+	unsigned char temp[128];
+	size_t bytes_read;
+	do {
+		k_pipe_get(&image_stream_pipe, temp, sizeof(temp), &bytes_read, 1, K_NO_WAIT);
+	} while (bytes_read == sizeof(temp));
+	lisa_mem_free(image_stread_pipe_buffer);
+	image_stread_pipe_buffer = NULL;
 	printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
 
 
