@@ -1,0 +1,28 @@
+# Copyright (c) 2019 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+DT_CHOSEN_Z_PSRAM_AP := zephyr,psramap
+
+config USB_DEVICE_PID
+	default USB_PID_CDC_ACM_SAMPLE
+
+config LISA_HEAP_ARENA_SIZE
+	int "Size of the lisa mem malloc arena"
+	default 0
+	help
+	  Indicate the size in bytes of the memory arena used for
+	  lisa_mem's malloc() implementation.
+
+config PSRAMAP_BASE_ADDRESS
+	hex 
+	default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_PSRAM_AP))"
+
+config PSRAMAP_SIZE
+	hex
+	default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_PSRAM_AP))"
+
+config PSRAMAP_NOCACHE
+	bool "disable psramap section cache attri"
+	default n
+
+source "Kconfig.zephyr"

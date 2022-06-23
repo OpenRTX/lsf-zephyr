@@ -39,21 +39,7 @@ static const gpio_driver_ctx_t csk_gpio_get_driver_ctx(int port_num)
     }
 }
 
-static void csk_gpio_isr(const struct device *dev)
-{
-    const struct csk_gpio_config *config = dev->config;
-    gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
-	struct csk_gpio_data *data = dev->data;
-    GPIO_RegDef *gpio_reg = ((GPIO_RESOURCES *)driver_context)->reg;
-    uint32_t int_status;
-
-    int_status = gpio_reg->REG_INTRSTATUS.all;
-    // clear gpio interrupt status
-    gpio_reg->REG_INTRSTATUS.all = int_status;
-
-	gpio_fire_callbacks(&data->callbacks, dev, int_status);
-}
-
+extern int csk_gpio_isr(void);
 static int csk_gpio_a_pinmux_set(gpio_pin_t pin)
 {
     uint32_t pin_func = CSK_IOMUX_FUNC_DEFAULT;
@@ -231,7 +217,13 @@ static int csk_gpio_manage_callback(const struct device *dev,
 
 	return gpio_manage_callback(&data->callbacks, cb, set);
 }
+ISR_DIRECT_DECLARE(csk_gpio_direct_isr)
+{
+    // extern void dma_irq_handler(void);
+    csk_gpio_isr();
 
+    return 0;
+}
 static const struct gpio_driver_api csk_gpio_driver_api = {
         .pin_configure = csk_gpio_configure,
         .port_get_raw = csk_gpio_port_get_raw,
@@ -266,13 +258,14 @@ static const struct gpio_driver_api csk_gpio_driver_api = {
     static int csk_gpio_##n##_init(const struct device *dev)	\
 	{		\
         GPIO_Initialize(csk_gpio_get_driver_ctx(n), NULL, NULL); \
-		IRQ_CONNECT(DT_INST_IRQ_BY_IDX(n, 0, irq),		\
+		IRQ_DIRECT_CONNECT(DT_INST_IRQ_BY_IDX(n, 0, irq),		\
 			    DT_INST_IRQ_BY_IDX(n, 0, priority),		\
 			    csk_gpio_isr,				\
-			    DEVICE_DT_INST_GET(n), 0);			\
-									\
+			    IRQ_ZERO_LATENCY);			\
 		irq_enable(DT_INST_IRQ_BY_IDX(n, 0, irq));		\
 		return 0;						\
 	}
 
 DT_INST_FOREACH_STATUS_OKAY(GPIO_CSK_INIT)
+
+
