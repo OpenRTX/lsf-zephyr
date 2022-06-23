@@ -164,6 +164,12 @@
                 pinctrl_spi1_cs_default: spi1_cs_default {
                     pinctrls = < &pinmuxa 9 7 >;
                 };
+				pinctrl_uart0_rx_default: uart0_rx_default {
+					pinctrls = < &pinmuxa 0x2 0x2 >;
+				};
+				pinctrl_uart0_tx_default: uart0_tx_default {
+						pinctrls = < &pinmuxa 0x3 0x2 >;
+				};
 };
 
 &uart0 {

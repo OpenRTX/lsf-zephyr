@@ -21,7 +21,7 @@
 #define REC_TX_IMAGE_THREAD_PRIORITY OS_PRIORITY_HIGH
 #define REC_TX_IMAGE_THREAD_STACKSIZE (5 * 1024)
 /// 图像队列参数
-#define REC_IMAGE_QUEUE_COUNT (20)
+#define REC_IMAGE_QUEUE_COUNT (100)
 #define REC_IMAGE_QUEUE_NAME ("image_queue")
 #define REC_IMAGE_QUEUE_ITEM_SIZE (sizeof(rec_image_block_t))
 
@@ -273,11 +273,13 @@ void _rec_tx_image_thread_fun(void *arg)
 			if (s_debug) {
 				lisa_evs_websocket_end_image(handle->evs->ws);
 				LISA_LOGD(TAG, "Send image end event");
+				printk("-----------------rec send text\n");
 				int send_end_ret = lisa_evs_websocket_send_text(
 						handle->evs->ws, "__END__", strlen("__END__"), NULL);
 				if (send_end_ret != 0) {
 					LISA_LOGE(TAG, "lisa evs send image end fail %d", send_end_ret);
 				}
+				printk("-----------------rec send text end\n");
 				stitch_index = 0;
 				continue;
 			} else {

@@ -7,7 +7,7 @@
 #include "proc/lisa_evs_proc.h"
 #include "lisa_evs.h"
 
-#define TAG "lisa_ws"
+#define TAG "lisa_evs_ws"
 
 // #define WEBSOCKET_WSS (1)
 #define WEBSOCKET_HOST ("ivs.iflyos.cn")

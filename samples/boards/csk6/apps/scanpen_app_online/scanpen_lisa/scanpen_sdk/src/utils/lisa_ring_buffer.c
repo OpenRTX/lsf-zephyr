@@ -8,6 +8,8 @@
 
 #define TAG "ring_buffer"
 
+K_MUTEX_DEFINE(ringbuf_mutex);
+
 //初始化缓冲区
 struct lisa_ring_buffer* lisa_ring_buffer_init(uint8_t *buffer, unsigned int size)
 {
@@ -69,8 +71,11 @@ static unsigned int __listenai_ring_buffer_get(struct lisa_ring_buffer *ring_buf
 //向缓冲区中存放数据
 unsigned int lisa_ring_buffer_put(struct lisa_ring_buffer *ring_buf, uint8_t *buffer, unsigned int size)
 {
-	if (!ring_buf || !buffer)
+    k_mutex_lock(&ringbuf_mutex, K_FOREVER);
+	if (!ring_buf || !buffer) {
+        k_mutex_unlock(&ringbuf_mutex);
 		return 0;
+    }
     unsigned int len = 0;
 	size = min(size, ring_buf->size - ring_buf->in + ring_buf->out);
     /* first put the data starting from fifo->in to buffer end */
@@ -80,6 +85,7 @@ unsigned int lisa_ring_buffer_put(struct lisa_ring_buffer *ring_buf, uint8_t *bu
     /* then put the rest (if any) at the beginning of the buffer */
     memcpy(ring_buf->buffer, buffer + len, size - len);
     ring_buf->in += size;
+    k_mutex_unlock(&ringbuf_mutex);
     return size;
 }
 
@@ -93,9 +99,11 @@ unsigned int lisa_ring_buffer_len(const struct lisa_ring_buffer *ring_buf)
 unsigned int lisa_ring_buffer_get(struct lisa_ring_buffer *ring_buf, unsigned char *buffer, unsigned int size)
 {
     unsigned int ret;
+    k_mutex_lock(&ringbuf_mutex, K_FOREVER);
     ret = __listenai_ring_buffer_get(ring_buf, buffer, size);
     //buffer中没有数据
     if (ring_buf->in == ring_buf->out)
       ring_buf->in = ring_buf->out = 0;
+    k_mutex_unlock(&ringbuf_mutex);
     return ret;
 }

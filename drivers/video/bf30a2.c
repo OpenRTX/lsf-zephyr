@@ -989,6 +989,7 @@ BF30A2_FAST_CODE static int bf30a2_driv_get_format(const struct device *dev, enu
 
 BF30A2_FAST_CODE static int bf30a2_driv_stream_start(const struct device *dev)
 {
+	printk("---------------jiege start 1\n");
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
 	if (data->flag == BF30A2_STATE_UNKNOWN || data->flag == BF30A2_STATE_STARTED) {
@@ -1004,12 +1005,13 @@ BF30A2_FAST_CODE static int bf30a2_driv_stream_start(const struct device *dev)
 	bf30a2_chip_write_register(dev, 0xCF, 0xF0);
 	bf30a2_stream_start_internal(dev);
 	data->flag = BF30A2_STATE_STARTED;
-
+	printk("---------------jiege start 2\n");
 	return 0;
 }
 
 BF30A2_FAST_CODE static int bf30a2_driv_stream_stop(const struct device *dev)
 {
+	printk("---------------jiege stop  1\n");
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
 	if (data->flag == BF30A2_STATE_UNKNOWN) {
@@ -1023,6 +1025,7 @@ BF30A2_FAST_CODE static int bf30a2_driv_stream_stop(const struct device *dev)
 	}
 
 	data->flag = BF30A2_STATE_STOPED;
+	printk("---------------jiege stop  2\n");
 	return 0;
 }
 
@@ -1190,5 +1193,5 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &bf30a2_driv_api);
 
 K_THREAD_DEFINE(bf30a2_thread_id, 2048, bf30a2_thread, &bf30a2_dev_data, NULL, NULL,
-		K_HIGHEST_THREAD_PRIO, 0, 0);
+		-1, 0, 0);
 #endif
