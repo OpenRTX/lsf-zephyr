@@ -20,7 +20,7 @@ manifest:
     - name: sof
       submodules: true
       remote: listenai
-      revision: 3de41e107c5dde4d1beb372b97a620a867adc1fc
+      revision: 996efda079d837ae3a1f7a1e30d6993780f7dd37
       path: modules/audio/sof
     - name: protobuf-c
       remote: listenai
@@ -36,7 +36,7 @@ manifest:
       path: bootloader/mcuboot
     - name: sof_host
       remote: listenai
-      revision: 12db71a309b4b98b89ebb9f9391a004d3aabea34
+      revision: 3b64932e792621e323b80f719ecccca2ab2ef62c
       path: modules/lib/sof_host
     - name: lisa_player
       remote: listenai
