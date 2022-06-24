@@ -58,7 +58,6 @@
 
 #define IMAGE_MSG_QUE_CNT (48)  //需要是2的倍数
 
-extern lisa_image_transfer_status_e g_img_status;
 static char s_request_access_token[80] = {0};
 static char s_request_id[40] = {0};
 
@@ -70,11 +69,11 @@ static lisa_evs_t *s_handle = NULL;
 // 				OS_PRIORITY_NORMAL, 0, 0);
 K_MUTEX_DEFINE(img_send_mutex);
 
-static void cp_task_protocol_thread(void *arg1, void *arg2, void *arg3);
-K_THREAD_DEFINE(read_avf_data_thr, 2048,
-				cp_task_protocol_thread, NULL, NULL, NULL,
-				5, 0, 0);
-K_SEM_DEFINE(read_avf_data_sem, 0, 1);
+// static void cp_task_protocol_thread(void *arg1, void *arg2, void *arg3);
+// K_THREAD_DEFINE(read_avf_data_thr, 2048,
+// 				cp_task_protocol_thread, NULL, NULL, NULL,
+// 				5, 0, 0);
+// K_SEM_DEFINE(read_avf_data_sem, 0, 1);
 
 static lisa_thread_t *s_offline_recognize_thread = NULL;
 static lisa_thread_t *s_send_ocr_simulation_image_thread = NULL;
@@ -85,7 +84,7 @@ static lisa_thread_t *s_test_send_audio_thread = NULL;
 // static lisa_queue_t *s_image_queue = NULL;
 static bool s_ws_connected = false;
 
-#define	IMAGE_STREAM_BUFFER_SIZE	(128 * 1024)
+#define	IMAGE_STREAM_BUFFER_SIZE	(32 * 1024)
 struct k_pipe image_stream_pipe;
 unsigned char *image_stread_pipe_buffer = NULL;
 // static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
@@ -189,16 +188,6 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			break;
 		case VCAPTURE_STOP:
 			LISA_LOGD(TAG, "vcapture msg VCAPTURE_STOP \n");
-#if 0
-			if (g_img_status == LISA_IMAGE_FRAME_CONTINUE) {
-				g_img_status = LISA_IMAGE_FRAME_END;
-				if (s_ws_connected)
-					lisa_evs_rec_image_end(s_handle->rec, s_request_id);
-				g_img_status = LISA_IMAGE_FRAME_NONE;
-			}
-#else
-			ocr_test_online_stop();
-#endif
 			break;
 		case VCAPTURE_DATA: {
 			lisa_image_msg_t recv_image;
@@ -284,7 +273,7 @@ void scan_image_cb(char *data, int len, lisa_image_transfer_status_e status)
  * @param wait_ms
  * @return int
  */
-//vcap
+//lisa_evs_parser_cp_data
 int recv_ocr_simulation_image_once(uint8_t *data, unsigned int len, int wait_ms)
 {
 	size_t bytes_read;
@@ -297,13 +286,13 @@ int recv_ocr_simulation_image_once(uint8_t *data, unsigned int len, int wait_ms)
 		printk("---could not read target len, %d  %d\n", bytes_read, len);
 	}
 	return bytes_read;
-	// int ret = lisa_ring_buffer_get(ring_buffer, data, len);
-	// while (ret <= 0) {
-	// 	lisa_semaphore_take(s_ocr_image_sema, LISA_WAIT_FOREVER);
-	// 	ret = lisa_ring_buffer_get(ring_buffer, data, len);
-	// }
-	// return ret;
 }
+
+
+typedef enum {
+	IMG_WAITING_HEADER,
+	IMG_WAITING_BODY,
+} img_state_e;
 
 /**
  * @brief 从ringbuf中发送一组图片
@@ -311,130 +300,200 @@ int recv_ocr_simulation_image_once(uint8_t *data, unsigned int len, int wait_ms)
  * @param ring_buffer
  * @param data
  */
-//avf sysworkq
-void send_ocr_simulation_image_once(lisa_image_msg_t *data)
+//avf sysworkq, 1024
+uint8_t *img_stream_buf = NULL;
+uint32_t img_stream_buf_cur_len = 0;
+#define	IMG_HEADER_SIZE		sizeof(cv_image_recv_t)
+#define IMG_BODY_SIZE(img)	((img)->depth * (img)->heigth * (img)->width)
+
+void img_stream_buf_write(uint8_t *data_ptr, uint32_t size)
 {
-	size_t bytes_written;
-	k_pipe_put(&image_stream_pipe, data->data, data->size, &bytes_written, data->size, K_NO_WAIT);
-	if (bytes_written != data->size) {
-		printk("----------------------bug, pipe full, lossing avf data!!!\n");
-	}
-	// bool need_wake = false;
-	// if (lisa_ring_buffer_len(ring_buffer) <= 0) {
-	// 	need_wake = true;
-	// }
-
-	// int ret = lisa_ring_buffer_put(ring_buffer, data->data, data->size);
-	// if (need_wake) {
-	// 	lisa_semaphore_give(s_ocr_image_sema);
-	// }
-	// if (ret != data->size) {
-	// 	LISA_LOGE(TAG, "write stream full \n");
-	// }
-
-	// lisa_thread_mdelay(15);
+	memcpy(&img_stream_buf[img_stream_buf_cur_len], data_ptr, size);
+	img_stream_buf_cur_len += size;
 }
 
-/**
- * @brief ocr图片发送模拟线程
- *
- * @param arg
- */
-static void send_ocr_simulation_image_thread(void *arg)
+uint8_t *img_stream_buf_read(uint32_t size)
 {
-	LISA_LOGI(TAG, "%s", __FUNCTION__);
+	return NULL;
+}
 
-	struct fs_file_t fp;
-	fs_file_t_init(&fp);
-	int err = fs_open(&fp, L1FS_FILE_PATH(image.bin), FS_O_READ);
-	if (err) {
-		LISA_LOGE(TAG, " %s %d open file failed, err = %d", __FUNCTION__, __LINE__, err);
-		goto ERR_OPEN_FILE;
-	}
-	fs_seek(&fp, 0, FS_SEEK_END);
-	const long cp_mock_data_len = fs_tell(&fp);
-	LISA_LOGD(TAG, "audio file size %ld\n", cp_mock_data_len);
-	fs_seek(&fp, 0, FS_SEEK_SET);
-	const int cp_frame_size = 2048;
+void send_ocr_simulation_image_once(lisa_image_msg_t *data)
+{
+	static img_state_e img_state = IMG_WAITING_HEADER;
+	// int need_read;
 
-	lisa_image_msg_t recv_image;
-	recv_image.status = LISA_IMAGE_FRAME_NONE;
-	recv_image.data = (uint8_t *)lisa_mem_alloc(cp_frame_size);
-	if (!recv_image.data) {
-		LISA_LOGE(TAG, "malloc fail");
-		goto ERR_MALLOC;
-	}
+	int remind_size = data->size;
+	uint8_t *current_op_data_ptr = data->data;
 
-	int send_total = 0;
-
-	// 扫描开始
-	g_img_status = LISA_IMAGE_FRAME_START;
-
-	LISA_LOGD(TAG, "send_uart_scan_start\n");
-	lisa_thread_delay(2);
-
-	// 发送ocr模拟图片
-	while (cp_mock_data_len > send_total) {
-		LISA_LOGD(TAG, "simulation while: send_total: %d\n", send_total);
-		if (cp_mock_data_len > (send_total + cp_frame_size)) {
-			recv_image.size = cp_frame_size;
-			fs_read(&fp, recv_image.data, recv_image.size);
-			send_total += recv_image.size;
-			send_ocr_simulation_image_once(&recv_image);
-		} else {
-			LISA_LOGD(TAG, "send_uart_scan_end\n");
-			lisa_thread_mdelay(100);
-			g_img_status = LISA_IMAGE_FRAME_END;
-
-			// 扫描结束
-			recv_image.size = cp_mock_data_len - send_total;
-			fs_read(&fp, recv_image.data, recv_image.size);
-			send_total += recv_image.size;
-			send_ocr_simulation_image_once(&recv_image);
-
-			break;
-		}
-	}
-
-	lisa_thread_delay(2);
-	if (!s_singleline) {
-		fs_seek(&fp, 0, FS_SEEK_SET);
-		g_img_status = LISA_IMAGE_FRAME_START;
-		lisa_thread_mdelay(500);
-		send_total = 0;
-		while (cp_mock_data_len > send_total) {
-			LISA_LOGD(TAG, "simulation while: send_total: %d\n", send_total);
-			if (cp_mock_data_len > (send_total + cp_frame_size)) {
-				recv_image.size = cp_frame_size;
-				fs_read(&fp, recv_image.data, recv_image.size);
-				send_total += recv_image.size;
-				send_ocr_simulation_image_once(&recv_image);
+	while (1) {
+		if (img_state == IMG_WAITING_HEADER) {
+			__ASSERT(img_stream_buf_cur_len >= 0, ">= 0");
+			if (img_stream_buf_cur_len == 0) {
+				cv_image_recv_t *img = search_img_header(current_op_data_ptr, remind_size);
+				__ASSERT(img != NULL, "img decode failed");
+				remind_size -= (current_op_data_ptr - (uint8_t *)img);
+				int current_img_body_size = IMG_BODY_SIZE(img);
+				if (img != current_op_data_ptr) {
+					printk("--------lossing data  %p   %p\n", img, current_op_data_ptr);
+				}
+				if (remind_size < current_img_body_size) {  //data < 1 img
+				
+					img_stream_buf_write((uint8_t *)img, remind_size);
+					// memcpy(img_stream_buf, (uint8_t *)img, remind_size);
+					// img_stream_buf_cur_len += remind_size;
+					img_state = IMG_WAITING_BODY;
+					break;
+				} else if (remind_size > current_img_body_size) {  //data > 1 img
+					int send_size = send_one_img(img);
+					printk("--------send %d\n", __LINE__);
+					__ASSERT(send_size == current_img_body_size + IMG_HEADER_SIZE, "send size err");
+					remind_size -= current_img_body_size;
+					current_op_data_ptr += current_img_body_size;
+					img_state = IMG_WAITING_HEADER;
+					continue;
+				} else { //data = 1 img
+					int send_size = send_one_img(img);
+					printk("--------send %d\n", __LINE__);
+					__ASSERT(send_size == current_img_body_size + IMG_HEADER_SIZE, "send size err");
+					remind_size -= current_img_body_size;
+					img_state = IMG_WAITING_HEADER;
+					break;
+				}
 			} else {
-				LISA_LOGD(TAG, "send_uart_scan_end\n");
-				lisa_thread_mdelay(100);
-				g_img_status = LISA_IMAGE_FRAME_END;
+				__ASSERT((img_stream_buf_cur_len + data->size) < IMG_HEADER_SIZE, "check img_stream_buf_cur_len failed");
+				//img_state == IMG_WAITING_HEADER, img_stream_buf_cur_len > 0,
+				//it means that img_stream_buf has a part of img header data.
+				uint8_t *new_data_ptr = data->data;
+				int new_data_size = data->size;
+				int need_remind_head_size = IMG_HEADER_SIZE - img_stream_buf_cur_len;
+			
+				img_stream_buf_write(new_data_ptr, need_remind_head_size);
+				// memcpy(&img_stream_buf[img_stream_buf_cur_len], new_data_ptr, need_remind_head_size);
+				// img_stream_buf_cur_len += need_remind_head_size;
+				__ASSERT(img_stream_buf_cur_len == IMG_HEADER_SIZE, "not equal to IMG_HEADER_SIZE");
+				// new_data_size -= need_read;
+				cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
+				__ASSERT(img != NULL, "img decode failed");
 
-				// 扫描结束
-				recv_image.size = cp_mock_data_len - send_total;
-				fs_read(&fp, recv_image.data, recv_image.size);
-				send_total += recv_image.size;
-				send_ocr_simulation_image_once(&recv_image);
+				int current_img_body_size = IMG_BODY_SIZE(img);
+				int remind_new_data_size = new_data_size - need_remind_head_size;
+				int origin_new_data_size = data->size;
+				uint8_t *current_new_data_ptr = &new_data_ptr[origin_new_data_size - remind_new_data_size];
+				if (remind_new_data_size < current_img_body_size) { // new data only has a part of 1 image body
+				
+					img_stream_buf_write(current_new_data_ptr, remind_new_data_size);
+					// memcpy(&img_stream_buf[img_stream_buf_cur_len], current_new_data_ptr, remind_new_data_size);
+					// img_stream_buf_cur_len += remind_new_data_size;
+					img_state = IMG_WAITING_BODY;
+					break;
+				} else if (remind_new_data_size > current_img_body_size) { // new data not only last image body but also new image
+				
+					img_stream_buf_write(current_new_data_ptr, remind_new_data_size);
+					// memcpy(&img_stream_buf[img_stream_buf_cur_len], current_new_data_ptr, current_img_body_size);
+					// img_stream_buf_cur_len += current_img_body_size;
+					int send_size = send_one_img(img);
+					printk("--------send %d\n", __LINE__);
+					__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
+					remind_new_data_size -= send_size;
+					__ASSERT(remind_new_data_size > 0, "remind_new_data_size err");
+					img_stream_buf_cur_len -= send_size;
+					__ASSERT(img_stream_buf_cur_len == 0, "img_stream_buf_cur_len err");
+
+					current_new_data_ptr += send_size;
+					current_op_data_ptr = current_new_data_ptr;
+					remind_size = remind_new_data_size;
+					continue;
+				} else {  // new data only has 1 image body
+				
+					img_stream_buf_write(current_new_data_ptr, current_img_body_size);
+					// memcpy(&img_stream_buf[img_stream_buf_cur_len], current_new_data_ptr, current_img_body_size);
+					// img_stream_buf_cur_len += current_img_body_size;
+					__ASSERT(img_stream_buf_cur_len == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "img_stream_buf_cur_len err");
+					int send_size = send_one_img(img);
+					printk("--------send %d\n", __LINE__);
+					__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
+					img_stream_buf_cur_len -= send_size;
+					__ASSERT(img_stream_buf_cur_len == 0, "img_stream_buf_cur_len err");
+					img_state = IMG_WAITING_HEADER;
+					break;
+				}
+			}
+
+		}
+		if (img_state == IMG_WAITING_BODY) {
+			uint8_t *new_data_ptr = data->data;
+			int new_data_size = data->size;
+			cv_image_recv_t *img = (cv_image_recv_t *)&img_stream_buf[0];
+			// int current_img_body_size = ;
+			// int totle_size = new_data_size + img_stream_buf_cur_len; //img_stream_buf_cur_len = 1 header + 0.x body
+			int need_new_data = IMG_HEADER_SIZE + IMG_BODY_SIZE(img) - img_stream_buf_cur_len;
+			if (new_data_size < need_new_data) { // data < 1 img
+				// copy new data into img_stream_buf
+			
+				img_stream_buf_write(new_data_ptr, new_data_size);
+				// memcpy(&img_stream_buf[img_stream_buf_cur_len], new_data_ptr, new_data_size);
+				// img_stream_buf_cur_len += new_data_size;
+				img_state = IMG_WAITING_BODY;
 				break;
+			} else if (new_data_size > need_new_data) { // data > 1 img
+				// 1 img < new data + old data < 2 img  ==>  new data < 1 img, old data < 1 img
+				// 2 img < new data + old data  ==>  new data > 1 img
+				// int need_copy_to_img_buf = need_read - img_stream_buf_cur_len;
+			
+				img_stream_buf_write(new_data_ptr, need_new_data);
+				// memcpy(&img_stream_buf[img_stream_buf_cur_len], new_data_ptr, need_new_data);
+				// img_stream_buf_cur_len += need_new_data;
+
+				int send_size = send_one_img(img);
+				printk("--------send %d\n", __LINE__);
+				__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
+				img_stream_buf_cur_len -= send_size; //should be zero
+				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
+
+				new_data_size -= need_new_data;
+				int remind_new_data_size = new_data_size;
+				int origin_new_data_size = data->size;
+				uint8_t *current_new_data_ptr = &new_data_ptr[origin_new_data_size - remind_new_data_size];
+				while (remind_new_data_size > IMG_HEADER_SIZE) {
+					img = search_img_header(current_new_data_ptr, remind_new_data_size);
+					__ASSERT(img != NULL, "loss one img header");
+					remind_new_data_size -= (current_new_data_ptr - (uint8_t *)img);
+					int current_img_body_size = IMG_BODY_SIZE(img);
+					if (remind_new_data_size < current_img_body_size) { // data < 1 img
+					
+						img_stream_buf_write(current_new_data_ptr, remind_new_data_size);
+						// memcpy(&img_stream_buf[img_stream_buf_cur_len], current_new_data_ptr, remind_new_data_size);
+						// img_stream_buf_cur_len += remind_new_data_size;
+						img_state = IMG_WAITING_BODY;
+						goto __exit;
+					} else if (remind_new_data_size > current_img_body_size) { // data > 1 img
+						int send_size = send_one_img(img);
+						printk("--------send %d\n", __LINE__);
+						remind_new_data_size -= send_size;
+						current_new_data_ptr += send_size;
+						continue;
+					} else {	// data = 1 img
+						int send_size = send_one_img(img);
+						printk("--------send %d\n", __LINE__);
+						img_state = IMG_WAITING_HEADER;
+						goto __exit;
+					}
+				}
+				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero");
+				// remind data < 1 img header
+
+				img_stream_buf_write(current_new_data_ptr, remind_new_data_size);
+				// memcpy(&img_stream_buf[img_stream_buf_cur_len], current_new_data_ptr, remind_new_data_size); //buffering
+				// img_stream_buf_cur_len += remind_new_data_size;
+				img_state = IMG_WAITING_HEADER;
+				__ASSERT(img_stream_buf_cur_len < IMG_HEADER_SIZE, "check img_stream_buf_cur_len failed");
+				goto __exit;
 			}
 		}
 	}
 
-	LISA_LOGD(TAG, "ocr thread end!\n");
-	if (recv_image.data) lisa_mem_free(recv_image.data);
-
-ERR_MALLOC:
-	fs_close(&fp);
-ERR_OPEN_FILE:
-	if (s_send_ocr_simulation_image_thread) {
-		lisa_thread_t *temp = s_send_ocr_simulation_image_thread;
-		s_send_ocr_simulation_image_thread = NULL;
-		lisa_thread_delete(temp);
-	}
+__exit:
+	return;
 }
 
 /**
@@ -456,18 +515,17 @@ uint32_t _read_cp_buffer(uint8_t *data, unsigned int len, int wait_ms)
  * @param argv
  */
 // data from avf (ringbuf)
-static void cp_task_protocol_thread(void *arg1, void *arg2, void *arg3)
-{
-	lisa_evs_parser_cp_init(_read_cp_buffer);
-	while (1) {
-		k_sem_take(&read_avf_data_sem, K_FOREVER);
-		if (lisa_evs_parser_cp_data()) {
-		} else {
-		}
-		k_sem_give(&read_avf_data_sem);
-		k_yield();
-	}
-}
+// static void cp_task_protocol_thread(void *arg1, void *arg2, void *arg3)
+// {
+// 	lisa_evs_parser_cp_init(_read_cp_buffer);
+// 	while (1) {
+// 		k_sem_take(&read_avf_data_sem, K_FOREVER);
+// 		if (lisa_evs_parser_cp_data()) {
+// 		} else {
+// 		}
+// 		k_sem_give(&read_avf_data_sem);
+// 	}
+// }
 
 /**
  * @brief 词典查询成功回调
@@ -541,27 +599,6 @@ const static lisa_dictionary_lookup_cb_t s_dictionary_lookup_cb = {
 		.on_dictionary_lookup_succ = dictionary_lookup_success,
 };
 
-/**
- * @brief Create a send ocr simulation image thread object
- *
- */
-static void create_send_ocr_simulation_image_thread()
-{
-	// 3. send_ocr_simulation_image_thread
-	lisa_thread_attr_t thread_attr;
-	thread_attr.name = "send_ocr_simulation_image_thread";
-	thread_attr.stack_size = 2 * 1024;
-	// thread_attr.stack_size = K_THREAD_STACK_SIZEOF(send_ocr_simulation_stack_area);
-	// thread_attr.stack = send_ocr_simulation_stack_area;
-	thread_attr.priority = OS_PRIORITY_HIGH;  // OS_PRIORITY_NORMAL
-	// 发送simulation ocr图片
-	s_send_ocr_simulation_image_thread =
-			lisa_thread_create(&thread_attr, send_ocr_simulation_image_thread, NULL);
-	if (s_send_ocr_simulation_image_thread == NULL) {
-		LISA_LOGE(TAG, "thread_create: send_ocr_simulation_image_thread failed");
-		return;
-	}
-}
 
 /**
  * @brief websocket断开重连
@@ -997,7 +1034,6 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 	if (sta == PRESS) {
 		printk("--------------------------pen head button cb\n");
 		ocr_test_online_start();
-		g_img_status = LISA_IMAGE_FRAME_START;
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
 		lisa_vcapture_start(vcap_handler);
 		lisa_evs_uuid_generate_string(s_request_id);
@@ -1017,6 +1053,7 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 	} else if (sta == RELEASE) {
 		LISA_LOGD(TAG, "send_uart_scan_stop\n");
 		lisa_vcapture_stop(vcap_handler);
+		ocr_test_online_stop();
 	}
 }
 
@@ -1046,40 +1083,45 @@ void ocr_test_online_start()
 {
 	s_singleline = true;
 
-	g_img_status = LISA_IMAGE_FRAME_NONE;
-	if (image_stread_pipe_buffer != NULL) {
+	if (img_stream_buf != NULL) {
 		printk("--------------err, ocr double start\n");
 		return;
 	}
 
-	image_stread_pipe_buffer = lisa_mem_alloc(IMAGE_STREAM_BUFFER_SIZE);
-	if (!image_stread_pipe_buffer) {
+	img_stream_buf = lisa_mem_alloc(IMAGE_STREAM_BUFFER_SIZE);
+	if (!img_stream_buf) {
 		LISA_LOGE(TAG, "buffer malloc failed \n");
 		printk("----buffer malloc failed\n");
 		return;
 	}
 
-	k_pipe_init(&image_stream_pipe, image_stread_pipe_buffer, IMAGE_STREAM_BUFFER_SIZE);
-	k_sem_give(&read_avf_data_sem);
+	// k_pipe_init(&image_stream_pipe, image_stread_pipe_buffer, IMAGE_STREAM_BUFFER_SIZE);
+
+	// extern lisa_image_transfer_status_e g_img_status;
+	// g_img_status = LISA_IMAGE_FRAME_START;
+	// k_sem_give(&read_avf_data_sem);
+	img_stream_buf_cur_len = 0;
 	lisa_evs_register_image_callback(scan_image_cb);
 }
 
 void ocr_test_online_stop()
 {
 	lisa_evs_register_image_callback(NULL);
-	k_sem_take(&read_avf_data_sem, K_FOREVER);
+	// k_sem_take(&read_avf_data_sem, K_FOREVER);
 	k_mutex_lock(&img_send_mutex, K_FOREVER);
 	lisa_evs_rec_image_end(s_handle->rec, s_request_id);
 	k_mutex_unlock(&img_send_mutex);
 
-	unsigned char temp[128];
-	size_t bytes_read;
-	do {
-		k_pipe_get(&image_stream_pipe, temp, sizeof(temp), &bytes_read, 1, K_NO_WAIT);
-	} while (bytes_read == sizeof(temp));
-	lisa_mem_free(image_stread_pipe_buffer);
-	image_stread_pipe_buffer = NULL;
-	printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
+	img_stream_buf_cur_len = 0;
+	lisa_mem_free(img_stream_buf);
+	// unsigned char temp[128];
+	// size_t bytes_read;
+	// do {
+	// 	k_pipe_get(&image_stream_pipe, temp, sizeof(temp), &bytes_read, 1, K_NO_WAIT);
+	// } while (bytes_read == sizeof(temp));
+	// lisa_mem_free(image_stread_pipe_buffer);
+	// image_stread_pipe_buffer = NULL;
+	// printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
 
 
 //	pen_head_button_exit();
@@ -1098,7 +1140,6 @@ void start_scanpen_online()
 
 	k_msleep(1000);
 
-	//ocr_test_online_start();
 	create_cam2cp_thread();
 	_video_init();
 	pen_head_button_init();

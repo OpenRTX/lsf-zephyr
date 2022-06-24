@@ -29,8 +29,8 @@ typedef struct {
 	void *data;
 	uint32_t data_len;
 } lisa_ws_msg_t;
-K_MSGQ_DEFINE(s_ws_tx_msgq, sizeof(lisa_ws_msg_t), 20, 4);
-K_MSGQ_DEFINE(s_ws_rx_msgq, sizeof(lisa_ws_msg_t), 20, 4);
+K_MSGQ_DEFINE(s_ws_tx_msgq, sizeof(lisa_ws_msg_t), 100, 4);
+K_MSGQ_DEFINE(s_ws_rx_msgq, sizeof(lisa_ws_msg_t), 100, 4);
 K_THREAD_STACK_DEFINE(s_workq_stack, 2048);
 static struct k_work s_send_work;
 static struct k_work_q s_workq;
@@ -169,7 +169,7 @@ lisa_ws_t *lisa_ws_init(lisa_ws_request_t *req)
         k_work_queue_start(&s_workq,
                             s_workq_stack,
                             K_THREAD_STACK_SIZEOF(s_workq_stack),
-                            1,
+                            5,
                             NULL);
         k_thread_name_set(&s_workq.thread, "s_workq");
         is_init = true;

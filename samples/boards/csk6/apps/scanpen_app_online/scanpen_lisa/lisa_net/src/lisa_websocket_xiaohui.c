@@ -330,7 +330,7 @@ lisa_ws_err_e lisa_ws_connect(lisa_ws_t *ins)
 	lisa_thread_attr_t thread_attr;
 	thread_attr.name = "ws_send_thread";
 	thread_attr.stack_size = SEND_STACK_SIZE;
-	thread_attr.priority = OS_PRIORITY_HIGH;  // OS_PRIORITY_HIGH
+	thread_attr.priority = 2;  // OS_PRIORITY_HIGH
 	s_pid_send = lisa_thread_create(&thread_attr, _send_thread, (void *)ins);
 	if (s_pid_send == NULL) {
 		LISA_LOGE(TAG, "thread_create failed");
