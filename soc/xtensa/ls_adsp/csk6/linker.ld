@@ -449,7 +449,7 @@ SECTIONS
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
-    /*XIP_COPY_DEF(.dram1.text_rodata)*/
+    XIP_COPY_DEF(.dram1.text_rodata)
     XIP_COPY_DEF(.ai_lib.text_rodata)
 
     /* data */
@@ -491,7 +491,6 @@ SECTIONS
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
-    /* XIP_COPY_DEF(.dram1.text_rodata) */
 #endif
 
     __copy_table_end__ = .;
@@ -538,44 +537,14 @@ SECTIONS
     _dram1_bss_end = ABSOLUTE(.);
   } >luna_sharedmem_dram AT > ROMABLE_REGION
 
-#if 0
+#if CP_XIP
   .dram1.text_rodata : ALIGN(8)
   {
     . = ALIGN (8);
     _iram_text_rodata_start = ABSOLUTE(.);
 
     /* xclib */
-    *libgcc.a:*(.rodata .rodata.*)
-    *libc.a:*(.rodata .rodata.*)
-    *libm.a:*(.rodata .rodata.*)
-    *libhal.a:*(.rodata .rodata.*)
-
-    /* hal_listenai drivers */
-    ClockManager.c.obj*(.rodata .rodata.*)
-    IOMuxManager.c.obj*(.rodata .rodata.*)
-    adc_pdm_venus.c.obj*(.rodata .rodata.*)
-    apc_venus.c.obj*(.rodata .rodata.*)
-    cache_cp.c.obj*(.rodata .rodata.*)
-    dac_venus.c.obj*(.rodata .rodata.*)
-    dma_venus.c.obj*(.rodata .rodata.*)
-    gpio_venus.c.obj*(.rodata .rodata.*)
-    mbox.c.obj*(.rodata .rodata.*)
-    spi.c.obj*(.rodata .rodata.*)
-    uart.c.obj*(.rodata .rodata.*)
-    venus_cp.c.obj*(.rodata .rodata.*)
-
-    /* zephyr drivers */
-    sys_clock_init.c.obj*(.rodata .rodata.*)
-    xtensa_sys_timer.c.obj*(.rodata .rodata.*)
-    dma_csk6.c.obj*(.rodata .rodata.*)
-    ipm_csk.c.obj*(.rodata .rodata.*)
-    uart_csk6.c.obj*(.rodata .rodata.*)
-    uart_console.c.obj*(.rodata .rodata.*)
-    spi_csk6.c.obj*(.rodata .rodata.*)
-    pinmux_csk6.c.obj*(.rodata .rodata.*)
-
-    /* kernel */
-    sched.c.obj*(.rodata .rodata.*)
+  *libtts.a:*(.rodata .rodata.*)
 
     . = ALIGN (8);
     _iram_text_rodata_end = ABSOLUTE(.);
@@ -678,7 +647,7 @@ SECTIONS
 
     /* ai lib */
     *libluna.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
-    *libtts.a:*(.rodata .rodata.*)
+    *libtts.a:*(.text .text.* .literal .literal.*)
     /* *libtts.a:*(.text .text.* .rodata .rodata.* .literal .literal.*) */
 
 #if 0
@@ -739,7 +708,7 @@ SECTIONS
 #endif
 
     /* kernel */
-#if 0
+#if 1
     sched.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     work.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     pipes.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
