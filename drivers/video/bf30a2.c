@@ -723,6 +723,8 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 
 		machine->buffer = machine->dev_data->curr_vbuf->buffer;
 		machine->dev_data->video_buffer_index = !machine->dev_data->video_buffer_index;
+
+		bf30a2_recv_next_packet(machine->dev_data->spi_hal, machine->dummy_buffer, (13));
 		break;
 	case MACHINE_STATE_END_AND_START_PACKET_RECEIVED:
 		break;
@@ -920,13 +922,13 @@ BF30A2_FAST_CODE static void bf30a2_thread(void *p1, void *p2, void *p3)
 	while (1) {
 		k_sem_take(data->sem, K_FOREVER);
 		cnt++;
-		vbuf = &g_video_buffer[data->video_buffer_index];
+		/* data->video_buffer_index has changed, we use last value. */
+		vbuf = &g_video_buffer[!data->video_buffer_index];
 		curr_time = k_uptime_get_32();
 		if (vbuf != NULL && vbuf->buffer != NULL) {
 			r = bf30a2_rda_frame_decode_proc(vbuf, data);
 			memset(vbuf->buffer, 0, 180 * 128);
 			if (r >= 0) {
-				bf30a2_recv_next_packet(data->spi_hal, data->sta_machine.dummy_buffer, (13));
 				ok_cnt++;
 				if (r == 0) {
 					LOG_ERR("No free space to decode frame.");
@@ -938,7 +940,7 @@ BF30A2_FAST_CODE static void bf30a2_thread(void *p1, void *p2, void *p3)
 				bf30a2_recv_packet_process(&data->sta_machine,
 							   MACHINE_FLAG_IDLE |
 								   MACHINE_FLAG_SET_RETURN);
-				spi_wait_head(data->spi_hal, 3000);
+				spi_wait_head(data->spi_hal, 50);
 				bf30a2_recv_packet_process(&data->sta_machine,
 							   MACHINE_FLAG_RESET |
 								   MACHINE_FLAG_SET_RETURN);

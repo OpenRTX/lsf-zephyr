@@ -22,6 +22,6 @@ config VIDEO_BF30A2_RECEIVE_THREAD_PRIORITY
 
 config VIDEO_BF30A2_TIMER_TIMEOUT
 	int "timeout of ms"
-	default 1
+	default 5
 	help
 	  Config the timeout value for timer.
