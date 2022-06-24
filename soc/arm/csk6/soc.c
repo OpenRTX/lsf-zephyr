@@ -64,6 +64,16 @@ void sys_arch_reboot(int type)
 
 static int csk6_init(const struct device *arg)
 {
+	/*TODO: will rewrite later*/
+#ifdef CONFIG_HAS_CSK6_GPT
+	GPT_Init_Handler();
+#endif
+
+	return 0;
+}
+
+void z_arm_platform_init(void)
+{
 	extern void BootClock_Init();
 
 #if CONFIG_USB_DC_CSK6
@@ -75,15 +85,11 @@ static int csk6_init(const struct device *arg)
 	SCB_EnableICache();
 	SCB_EnableDCache();
 	/*TODO: will rewrite later*/
-#ifdef CONFIG_HAS_CSK6_GPT
-	GPT_Init_Handler();
-#endif
-
+	
 #if CONFIG_CSK6_PSRAM
 	extern int32_t PSRAM_Initialize(void);
 	PSRAM_Initialize();
 #endif
-	return 0;
 }
 
 SYS_INIT(csk6_init, PRE_KERNEL_1, 0);
