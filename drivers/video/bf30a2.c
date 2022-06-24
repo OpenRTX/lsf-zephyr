@@ -130,7 +130,7 @@ enum {
 	MACHINE_FLAG_SET_RETURN = 1 << 7,
 };
 
-#define BF30A2_INTERNAL_VBUF_NUM 2
+#define BF30A2_INTERNAL_VBUF_NUM CONFIG_VIDEO_BF30A2_RECEIVE_BUF_NUM
 #define BF30A2_INTERNAL_VBUF_SIZE 25248
 static __attribute__((
 	aligned(32),
@@ -641,9 +641,9 @@ BF30A2_FAST_CODE static inline int32_t spi_recv(SPI_DEV *spi, void *data, uint32
 	return CSK_DRIVER_OK;
 }
 
-BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_next_packet(char *buf, uint32_t buf_size)
+BF30A2_FAST_CODE static ALWAYS_INLINE int bf30a2_recv_next_packet(SPI_DEV *spi, char *buf, uint32_t buf_size)
 {
-	spi_recv(SPI1(), buf, buf_size);
+	spi_recv(spi, buf, buf_size);
 	return 0;
 }
 
@@ -681,18 +681,18 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 	case MACHINE_STATE_INIT:
 		machine->next_state = MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED;
 		machine->offset = 0;
-		bf30a2_recv_next_packet(machine->buffer + machine->offset, 6 + 29 * 140);
+		bf30a2_recv_next_packet(machine->dev_data->spi_hal, machine->buffer + machine->offset, 6 + 29 * 140);
 		machine->offset += (6 + 29 * 140);
 		machine->sub_state = 0;
 		break;
 	case MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED:
 		if (machine->sub_state >= 5) {
 			machine->next_state = MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED_V2;
-			bf30a2_recv_next_packet(machine->buffer + machine->offset, (140 * 6));
+			bf30a2_recv_next_packet(machine->dev_data->spi_hal, machine->buffer + machine->offset, (140 * 6));
 			machine->offset += 140 * 6;
 		} else {
 			machine->next_state = MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED;
-			bf30a2_recv_next_packet(machine->buffer + machine->offset, (140 * 29));
+			bf30a2_recv_next_packet(machine->dev_data->spi_hal, machine->buffer + machine->offset, (140 * 29));
 			machine->offset += 140 * 29;
 			machine->sub_state++;
 		}
@@ -926,7 +926,7 @@ BF30A2_FAST_CODE static void bf30a2_thread(void *p1, void *p2, void *p3)
 			r = bf30a2_rda_frame_decode_proc(vbuf, data);
 			memset(vbuf->buffer, 0, 180 * 128);
 			if (r >= 0) {
-				bf30a2_recv_next_packet(data->sta_machine.dummy_buffer, (13));
+				bf30a2_recv_next_packet(data->spi_hal, data->sta_machine.dummy_buffer, (13));
 				ok_cnt++;
 				if (r == 0) {
 					LOG_ERR("No free space to decode frame.");
@@ -995,7 +995,8 @@ BF30A2_FAST_CODE static int bf30a2_driv_stream_start(const struct device *dev)
 	bf30a2_dev_cs_enable(dev, true);
 	bf30a2_chip_write_register(dev, 0xCF, 0xF0);
 	bf30a2_stream_start_internal(dev);
-	k_timer_start(data->timer, K_MSEC(1),  K_MSEC(1));
+	k_timer_start(data->timer, K_MSEC(CONFIG_VIDEO_BF30A2_TIMER_TIMEOUT),
+		K_MSEC(CONFIG_VIDEO_BF30A2_TIMER_TIMEOUT));
 	data->flag = BF30A2_STATE_STARTED;
 	LOG_DBG("stream start!");
 	return 0;
@@ -1196,5 +1197,5 @@ DEVICE_DT_INST_DEFINE(0, &bf30a2_dev_init, NULL, &bf30a2_dev_data, NULL, POST_KE
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &bf30a2_driv_api);
 
 K_THREAD_DEFINE(bf30a2_thread_id, 2048, bf30a2_thread, &bf30a2_dev_data, NULL, NULL,
-		K_HIGHEST_THREAD_PRIO, 0, 0);
+		CONFIG_VIDEO_BF30A2_RECEIVE_THREAD_PRIORITY, 0, 0);
 #endif
