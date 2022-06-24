@@ -1028,7 +1028,9 @@ static lisa_thread_t *s_cam2cp_thread = NULL;
 void video_ap2cp_thread(void *p1)
 {
 	struct video_buffer *vbuf = NULL;
-	frames_info_t *info = (frames_info_t *)0x30784000;
+
+	/*Don't change this next line,it is reserved for video share memory size 256 Bytes!!!!!!!!!!!!!!*/
+	frames_info_t *info = (frames_info_t *)(CONFIG_SOF_IPC_SHM_BASE_ADDRESS + CONFIG_SOF_IPC_SHM_SIZE - 0x100);
 
 	const struct device *video = device_get_binding(VIDEO_DEV);
 

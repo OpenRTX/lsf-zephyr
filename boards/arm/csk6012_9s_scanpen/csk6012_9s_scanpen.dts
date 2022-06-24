@@ -381,14 +381,14 @@
         /*psram for ap core slot: 1MB */
         psram_ap: psram_ap@30600000 {
                 compatible = "listenai,csk6-psram-partition";
-                reg = <0x30600000 0x180000>;
+                reg = <0x30600000 0x1b0000>;
                 status = "okay";
         };
 
         /*psram for ap share with cp slot: 512KB */
-        psram_share: psram_share@30780000 {
+        psram_share: psram_share@307b0000 {
                 compatible = "listenai,csk6-psram-partition";
-                reg = <0x30780000 0x80000>;
+                reg = <0x307b0000 0x50000>;
                 status = "okay";
         };
 };
