@@ -133,6 +133,7 @@ void  offline_recognize_thread(void *arg)
 		lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
 
 		// trans_handler = lisa_translate_create();
+		memset(trans_data, 0, sizeof(trans_data));
 		lisa_translate_exec(trans_handler, ocr_result, trans_data, 1024, 40000);
 		// lisa_translate_destroy(trans_handler);
 
