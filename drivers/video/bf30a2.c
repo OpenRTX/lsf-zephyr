@@ -24,10 +24,12 @@
 #include <stdbool.h>
 #include <logging/log.h>
 
+#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
+
 LOG_MODULE_REGISTER(bf30a2);
 
-#if (CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 2) || (CONFIG_VIDEO_BUFFER_POOL_NUM_MAX % 2 != 0)
-#error "(CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 2) || (CONFIG_VIDEO_BUFFER_POOL_NUM_MAX % 2 != 0)"
+#if (CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 2)
+#error (CONFIG_VIDEO_BUFFER_POOL_NUM_MAX < 2)
 #endif
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
@@ -87,13 +89,14 @@ struct bf30a2_dev_data {
 	SPI_DEV *spi_hal;
 	const struct device *dev;
 	struct bf30a2_chip_data chip_data;
-	struct k_fifo fifo_free;
-	struct k_fifo fifo_out;
 	struct k_fifo fifo_vbuf_in;
 	struct k_fifo fifo_vbuf_out;
 	struct recv_state_machine sta_machine;
 	struct video_buffer *curr_vbuf;
+	volatile uint32_t video_buffer_index;
 	uint32_t flag;
+	struct k_timer *timer;
+	struct k_sem *sem;
 };
 
 enum {
@@ -133,7 +136,6 @@ static __attribute__((
 	aligned(32),
 	used)) char g_buffer[BF30A2_INTERNAL_VBUF_NUM][BF30A2_INTERNAL_VBUF_SIZE] __attribute__((__section__(".nocache")));
 static struct video_buffer g_video_buffer[BF30A2_INTERNAL_VBUF_NUM] __attribute__((__section__(".nocache")));
-static uint8_t g_video_buffer_index = 0;
 
 void bf30a2_spi_evt_callback(unsigned int event_info, unsigned int xfer_bytes,
 			     unsigned int usr_param);
@@ -293,8 +295,8 @@ static const struct bf30a2_reg_config bf30a2_regs_configs[] = {
 
 static int bf30a2_chip_xclk_init(const struct device *dev)
 {
-	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 #if DT_NODE_HAS_PROP(DT_DRV_INST(0), pwms)
+	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 	if (!device_is_ready(data->chip_data.pwm_bus.pwm)) {
 		LOG_ERR("PWM device is not ready!");
 		return -1;
@@ -517,6 +519,7 @@ static int bf30a2_chip_init(const struct device *dev)
 		return r;
 	}
 
+	LOG_INF("device init ok.");
 	return r;
 }
 
@@ -582,10 +585,8 @@ BF30A2_FAST_CODE int32_t spi_first_recv(SPI_DEV *spi, void *data, uint32_t num)
 					     (uint32_t)(&(spi->reg->DATA)),
 					     (uint32_t)spi->info->xfer.rx_buf, num, control,
 					     config_low, config_high, 0, 0);
-		if (stat == -1) {
-			LOG_ERR("%s: Failed to call dma_channel_configure!!\r\n", __func__);
-			dma_channel_disable(spi->info->rx_dyn_dma_ch, false);
-			spi->info->rx_dyn_dma_ch = DMA_CHANNEL_ANY;
+		if (stat < 0) {
+			LOG_ERR("%s: Failed to call dma_channel_configure!!, stat:%d\r\n", __func__, stat);
 			if (dma_only)
 				return CSK_DRIVER_ERROR;
 			break;
@@ -657,8 +658,8 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 
 		/* prepare video buffer. */
 		if (machine->dev_data->curr_vbuf == NULL) {
-			g_video_buffer_index = 0;
-			machine->dev_data->curr_vbuf = &g_video_buffer[g_video_buffer_index];
+			machine->dev_data->video_buffer_index = 0;
+			machine->dev_data->curr_vbuf = &g_video_buffer[machine->dev_data->video_buffer_index];
 		}
 
 		if (machine->dev_data->curr_vbuf == NULL) {
@@ -697,13 +698,12 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 		}
 		break;
 	case MACHINE_STATE_DATA_AND_LINE_PACKET_RECEIVED_V2:
-		//bf30a2_recv_next_packet(machine->dummy_buffer, (13));
 
 		machine->offset = 0;
 		machine->next_state = MACHINE_STATE_INIT;
 		machine->sub_state = 0;
 
-		struct video_buffer *next_vbuf = &g_video_buffer[!g_video_buffer_index];
+		struct video_buffer *next_vbuf = &g_video_buffer[!machine->dev_data->video_buffer_index];
 		struct video_buffer *curr_vbuf = machine->dev_data->curr_vbuf;
 
 		if (next_vbuf != NULL) {
@@ -722,7 +722,7 @@ bf30a2_recv_packet_process(struct recv_state_machine *machine, uint8_t flag)
 		curr_vbuf->timestamp = 0;
 
 		machine->buffer = machine->dev_data->curr_vbuf->buffer;
-		g_video_buffer_index = !g_video_buffer_index;
+		machine->dev_data->video_buffer_index = !machine->dev_data->video_buffer_index;
 		break;
 	case MACHINE_STATE_END_AND_START_PACKET_RECEIVED:
 		break;
@@ -852,12 +852,14 @@ BF30A2_FAST_CODE static int bf30a2_decode(char *in, char *out, uint32_t l, uint1
 			return -1;
 		}
 		/* copy raw data to out buffer. */
-		uint32_t _copy_size = w;
-		char *dst = out + i * w;
-		char *src = in + offset + BF30A2_DATA_PACKET_HEADA_LEN;
-		uint32_t _size = _copy_size;
-		while (_size--) {
-			*dst++ = *src++;
+		if (out != NULL) {
+			uint32_t _copy_size = w;
+			char *dst = out + i * w;
+			char *src = in + offset + BF30A2_DATA_PACKET_HEADA_LEN;
+			uint32_t _size = _copy_size;
+			while (_size--) {
+				*dst++ = *src++;
+			}
 		}
 		offset += BF30A2_DATA_PACKET_HEADA_LEN + w;
 		len += w;
@@ -873,22 +875,19 @@ BF30A2_FAST_CODE static int bf30a2_decode(char *in, char *out, uint32_t l, uint1
 }
 
 /**
- * retval < 0  : decode error.
- * retval == 0 : no free buffer to decode.
- * retval >= 0 : decode success.
+ * retval <  0 : decode error.
+ * retval == 0 : decode success, no free space to decode frame.
+ * retval >  0 : no any error.
  */
 BF30A2_FAST_CODE static int32_t bf30a2_rda_frame_decode_proc(struct video_buffer *vbuf, void *p)
 {
 	int r = -1;
-
-// #ifndef CONFIG_SRAM_NOCAHE
-// 	cache_dma_fast_inv_stage1(vbuf->buffer, vbuf->buffer + vbuf->size);
-// #endif
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)p;
 	struct video_buffer *vbuf_out = k_fifo_get(&data->fifo_vbuf_in, K_MSEC(16));
 
 	if (vbuf_out == NULL) {
-		return 0;
+		r = bf30a2_decode(vbuf->buffer, NULL, 25219, 180, 128);
+		return r < 0 ? r : 0;
 	}
 	r = bf30a2_decode(vbuf->buffer, vbuf_out->buffer, 25219, 180, 128);
 
@@ -916,27 +915,23 @@ BF30A2_FAST_CODE static void bf30a2_thread(void *p1, void *p2, void *p3)
 	uint32_t discard_cnt = 0;
 	int fps = 0;
 	int r;
-	uint8_t i = 0;
 	uint32_t curr_time;
+
 	while (1) {
-		// vbuf = k_fifo_get(&data->fifo_out, K_FOREVER);
-		if (i == g_video_buffer_index) {
-			k_msleep(1);
-			continue;
-		}
-		i = g_video_buffer_index;
-		if (i >= 2) {
-			k_panic();
-		}
+		k_sem_take(data->sem, K_FOREVER);
 		cnt++;
-		vbuf = &g_video_buffer[i];
+		vbuf = &g_video_buffer[data->video_buffer_index];
 		curr_time = k_uptime_get_32();
 		if (vbuf != NULL && vbuf->buffer != NULL) {
 			r = bf30a2_rda_frame_decode_proc(vbuf, data);
 			memset(vbuf->buffer, 0, 180 * 128);
-			if (r > 0) {
+			if (r >= 0) {
 				bf30a2_recv_next_packet(data->sta_machine.dummy_buffer, (13));
 				ok_cnt++;
+				if (r == 0) {
+					LOG_ERR("No free space to decode frame.");
+					discard_cnt++;
+				}
 			} else if (r < 0) {
 				error_cnt++;
 				/* TODO: to be optimized */
@@ -949,20 +944,17 @@ BF30A2_FAST_CODE static void bf30a2_thread(void *p1, void *p2, void *p3)
 								   MACHINE_FLAG_SET_RETURN);
 				spi_recv(data->spi_hal, data->sta_machine.buffer, 4);
 			} else {
-				discard_cnt++;
-				bf30a2_recv_next_packet(data->sta_machine.dummy_buffer, (13));
-				LOG_ERR("No free space to decode frame.");
 			}
 
+			if (cnt % 60 == 0) {
+				fps = curr_time - last_time ? 1000 * 60 / (curr_time - last_time) :
+							      0;
+				last_time = curr_time;
+				LOG_INF("FPS:%d, INFO: right frame:%d, error rate:%d/%d(%d%%), Discard frame:%d.\n",
+					fps, ok_cnt, error_cnt, cnt, error_cnt * 100 / cnt,
+					discard_cnt);
+			}
 		}
-		if (cnt % 100 == 0) {
-			fps = curr_time - last_time ?
-					1000 / (curr_time - last_time) :
-					0;
-			LOG_INF("FPS:%d, T:%d, O:%d, E:%d, D:%d, vbuf:%p.\n", fps, cnt, ok_cnt,
-				error_cnt, discard_cnt, vbuf->buffer);
-		}
-		last_time = curr_time;
 	}
 }
 
@@ -989,7 +981,6 @@ BF30A2_FAST_CODE static int bf30a2_driv_get_format(const struct device *dev, enu
 
 BF30A2_FAST_CODE static int bf30a2_driv_stream_start(const struct device *dev)
 {
-	printk("---------------jiege start 1\n");
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
 	if (data->flag == BF30A2_STATE_UNKNOWN || data->flag == BF30A2_STATE_STARTED) {
@@ -1004,14 +995,14 @@ BF30A2_FAST_CODE static int bf30a2_driv_stream_start(const struct device *dev)
 	bf30a2_dev_cs_enable(dev, true);
 	bf30a2_chip_write_register(dev, 0xCF, 0xF0);
 	bf30a2_stream_start_internal(dev);
+	k_timer_start(data->timer, K_MSEC(1),  K_MSEC(1));
 	data->flag = BF30A2_STATE_STARTED;
-	printk("---------------jiege start 2\n");
+	LOG_DBG("stream start!");
 	return 0;
 }
 
 BF30A2_FAST_CODE static int bf30a2_driv_stream_stop(const struct device *dev)
 {
-	printk("---------------jiege stop  1\n");
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
 
 	if (data->flag == BF30A2_STATE_UNKNOWN) {
@@ -1022,10 +1013,12 @@ BF30A2_FAST_CODE static int bf30a2_driv_stream_stop(const struct device *dev)
 		bf30a2_dev_cs_enable(dev, false);
 		bf30a2_chip_write_register(dev, 0xCF, 0xF1);
 		SPI_Control(data->spi_hal, CSK_SPI_ABORT_TRANSFER, 0);
+		dma_channel_disable(data->spi_hal->info->rx_dyn_dma_ch, 0);
 	}
 
 	data->flag = BF30A2_STATE_STOPED;
-	printk("---------------jiege stop  2\n");
+	k_timer_stop(data->timer);
+	LOG_DBG("stream stop!");
 	return 0;
 }
 
@@ -1070,22 +1063,10 @@ BF30A2_FAST_CODE static int bf30a2_set_ctrl(const struct device *dev, unsigned i
 BF30A2_FAST_CODE static int bf30a2_driv_flush(const struct device *dev, enum video_endpoint_id ep, bool cancel)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
-	struct video_buffer *vbuf;
 
 	if (data->flag == BF30A2_STATE_UNKNOWN) {
 		return -1;
 	}
-
-	// if (!cancel) {
-	// 	/* wait for all buffer to be processed */
-	// 	do {
-	// 		k_sleep(K_MSEC(1));
-	// 	} while (!k_fifo_is_empty(&data->fifo_vbuf_in));
-	// } else {
-	// 	while ((vbuf = k_fifo_get(&data->fifo_vbuf_in, K_NO_WAIT)) != NULL) {
-	// 		k_fifo_put(&data->fifo_vbuf_out, vbuf);
-	// 	}
-	// }
 
 	return 0;
 }
@@ -1102,6 +1083,30 @@ static const struct video_driver_api bf30a2_driv_api = {
 	.set_ctrl = bf30a2_set_ctrl,
 };
 
+K_SEM_DEFINE(g_sem_bf30a2, 0, 1);
+static void badcode_bf30a2_timer_cb(struct k_timer *timer);
+K_TIMER_DEFINE(g_timer_bf30a2, badcode_bf30a2_timer_cb, NULL);
+
+/**
+ * Since we are using zero-delay interrupts,
+ * we cannot use any kernel objects in the interrupt,
+ * so we can only wake up the processing thread instantly
+ * by polling the flag bit by the timer.
+ */
+static void badcode_bf30a2_timer_cb(struct k_timer *timer)
+{
+	static uint8_t index = 0;
+
+	const struct device *dev = k_timer_user_data_get(timer);
+	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
+
+	/* data->video_buffer_index will be changed by intterupt. */
+	if (index != data->video_buffer_index) {
+		index = data->video_buffer_index;
+		k_sem_give(data->sem);
+	}
+}
+
 static int bf30a2_dev_init(const struct device *dev)
 {
 	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
@@ -1109,11 +1114,11 @@ static int bf30a2_dev_init(const struct device *dev)
 	data->dev = dev;
 	data->sta_machine.dev_data = data;
 	data->flag = BF30A2_STATE_UNKNOWN;
+	data->timer = &g_timer_bf30a2;
+	data->sem = &g_sem_bf30a2;
+	k_timer_user_data_set(&g_timer_bf30a2, (void *)dev);
 
 	bf30a2_chip_init(dev);
-	/* isr <--> thread */
-	k_fifo_init(&data->fifo_free);
-	k_fifo_init(&data->fifo_out);
 
 	uint32_t i;
 	for (i = 0; i < BF30A2_INTERNAL_VBUF_NUM; i++) {
@@ -1121,8 +1126,6 @@ static int bf30a2_dev_init(const struct device *dev)
 		g_video_buffer[i].size = BF30A2_INTERNAL_VBUF_SIZE;
 		g_video_buffer[i].bytesused = 0;
 		g_video_buffer[i].timestamp = 0;
-
-		k_fifo_put(&data->fifo_free, &g_video_buffer[i]);
 	}
 
 	/* application <--> thread */
