@@ -8,14 +8,20 @@ config VIDEO_BF30A2
 	help
 	  Enable driver for BF30A2 CMOS digital image sensor device.
 
-config BF30A2_UNUSED_DEQUEUE
-	bool "1/15 inch QVGA CMOS Image Sensor BF30A2"
-    default n
+config VIDEO_BF30A2_RECEIVE_BUF_NUM
+	int "Must be greater than or equal to 2"
+	default 2
 	help
-	  Enable driver for BF30A2 CMOS digital image sensor device.
+	  Config the number of buffers that the bf30a2 driver receives raw data.
 
-config BF30A2_DECODE_TEST
-    bool "1/15 inch QVGA CMOS Image Sensor BF30A2"
-    default n
+config VIDEO_BF30A2_RECEIVE_THREAD_PRIORITY
+	int "the priority of thread"
+	default -16
 	help
-	  Enable driver for BF30A2 CMOS digital image sensor device.
+	  Config the priority of thread.
+
+config VIDEO_BF30A2_TIMER_TIMEOUT
+	int "timeout of ms"
+	default 1
+	help
+	  Config the timeout value for timer.
