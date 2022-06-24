@@ -48,7 +48,7 @@
 	pwr_amp:audio_pwr_amp{
 		 compatible = "listenai,pwr-amp";
 		 enable-gpios = <&gpioa 5 1>;
-		 label = "audio_pwr_amp";	
+		 label = "audio_pwr_amp";
 		 status = "okay";
 	 };
 
@@ -72,7 +72,7 @@
 
 };
 
- 
+
 &flash0 {
 	reg = <0x18000000 DT_SIZE_M(8)>;
 	write-block-size = <4>;
@@ -90,7 +90,7 @@
 
 &i2c0 {
         status = "okay";
-        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
         pinctrl-names = "default";
 
         bf30a2: bf30a2@6e {
@@ -112,7 +112,7 @@
 	pwm2: pwm2 {
         clock-prescaler = <1>;
         status = "okay";
-        pinctrl-0 = <&pinctrl_pwm2_default>; 
+        pinctrl-0 = <&pinctrl_pwm2_default>;
         pinctrl-names = "default";
     };
 };
@@ -125,7 +125,7 @@
 &spi1 {
     status = "okay";
     spi-max-frequency = <100000000>;
-    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>; 
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>;
 	pinctrl-names = "default";
 };
 
@@ -136,7 +136,7 @@
                     pinctrls = <&pinmuxb 6 11>;
                 };
 
-				
+
                 pinctrl_pwm1_default: pwm1_default{
                     pinctrls = <&pinmuxa 5 11>;
                 };
@@ -144,7 +144,7 @@
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
                         pinctrls = <&pinmuxb 2 8>;
                 };
-                
+
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
                         pinctrls = <&pinmuxb 3 8>;
                 };
