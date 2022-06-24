@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "sys/printk.h"
 #define DT_DRV_COMPAT listenai_csk_flash_controller
 #define SOC_NV_FLASH_NODE DT_INST(0, soc_nv_flash)
 
@@ -29,6 +30,8 @@
 typedef struct {
 	FLASH_DEV flash_dev;
 } csk6_flash_config_t;
+
+static const struct flash_driver_api flash_csk6_driver_api;
 
 csk6_flash_config_t csk6_flash_config = { .flash_dev = {
 						  .base_addr = DT_INST_REG_ADDR(0),
@@ -120,6 +123,9 @@ static int flash_csk6_erase(const struct device *dev, off_t start, size_t len)
 	if (start > FLASH_CHIP_SZ || start + len > FLASH_CHIP_SZ) {
 		return -EINVAL;
 	}
+    printk("#### dev addr: 0x%X #####\n", dev);
+    printk("#### csk6_flash_config addr: 0x%X #####\n", &csk6_flash_config);
+   printk("#### flash_csk6_driver_api addr: 0x%X #####\n", &flash_csk6_driver_api);
 
 	FLASH_OPT_ENTER();
 	sflash_write_protection_set((void *)dev->config, false);
