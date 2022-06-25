@@ -54,15 +54,6 @@
                 pinctrls = <&pinmuxb 11 2>;
         };
 
-        /* ADC alternate function */
-        pinctrl_adc0_ch0_default: adc0_ch0_default{
-                pinctrls = <&pinmuxb 6 16>;
-        };
-        
-        pinctrl_adc0_ch1_default: adc0_ch1_default{
-                pinctrls = <&pinmuxb 7 16>;
-        };
-
         pinctrl_adc0_ch2_default: adc0_ch2_default{
                 pinctrls = <&pinmuxb 8 16>;
         };
@@ -107,7 +98,7 @@
         leds {
                 compatible = "gpio-leds";
                 camleds1: cam_led_0 {
-                        gpios = <&gpiob 7 0>;
+                        gpios = <&gpiob 5 0>;
                         label = "cam_led_0";
                 };
 
@@ -252,7 +243,7 @@
 };
 
 &uart2 {
-        status = "disabled";
+        status = "okay";
 };
 
 &mailbox0 {
