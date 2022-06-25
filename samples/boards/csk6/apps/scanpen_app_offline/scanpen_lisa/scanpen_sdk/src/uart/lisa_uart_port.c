@@ -110,11 +110,12 @@ void prot_send_ready(void)
 #include <logging/log.h>
 #include <drivers/uart.h>
 
-#define UART0		DT_NODELABEL(uart0)
+#define UART2		DT_NODELABEL(uart2)
 
 uint8_t rx_buffer[100];
 
 static void uart_rx_callback(const struct device *dev, void *user_data){
+	LISA_LOGI(TAG, "#####uart_rx_callback##");
 	/* 进入中断处理调用 */
     uart_irq_update(dev);					
 	while (uart_irq_is_pending(dev)) {		/*查询是否有中断挂起*/
@@ -122,8 +123,8 @@ static void uart_rx_callback(const struct device *dev, void *user_data){
 			int recv_len = 100;
 			recv_len = uart_fifo_read(dev, rx_buffer, recv_len);	/* 读取字符串*/
 			LISA_LOGI(TAG, "devices %s, rx:%d", dev->name, recv_len);
-			prot_recv_data(rx_buffer, recv_len);
-			// uart_fifo_fill(dev, rx_buffer, recv_len);		/* 发送字符串*/
+			// prot_recv_data(rx_buffer, recv_len);
+			uart_fifo_fill(dev, rx_buffer, recv_len);		/* 发送字符串*/
 		}
 	}
 }
@@ -132,23 +133,23 @@ void prot_recv_task(void *arg)
 {
 	prot_uart_init();
 
-	const struct device *uart0 = DEVICE_DT_GET(UART0);
+	const struct device *uart2 = DEVICE_DT_GET(UART2);
 
-	if(!device_is_ready(uart0)){
-		LISA_LOGE(TAG, "device:%s is not ready!", uart0->name);
+	if(!device_is_ready(uart2)){
+		LISA_LOGE(TAG, "device:%s is not ready!", uart2->name);
 		return;
 	}
-	LISA_LOGI(TAG, "devices %s is ready", uart0->name);
+	LISA_LOGI(TAG, "devices %s is ready", uart2->name);
 
 	/* Define the application callback function */
-	uart_irq_callback_user_data_set(uart0, uart_rx_callback, NULL);
+	uart_irq_callback_user_data_set(uart2, uart_rx_callback, NULL);
 
 	/* Enable rx interrupts */
-	uart_irq_rx_enable(uart0);
-
+	uart_irq_rx_enable(uart2);
+	char tx_buffer[5] = {1, 2, 3, 4, 5};
 	while(1){
 		// semaphore block here
-		frame_recv_proc(arg);
-		lisa_thread_mdelay(20);
+		// frame_recv_proc(arg);
+		lisa_thread_mdelay(2000);
 	}
 }
