@@ -303,6 +303,7 @@ typedef enum {
 //avf sysworkq, 1024
 uint8_t *img_stream_buf = NULL;
 uint32_t img_stream_buf_cur_len = 0;
+img_state_e img_state = IMG_WAITING_HEADER;
 #define	IMG_HEADER_SIZE		sizeof(cv_image_recv_t)
 #define IMG_BODY_SIZE(img)	((img)->depth * (img)->heigth * (img)->width)
 
@@ -324,8 +325,6 @@ uint32_t img_stream_buf_get_size(void)
 
 void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 {
-	static img_state_e img_state = IMG_WAITING_HEADER;
-
 	int remind_size = data->size;
 	uint8_t *current_op_data_ptr = data->data;
 
@@ -423,7 +422,6 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 					current_new_data_ptr += send_size;
 					current_op_data_ptr = current_new_data_ptr;
 					remind_size = remind_img_stream_buf_size;
-					printk("------------------------------------------------------------------------------------------------ going\n");
 					img_stream_buf_cleanup(); //TODO: remove
 					continue;
 				} else {  // new data only has 1 image body
@@ -457,7 +455,6 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 			// __ASSERT(img != NULL, "img decode failed");
 			__ASSERT(img == img_stream_buf, "decode failed  img:%p  img_stream_buf:%p, diff:%d  size:%d",
 						img, img_stream_buf, (uint8_t *)img - img_stream_buf, img_stream_buf_cur_len);
-			// int current_img_body_size = ;
 			// int totle_size = new_data_size + img_stream_buf_cur_len; //img_stream_buf_cur_len = 1 header + 0.x body
 			int need_new_data = IMG_HEADER_SIZE + IMG_BODY_SIZE(img) - img_stream_buf_cur_len;
 			if (new_data_size < need_new_data) { // data < 1 img
@@ -465,7 +462,7 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 				img_stream_buf_write(new_data_ptr, new_data_size);
 				printk("%d  data < 1 img,  len: %d\n", __LINE__, img_stream_buf_cur_len);
 				img_state = IMG_WAITING_BODY;
-				break;
+				goto __exit;
 			} else if (new_data_size > need_new_data) { // data > 1 img
 				// 1 img < new data + old data < 2 img  ==>  new data < 1 img, old data < 1 img
 				// 2 img < new data + old data  ==>  new data > 1 img
@@ -495,14 +492,15 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 						goto __exit;
 					}
 					// __ASSERT(img != NULL, "loss one img header");
-					remind_new_data_size -= ((uint8_t *)img - current_new_data_ptr);
+					// remind_new_data_size -= ((uint8_t *)img - current_new_data_ptr);
+					int remind_body_detect_size = remind_new_data_size - IMG_HEADER_SIZE;
 					int current_img_body_size = IMG_BODY_SIZE(img);
-					if (remind_new_data_size < current_img_body_size) { // data < 1 img
+					if (remind_body_detect_size < current_img_body_size) { // data < 1 img
 						printk("------------------- < 1 img body  cur len %d  remind: %d\n", img_stream_buf_cur_len, remind_new_data_size);
 						img_stream_buf_write((uint8_t *)img, remind_new_data_size);
 						img_state = IMG_WAITING_BODY;
 						goto __exit;
-					} else if (remind_new_data_size > current_img_body_size) { // data > 1 img
+					} else if (remind_body_detect_size > current_img_body_size) { // data > 1 img
 						int send_size = send_one_img(img);
 						printk("--------send %d\n", __LINE__);
 						remind_new_data_size -= send_size;
@@ -523,12 +521,13 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 				__ASSERT(img_stream_buf_cur_len < IMG_HEADER_SIZE, "check img_stream_buf_cur_len failed  %d", img_stream_buf_cur_len);
 				goto __exit;
 			} else { //data = 1 img
-				img_stream_buf_write(new_data_ptr, need_new_data);
+				img_stream_buf_write(new_data_ptr, new_data_size);
 				int send_size = send_one_img(img);
 				printk("--------send %d\n", __LINE__);
 				__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
 				img_stream_buf_cur_len -= send_size; //should be zero
 				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
+				goto __exit;
 			}
 		}
 	}
@@ -1141,7 +1140,8 @@ void ocr_test_online_start()
 	// extern lisa_image_transfer_status_e g_img_status;
 	// g_img_status = LISA_IMAGE_FRAME_START;
 	// k_sem_give(&read_avf_data_sem);
-	img_stream_buf_cur_len = 0;
+	img_state = IMG_WAITING_HEADER;
+	img_stream_buf_cleanup();
 	lisa_evs_register_image_callback(scan_image_cb);
 }
 
@@ -1153,7 +1153,6 @@ void ocr_test_online_stop()
 	lisa_evs_rec_image_end(s_handle->rec, s_request_id);
 	k_mutex_unlock(&img_send_mutex);
 
-	img_stream_buf_cur_len = 0;
 	lisa_mem_free(img_stream_buf);
 	img_stream_buf = NULL;
 	// unsigned char temp[128];
