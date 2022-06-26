@@ -20,7 +20,7 @@
 #endif
 #define WEBSOCKET_PATH_FORMAT ("/embedded/v1?device_id=%s&token=%s")
 
-#define QUEUE_COUNT (20)
+#define QUEUE_COUNT (200)
 #define QUEUE_AUDIO_COUNT (QUEUE_COUNT - 2)
 
 #define THREAD_SEND_STACK_SIZE (4 * 1024)
@@ -225,7 +225,7 @@ lisa_evs_ws_t *lisa_evs_websocket_create(const struct lisa_evs_cb *const evs_cb)
 	/* create ws send & ws receive*/
 	thread_attr.name = "lisa_ws_send_thread";
 	thread_attr.stack_size = THREAD_SEND_STACK_SIZE;
-	thread_attr.priority = OS_PRIORITY_ABOVE_NORMAL;  // OS_PRIORITY_ABOVE_NORMAL
+	thread_attr.priority = 3;  // OS_PRIORITY_ABOVE_NORMAL
 
 	handle->m_context->m_pid_send = lisa_thread_create(&thread_attr, _send_thread, (void *)handle);
 	LISA_LOGE(TAG, "create_send_thread!");

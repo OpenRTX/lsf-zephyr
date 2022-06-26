@@ -117,6 +117,7 @@ _frame_read_data(image_frame_desc_t *head, img_frame_t* _frame_data)
 	_frame_data->checksum = (head->image_frame_data[CV_FRAME_FORMAT_INDEX_RESERVED] & 0xff) | (head->image_frame_data[CV_FRAME_FORMAT_INDEX_RESERVED+1] << 8);
 
 	to_recv = _frame_data->height * _frame_data->width * _frame_data->depth;
+	printk("-------- xiaohui size: %d\n", to_recv);
 	uint16_t recv_len = 0;
 	uint16_t once_len = 0;
 	uint16_t recv_total_len = 0;
@@ -124,6 +125,8 @@ _frame_read_data(image_frame_desc_t *head, img_frame_t* _frame_data)
 		LISA_LOGW(TAG, "framesize(%d)\n", to_recv);
 		return false;
 	}
+
+	printk("---xiao img uid: %d\n", _frame_data->fuid);
 
 	while (recv_total_len < to_recv) {
 		once_len = to_recv - recv_total_len;
@@ -267,8 +270,8 @@ _ocr_frame_read_data(image_frame_desc_t *head, ocr_frame_t* _frame_data) {
 
 lisa_err_t lisa_evs_parser_cp_data()
 {
+	static int count = 0;
     if (!g_read_cb) return false;
-
     img_frame_t _image_frame_data;
 	tts_frame_t _tts_frame_data;
 	ocr_frame_t _orc_frame_data;
@@ -277,13 +280,15 @@ lisa_err_t lisa_evs_parser_cp_data()
 
     // parser head
 	if (_frame_check_head(head) == false) return false;
-
+	printk("---xiao hui find tag\n");
     // parser body
     switch ((head->image_frame_data[0] & 0xff) | (head->image_frame_data[1] << 8)) {
     case IMAGE_FRM_HDR_TAG: // parser image
         if (_frame_read_data(head, &_image_frame_data) == false) return false;
 		uint32_t image_len = IMAGE_FRM_HDR_LEN + _image_frame_data.height * _image_frame_data.width * _image_frame_data.depth;
 		if(g_image_cb) {
+			count++;
+			printk("---xiao hui find img  cnt: %d\n", count);
 			g_image_cb(head->image_frame_data, image_len, g_img_status);
 			if(LISA_IMAGE_FRAME_START == g_img_status) {
 				printk("[Debug-%s-%s-%d]---get header--------------------------------------\n",__FILE__,__func__,__LINE__);
@@ -305,6 +310,87 @@ lisa_err_t lisa_evs_parser_cp_data()
         break;
     }
     return LISA_OK;
+}
+
+cv_image_recv_t *search_img_header(uint8_t *data_ptr, int data_size)
+{
+	if (data_size < sizeof(cv_image_recv_t)) {
+		return NULL;
+	}
+
+	int count = 0;
+	bool is_found_header = false;
+	cv_image_recv_t *image_head = NULL;
+	do {
+		image_head = (cv_image_recv_t *)(data_ptr++);
+		if (image_head->tag == IMAGE_FRM_HDR_TAG && image_head->version == 0 &&
+			image_head->type == 0 && image_head->format == 0) {
+			int img_size = image_head->heigth * image_head->width * image_head->depth;
+			if (img_size < IMAGE_FRM_MAX_LEN && img_size > 0) {
+				is_found_header = true;
+				break;
+			}
+		}
+		count++;
+	} while (count < data_size);
+
+	if (!is_found_header) {
+		return NULL;
+	}
+	int img_size = image_head->depth * image_head->width * image_head->heigth;
+	static int img_cnt = 0;
+	// printk("found img size: %d  cnt:%d  uid:%d\n",img_size, img_cnt++, image_head->fuid);
+	return image_head;
+}
+
+uint32_t send_one_img(cv_image_recv_t *img)
+{
+	static int img_cnt = 0;
+	int img_size = img->depth * img->width * img->heigth;
+	printk("send img size: %d  cnt:%d  uid:%d head:%d\n", img_size, img_cnt++, img->fuid, sizeof(cv_image_recv_t));
+	g_image_cb((uint8_t *)img, img_size, LISA_IMAGE_FRAME_CONTINUE);
+	return img_size + sizeof(cv_image_recv_t);
+}
+
+uint32_t search_and_send_one_img(uint8_t *data_ptr, int data_size)
+{
+	int img_size = 0;
+	static int img_cnt = 0;
+	cv_image_recv_t *image_head = NULL;
+	bool is_found_tag = false;
+	bool is_found_head = false;
+	int count = 0;
+	do {
+		if (*data_ptr++ == IMAGE_FRM_HDR_TAG_L) {
+			count++;
+			if (*data_ptr++ == IMAGE_FRM_HDR_TAG_H) {
+				count++;
+				is_found_tag = true;
+				break;
+			}
+		}
+	} while ((count < data_size));
+
+	if (!is_found_tag)	return 0;
+	data_ptr--;
+	data_ptr--;
+
+	if (((data_size - count) >= sizeof(cv_image_recv_t))) {
+		image_head = (cv_image_recv_t *)data_ptr;
+		if (image_head->version == 0 &&
+			image_head->type == 0 &&
+			image_head->format == 0) {
+			img_size = image_head->heigth * image_head->width * image_head->depth;
+			if ((img_size > 0) && (img_size <= IMAGE_FRM_MAX_LEN)) {
+				is_found_head = true;
+			}
+		}
+	}
+	if (!is_found_head)	return 0;
+	img_cnt++;
+	printk("my img size: %d  cnt:%d  uid:%d\n", img_size, img_cnt, image_head->fuid);
+	g_image_cb(data_ptr, img_size, LISA_IMAGE_FRAME_CONTINUE);
+	return sizeof(cv_image_recv_t) + img_size;
 }
 
 lisa_err_t lisa_evs_parser_cp_init(read_cp_data read_cb)

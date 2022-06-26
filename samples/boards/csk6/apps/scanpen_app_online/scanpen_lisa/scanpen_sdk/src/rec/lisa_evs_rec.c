@@ -18,10 +18,10 @@
 
 /// 识别发送图像线程参数
 #define REC_TX_IMAGE_THREAD_NAME ("rec_tx_image")
-#define REC_TX_IMAGE_THREAD_PRIORITY OS_PRIORITY_HIGH
+#define REC_TX_IMAGE_THREAD_PRIORITY 4
 #define REC_TX_IMAGE_THREAD_STACKSIZE (5 * 1024)
 /// 图像队列参数
-#define REC_IMAGE_QUEUE_COUNT (100)
+#define REC_IMAGE_QUEUE_COUNT (200)
 #define REC_IMAGE_QUEUE_NAME ("image_queue")
 #define REC_IMAGE_QUEUE_ITEM_SIZE (sizeof(rec_image_block_t))
 
