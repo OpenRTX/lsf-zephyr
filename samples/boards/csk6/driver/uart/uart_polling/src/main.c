@@ -21,6 +21,8 @@ void main(void)
 		LOG_ERR("device:%s is not ready!", uart->name);
 		return;
 	}
+	LOG_INF("devices %s is ready", uart->name);
+
 	while(1){
 		if(uart_poll_in(uart, &rx_char) == 0){/*read a char*/
             uart_poll_out(uart, rx_char);	  /*send a char*/           
