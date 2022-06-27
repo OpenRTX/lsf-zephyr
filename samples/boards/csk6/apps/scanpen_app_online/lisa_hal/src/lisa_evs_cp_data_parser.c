@@ -343,11 +343,71 @@ cv_image_recv_t *search_img_header(uint8_t *data_ptr, int data_size)
 	return image_head;
 }
 
+int get_img_nums(uint8_t *data_ptr, int data_size, int *remind_size)
+{
+    int nums = 0;
+    int current_remind_size = data_size;
+    do {
+        uint8_t garbage_size = 0;
+        cv_image_recv_t *img = search_img_header(data_ptr, current_remind_size);
+        if (img == NULL) {
+            break;
+        }
+        garbage_size = (uint8_t *)img - data_ptr;
+        data_ptr += garbage_size;
+        current_remind_size -= garbage_size;
+        if (garbage_size) {
+            printf("garbage data size: %d\n", garbage_size);
+        }
+        int img_body_size = img->depth * img->heigth * img->width;
+        int img_head_size = 16;
+        int img_size = img_head_size + img_body_size;
+        if (current_remind_size >= img_size) {
+            nums++;
+            data_ptr += img_size;
+            current_remind_size -= img_size;
+        } else {
+            break;
+        }
+    } while (current_remind_size >= 0);
+    *remind_size = current_remind_size;
+    return nums;
+}
+
+void dump_img(cv_image_recv_t *img)
+{
+	printk("------------------------------------------------------------------dump head\n");
+	for (int i = 0; i < 16; i++) {
+		printk("0x%.2x ", ((uint8_t *)img)[i]);
+	}
+	printk("\n");
+	printk("------------------------------------------------------------------dump body\n");
+	int img_size = img->depth * img->width * img->heigth;
+	for (int i = 0; i < img_size; i++) {
+		if (i % 16 == 0)	printk("\n");
+		printk("0x%.2x, ", img->data[i]);
+	}
+	printk("\n");
+	printk("------------------------------------------------------------------\n");
+	printk("0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
+			img->data[img_size],img->data[img_size+1],img->data[img_size+2],img->data[img_size+3],img->data[img_size+4]);
+}
+
 uint32_t send_one_img(cv_image_recv_t *img)
 {
 	static int img_cnt = 0;
 	int img_size = img->depth * img->width * img->heigth;
-	printk("send img size: %d  cnt:%d  uid:%d head:%d\n", img_size, img_cnt++, img->fuid, sizeof(cv_image_recv_t));
+	printk("send img size: %d  cnt:%d  uid:%d\n", img_size, img_cnt++, img->fuid);
+	uint16_t check_sum = _image_pack_check((void *)img->data, img_size);
+	if (img->check_sum != check_sum) {
+		dump_img(img);
+	}
+	// if (img->fuid == 0) {
+	// 	dump_img(img);
+	// 	printk("img->check_sum: %d  check_sum: %d\n", img->check_sum, check_sum);
+	// }
+	__ASSERT(img->data == (uint8_t*)img+sizeof(cv_image_recv_t), "img->data: %p not equal to img+head: %p", img->data, (uint8_t*)img+sizeof(cv_image_recv_t));
+	__ASSERT(img->check_sum == check_sum, "check sum failed img->check_sum:%d  check_sum: %d",img->check_sum, check_sum);
 	g_image_cb((uint8_t *)img, img_size, LISA_IMAGE_FRAME_CONTINUE);
 	return img_size + sizeof(cv_image_recv_t);
 }

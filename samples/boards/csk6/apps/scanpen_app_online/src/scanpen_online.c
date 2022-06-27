@@ -263,6 +263,7 @@ void scan_image_cb(char *data, int len, lisa_image_transfer_status_e status)
 	}
 	if (recv_image.data) {
 		lisa_mem_free(recv_image.data);
+		recv_image.data = NULL;
 	}
 	k_mutex_unlock(&img_send_mutex);
 }
@@ -314,6 +315,7 @@ void img_stream_buf_write(uint8_t *data_ptr, uint32_t size)
 {
 	memcpy(&img_stream_buf[img_stream_buf_cur_len], data_ptr, size);
 	img_stream_buf_cur_len += size;
+	__ASSERT(img_stream_buf_cur_len <= IMAGE_STREAM_BUFFER_SIZE, "img buf overflow");
 }
 
 void img_stream_buf_cleanup(void)
@@ -330,135 +332,79 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 {
 	int remind_size = data->size;
 	uint8_t *current_op_data_ptr = data->data;
-
+	printk("----cb trigge %d\n", data->size);
 	while (1) {
 		if (img_state == IMG_WAITING_HEADER) {
 			printk("detecting head\n");
 			__ASSERT(img_stream_buf_cur_len >= 0, ">= 0");
 			if (img_stream_buf_cur_len == 0) {
-				cv_image_recv_t *img = search_img_header(current_op_data_ptr, remind_size);
-				if (img == NULL) {
-					printk("decode failed, garbage data  %d\n", __LINE__);
-					img_state = IMG_WAITING_HEADER;
-					img_stream_buf_cleanup();
-					return;
+				int remind_size_temp = 0; //TODO: remove
+				int img_nums = get_img_nums(current_op_data_ptr, remind_size, &remind_size_temp);
+				if (img_nums > 0) {
+					for (int cnt = 0; cnt < img_nums; cnt++) {
+						cv_image_recv_t *img = search_img_header(current_op_data_ptr, remind_size);
+						__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, current_op_data_ptr);
+						int garbage_size = (uint8_t *)img - current_op_data_ptr;
+						current_op_data_ptr += garbage_size;
+						remind_size -= garbage_size;
+						__ASSERT(img == current_op_data_ptr, "garbage processing failed, %p  %p", img, current_op_data_ptr);
+						int send_size = send_one_img(img);
+						current_op_data_ptr += send_size;
+						remind_size -= send_size;
+					}
+				} else {
+
 				}
-				// __ASSERT(img != NULL, "img decode failed  %d\n", remind_size);
-				remind_size -= ((uint8_t *)img - current_op_data_ptr);
-				int current_img_body_size = IMG_BODY_SIZE(img);
-				if (img != current_op_data_ptr) {
-					printk("--------lossing data  %p   %p\n", img, current_op_data_ptr);
+				__ASSERT(remind_size_temp == remind_size, "remind size err, %d  %d", remind_size_temp, remind_size);
+				if (remind_size_temp) {
+					img_stream_buf_write(current_op_data_ptr, remind_size_temp);
 				}
-				if (remind_size < current_img_body_size) {  //data < 1 img
-					img_stream_buf_write((uint8_t *)img, remind_size);
-					img_state = IMG_WAITING_BODY;
-					break;
-				} else if (remind_size > current_img_body_size) {  //data > 1 img
-					int send_size = send_one_img(img);
-					printk("--------send %d\n", __LINE__);
-					__ASSERT(send_size == current_img_body_size + IMG_HEADER_SIZE, "send size err");
-					remind_size -= current_img_body_size;
-					current_op_data_ptr += current_img_body_size;
-					img_state = IMG_WAITING_HEADER;
-					continue;
-				} else { //data = 1 img
-					int send_size = send_one_img(img);
-					printk("--------send %d\n", __LINE__);
-					__ASSERT(send_size == current_img_body_size + IMG_HEADER_SIZE, "send size err");
-					remind_size -= current_img_body_size;
-					img_state = IMG_WAITING_HEADER;
-					break;
-				}
+				cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
+				img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
+				goto __exit;
 			} else {
 				__ASSERT((img_stream_buf_cur_len + data->size) >= IMG_HEADER_SIZE, "check img_stream_buf_cur_len failed");
 
 				printk("-------------- recombine frame head\n");
 				//img_state == IMG_WAITING_HEADER, img_stream_buf_cur_len > 0,
 				//it means that img_stream_buf has a part of img header data.
-				uint8_t *new_data_ptr = data->data;
-				int new_data_size = data->size;
-				// int need_remind_head_size = IMG_HEADER_SIZE - img_stream_buf_cur_len;
-				// printk("--------cpy\n");
-				img_stream_buf_write(new_data_ptr, new_data_size);
-				// printk("--------cpy 1\n");
-				// __ASSERT(img_stream_buf_cur_len >= IMG_HEADER_SIZE, "not equal to IMG_HEADER_SIZE");
+				img_stream_buf_write(data->data, data->size);
+				uint8_t *img_stream_buf_temp = img_stream_buf;
+				int img_buf_remind_size = 0;
+				int img_nums = get_img_nums(img_stream_buf_temp, img_stream_buf_cur_len, &img_buf_remind_size);
+				if (img_nums > 0) {
+					uint8_t *current_img_buf_ptr = NULL;
+					for (int cnt = 0; cnt < img_nums; cnt++) {
+						cv_image_recv_t *img = search_img_header(img_stream_buf_temp, img_stream_buf_cur_len);
+						__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, img_stream_buf_temp);
+						int garbage_size = (uint8_t *)img - img_stream_buf_temp;
+						img_stream_buf_temp += garbage_size;
+						img_stream_buf_cur_len -= garbage_size;
+						__ASSERT(img == img_stream_buf_temp, "garbage processing failed, %p  %p", img, img_stream_buf_temp);
+						int send_size = send_one_img(img);
+						img_stream_buf_temp += send_size;
+						img_stream_buf_cur_len -= send_size;
+						current_img_buf_ptr = img_stream_buf_temp;
+					}
+					__ASSERT(img_stream_buf_cur_len == img_buf_remind_size, "size failed, %d  %d", img_stream_buf_cur_len, img_buf_remind_size);
+					memcpy(img_stream_buf, current_img_buf_ptr, img_stream_buf_cur_len);
+				} else {
+
+				}
 				cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
-				if (img == NULL) {
-					printk("too much garbage data, newdata: %d\n", new_data_size);
-					img_stream_buf_cleanup();
-					current_op_data_ptr = new_data_ptr;
-					remind_size = new_data_size;
-					img_state = IMG_WAITING_HEADER;
-					goto __exit;
-				}
-				// __ASSERT(img != NULL, "img decode failed");
-				// __ASSERT(img == img_stream_buf, "img decode failed");
-
-				if (img != img_stream_buf) {
-					int garbage_size = (uint8_t *)img - img_stream_buf;
-					printk("-----------------move img %p   imgbuf %p\n", img, img_stream_buf);
-					memmove(img_stream_buf, img_stream_buf + garbage_size, img_stream_buf_cur_len - garbage_size);
-					img_stream_buf_cur_len -= garbage_size;
-					img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
-					printk("-----------------move done img %p   imgbuf %p\n", img, img_stream_buf);
-					printk("img_stream_buf has garbage data in the head, size %d\n", garbage_size);
-					__ASSERT(img_stream_buf == img, "garbage clean failed %p   %p   %d", img_stream_buf, img, img_stream_buf_cur_len);
-				}
-
-				int current_img_body_size = IMG_BODY_SIZE(img);
-				int remind_img_stream_buf_size = img_stream_buf_cur_len - IMG_HEADER_SIZE;
-				uint8_t *current_new_data_ptr = img_stream_buf;
-				if (remind_img_stream_buf_size < current_img_body_size) { // new data only has a part of 1 image body
-					// img_stream_buf_write(current_new_data_ptr, remind_new_data_size);
-					img_state = IMG_WAITING_BODY;
-					goto __exit;
-				} else if (remind_img_stream_buf_size > current_img_body_size) { // new data not only has last image body but also new image
-					// img_stream_buf_write(current_new_data_ptr, remind_new_data_size);
-					int send_size = send_one_img(img);
-					printk("--------send %d\n", __LINE__);
-					__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
-					remind_img_stream_buf_size -= send_size;
-					__ASSERT(remind_img_stream_buf_size > 0, "remind_new_data_size err");
-					img_stream_buf_cur_len -= send_size;
-					// __ASSERT(img_stream_buf_cur_len == 0, "img_stream_buf_cur_len err");
-
-					current_new_data_ptr += send_size;
-					current_op_data_ptr = current_new_data_ptr;
-					remind_size = remind_img_stream_buf_size;
-					img_stream_buf_cleanup(); //TODO: remove
-					continue;
-				} else {  // new data only has 1 image body
-					// img_stream_buf_write(current_new_data_ptr, current_img_body_size);
-					// __ASSERT(img_stream_buf_cur_len == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "img_stream_buf_cur_len err");
-					int send_size = send_one_img(img);
-					printk("--------send %d\n", __LINE__);
-					__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
-					img_stream_buf_cur_len -= send_size;
-					__ASSERT(img_stream_buf_cur_len == 0, "img_stream_buf_cur_len err");
-					img_state = IMG_WAITING_HEADER;
-					goto __exit;
-				}
+				img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
+				goto __exit;
 			}
-
 		}
 		if (img_state == IMG_WAITING_BODY) {
 			printk("detecting body  len:%d\n", img_stream_buf_cur_len);
 			uint8_t *new_data_ptr = data->data;
 			int new_data_size = data->size;
 			cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
-			if (img == NULL) {
-				printk("------------- img_stream_buf has garbage data\n");
-				img_stream_buf_cleanup();
-				current_op_data_ptr = data->data;
-				remind_size = data->size;
-				img_state = IMG_WAITING_HEADER;
-				continue;
-			}
-			printk("new data size: %d\n", new_data_size);
-			// __ASSERT(img != NULL, "img decode failed");
+			__ASSERT(img != NULL, "fatal err, count not found head when detecting img body");
 			__ASSERT(img == img_stream_buf, "decode failed  img:%p  img_stream_buf:%p, diff:%d  size:%d",
 						img, img_stream_buf, (uint8_t *)img - img_stream_buf, img_stream_buf_cur_len);
-			// int totle_size = new_data_size + img_stream_buf_cur_len; //img_stream_buf_cur_len = 1 header + 0.x body
+			//img_stream_buf_cur_len = 1 header + 0.x body
 			int need_new_data = IMG_HEADER_SIZE + IMG_BODY_SIZE(img) - img_stream_buf_cur_len;
 			if (new_data_size < need_new_data) { // data < 1 img
 				// copy new data into img_stream_buf
@@ -469,72 +415,50 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 			} else if (new_data_size > need_new_data) { // data > 1 img
 				// 1 img < new data + old data < 2 img  ==>  new data < 1 img, old data < 1 img
 				// 2 img < new data + old data  ==>  new data > 1 img
-			
 				img_stream_buf_write(new_data_ptr, need_new_data);
 				new_data_ptr += need_new_data;
 				new_data_size -= need_new_data;
 
 				int send_size = send_one_img(img);
-				printk("--------send %d\n", __LINE__);
 				__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
 				img_stream_buf_cur_len -= send_size; //should be zero
 				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
 
 				int remind_new_data_size = new_data_size;
 				uint8_t *current_new_data_ptr = new_data_ptr;
-				while (remind_new_data_size >= IMG_HEADER_SIZE) {
-					img = search_img_header(current_new_data_ptr, remind_new_data_size);
-					// printk("----------------- img %p     current_new_data_ptr: %p\n", img, current_new_data_ptr);
-					if (img == NULL) {
-						printk("-------------%d current_new_data_ptr has garbage data\n", __LINE__);
-						// img_stream_buf_cleanup();
-						img_stream_buf_write(current_new_data_ptr, remind_new_data_size);
-						img_state = IMG_WAITING_HEADER;
-						goto __exit;
-					}
 
-					if (img != current_new_data_ptr) {
+				int remind_size_temp = 0; //TODO: remove
+				int img_nums = get_img_nums(current_new_data_ptr, remind_new_data_size, &remind_size_temp);
+				if (img_nums > 0) {
+					for (int cnt = 0; cnt < img_nums; cnt++) {
+						cv_image_recv_t *img = search_img_header(current_new_data_ptr, remind_new_data_size);
+						__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, current_new_data_ptr);
 						int garbage_size = (uint8_t *)img - current_new_data_ptr;
-						printk("found garbage data %d\n", garbage_size);
 						current_new_data_ptr += garbage_size;
 						remind_new_data_size -= garbage_size;
-					}
-					__ASSERT(current_new_data_ptr == img, "garbage processing faield, img: %p  cur: %p", img, current_new_data_ptr);
-
-					int remind_body_detect_size = remind_new_data_size - IMG_HEADER_SIZE;
-					int current_img_body_size = IMG_BODY_SIZE(img);
-					if (remind_body_detect_size < current_img_body_size) { // data < 1 img
-						img_stream_buf_write((uint8_t *)img, remind_new_data_size);
-						img_state = IMG_WAITING_BODY;
-						printk("------------------- < 1 img body  cur len %d  remind: %d\n", img_stream_buf_cur_len, remind_new_data_size);
-						goto __exit;
-					} else if (remind_body_detect_size > current_img_body_size) { // data > 1 img
+						__ASSERT(img == current_new_data_ptr, "garbage processing failed, %p  %p", img, current_new_data_ptr);
 						int send_size = send_one_img(img);
-						printk("--------send %d\n", __LINE__);
-						remind_new_data_size -= send_size;
 						current_new_data_ptr += send_size;
-						continue;
-					} else {	// data = 1 img
-						int send_size = send_one_img(img);
-						printk("--------send %d\n", __LINE__);
-						img_state = IMG_WAITING_HEADER;
-						goto __exit;
+						remind_new_data_size -= send_size;
 					}
+				} else {
+
 				}
-				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero");
-				// remind data < 1 img header
-				printk("------------------- < 1 img header  %d\n", remind_new_data_size);
-				img_stream_buf_write(current_new_data_ptr, remind_new_data_size);
-				img_state = IMG_WAITING_HEADER;
-				__ASSERT(img_stream_buf_cur_len < IMG_HEADER_SIZE, "check img_stream_buf_cur_len failed  %d", img_stream_buf_cur_len);
+				__ASSERT(remind_new_data_size == remind_size_temp, "remind size err, %d  %d", remind_new_data_size, remind_size_temp);
+
+				if (remind_size_temp) {
+					img_stream_buf_write(current_new_data_ptr, remind_size_temp);
+				}
+				cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
+				img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
 				goto __exit;
 			} else { //data = 1 img
 				img_stream_buf_write(new_data_ptr, new_data_size);
 				int send_size = send_one_img(img);
-				printk("--------send %d\n", __LINE__);
 				__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
 				img_stream_buf_cur_len -= send_size; //should be zero
 				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
+				img_state = IMG_WAITING_HEADER;
 				goto __exit;
 			}
 		}
