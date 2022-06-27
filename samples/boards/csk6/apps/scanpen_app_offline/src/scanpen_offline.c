@@ -98,12 +98,19 @@ void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 
 void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 {
+	printk("@@recv_cmd_type_e:%d\n", type);
 	switch (type) {
 		case e_cmd_scan_tts_text:
 			LISA_LOGD(TAG, "tts text :%s, len:%d\n", data, len);
 			// spi pack
 			uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(len);
-			lisa_evs_pack_spi_data(text_pack, data, len, LISA_UP_TEXT_OCR);
+			if(text_pack) {
+				int pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)data, len, LISA_UP_TEXT_OCR);
+				printk("pack len:%d\n", pack_len);
+				for(int i=0;i < pack_len; i++) {
+					printk("%02x ", text_pack[i]);
+				}
+			}
 			// spi send
 			lisa_spi_write(data, len);
 			// pack free

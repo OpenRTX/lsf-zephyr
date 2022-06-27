@@ -332,11 +332,12 @@ static lisa_err_t lisa_spi_upload_text(uint8_t *dst, uint8_t *src, uint32_t len,
         break;
     }
 
-	memcpy(_frame->len, len, sizeof(uint32_t));
-	memcpy(_frame->data, src, len);
+	_frame->len = len;
 	_frame->checksum = _image_pack_check(src, len);
+	int8_t offset = (sizeof(text_frame_t) - sizeof(uint8_t *));
+	memcpy(dst + offset, src, len);
 
-	return LISA_OK;
+	return (len+offset);
 }
 
 static lisa_err_t lisa_spi_upload_audio(uint8_t *dst, uint8_t *src, uint32_t len, lisa_spi_upload_type_e type)
@@ -346,12 +347,14 @@ static lisa_err_t lisa_spi_upload_audio(uint8_t *dst, uint8_t *src, uint32_t len
 	}
 
 	tts_frame_t *_frame = (tts_frame_t *)dst;
-	_frame->tag = TTS_FRM_HDR_TAG;
-	memcpy(_frame->len, len, sizeof(uint32_t));
-	memcpy(_frame->data, src, len);
-	_frame->checksum = _image_pack_check(src, len);
 
-	return LISA_OK;
+	_frame->tag = TTS_FRM_HDR_TAG;
+	_frame->len = len;
+	_frame->checksum = _image_pack_check(src, len);
+	int8_t offset = (sizeof(tts_frame_t) - sizeof(uint8_t *));
+	memcpy(dst + offset, src, len);
+
+	return (len+offset);
 }
 
 lisa_err_t lisa_evs_pack_spi_data(uint8_t *dst, uint8_t *src, uint32_t len, lisa_spi_upload_type_e type)

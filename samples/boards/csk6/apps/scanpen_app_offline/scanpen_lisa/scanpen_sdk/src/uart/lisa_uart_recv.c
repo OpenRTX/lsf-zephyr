@@ -87,22 +87,9 @@ static frame_info_e recv_proc_scan_text(frame_desc_u *head)
 	uint32_t txt_len = 0;
 	memcpy(&txt_len, &p_recv_cmd->tts_txt.len[0], 4);
 	LISA_LOGI(TAG, "text cmd:%d, txt:%s, len:%d", p_recv_cmd->tts_txt.cmd, &p_recv_cmd->tts_txt.data[0], txt_len);
-
-	s_uart_rx_callback(p_recv_cmd->tts_txt.cmd, &p_recv_cmd->tts_txt.data[0], txt_len);
-
-#if EN_ALGO_TTS
-	uint32_t txt_len = 0;
-	memcpy(&txt_len, &p_recv_cmd->tts_txt.len[0], 4);
-	// LOGV("txt=%s, len=%d", &p_recv_cmd->tts_txt.data[0], txt_len);
-	if(0 == tts_request_cache((uint8_t *)&p_recv_cmd->tts_txt.data[0], txt_len)) {
-		e_frame_info = e_frame_correct;
-	} else {
-		e_frame_info = e_frame_error_state;
+	if(NULL != s_uart_rx_callback) {
+		s_uart_rx_callback(p_recv_cmd->tts_txt.cmd, &p_recv_cmd->tts_txt.data[0], txt_len);
 	}
-#else
-	LISA_LOGW(TAG, "not support tts");
-	return e_frame_info;
-#endif
 	return e_frame_info;
 }
 
@@ -214,16 +201,18 @@ static void recv_proc_all_version_query(frame_desc_u *head)
 
 bool frame_recv_proc(void *arg)
 {
+	if(NULL != arg)
+		s_uart_rx_callback = (lisa_uart_recv_cb)arg;
+
 	int to_recv = 0;
 	int recved = 0;
-	bool flag = 0;//(shell_dbg_level(FETCH_INIT) >= LL_DBG);
+	bool flag = 1;//(shell_dbg_level(FETCH_INIT) >= LL_DBG);
 	uint8_t chk = 0;
-
-	s_uart_rx_callback = (lisa_uart_recv_cb)arg;
 
 	// 1. receive HDR_L
 	to_recv = 1;
 	prot_read_data(&head->frame_data[0], to_recv, portMAX_DELAY);
+	printk("head->frame_data[0]:%x\n", head->frame_data[0]);
 	if (FRM_HDR_TAG_L != head->frame_data[0])
 		return false;
 
@@ -246,6 +235,7 @@ bool frame_recv_proc(void *arg)
 	// 4. receive and check last byte
 	const uint8_t fid = head->frame_u.header_t.frame_id;
 	to_recv = head->frame_u.header_t.len - FRM_HEAD_LEN;
+	printk("frame len:%d\n", to_recv);
 	recved = prot_read_data(&head->frame_data[FRM_HEAD_LEN], to_recv, 10);
 	if (recved != to_recv) {
 		LISA_LOGW(TAG, "[DLEN(%d!=%d)]", to_recv, recved);
@@ -265,7 +255,7 @@ bool frame_recv_proc(void *arg)
 	// 	LOGV("recv(%d)...", head->frame_u.header_t.len);
 	// 	shell_dbg_dump(head->frame_data, head->frame_u.header_t.len);
 	// }
-	#if PROTO_UART_DATA_LOG
+	#if 1
 	LISA_LOGI(TAG, "recv(%d):%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", head->frame_u.header_t.len,
 			head->frame_data[0],
 			head->frame_data[1],
