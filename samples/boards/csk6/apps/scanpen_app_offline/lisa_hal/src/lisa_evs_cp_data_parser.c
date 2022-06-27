@@ -403,24 +403,15 @@ int lisa_spi_write(uint8_t *data, uint32_t len)
 	spi_cfg.operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_TRANSFER_LSB;
 	spi_cfg.frequency = 40 * 1000000UL;
 
-#ifdef CONFIG_SPI_SOFT_GPIO_CS_ENABLE
-    const struct spi_cs_control spi_cs_ctrl = {
-        .gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0)),
-        .gpio_pin = 20,
-        .gpio_dt_flags = GPIO_ACTIVE_LOW, /* Invert gpio active level logic */
-        .delay = 5                       /* Delay 5us microseconds to wait before starting the */
-                                        /* transmission and before releasing the CS line */
-    };
-    spi_cfg.cs = &spi_cs_ctrl;
-#endif
-
     /* Make spi transaction package buffers */
 	struct spi_buf_set tx_set;
-	tx_set.buffers = data;
-	tx_set.count = len;
+	struct spi_buf _package;
+	_package.buf = data;
+	_package.len = len;
+	tx_set.buffers = &_package;
+	tx_set.count = 1;
 
-	printk("spi master sending data ...\n");
-	spi_write(spi, &spi_cfg, &tx_set);
+	return spi_write(spi, &spi_cfg, &tx_set);
 }
 
 lisa_err_t lisa_evs_parser_cp_init(read_cp_data read_cb)

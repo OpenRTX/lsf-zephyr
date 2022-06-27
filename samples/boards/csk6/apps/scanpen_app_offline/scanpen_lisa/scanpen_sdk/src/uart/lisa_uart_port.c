@@ -109,6 +109,7 @@ void prot_send_ready(void)
 #include <devicetree.h>
 #include <logging/log.h>
 #include <drivers/uart.h>
+#include "lisa_evs_cp_data_parser.h"
 
 #define UART2		DT_NODELABEL(uart2)
 
@@ -124,7 +125,7 @@ static void uart_rx_callback(const struct device *dev, void *user_data){
 			recv_len = uart_fifo_read(dev, rx_buffer, recv_len);	/* 读取字符串*/
 			LISA_LOGI(TAG, "devices %s, rx:%d", dev->name, recv_len);
 			// prot_recv_data(rx_buffer, recv_len);
-			uart_fifo_fill(dev, rx_buffer, recv_len);		/* 发送字符串*/
+			// uart_fifo_fill(dev, rx_buffer, recv_len);		/* 发送字符串*/
 		}
 	}
 }
@@ -146,7 +147,7 @@ void prot_recv_task(void *arg)
 
 	/* Enable rx interrupts */
 	uart_irq_rx_enable(uart2);
-	char tx_buffer[5] = {1, 2, 3, 4, 5};
+
 	while(1){
 		// semaphore block here
 		// frame_recv_proc(arg);

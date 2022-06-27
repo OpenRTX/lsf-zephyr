@@ -27,6 +27,7 @@
 
 static lisa_semaphore_t *s_ocr_res_sema = NULL;
 static lisa_thread_t *s_offline_recognize_thread = NULL;
+static lisa_thread_t *s_uart_proto_thread = NULL;
 static lisa_vcapture_handler_t *vcap_handler = NULL;
 static lisa_translate_handler_t *trans_handler = NULL;
 static lisa_tts_handler_t *tts_handler = NULL;
@@ -177,6 +178,24 @@ void create_offline_recognize_thread()
 	s_offline_recognize_thread = lisa_thread_create(&thread_attr, offline_recognize_thread, NULL);
 	if (s_offline_recognize_thread == NULL) {
 		LISA_LOGE(TAG, "thread_create:  offline_recognize_thread failed");
+		return;
+	}
+}
+
+void create_uart_proto_thread()
+{
+	if (s_uart_proto_thread) {
+		return;
+	}
+
+	lisa_thread_attr_t thread_attr;
+	thread_attr.name = "uart_proto";
+	thread_attr.stack_size = 4 * 1024;
+	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+
+	s_uart_proto_thread = lisa_thread_create(&thread_attr, prot_recv_task, _uart_recv_cb);
+	if (s_uart_proto_thread == NULL) {
+		LISA_LOGE(TAG, "thread_create:  _uart_proto_thread failed");
 		return;
 	}
 }
@@ -362,5 +381,5 @@ void ocr_test_offline_start()
 	lisa_evs_parser_cp_init(NULL);
 	s_ocr_res_sema = lisa_semaphore_create(1);
 	create_offline_recognize_thread();
-	prot_recv_task(_uart_recv_cb);
+	create_uart_proto_thread();
 }
