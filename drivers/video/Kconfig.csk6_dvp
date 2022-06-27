@@ -1,0 +1,8 @@
+# CSK6 DVP driver configuration options
+
+# Copyright (c) 2022 listenai
+# SPDX-License-Identifier: Apache-2.0
+
+config VIDEO_CSK6_DVP
+	bool "CSK6 CMOS Sensor Interface (DVP) driver"
+    depends on HAS_CSK6

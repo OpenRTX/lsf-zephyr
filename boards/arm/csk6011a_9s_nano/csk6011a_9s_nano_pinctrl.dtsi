@@ -113,5 +113,54 @@
                 pinctrl_pwm7_default: pwm7_default{
                 };
 
+                /* DVP alternate function */
+                pinctrl_dvp_clkout_default: dvp_clkout_default{
+                };
+
+                pinctrl_dvp_vsync_default: dvp_vsync_default{
+                };
+
+                pinctrl_dvp_hsync_default: dvp_hync_default{
+                };
+
+                pinctrl_dvp_pclk_default: dvp_pclk_default{
+                };
+
+                pinctrl_dvp_d0_default: dvp_d0_default{
+                };
+
+                pinctrl_dvp_d1_default: dvp_d1_default{
+                };
+
+                pinctrl_dvp_d2_default: dvp_d2_default{
+                };
+
+                pinctrl_dvp_d3_default: dvp_d3_default{
+                };
+
+                pinctrl_dvp_d4_default: dvp_d4_default{
+                };
+
+                pinctrl_dvp_d5_default: dvp_d5_default{
+                };
+
+                pinctrl_dvp_d6_default: dvp_d6_default{
+                };
+
+                pinctrl_dvp_d7_default: dvp_d7_default{
+                };
+
+                pinctrl_dvp_d8_default: dvp_d8_default{
+                };
+
+                pinctrl_dvp_d9_default: dvp_d9_default{
+                };
+
+                pinctrl_dvp_d10_default: dvp_d10_default{
+                };
+
+                pinctrl_dvp_d11_default: dvp_d11_default{
+                };
+
         };
 };
