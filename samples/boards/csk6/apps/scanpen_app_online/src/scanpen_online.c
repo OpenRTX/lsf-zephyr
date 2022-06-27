@@ -194,7 +194,12 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image);
 		} break;
 		case VCAPTURE_OCR:
-			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
+			// LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
+#if(CONFIG_AVF_MODULES_ALG_OCR) 
+			snprintf(ocr_result,sizeof(ocr_result),"%s",data);
+			lisa_semaphore_give(s_ocr_res_sema);
+#endif	
+			
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport vcapture msg\n");
@@ -1178,7 +1183,53 @@ int pen_head_button_init(void)
 
 	pen_head_button->start(pen_head_button);
 }
+#if (CONFIG_AVF_MODULES_ALG_OCR)
+void  offline_recognize_thread(void *arg)
+{
+	LISA_LOGI(TAG, "%s", __FUNCTION__);
+	char trans_data[1024];
+	while (true) {
+		lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
+		LISA_LOGI(TAG,"########  offline result ########\n");
 
+		LISA_LOGI(TAG, "ocr result [len: %d] %s\n", strlen(ocr_result), ocr_result);
+		// trans_handler = lisa_translate_create();
+		// lisa_translate_exec(trans_handler, ocr_result, trans_data, 1024, 40000);
+		// lisa_translate_destroy(trans_handler);
+
+		// lisa_tts_params_t params;
+		// memset(&params, 0, sizeof(lisa_tts_params_t));
+		// params.ttscb = _tts_cb;
+		// tts_handler = lisa_tts_create(&params);
+
+		// lisa_tts_play(tts_handler, trans_data);
+		LISA_LOGI(TAG,"########  offline flush end ########\n");
+	}
+
+}
+/**
+ * @brief Create a ocr recognize thread object
+ *
+ */
+void create_offline_recognize_thread()
+{
+	s_ocr_res_sema = lisa_semaphore_create(1);
+	if (s_offline_recognize_thread) {
+		return;
+	}
+
+	lisa_thread_attr_t thread_attr;
+	thread_attr.name = "offline_recognize_thread";
+	thread_attr.stack_size = 4 * 1024;
+	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+
+	s_offline_recognize_thread = lisa_thread_create(&thread_attr, offline_recognize_thread, NULL);
+	if (s_offline_recognize_thread == NULL) {
+		LISA_LOGE(TAG, "thread_create:  offline_recognize_thread failed");
+		return;
+	}
+}
+#endif
 /**
  * @brief 启动在线ocr识别
  *
@@ -1200,6 +1251,9 @@ void ocr_test_online_start()
 		s_ocr_image_sema = lisa_semaphore_create(2);
 		create_cp_task_protocol_thread();
 		create_ocr_recognize_thread();
+#if (CONFIG_AVF_MODULES_ALG_OCR)
+		create_offline_recognize_thread();
+#endif
 	}
 
 	//_video_init();
