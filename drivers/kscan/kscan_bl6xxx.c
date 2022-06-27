@@ -3,70 +3,66 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <stdint.h>
 
-#include <drivers/kscan.h>
-#include <drivers/i2c.h>
-#include <drivers/gpio.h>
-#include <logging/log.h>
+#include "kscan_bl6xxx.h"
+#include "tp_ts.h"
 
 #define DT_DRV_COMPAT betterlife_bl6xxx
 
 LOG_MODULE_REGISTER(bl6xxx, CONFIG_KSCAN_LOG_LEVEL);
 
-#define BL6XXX_ID_REG_1     0x0A
-#define BL6XXX_ID_REG_2     0xF5
-#define BL6XXX_ID_REG_3     0xE7
-#define BL6XXX_ID_REG_4     0xE8
-#define BL6XXX_POINT_REG    0x01
-#define BL6XXX_SLEEP_REG    0xA5
-#define BL6XXX_SLEEP_VAL    0x01
-#define BL6XXX_SELF_UID_REG 0x16
-#define BL6XXX_GP_UID_VAL   0x57FACE
-#define BL6XXX_GP_UID_DATA_SIZE 3
-#define BL6XXX_POINT_DATA_SIZE  6
+const struct device *g_i2c_dev;
+const struct device *g_gpio_int;
+int g_gpio_int_pin;
+bl6xxx_dev_data_t * g_bl6xxx_dev_data;
 
-#define BL6133_CHIP_ADDR 0x2c
+void ctp_delay_us(unsigned int time)
+{
+	unsigned int i,j,k;
+	for(i=0;i< time;i++)
+	{
+		for(j=0;j<100;j++)
+		{
+			k=0;
+		}
+	}
+}
 
-#ifndef NULL
-#define NULL 0
-#endif
+void ctp_delay_ms(unsigned short time)
+{
+    // uos_sleep(time/4);
+	k_sleep(K_MSEC(time));
+}
 
-#ifndef UNUSED
-#define UNUSED(x) ((void)(x))
-#endif
+int CTP_FLASH_I2C_READ(unsigned char i2c_addr, unsigned char *value, unsigned short len)
+{
+	return i2c_read(g_bl6xxx_dev_data->i2c_dev, value, len, i2c_addr);
+}
 
-typedef enum {
-    BL6XXX_TOUCH_EVENT_DOWN,
-    BL6XXX_TOUCH_EVENT_UP,
-    BL6XXX_TOUCH_EVENT_CONTACT_OR_MOVE,
-    BL6XXX_TOUCH_EVENT_NONE,
-} bl6xxx_touch_event_t;
+int CTP_FLASH_I2C_WRITE(unsigned char i2c_addr, unsigned char *value, unsigned short len)
+{
+	return i2c_write(g_bl6xxx_dev_data->i2c_dev, value, len, i2c_addr);
+}
 
-typedef struct bl6xxx_chip_data {
-    uint8_t gesture_code;
-    uint8_t point_number;
-    bl6xxx_touch_event_t evnet;
-    uint16_t x;
-    uint16_t y;
-    uint8_t touch_id;
-} bl6xxx_chip_data_t;
+void bl_ts_set_intmode(char mode)
+{
+	if(0 == mode)
+	{   
+        //GPIO mode
+		gpio_pin_configure(g_gpio_int, g_gpio_int_pin, GPIO_OUTPUT_ACTIVE);
+	}
+	else if(1 == mode)
+	{
+        //INT mode
+		gpio_pin_configure(g_gpio_int, g_gpio_int_pin, GPIO_INPUT | GPIO_PULL_UP);
+	}
+}
 
-typedef struct gpio_info {
-    const char *port;
-    gpio_pin_t pin;
-    gpio_dt_flags_t flag;
-} gpio_info_t;
+void bl_ts_set_intup(char level)
+{
+    gpio_pin_set(g_gpio_int, g_gpio_int_pin, level);
+}
 
-typedef struct bl6xxx_dev_data {
-    struct k_work work;
-    kscan_callback_t cb;
-    const struct device *dev;
-    const struct device *i2c_dev;
-    struct gpio_callback int_gpio_cb;
-    gpio_info_t int_gpio;
-    gpio_info_t reset_gpio;
-} bl6xxx_dev_data_t;
 
 static int32_t bl6xxx_chip_sleep(const struct device *i2c_dev)
 {
@@ -116,11 +112,96 @@ static int32_t bl6xxx_chip_data_read(const struct device *i2c_dev, bl6xxx_chip_d
     data->touch_id = buf[4] >> 4;
     data->y = (((uint16_t)(buf[4] & 0x0F)) << 8) | buf[5];
 
+	//printk("x:%d,y:%d\n", data->x, data->y);
+
     return 0;
 }
 
-static uint8_t bl6xxx_chip_id_read(const struct device *i2c_dev)
+int bl6xxx_reset_switch_int_wakemode(bl6xxx_dev_data_t *data)
 {
+    const struct device* i2c_dev = data->i2c_dev;
+
+    int32_t ret;
+	unsigned char cmd[4];
+	cmd[0] = BL6XXX_ID_REG_1;
+	cmd[1] = ~cmd[0];
+	cmd[2] = BL6XXX_ID_REG_3;
+	cmd[3] = 0xe8;
+
+    ret = i2c_write(i2c_dev, cmd, 4, BL6133_CHIP_ADDR);
+    if (ret < 0) {
+        LOG_ERR("[BL6XXX]write data failed, ret:%d.\n", ret);
+        return ret;
+    }
+
+	ctp_delay_ms(50);
+	
+    return ret;
+}
+
+uint8_t bl6xxx_set_int_low(bl6xxx_dev_data_t *data)
+{
+	const struct device *gpio = device_get_binding(data->int_gpio.port);
+    int32_t r;
+	r = gpio_pin_configure(gpio, data->int_gpio.pin, GPIO_OUTPUT_ACTIVE);
+    if (r < 0) {
+        LOG_ERR("[BL6XXX]Could not configure interrupt GPIO pin");
+        return r;
+    }
+	// interrupt io => low level
+	gpio_pin_set(gpio, data->int_gpio.pin, 0);
+    
+    return 0;
+}
+
+uint8_t bl6xxx_chip_get_id(uint8_t *buf, bl6xxx_dev_data_t *data)
+{
+    int32_t ret;
+	unsigned char cmd[4];
+    if (data == NULL)
+    {
+        data = g_bl6xxx_dev_data;
+    }
+    const struct device* i2c_dev = data->i2c_dev;
+
+    cmd[0] = BL6XXX_ID_REG_1;
+	cmd[1] = ~cmd[0];
+	cmd[2] = BL6XXX_ID_REG_3;
+    ret = i2c_write(i2c_dev, cmd, 3, BL6133_CHIP_ADDR);
+    // ret = i2c_write(i2c_dev, cmd, sizeof(cmd), BL6133_CHIP_ADDR);
+    
+	ctp_delay_ms(1);
+	ret = i2c_read(i2c_dev, buf, 1, BL6133_CHIP_ADDR);
+    if (ret < 0) {
+        LOG_ERR("[BL6XXX]read data failed, ret:%d.\n", ret);
+        return ret;
+    }
+    return ret;
+
+}
+
+static uint8_t bl6xxx_chip_id_read(bl6xxx_dev_data_t *data)
+{
+    int32_t ret;
+    uint8_t chipid;
+	
+	bl6xxx_set_int_low(data);
+	ctp_delay_ms(10);
+
+    bl6xxx_reset_switch_int_wakemode(data);
+	
+    ret = bl6xxx_chip_get_id(&chipid, data);
+    SET_WAKEUP_HIGH;
+
+    if((ret < 0)|| (chipid != BTL_FLASH_ID))
+	{
+		LOG_ERR("%s:Read chipID Fail:chipID = 0x%2x\n", __func__, chipid);
+		return -1;
+	}
+	else
+	{
+		printk("%s:Read chipID succes:chipID = 0x%2x\n", __func__, chipid);
+	}
     return 0;
 }
 
@@ -129,7 +210,7 @@ static uint32_t bl6xxx_chip_uid_read(const struct device *i2c_dev)
     return 0;
 }
 
-static int32_t bl6xxx_chip_init(const struct device *i2c_dev)
+static int32_t bl6xxx_chip_init(bl6xxx_dev_data_t *data)
 {
     /**
      * Note that:
@@ -139,9 +220,9 @@ static int32_t bl6xxx_chip_init(const struct device *i2c_dev)
      * We will improve it in future versions.
      * Just only make complier happy at here. 
      */
-    (void)bl6xxx_chip_sleep(i2c_dev);
-    (void)bl6xxx_chip_id_read(i2c_dev);
-    (void)bl6xxx_chip_uid_read(i2c_dev);
+    (void)bl6xxx_chip_id_read(data);
+    (void)bl6xxx_chip_sleep(data->i2c_dev);
+    (void)bl6xxx_chip_uid_read(data->i2c_dev);
 
     return 0;
 }
@@ -164,8 +245,12 @@ static void bl6xxx_dev_work_handler(struct k_work *work)
              * It looks like this ic is always outputs event 2 when the screen is touched,
              * and event 1 (press event) never outputs.
              */
-            dev_data->cb(dev_data->dev, chip_data.x, chip_data.y,
-                chip_data.evnet == BL6XXX_TOUCH_EVENT_CONTACT_OR_MOVE);
+			//printk("%s, x:%d,y:%d\n", __func__, chip_data.x, chip_data.y);
+			if (chip_data.x <= 320 && chip_data.y <= 170)
+			{
+				dev_data->cb(dev_data->dev, chip_data.x, chip_data.y,
+						chip_data.evnet == BL6XXX_TOUCH_EVENT_CONTACT_OR_MOVE);
+			}
         }
     } else {
         LOG_ERR("[BL6XXX]Read chip data failed!\n");
@@ -187,7 +272,23 @@ static int kscan_driv_config(const struct device *dev, kscan_callback_t callback
 static int ksacn_driv_enable(const struct device *dev)
 {
     bl6xxx_dev_data_t *data = (bl6xxx_dev_data_t *)dev->data;
+    int32_t r;
+	printk("%s\n", __func__);
+    r = gpio_pin_configure(device_get_binding(data->int_gpio.port), data->int_gpio.pin, GPIO_INPUT | GPIO_PULL_UP);
+    if (r < 0) {
+        LOG_ERR("[BL6XXX]Could not configure interrupt GPIO pin");
+        return r;
+    }
+    r = gpio_pin_interrupt_configure(device_get_binding(data->int_gpio.port), data->int_gpio.pin,
+            GPIO_INT_EDGE_TO_INACTIVE);
+	if (r < 0) {
+        LOG_ERR("[BL6XXX]Could not configure interrupt GPIO interrupt.");
+        return r;
+    }
 
+
+    gpio_init_callback(&data->int_gpio_cb, bl6xxx_dev_isr_handler,
+        BIT(data->int_gpio.pin));
     gpio_add_callback(device_get_binding(data->int_gpio.port), &data->int_gpio_cb);
 
     return 0;
@@ -225,10 +326,31 @@ static int bl6xxx_dev_init(const struct device *dev)
         return -1;
     }
 
+	g_gpio_int = gpio;
+	g_gpio_int_pin = data->int_gpio.pin; 
+    g_i2c_dev = i2c_dev;
+    g_bl6xxx_dev_data = data;
+
+
+    
+
+	r = bl6xxx_chip_init(data);
+    if (r < 0) {
+        LOG_ERR("[BL6XXX]Could not configure interrupt GPIO interrupt.");
+        return r;
+    }
+
     if (gpio == NULL) {
         LOG_ERR("[BL6XXX]interrupt gpio is not binding.\n");
         return -EIO;
     }
+    // add by thierrycao
+	#ifdef  BL_AUTO_UPDATE_FARMWARE
+    bl_auto_update_fw();
+    ctp_delay_ms(10);
+	#endif
+
+#if 0
     r = gpio_pin_configure(gpio, data->int_gpio.pin, GPIO_INPUT | GPIO_PULL_UP);
     if (r < 0) {
         LOG_ERR("[BL6XXX]Could not configure interrupt GPIO pin");
@@ -240,21 +362,16 @@ static int bl6xxx_dev_init(const struct device *dev)
         LOG_ERR("[BL6XXX]Could not configure interrupt GPIO interrupt.");
         return r;
     }
-
-    r = bl6xxx_chip_init(i2c_dev);
-    if (r < 0) {
-        LOG_ERR("[BL6XXX]Could not configure interrupt GPIO interrupt.");
-        return r;
-    }
+#endif
 
     k_work_init(&(data->work), bl6xxx_dev_work_handler);
-
-    gpio_init_callback(&data->int_gpio_cb, bl6xxx_dev_isr_handler,
-        BIT(data->int_gpio.pin));
+#if 0
+    gpio_init_callback(&data->int_gpio_cb, bl6xxx_dev_isr_handler, BIT(data->int_gpio.pin));
     gpio_add_callback(gpio, &data->int_gpio_cb);
-
+#endif
     return 0;
 }
+
 
 #define BL6XXX_DEFINE_GPIO(index, gpio_pha)                                 \
     {                                                                       \
