@@ -32,16 +32,20 @@ static struct lisa_ring_buffer *s_recv_ring_buffer = NULL;
  */
 int prot_read_data(uint8_t *data, unsigned int len, int wait_ms)
 {
-	printk("%s:enter, len:%d\n", __FUNCTION__, len);
-	int ret = lisa_ring_buffer_get(s_recv_ring_buffer, data, len);
-	while (ret <= 0) {
-		printk("########lisa_semaphore_take######\n");
-		lisa_semaphore_take(s_uart_data_sema, LISA_WAIT_FOREVER);
-		printk("########take exit######\n");
-		ret = lisa_ring_buffer_get(s_recv_ring_buffer, data, len);
-		printk("get ringbuffer ret:%d\n", ret);
+	int ret = 0;
+	// printk("%s:enter, len:%d\n", __FUNCTION__, len);
+	// int ret = lisa_ring_buffer_get(s_recv_ring_buffer, data, len);
+	// while (ret <= 0) {
+	// 	lisa_semaphore_take(s_uart_data_sema, LISA_WAIT_FOREVER);
+	// 	ret = lisa_ring_buffer_get(s_recv_ring_buffer, data, len);
+	// }
+
+	// FIXME: 
+	while(lisa_ring_buffer_len(s_recv_ring_buffer) < len) {
+		lisa_thread_mdelay(10);
 	}
-	printk("%s:exit\n", __FUNCTION__);
+	ret = lisa_ring_buffer_get(s_recv_ring_buffer, data, len);
+	// printk("%s:exit\n", __FUNCTION__);
 	return ret;
 }
 
@@ -57,16 +61,15 @@ void prot_recv_data(char *data, uint32_t size)
 	if (lisa_ring_buffer_len(s_recv_ring_buffer) <= 0) {
 		need_wake = true;
 	}
-	printk("rx size:%d, need_wake:%d\n", size, need_wake);
+#if 0
 	for(uint32_t i=0; i<size; i++) {
 		printk("%02x ", data[i]);
 	}
 	printk("\n");
+#endif
 	int ret = lisa_ring_buffer_put(s_recv_ring_buffer, data, size);
 	if (need_wake) {
-		printk("########lisa_semaphore_give######\n");
 		lisa_semaphore_give(s_uart_data_sema);
-		printk("####give exit###\n");
 	}
 	if (ret != size) {
 		LISA_LOGE(TAG, "write stream full \n");
@@ -133,9 +136,8 @@ static void uart_rx_callback(const struct device *dev, void *user_data){
 		if (uart_irq_rx_ready(dev)) {
 			int recv_len = 100;
 			recv_len = uart_fifo_read(dev, rx_buffer, recv_len);	/* 读取字符串*/
-			LISA_LOGI(TAG, "devices %s, rx:%d", dev->name, recv_len);
+			// LISA_LOGI(TAG, "devices %s, rx:%d", dev->name, recv_len);
 			prot_recv_data(rx_buffer, recv_len);
-			// uart_fifo_fill(dev, rx_buffer, recv_len);		/* 发送字符串*/
 		}
 	}
 }
@@ -158,20 +160,7 @@ void prot_recv_task(void *arg)
 
 	/* Enable rx interrupts */
 	uart_irq_rx_enable(uart2);
-	char rx_buffer[25];
-	printk("line:%d, arg:%p\n", __LINE__, arg);
 	while(1){
-		// // semaphore block here
-		// prot_read_data(&rx_buffer[0], 1, portMAX_DELAY);
-
-		// prot_read_data(&rx_buffer[1], 1, portMAX_DELAY);
-
-		// prot_read_data(&rx_buffer[2], 4, portMAX_DELAY);
-
-		// printk("########lisa_semaphore_take######\n");
-		// lisa_semaphore_take(s_uart_data_sema, LISA_WAIT_FOREVER);
-		// printk("########take exit######\n");
 		frame_recv_proc(arg);
-		// lisa_thread_mdelay(1000);
 	}
 }
