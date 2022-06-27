@@ -478,9 +478,7 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
 
 				int remind_new_data_size = new_data_size;
-				// int origin_new_data_size = data->size;
 				uint8_t *current_new_data_ptr = new_data_ptr;
-				// uint8_t *current_new_data_ptr = &new_data_ptr[origin_new_data_size - remind_new_data_size];
 				while (remind_new_data_size >= IMG_HEADER_SIZE) {
 					img = search_img_header(current_new_data_ptr, remind_new_data_size);
 					// printk("----------------- img %p     current_new_data_ptr: %p\n", img, current_new_data_ptr);
@@ -491,14 +489,21 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 						img_state = IMG_WAITING_HEADER;
 						goto __exit;
 					}
-					// __ASSERT(img != NULL, "loss one img header");
-					// remind_new_data_size -= ((uint8_t *)img - current_new_data_ptr);
+
+					if (img != current_new_data_ptr) {
+						int garbage_size = (uint8_t *)img - current_new_data_ptr;
+						printk("found garbage data %d\n", garbage_size);
+						current_new_data_ptr += garbage_size;
+						remind_new_data_size -= garbage_size;
+					}
+					__ASSERT(current_new_data_ptr == img, "garbage processing faield, img: %p  cur: %p", img, current_new_data_ptr);
+
 					int remind_body_detect_size = remind_new_data_size - IMG_HEADER_SIZE;
 					int current_img_body_size = IMG_BODY_SIZE(img);
 					if (remind_body_detect_size < current_img_body_size) { // data < 1 img
-						printk("------------------- < 1 img body  cur len %d  remind: %d\n", img_stream_buf_cur_len, remind_new_data_size);
 						img_stream_buf_write((uint8_t *)img, remind_new_data_size);
 						img_state = IMG_WAITING_BODY;
+						printk("------------------- < 1 img body  cur len %d  remind: %d\n", img_stream_buf_cur_len, remind_new_data_size);
 						goto __exit;
 					} else if (remind_body_detect_size > current_img_body_size) { // data > 1 img
 						int send_size = send_one_img(img);
@@ -535,37 +540,6 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 __exit:
 	return;
 }
-
-/**
- * @brief 从cp buffer中读取数据
- *
- * @param data
- * @param len
- * @param wait_ms
- * @return uint32_t
- */
-uint32_t _read_cp_buffer(uint8_t *data, unsigned int len, int wait_ms)
-{
-	return recv_ocr_simulation_image_once(data, len, wait_ms);
-}
-
-/**
- * @brief cp task protocol线程，用于图片数据接受和解析
- *
- * @param argv
- */
-// data from avf (ringbuf)
-// static void cp_task_protocol_thread(void *arg1, void *arg2, void *arg3)
-// {
-// 	lisa_evs_parser_cp_init(_read_cp_buffer);
-// 	while (1) {
-// 		k_sem_take(&read_avf_data_sem, K_FOREVER);
-// 		if (lisa_evs_parser_cp_data()) {
-// 		} else {
-// 		}
-// 		k_sem_give(&read_avf_data_sem);
-// 	}
-// }
 
 /**
  * @brief 词典查询成功回调
@@ -1060,12 +1034,6 @@ void create_cam2cp_thread()
 	}
 }
 
-
-
-
-
-
-
 #define PEN_HEAD_BUTTON KEY1
 static button_handle *pen_head_button;
 static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
@@ -1135,11 +1103,6 @@ void ocr_test_online_start()
 		return;
 	}
 
-	// k_pipe_init(&image_stream_pipe, image_stread_pipe_buffer, IMAGE_STREAM_BUFFER_SIZE);
-
-	// extern lisa_image_transfer_status_e g_img_status;
-	// g_img_status = LISA_IMAGE_FRAME_START;
-	// k_sem_give(&read_avf_data_sem);
 	img_state = IMG_WAITING_HEADER;
 	img_stream_buf_cleanup();
 	lisa_evs_register_image_callback(scan_image_cb);
@@ -1155,17 +1118,6 @@ void ocr_test_online_stop()
 
 	lisa_mem_free(img_stream_buf);
 	img_stream_buf = NULL;
-	// unsigned char temp[128];
-	// size_t bytes_read;
-	// do {
-	// 	k_pipe_get(&image_stream_pipe, temp, sizeof(temp), &bytes_read, 1, K_NO_WAIT);
-	// } while (bytes_read == sizeof(temp));
-	// lisa_mem_free(image_stread_pipe_buffer);
-	// image_stread_pipe_buffer = NULL;
-	// printk("[Debug-%s-%s-%d]------\n",__FILE__,__func__,__LINE__);
-
-
-//	pen_head_button_exit();
 }
 
 /**

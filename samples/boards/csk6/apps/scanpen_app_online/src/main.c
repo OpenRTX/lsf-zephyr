@@ -43,7 +43,7 @@ void main(void)
 	while (1) {
 		lisa_heap_info();
 		PRINT_HEAP_INFO();
-		k_msleep(60000);
+		k_msleep(1000);
 
 	}
 }
