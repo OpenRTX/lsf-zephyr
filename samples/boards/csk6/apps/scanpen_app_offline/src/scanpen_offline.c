@@ -142,7 +142,20 @@ void  offline_recognize_thread(void *arg)
 		// params.ttscb = _tts_cb;
 		// tts_handler = lisa_tts_create(&params);
 
-		lisa_tts_play(tts_handler, trans_data);
+		lisa_tts_config_t tts_config = {
+			.role 		= ivTTS_ROLE_XIAOYAN,
+			.language	= ivTTS_LANGUAGE_AUTO,
+			.speed		= ivTTS_SPEED_NORMAL,
+			.volume		= ivTTS_VOLUME_NORMAL,
+		};
+
+		if(trans_data[0] > 127){
+			tts_config.role = ivTTS_ROLE_XIAOYAN;
+		}else{
+			tts_config.role = ivTTS_ROLE_CATHERINE;
+		}
+
+		lisa_tts_play(tts_handler, trans_data, &tts_config);
 
 
 		while(!tts_done){
