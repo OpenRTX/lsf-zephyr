@@ -261,6 +261,9 @@ void scan_image_cb(char *data, int len, lisa_image_transfer_status_e status)
 	} else {
 		printk("-------unknown img frame\n");
 	}
+	if (recv_image.data) {
+		lisa_mem_free(recv_image.data);
+	}
 	k_mutex_unlock(&img_send_mutex);
 }
 
