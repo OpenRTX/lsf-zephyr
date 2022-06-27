@@ -207,6 +207,9 @@ static int _video_init()
 	lisa_vcapture_params_t params;
 	memset(&params, 0, sizeof(lisa_vcapture_params_t));
 
+#if (CONFIG_AVF_MODULES_ALG_OCR)
+	params.use_ocr = 1;
+#endif
 	params.vcapturecb = _image_data_cb;
 
 	vcap_handler = lisa_vcapture_create(&params);
@@ -293,7 +296,7 @@ void send_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer, lisa_i
 		LISA_LOGE(TAG, "write stream full \n");
 	}
 
-	lisa_thread_mdelay(15);
+	// lisa_thread_mdelay(15);
 }
 
 /**

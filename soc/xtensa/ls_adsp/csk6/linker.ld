@@ -23,7 +23,7 @@ OUTPUT_ARCH(xtensa)
 
 //#include <devicetree.h>
 
-#define CP_XIP (0)
+#define CP_XIP (1)
 
 #if CP_XIP
 /* #if DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
@@ -54,7 +54,7 @@ OUTPUT_ARCH(xtensa)
 #define RESET_VECTOR        (FLASH_START)
 
 #define SDRAM0_START_X    0x60000000
-#define SDRAM0_SIZE_X     0x500000
+#define SDRAM0_SIZE_X     SDRAM0_SIZE
 
 #else
 
@@ -72,7 +72,7 @@ OUTPUT_ARCH(xtensa)
 #define RESET_VECTOR        (RESET_TEXT_ADDR)
 
 #define SDRAM0_START_X    (VECTORS_START + VECTORS_SIZE)
-#define SDRAM0_SIZE_X     0x500000 - ISR_VECTOR_SIZE
+#define SDRAM0_SIZE_X     SDRAM0_SIZE - ISR_VECTOR_SIZE
 
 #endif /* end of DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
 
@@ -179,7 +179,7 @@ MEMORY
         len = MEM_VECT_TEXT_SIZE
   iram_text_start :
                 org = XCHAL_DOUBLEEXC_VECTOR_PADDR_IRAM + MEM_VECT_TEXT_SIZE,
-        len = (IRAM_BASE + IRAM_SIZE) - (XCHAL_DOUBLEEXC_VECTOR_PADDR + MEM_VECT_TEXT_SIZE)
+        len = (IRAM_BASE + IRAM_SIZE) - (XCHAL_DOUBLEEXC_VECTOR_PADDR_IRAM + MEM_VECT_TEXT_SIZE)
 #ifdef CONFIG_GEN_ISR_TABLES
   IDT_LIST :
                 org = IDT_BASE,
@@ -449,6 +449,7 @@ SECTIONS
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
+    XIP_COPY_DEF(.dram1.text_rodata)
     XIP_COPY_DEF(.ai_lib.text_rodata)
 
     /* data */
@@ -497,8 +498,10 @@ SECTIONS
     /* bss table */
     . = ALIGN(4);
     __bss_table_start__ = .;
+#if 0
     XIP_BSS_DEF(.dram1.bss)
     XIP_BSS_DEF(.sharedmem.bss)
+#endif
     
     XIP_BSS_DEF(.noinit)
     XIP_BSS_DEF(.bss)
@@ -506,6 +509,353 @@ SECTIONS
     __bss_table_end__ = .;
 
   } > ROMABLE_REGION
+
+  .dram1.rodata : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _dram1_rodata_start = ABSOLUTE(.);
+    *(.dram1.rodata)
+    . = ALIGN (4);
+    _dram1_rodata_end = ABSOLUTE(.);
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
+
+  .dram1.data : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _dram1_data_start = ABSOLUTE(.);
+    *(.dram1.data)
+    . = ALIGN (4);
+    _dram1_data_end = ABSOLUTE(.);
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
+
+  .dram1.bss (NOLOAD) : ALIGN(8)
+  {
+    . = ALIGN (8);
+    _dram1_bss_start = ABSOLUTE(.);
+    *(.dram1.bss)
+    . = ALIGN (8);
+    _dram1_bss_end = ABSOLUTE(.);
+  } >luna_sharedmem_dram AT > ROMABLE_REGION
+
+#if CP_XIP
+  .dram1.text_rodata : ALIGN(8)
+  {
+    . = ALIGN (8);
+    _iram_text_rodata_start = ABSOLUTE(.);
+
+    /* xclib */
+  *libtts.a:*(.rodata .rodata.*)
+
+    . = ALIGN (8);
+    _iram_text_rodata_end = ABSOLUTE(.);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+#endif
+
+  .sharedmem.text : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _sharedmem_text_start = ABSOLUTE(.);
+    *(.sharedmem.literal .sharedmem.text)
+    . = ALIGN (4);
+    _sharedmem_text_end = ABSOLUTE(.);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+
+  .sharedmem.rodata : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _sharedmem_rodata_start = ABSOLUTE(.);
+    *(.sharedmem.rodata)
+    . = ALIGN (4);
+    _sharedmem_rodata_end = ABSOLUTE(.);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+
+  .sharedmem.data : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _sharedmem_data_start = ABSOLUTE(.);
+    *(.sharedmem.data)
+    . = ALIGN (4);
+    _sharedmem_data_end = ABSOLUTE(.);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+
+  .sharedmem.bss (NOLOAD) : ALIGN(8)
+  {
+    . = ALIGN (8);
+    _sharedmem_bss_start = ABSOLUTE(.);
+    *(.sharedmem.bss)
+    . = ALIGN (8);
+    _sharedmem_bss_end = ABSOLUTE(.);
+    _memmap_seg_sharedmem1_end = ALIGN(0x8);
+  } >luna_sharedmem_data AT > ROMABLE_REGION
+
+  .iram.text : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _stext = .;
+    _iram_text_start = ABSOLUTE(.);
+    *(.iram0.literal .iram.literal .iram.text.literal .iram1.literal .iram0.text .iram.text .iram1)
+
+    /* kernel */
+    sched.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    opi_psram_cpy.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    stack.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    system_work_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    . = ALIGN (4);
+    _iram_text_end = ABSOLUTE(.);
+  } >iram_text_start AT > ROMABLE_REGION
+
+  #if CP_XIP
+  .ai_lib.text_rodata : ALIGN(4)
+  {
+    . = ALIGN (4);
+    _ai_lib_text_rodata_start = ABSOLUTE(.);
+  
+    /* xclib */
+    *libgcc.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libc.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libm.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libhal.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+
+    /* hal_listenai drivers */
+    ClockManager.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    IOMuxManager.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    adc_pdm_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    apc_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    cache_cp.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    dac_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    dma_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    gpio_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    mbox.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    spi.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    uart.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    venus_cp.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+
+    /* zephyr drivers */
+    sys_clock_init.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    xtensa_sys_timer.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    dma_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    ipm_csk.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    uart_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    uart_console.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    spi_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    pinmux_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
+
+
+    /* ai lib */
+    *libluna.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libtts.a:*(.text .text.* .literal .literal.*)
+    /* *libtts.a:*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+
+#if 0
+    /* hal_xtensa(can't be copyed) */
+    int_asm.S.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    interrupts.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    /* soc.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+#endif
+
+    /* arch xtensa core */
+#if 1
+    cpu_idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    /* fatal.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+    /* window_vectors.S.obj */
+    /* xtensa-asm2-util.S.obj */
+    xtensa-asm2.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    irq_manage.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    /* crt1.S.obj */
+    xtensa_backtrace.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    debug_helpers_asm.S.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+#endif
+
+#if 1
+    /* arch common */
+    sw_isr_common.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    /* libisr_table.a */
+    isr_tables.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+#endif
+
+    /* libzephyr.a */
+#if 0
+    cbprintf.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    cbprintf_packaged.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    crc32c_sw.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    crc32_sw.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    crc16_sw.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    crc8_sw.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    crc7_sw.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dec.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    fdtable.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    hex.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    notify.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    printk.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    onoff.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    rb.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    sem.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    thread_entry.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    timeutil.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    heap.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    heap-validate.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    bitarray.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    cbprintf_complete.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    p4wq.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    /* configs.c.obj */
+    log_minimal.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    tracing_none.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+#endif
+
+    /* kernel */
+#if 1
+    sched.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    work.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipes.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    queue.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    timeout.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mailbox.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    thread.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    msg_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mutex.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    init.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    device.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    stack.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    fatal.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mem_slab.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    condvar.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mempool.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    kheap.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    sem.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    banner.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    system_work_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    errno.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    main_weak.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+#endif
+
+    /* sof */
+    zephyr_ll.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-schedule.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-stream.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    cache_attr.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    zephyr_domain.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    schedule.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    wrapper.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc-common.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc-helper.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+    dummy-dma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    edma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    sdma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+
+#if 0
+    dummy-dma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    edma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    sdma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    sai.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    svi.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    esai.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    platform.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    clk.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dai.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    zephyr_ll.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    interrupt.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dma-copy.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc-common.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ipc-helper.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    handler.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    helper.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dai.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    host-page-table.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    spinlock.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    decibels.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    numbers.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    trig.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    clk.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    notifier.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    lib.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pm_runtime.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    wait.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dai.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    channel_map.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pcm_converter_hifi3.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pcm_converter.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pcm_converter_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    buffer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    component.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-graph.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-params.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-schedule.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-stream.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    pipeline-xrun.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    host.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    init.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    ext_manifest.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    cache_attr.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    zephyr_domain.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    schedule.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dma_single_chan_domain.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dma_multi_chan_domain.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    zephyr.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    wrapper.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    edf_schedule.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    schedule.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dma-trace.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    trace.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    eq_fir_hifi3.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    eq_fir_hifi2ep.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    eq_fir_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    eq_fir.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    fir_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    fir_hifi2ep.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    fir_hifi3.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    iir_df2t_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    iir_df2t_hifi3.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    iir.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    eq_iir.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    asrc.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    asrc_farrow_hifi3.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    asrc_farrow.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    asrc_farrow_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    opi_psram_cpy.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    algo_lib.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    cv.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dcblock_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dcblock.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    selector_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    selector.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    kpb.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    switch.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mixer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    tone.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    dai.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    detect_test.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    volume_hifi3.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    volume_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    volume.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    codec_adapter.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    cadence.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    src_hifi2ep.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    src_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    src_hifi3.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    src.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mux.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    mux_generic.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+#endif
+
+    . = ALIGN (4);
+    _ai_lib_text_rodata_end = ABSOLUTE(.);    
+  } >RAMABLE_REGION AT > ROMABLE_REGION
+#endif
 
   .rtos.rodata : ALIGN(4)
   {
@@ -515,7 +865,6 @@ SECTIONS
     _rtos_rodata_end = ABSOLUTE(.);
   } > ROMABLE_REGION
 
-
   .clib.rodata : ALIGN(4)
   {
     _clib_rodata_start = ABSOLUTE(.);
@@ -523,52 +872,6 @@ SECTIONS
     . = ALIGN (4);
     _clib_rodata_end = ABSOLUTE(.);
   } > ROMABLE_REGION
-
-#if CP_XIP
-  .ai_lib.text_rodata : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _ai_lib_text_rodata_start = ABSOLUTE(.);
-
-    /* xclib */
-    *libgcc.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    *libc.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    *libm.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    *libhal.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-
-    /* ai lib */
-    *libluna.a:*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    *libtts.a:*(.rodata .rodata.*)
-    /* *libtts.a:*(.text .text.* .rodata .rodata.* .literal .literal.*) */
-
-    /* hal_listenai drivers */
-    ClockManager.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    IOMuxManager.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    adc_pdm_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    apc_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    cache_cp.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    dac_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    dma_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    gpio_venus.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    mbox.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    spi.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    uart.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    venus_cp.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-
-    /* zephyr drivers */
-    sys_clock_init.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    xtensa_sys_timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    dma_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    ipm_csk.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    uart_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    uart_console.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    spi_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    pinmux_csk6.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-
-    . = ALIGN (4);
-    _ai_lib_text_rodata_end = ABSOLUTE(.);    
-  } >RAMABLE_REGION AT > ROMABLE_REGION
-#endif
 
   .rodata : ALIGN(4)
   {
@@ -645,17 +948,6 @@ SECTIONS
 
 #include <linker/common-rom.ld>
 
-  _IRAM_TEXT_LOAD_START_ = .;
-  .iram.text : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _stext = .;
-    _iram_text_start = ABSOLUTE(.);
-    *(.iram0.literal .iram.literal .iram.text.literal .iram1.literal .iram0.text .iram.text .iram1)
-    . = ALIGN (4);
-    _iram_text_end = ABSOLUTE(.);
-  } >iram_text_start AT > ROMABLE_REGION
-
   .clib.data : ALIGN(4)
   {
     . = ALIGN (4);
@@ -713,72 +1005,6 @@ SECTIONS
     _data_end = ABSOLUTE(.);
     . = ALIGN(4096);
   } >RAMABLE_REGION AT > ROMABLE_REGION
-
-  .dram1.rodata : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _dram1_rodata_start = ABSOLUTE(.);
-    *(.dram1.rodata)
-    . = ALIGN (4);
-    _dram1_rodata_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > ROMABLE_REGION
-
-  .dram1.data : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _dram1_data_start = ABSOLUTE(.);
-    *(.dram1.data)
-    . = ALIGN (4);
-    _dram1_data_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > ROMABLE_REGION
-
-  .dram1.bss (NOLOAD) : ALIGN(8)
-  {
-    . = ALIGN (8);
-    _dram1_bss_start = ABSOLUTE(.);
-    *(.dram1.bss)
-    . = ALIGN (8);
-    _dram1_bss_end = ABSOLUTE(.);
-  } >luna_sharedmem_dram AT > ROMABLE_REGION
-
-  .sharedmem.text : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _sharedmem_text_start = ABSOLUTE(.);
-    *(.sharedmem.literal .sharedmem.text)
-    . = ALIGN (4);
-    _sharedmem_text_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > ROMABLE_REGION
-
-  .sharedmem.rodata : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _sharedmem_rodata_start = ABSOLUTE(.);
-    *(.sharedmem.rodata)
-    . = ALIGN (4);
-    _sharedmem_rodata_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > ROMABLE_REGION
-
-  .sharedmem.data : ALIGN(4)
-  {
-    . = ALIGN (4);
-    _sharedmem_data_start = ABSOLUTE(.);
-    *(.sharedmem.data)
-    . = ALIGN (4);
-    _sharedmem_data_end = ABSOLUTE(.);
-  } >luna_sharedmem_data AT > ROMABLE_REGION
-
-  .sharedmem.bss (NOLOAD) : ALIGN(8)
-  {
-    . = ALIGN (8);
-    _sharedmem_bss_start = ABSOLUTE(.);
-    *(.sharedmem.bss)
-    . = ALIGN (8);
-    _sharedmem_bss_end = ABSOLUTE(.);
-    _memmap_seg_sharedmem1_end = ALIGN(0x8);
-  } >luna_sharedmem_data AT > ROMABLE_REGION
-
-  _memmap_mem_sharedmem_max = ABSOLUTE(.);
 
   .lit4 : ALIGN(4)
   {
