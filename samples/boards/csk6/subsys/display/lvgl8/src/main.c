@@ -10,11 +10,49 @@
 #include <stdio.h>
 #include <string.h>
 #include <zephyr.h>
+#include <drivers/pwm.h>
+#include <drivers/pinmux.h>
+#include <drivers/gpio.h>
+
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(app);
 
+extern lv_font_t arial_40;
+/* The devicetree node identifier for the "LCD0" alias. */
+#define LCD0_NODE DT_ALIAS(lcdbacklight0)
+
+#if DT_NODE_HAS_STATUS(LCD0_NODE, okay)
+#define LCD0	DT_GPIO_LABEL(LCD0_NODE, gpios)
+#define PIN	DT_GPIO_PIN(LCD0_NODE, gpios)
+#define FLAGS	DT_GPIO_FLAGS(LCD0_NODE, gpios)
+#else
+/* A build error here means your board isn't set up to blink an LCD Backlight. */
+#error "Unsupported board: LCD0 devicetree alias is not defined"
+#define LCD0	""
+#define PIN	0
+#define FLAGS	0
+#endif
+
+void lcd_blanking_on()
+{
+	const struct device *dev;
+	bool lcd_is_on = true;
+	int ret;
+
+	dev = device_get_binding(LCD0);
+	if (dev == NULL) {
+		return;
+	}
+
+	ret = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
+	if (ret < 0) {
+		return;
+	}
+	// LCD背光低電平有效
+	gpio_pin_set(dev, PIN, !(int)lcd_is_on);
+}
 void main(void)
 {
 	uint32_t count = 0U;
@@ -22,6 +60,11 @@ void main(void)
 	const struct device *display_dev;
 	lv_obj_t *hello_world_label;
 	lv_obj_t *count_label;
+
+	#if DT_NODE_HAS_STATUS(LCD0_NODE, okay)
+	lcd_blanking_on();
+	#endif
+
 
 	display_dev = device_get_binding(CONFIG_LV_Z_DISPLAY_DEV_NAME);
 	if (display_dev == NULL) {
@@ -38,8 +81,8 @@ void main(void)
 	} else {
 		hello_world_label = lv_label_create(lv_scr_act());
 	}
-
-	lv_label_set_text(hello_world_label, "Hello world!");
+	lv_obj_set_style_text_font(hello_world_label,&arial_40,0);
+	lv_label_set_text(hello_world_label, "翻译");
 	lv_obj_align(hello_world_label, LV_ALIGN_CENTER, 0, 0);
 
 	count_label = lv_label_create(lv_scr_act());
