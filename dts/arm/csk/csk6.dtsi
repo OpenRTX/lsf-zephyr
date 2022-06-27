@@ -248,7 +248,7 @@
 			label = "USBD";
 		};
 
-		wdt: watchdog@46B00000 {
+		wdt: watchdog@46b00000 {
 			compatible = "listenai,csk6-watchdog";
 			reg = <0x46B00000 0x100000>;
 			interrupts = <26 0>;

@@ -26,7 +26,8 @@ static void wdt_callback(const struct device *wdt_dev, int channel_id)
 	if (!is_handled) {
 		is_handled = !is_handled;
 		wdt_feed(wdt_dev, channel_id);
-		printk("Handled watchdog interrupt and feed the dog.System will reset after 16s.\n");
+		printk("Handled watchdog interrupt and feed the dog.System will reset after %ds.\n",
+			WDT_MAX_WINDOW / 1000);
 	} else {
 		printk("Handled watchdog interrupt again, wait for reset.\n");
 	}
