@@ -459,7 +459,6 @@ void main(void)
 				   &z_malloc_partition);
 #endif
 #endif /* CONFIG_USERSPACE */
-
 	z_init_mock();
 	test_main();
 	end_report();

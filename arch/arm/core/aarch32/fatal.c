@@ -56,10 +56,15 @@ static void esf_dump(const z_arch_esf_t *esf)
 
 void z_arm_fatal_error(unsigned int reason, const z_arch_esf_t *esf)
 {
+    // LOG_HEXDUMP_ERR((char *)0x809d0, 32, "erase_ram_data:");
 
 	if (esf != NULL) {
 		esf_dump(esf);
 	}
+
+    // LOG_HEXDUMP_ERR((char *)0x1800C061, 32, "erase_flash_data:");
+    // LOG_ERR("ram context");
+
 	z_fatal_error(reason, esf);
 }
 

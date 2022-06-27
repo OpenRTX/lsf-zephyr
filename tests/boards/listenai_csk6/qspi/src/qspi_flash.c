@@ -12,10 +12,10 @@
 #include <device.h>
 #include <ztest.h>
 #include <sys/reboot.h>
+#include <debug/thread_analyzer.h>
 
 #define STORAGE_NODE DT_NODE_BY_FIXED_PARTITION_LABEL(storage)
 #define FLASH_NODE DT_MTD_FROM_FIXED_PARTITION(STORAGE_NODE)
-
 #define FLASH_TEST_REGION_OFFSET FLASH_AREA_OFFSET(storage)
 
 #define NUM_OF_SECTORS_TO_TEST 10
@@ -82,11 +82,11 @@ void test_qspi_flash(void)
 			      "Flash Write & Read Test failed!!");
 		TC_PRINT("PASS\n");
 	}
-	// sys_reboot(0);
 }
 
 void test_main(void)
 {
+    // thread_analyzer_print();
 	ztest_test_suite(nios2_qspi_test_suite, ztest_unit_test(test_qspi_flash));
 	ztest_run_test_suite(nios2_qspi_test_suite);
 }
