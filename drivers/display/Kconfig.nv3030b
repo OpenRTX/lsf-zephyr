@@ -1,0 +1,25 @@
+# NV3030B display driver configuration options
+
+# Copyright (c) 2019 Marc Reilly <marc@cpdesign.com.au>
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig NV3030B
+	bool "NV3030B display driver"
+	depends on SPI
+	help
+	  Enable driver for NV3030B display driver.
+
+choice NV3030B_PIXEL_FORMAT
+	prompt "Color pixel format"
+	default NV3030B_RGB565
+	depends on NV3030B
+	help
+	  Specify the color pixel format for the NV3030B display controller.
+
+config NV3030B_RGB888
+	bool "RGB888"
+
+config NV3030B_RGB565
+	bool "RGB565"
+
+endchoice

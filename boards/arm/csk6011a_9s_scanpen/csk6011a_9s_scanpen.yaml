@@ -1,0 +1,15 @@
+identifier: csk6011a_9s_scanpen
+name: CSK
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+supported:
+  - gpio
+  - uart
+  - ipm
+  - wifi
+ram: 320
+flash: 8000
