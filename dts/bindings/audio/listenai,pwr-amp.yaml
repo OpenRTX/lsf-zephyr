@@ -13,7 +13,7 @@ include: base.yaml
 properties:
     label:
       required: true
-    enalbe-gpios:
+    enable-gpios:
       type: phandle-array
       required: true
       description: enable pin

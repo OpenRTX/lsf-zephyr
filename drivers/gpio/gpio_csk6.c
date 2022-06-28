@@ -111,6 +111,11 @@ static int csk_gpio_configure(const struct device *dev, gpio_pin_t pin, gpio_fla
     const struct csk_gpio_config *config = dev->config;
     gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
 
+    /* Not support GPIO_INPUT|GPIO_OUTPUT mode. */
+    if (((flags & GPIO_INPUT) != 0) && ((flags & GPIO_OUTPUT) != 0)) {
+        return -ENOTSUP;
+    }
+
     csk_gpio_pinmux_set(dev, pin);
 
     if (flags & GPIO_OUTPUT) {

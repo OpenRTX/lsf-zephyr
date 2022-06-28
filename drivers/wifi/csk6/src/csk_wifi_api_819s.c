@@ -107,6 +107,10 @@ int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, 
     *result = CSK_WIFI_ERR_SCAN_FAILED;
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
 
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
+
     wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
     const char* wifi_sm_str = WIFI_STA_SM_STRINGS[current_sm];
     CSK_WIFI_CHECK_RETURN(current_sm != WIFI_SM_ON_STARTUP, -EAGAIN,
@@ -149,6 +153,10 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
     CSK_WIFI_CHECK(sta_config->encryption_mode >= 0 &&
                    sta_config->encryption_mode < CSK_WIFI_AUTH_MAX,
                    -EINVAL);
+
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
 
     const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
     struct csk_wifi_data *data = dev->data;
@@ -203,6 +211,10 @@ int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
 {
     *result = CSK_WIFI_ERR_STA_FAILED;
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
+
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
 
     const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
     struct csk_wifi_data *data = dev->data;

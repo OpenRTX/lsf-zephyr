@@ -33,7 +33,12 @@ LOG_MODULE_REGISTER(net_tcp, CONFIG_NET_TCP_LOG_LEVEL);
 
 static int tcp_rto = CONFIG_NET_TCP_INIT_RETRANSMISSION_TIMEOUT;
 static int tcp_retries = CONFIG_NET_TCP_RETRY_COUNT;
-static int tcp_window = NET_IPV6_MTU;
+static int tcp_window =
+#if (CONFIG_NET_TCP_MAX_RECV_WINDOW_SIZE != 0)
+	CONFIG_NET_TCP_MAX_RECV_WINDOW_SIZE;
+#else
+	(CONFIG_NET_BUF_RX_COUNT * CONFIG_NET_BUF_DATA_SIZE) / 3;
+#endif
 
 static sys_slist_t tcp_conns = SYS_SLIST_STATIC_INIT(&tcp_conns);
 
@@ -728,6 +733,8 @@ static int tcp_data_get(struct tcp *conn, struct net_pkt *pkt, size_t *len)
 
 		net_pkt_skip(up, net_pkt_get_len(up) - *len);
 
+		net_context_update_recv_wnd(conn->context, -*len);
+
 		/* Do not pass data to application with TCP conn
 		 * locked as there could be an issue when the app tries
 		 * to send the data and the conn is locked. So the recv
@@ -890,7 +897,7 @@ static int tcp_pkt_peek(struct net_pkt *to, struct net_pkt *from, size_t pos,
 
 static bool tcp_window_full(struct tcp *conn)
 {
-	bool window_full = !(conn->unacked_len < conn->send_win);
+	bool window_full = (conn->send_data_total >= conn->send_win);
 
 	NET_DBG("conn: %p window_full=%hu", conn, window_full);
 
@@ -1557,7 +1564,7 @@ static void tcp_queue_recv_data(struct tcp *conn, struct net_pkt *pkt,
 					 conn->queue_recv_data->buffer);
 			conn->queue_recv_data->buffer = pkt->buffer;
 			inserted = true;
-		} else {
+		} else if(conn->recv_win > (net_pkt_get_len(conn->queue_recv_data) + len + NET_IPV6_MTU * 2) ){
 			struct net_buf *last;
 
 			last = net_buf_frag_last(conn->queue_recv_data->buffer);
@@ -1598,8 +1605,18 @@ static void tcp_queue_recv_data(struct tcp *conn, struct net_pkt *pkt,
 static bool tcp_data_received(struct tcp *conn, struct net_pkt *pkt,
 			      size_t *len)
 {
+	if (*len == 0) {
+		return false;
+	}
+
 	if (tcp_data_get(conn, pkt, len) < 0) {
 		return false;
+	}
+
+	uint8_t retry_times = 0;
+	while(conn->recv_win < NET_IPV6_MTU){
+		k_msleep(1 + retry_times);
+		if(retry_times++ > 10) break;
 	}
 
 	net_stats_update_tcp_seg_recv(conn->iface);
@@ -1614,6 +1631,10 @@ static void tcp_out_of_order_data(struct tcp *conn, struct net_pkt *pkt,
 {
 	size_t headers_len;
 
+	if (data_len == 0) {
+		return;
+	}
+
 	headers_len = net_pkt_get_len(pkt) - data_len;
 
 	/* Get rid of protocol headers from the data */
@@ -1624,6 +1645,8 @@ static void tcp_out_of_order_data(struct tcp *conn, struct net_pkt *pkt,
 	/* We received out-of-order data. Try to queue it.
 	 */
 	tcp_queue_recv_data(conn, pkt, data_len, seq);
+
+	tcp_out(conn, ACK);
 }
 
 /* TCP state machine, everything happens here */
@@ -1876,7 +1899,7 @@ next_state:
 			}
 		}
 
-		if (th && len) {
+		if (th) {
 			if (th_seq(th) == conn->ack) {
 				if (!tcp_data_received(conn, pkt, &len)) {
 					break;
@@ -2068,10 +2091,20 @@ int net_tcp_listen(struct net_context *context)
 
 int net_tcp_update_recv_wnd(struct net_context *context, int32_t delta)
 {
-	ARG_UNUSED(context);
-	ARG_UNUSED(delta);
+	int32_t new_win;
 
-	return -EPROTONOSUPPORT;
+	if (!context->tcp) {
+		NET_ERR("context->tcp == NULL");
+		return -EPROTOTYPE;
+	}
+
+	new_win = ((struct tcp *)context->tcp)->recv_win + delta;
+	if (new_win < 0 || new_win > UINT16_MAX) {
+		return -EINVAL;
+	}
+	((struct tcp *)context->tcp)->recv_win = new_win;
+
+	return 0;
 }
 
 /* net_context queues the outgoing data for the TCP connection */
