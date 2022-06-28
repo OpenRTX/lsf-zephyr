@@ -408,7 +408,7 @@ uint32_t send_one_img(cv_image_recv_t *img)
 	// }
 	__ASSERT(img->data == (uint8_t*)img+sizeof(cv_image_recv_t), "img->data: %p not equal to img+head: %p", img->data, (uint8_t*)img+sizeof(cv_image_recv_t));
 	__ASSERT(img->check_sum == check_sum, "check sum failed img->check_sum:%d  check_sum: %d",img->check_sum, check_sum);
-	g_image_cb((uint8_t *)img, img_size, LISA_IMAGE_FRAME_CONTINUE);
+	g_image_cb((uint8_t *)img, img_size + sizeof(cv_image_recv_t), LISA_IMAGE_FRAME_CONTINUE);
 	return img_size + sizeof(cv_image_recv_t);
 }
 
