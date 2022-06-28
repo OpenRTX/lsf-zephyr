@@ -1,3 +1,4 @@
+#include <zephyr.h>
 #include <lisa_websocket.h>
 #include <lisa_log.h>
 #include <lisa_mem.h>
@@ -13,20 +14,27 @@
 #define WS_SEND_RETRY_TXT_COUNT (10)
 #define WS_SEND_RETRY_BIN_COUNT (5)
 #define WS_SEND_RETRY_DELAY (50000)  // 20ms
-#define SEND_STACK_SIZE (10 * 1024)
+#define SEND_STACK_SIZE (4 * 1024)
 #define RECV_STACK_SIZE (8 * 512)
 #define WS_QUEUE_COUNT 150
 #define	WS_SEND_DATA_TIMEOUT	100
-#define WS_DEFAULT_BUFFER_SIZE	2048
+#define WS_DEFAULT_BUFFER_SIZE	10240
 
-#define TAG "lisa_ws"
+#define TAG "real_lisa_ws"
+#define LWS_ASYNC_CALL	1
 
+#if LWS_ASYNC_CALL
 typedef struct {
-	lisa_ws_data_type_e m_type;  // 0 txt 1 audio
-	char *m_msg;
-	int m_size;
-	uint32_t flash_index;
+	lisa_ws_data_type_e msg_type;
+	void *data;
+	uint32_t data_len;
 } lisa_ws_msg_t;
+K_MSGQ_DEFINE(s_ws_tx_msgq, sizeof(lisa_ws_msg_t), 20, 4);
+K_MSGQ_DEFINE(s_ws_rx_msgq, sizeof(lisa_ws_msg_t), 20, 4);
+K_THREAD_STACK_DEFINE(s_workq_stack, 2048);
+static struct k_work s_send_work;
+static struct k_work_q s_workq;
+#endif
 
 static lisa_ws_t *g_lisa_ws = NULL;
 static ze_websocket_client_handle_t s_client = NULL;
@@ -77,6 +85,43 @@ static void _callback_ws_on_data(const void* data, uint32_t data_len, lisa_ws_da
 	g_lisa_ws->inter_on_data(&ws_data);
 }
 
+#if LWS_ASYNC_CALL
+void ws_send_work_handler(struct k_work *item)
+{
+	int ret;
+	lisa_ws_msg_t message;
+	while (k_msgq_get(&s_ws_rx_msgq, &message, K_NO_WAIT) == 0) {
+		if (message.msg_type == LISA_WS_TEXT || message.msg_type == LISA_WS_BIN) {
+			printk("---------------------on data\n");
+			_callback_ws_on_data(message.data, message.data_len, message.msg_type);
+			lisa_mem_free(message.data);
+		} else {
+			__ASSERT(0, "receive work handler failed");
+		}
+	}
+	while (k_msgq_get(&s_ws_tx_msgq, &message, K_NO_WAIT) == 0) {
+		if (message.msg_type == LISA_WS_TEXT) {
+			printk("---------------------send text\n");
+			ret = ze_websocket_client_send_text(s_client, message.data, message.data_len, WS_SEND_DATA_TIMEOUT);
+			printk("---------------------send text ret %d\n", ret);
+			if (ret < 0) {
+				LISA_LOGE(TAG, "Send bin failed, %d", ret);
+			}
+		} else if (message.msg_type == LISA_WS_BIN) {
+			printk("---------------------send bin\n");
+			ret = ze_websocket_client_send_bin(s_client, message.data, message.data_len, WS_SEND_DATA_TIMEOUT);
+			printk("---------------------send bin ret %d\n", ret);
+			if (ret < 0) {
+				LISA_LOGE(TAG, "Send bin failed, %d", ret);
+			}
+		} else {
+			__ASSERT(0, "send work handler failed");
+		}
+		lisa_mem_free(message.data);
+	}
+}
+#endif
+
 lisa_ws_t *lisa_ws_init(lisa_ws_request_t *req)
 {
 	lisa_ws_t *handle = (lisa_ws_t *)lisa_mem_calloc(1, sizeof(lisa_ws_t));
@@ -101,7 +146,7 @@ lisa_ws_t *lisa_ws_init(lisa_ws_request_t *req)
 
 	ze_websocket_client_config_t websocket_cfg = {
 			.task_stack = SEND_STACK_SIZE,
-			.task_prio = OS_PRIORITY_HIGH,
+			.task_prio = 0,
 			.user_context = handle,
 			.headers = "Origin: http://www.listenai.com\r\n",
 			.disable_auto_reconnect = false,
@@ -118,7 +163,19 @@ lisa_ws_t *lisa_ws_init(lisa_ws_request_t *req)
 	}
 
 	ze_websocket_register_events(client, _lisa_ws_cb);
-
+#if LWS_ASYNC_CALL
+	static bool is_init = false;
+    if (!is_init) {
+        k_work_queue_start(&s_workq,
+                            s_workq_stack,
+                            K_THREAD_STACK_SIZEOF(s_workq_stack),
+                            1,
+                            NULL);
+        k_thread_name_set(&s_workq.thread, "s_workq");
+        is_init = true;
+    }
+	k_work_init(&s_send_work, &ws_send_work_handler);
+#endif
 	g_lisa_ws = handle;
 	s_client = client;
 	return handle;
@@ -155,6 +212,17 @@ static void _lisa_ws_cb(ze_websocket_client_handle_t *client, ze_websocket_event
 				LISA_LOGD(TAG, "ws ping");
 			} else if (data->op_code == WS_TRANSPORT_OPCODES_PONG) {
 				LISA_LOGD(TAG, "ws pong");
+				if (data->data_len > 0) {
+					LISA_LOGE(TAG, "ws pong with data");
+					for (int i = 0; i < data->data_len; i++) {
+						printk("0x%x ", data->data_ptr[i]);
+					}
+					printk("\n");
+					return;
+				}
+			} else if (data->op_code == WS_TRANSPORT_OPCODES_CLOSE) {
+				LISA_LOGD(TAG, "ws close");
+				ze_websocket_client_stop(s_client);
 			} else {
 				LISA_LOGE(TAG, "opcode error, 0x%x", data->op_code);
 				return;
@@ -163,21 +231,39 @@ static void _lisa_ws_cb(ze_websocket_client_handle_t *client, ze_websocket_event
 			if (data->data_len <= 0) {
 				return;
 			}
-			LISA_LOGD(TAG, "received=%.*s", data->data_len, (char *)data->data_ptr);
 
 			if (is_recombination) {
 				memcpy(recom_buf + (data->payload_len - remain_len), data->data_ptr, data->data_len);
 				remain_len -= data->data_len;
 				if (remain_len == 0) {
 					is_recombination = false;
-					printk("%s\n", recom_buf);
+				#if LWS_ASYNC_CALL
+					lisa_ws_msg_t message;
+					message.data = recom_buf;
+					message.data_len = data->payload_len;
+					message.msg_type = data_type;
+					k_msgq_put(&s_ws_rx_msgq, &message, K_FOREVER);
+					k_work_submit_to_queue(&s_workq, &s_send_work);
+					recom_buf = NULL;
+				#else
 					_callback_ws_on_data(recom_buf, data->payload_len, data_type);
 					lisa_mem_free(recom_buf);
 					recom_buf = NULL;
+				#endif
 				}
 			} else {
 				if (data->data_len == data->payload_len) {
+				#if LWS_ASYNC_CALL
+					lisa_ws_msg_t message;
+					message.data = lisa_mem_alloc(data->payload_len + 1);
+					memcpy(message.data, data->data_ptr, data->payload_len);
+					message.data_len = data->payload_len;
+					message.msg_type = data_type;
+					k_msgq_put(&s_ws_rx_msgq, &message, K_FOREVER);
+					k_work_submit_to_queue(&s_workq, &s_send_work);
+				#else
 					_callback_ws_on_data(data->data_ptr, data->data_len, data_type);
+				#endif
 				} else {
 					recom_buf = lisa_mem_alloc(data->payload_len);
 					if (recom_buf == NULL) {
@@ -225,8 +311,7 @@ lisa_ws_err_e lisa_ws_disconnect(lisa_ws_t *ins)
 	if (!ins || g_stop) {
 		return LISA_WS_COMMON_ERR;
 	}
-	g_stop = true;
-	lisa_thread_mdelay(10);
+	ze_websocket_client_stop(s_client);
 	return LISA_WS_OK;
 }
 
@@ -239,10 +324,25 @@ lisa_ws_err_e lisa_ws_send_text(lisa_ws_t *ins, const uint8_t *text)
 	if (ret != 0) {
 		return LISA_WS_DISCONECT;
 	}
+#if LWS_ASYNC_CALL
+	uint32_t len = strlen(text);
+	lisa_ws_msg_t message;
+	message.data = lisa_mem_alloc(len + 1);
+	if (!message.data) {
+		return LISA_WS_COMMON_ERR;
+	}
+	message.data_len = len;
+	message.msg_type = LISA_WS_TEXT;
+	memcpy(message.data, text, len + 1);
+
+	k_msgq_put(&s_ws_tx_msgq, &message, K_FOREVER);
+	k_work_submit_to_queue(&s_workq, &s_send_work);
+#else
 	int send_ret = ze_websocket_client_send_text(s_client, text, strlen(text), WS_SEND_DATA_TIMEOUT);
 	if (send_ret < 0) {
 		return LISA_WS_COMMON_ERR;
 	}
+#endif
 	k_mutex_unlock(&s_ws_conn_mutex);
 	return LISA_WS_OK;
 }
@@ -256,10 +356,24 @@ lisa_ws_err_e lisa_ws_send_binary(lisa_ws_t *ins, const void *buf, uint32_t len)
 	if (ret != 0) {
 		return LISA_WS_DISCONECT;
 	}
+#if LWS_ASYNC_CALL
+	lisa_ws_msg_t message;
+	message.data = lisa_mem_alloc(len);
+	if (!message.data) {
+		return LISA_WS_COMMON_ERR;
+	}
+	message.data_len = len;
+	message.msg_type = LISA_WS_BIN;
+	memcpy(message.data, buf, len);
+
+	k_msgq_put(&s_ws_tx_msgq, &message, K_FOREVER);
+	k_work_submit_to_queue(&s_workq, &s_send_work);
+#else
 	int send_ret = ze_websocket_client_send_bin(s_client, buf, len, WS_SEND_DATA_TIMEOUT);
 	if (send_ret < 0) {
 		return LISA_WS_COMMON_ERR;
 	}
+#endif
 	k_mutex_unlock(&s_ws_conn_mutex);
 	return LISA_WS_OK;
 }
