@@ -559,7 +559,7 @@ int buttons_init(void)
 	lisa_thread_attr_t thread_attr;
 	thread_attr.name = "button_thread";
 	thread_attr.stack_size = 4096;
-	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+	thread_attr.priority = OS_PRIORITY_HIGH;  // OS_PRIORITY_NORMAL
 
 	buttons_thread = lisa_thread_create(&thread_attr, buttons_process_thread, NULL);
 	if (buttons_thread == NULL) {
