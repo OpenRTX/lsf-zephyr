@@ -1,5 +1,6 @@
 #include "lisa_evs_rec.h"
 
+#include "sys/printk.h"
 #include <lisa_mem.h>
 #include <lisa_mutex.h>
 #include <lisa_queue.h>
@@ -24,6 +25,7 @@
 #define REC_IMAGE_QUEUE_COUNT (20)
 #define REC_IMAGE_QUEUE_NAME ("image_queue")
 #define REC_IMAGE_QUEUE_ITEM_SIZE (sizeof(rec_image_block_t))
+#define IMAGE_COUNT (5)
 
 /// 此定义用于image得visual_in请求的metadata.image_debug字段
 /// 此字段为true, 可以通过 https://cdn.iflyos.cn/public/ocr_debug/{request_id} 获取数据
@@ -110,7 +112,7 @@ int _compress_and_send_image_frame(
 int _reset_image_process_param(
 		uint8_t *stitch_image, CVSize *in_size, CVSize *out_size, CVSize *last_stitch)
 {
-	if (stitch_image) memset(stitch_image, 0xFF, sizeof(uint8_t) * MAX_OUTPUT_IMAGE_SIZE);
+	// if (stitch_image) memset(stitch_image, 0xFF, sizeof(uint8_t) * MAX_OUTPUT_IMAGE_SIZE);
 	if (in_size) memset(in_size, 0, sizeof(CVSize));
 	if (out_size) memset(out_size, 0, sizeof(CVSize));
 	if (last_stitch) memset(last_stitch, 0, sizeof(CVSize));
@@ -199,17 +201,20 @@ void _rec_tx_image_thread_fun(void *arg)
 		LISA_LOGE(TAG, "lisa evs rec image queue is null in tx image thread");
 		return;
 	}
-
-	uint8_t *stitch_image = (uint8_t *)lisa_mem_calloc(1, MAX_OUTPUT_IMAGE_SIZE);
+	// uint8_t *stitch_image = (uint8_t*)lisa_mem_calloc(1, MAX_OUTPUT_IMAGE_SIZE);
+	uint8_t *stitch_image = NULL;
 	bool running = true;
 	lisa_err_t queue_rev_ret = LISA_OK;
 	rec_image_block_t image_block;
 	uint32_t stitch_index = 0;
+	uint32_t x_len = 0;
+	uint32_t y_len = 0;
 	CVSize in_size;
 	CVSize out_size;
 	CVSize last_stitch;
 	rec_image_param_t last_img_param = {0, 0};
 	int shift[2] = {0, 0};
+	rec_image_block_t image_list[IMAGE_COUNT] = {0};
 
 	_reset_image_process_param(stitch_image, &in_size, &out_size, &last_stitch);
 
@@ -233,41 +238,94 @@ void _rec_tx_image_thread_fun(void *arg)
 				LISA_LOGD(TAG, "Send image start event");
 				s_debug = start->param->debug;
 				_rec_image_start(handle, start->req_id, start->param);
-				if (start->req_id) lisa_mem_free(start->req_id);
-				if (start->param) lisa_mem_free(start->param);
-				if (start) lisa_mem_free(start);
+				if (start->req_id)
+					lisa_mem_free(start->req_id);
+				if (start->param)
+					lisa_mem_free(start->param);
+				if (start)
+					lisa_mem_free(start);
+
+				if (stitch_index != 0) {
+					int image_len = stitch_index % IMAGE_COUNT;
+					for (int i = 0; i < image_len; i++) {
+						rec_image_block_t temp_image = image_list[i];
+						if (temp_image.block->data)
+							lisa_mem_free(temp_image.block->data);
+
+					}
+					x_len = 0;
+					y_len = 0;
+				}
 			}
 			continue;
 		} else if (block_type == REC_IMAGE_DATA_T_ENTER) {  // 该数据为换行帧
 			if (s_debug) continue;
 
 			// 之前有不满5帧的数据未发送
-			if (stitch_index % 5 != 0) {
-				img_frame_protocol_t in_img_frame_msg = {.tag = IMAGE_FRAME_MASSAGE_TAG,
-						.ver = IMAGE_FRAME_MASSAGE_VER,  // TODO
-														 // 调试阶段数据不对，写死，后期根据CSK上来的数据
-						.fuid = stitch_index / 5,
-						.type = IMAGE_FRAME_MASSAGE_TYPE,  // TODO
-														   // 调试阶段数据不对，写死，后期根据CSK上来的数据
-						.fmt = IMAGE_FRAME_MASSAGE_FMT,
-						.xsft = last_stitch.x,
-						.ysft = last_stitch.y,
-						.width = out_size.width,
-						.height = out_size.height,
-						.depth = last_img_param.depth,
-						.reserved = 0,
-						.data = stitch_image};
+			if(stitch_index % IMAGE_COUNT != 0) {
+				int image_size = stitch_index % IMAGE_COUNT;
+				int max_ysft = 0;
+				int min_ysft = 0;
+				for (int i = 0; i < image_size; i++) {
+					if (i != 0) {
+						int ysft = image_list[i].block->ysft;
+						if (ysft > 0) {
+							max_ysft = max_ysft > ysft ? max_ysft : ysft;
+						} else if (ysft < 0) {
+							min_ysft = min_ysft < ysft ? min_ysft : ysft;
+						}
+					}
+				}
+				y_len = 180 + max_ysft - min_ysft;
+				stitch_image = lisa_mem_alloc(x_len * y_len);
+				memset(stitch_image, 0xFF, x_len * y_len);
+
+				for (int i = 0; i < image_size; i++)
+				{
+					rec_image_block_t temp_image = image_list[i];
+					in_size.height = temp_image.block->width;
+					in_size.width = temp_image.block->height;
+					shift[0] = temp_image.block->xsft;
+					shift[1] = temp_image.block->ysft;
+					stitch_img_T_len((uint8_t*)temp_image.block->data, stitch_image, &in_size, &out_size, &last_stitch, shift, in_status, y_len, x_len);
+					
+					if (temp_image.block) {
+						if (temp_image.block->data)
+							lisa_mem_free(temp_image.block->data);
+						lisa_mem_free(temp_image.block);
+					}
+				}
+				x_len = 0;
+				y_len = 0;
+				last_img_param.fmt = image_list[image_size - 1].block->fmt;
+				last_img_param.depth = image_list[image_size - 1].block->depth;
+				
+				img_frame_protocol_t in_img_frame_msg = {
+					.tag = IMAGE_FRAME_MASSAGE_TAG,
+					.ver = IMAGE_FRAME_MASSAGE_VER,     // TODO 调试阶段数据不对，写死，后期根据CSK上来的数据
+					.fuid = stitch_index / IMAGE_COUNT,
+					.type = IMAGE_FRAME_MASSAGE_TYPE,   // TODO 调试阶段数据不对，写死，后期根据CSK上来的数据
+					.fmt = IMAGE_FRAME_MASSAGE_FMT,
+					.xsft = last_stitch.x,
+					.ysft = last_stitch.y,
+					.width = out_size.width,
+					.height = out_size.height,
+					.depth = last_img_param.depth,
+					.reserved = 0,
+					.data = stitch_image
+				};
 				// 该帧不满足5帧数据, 但是计数得正常
-				stitch_index += 5 - (stitch_index % 5);
+				stitch_index += IMAGE_COUNT - (stitch_index % IMAGE_COUNT);
 				LISA_LOGD(TAG, "send remaining image frame before enter frame");
 				_compress_and_send_image_frame(handle, &in_img_frame_msg);
+				lisa_mem_free(stitch_image);
 			}
 			// 发送换行帧
 			const uint8_t image_enter_frame[16] = {0x46, 0x5A, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00,
 					0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 			LISA_LOGD(TAG, "send image enter frame to websocket");
 			lisa_evs_websocket_send_image(handle->ws, image_enter_frame, 16);
-			_reset_image_process_param(stitch_image, &in_size, &out_size, NULL);
+			_reset_image_process_param(stitch_image, &in_size, &out_size, &last_stitch);
 			continue;
 		} else if (block_type == REC_IMAGE_DATA_T_END) {
 			if (s_debug) {
@@ -284,25 +342,63 @@ void _rec_tx_image_thread_fun(void *arg)
 				// 数据为发送图片END
 				// 之前有不满5帧的数据未发送
 				// 正常模式,之前有不满5帧的数据未发送
-				if (stitch_index % 5 != 0) {
-					img_frame_protocol_t in_img_frame_msg = {.tag = IMAGE_FRAME_MASSAGE_TAG,
-							.ver = IMAGE_FRAME_MASSAGE_VER,  // TODO
-															 // 调试阶段数据不对，写死，后期根据CSK上来的数据
-							.fuid = stitch_index / 5,
-							.type = IMAGE_FRAME_MASSAGE_TYPE,  // TODO
-															   // 调试阶段数据不对，写死，后期根据CSK上来的数据
-							.fmt = IMAGE_FRAME_MASSAGE_FMT,
-							.xsft = last_stitch.x,
-							.ysft = last_stitch.y,
-							.width = out_size.width,
-							.height = out_size.height,
-							.depth = last_img_param.depth,
-							.reserved = 0,
-							.data = stitch_image};
-					// 该帧不满足5帧数据, 但是计数得正常
-					stitch_index += 5 - (stitch_index % 5);
+				if(stitch_index % IMAGE_COUNT != 0) {
+					int image_size = stitch_index % IMAGE_COUNT;
+					int max_ysft = 0;
+					int min_ysft = 0;
+					for (int i = 0; i < image_size; i++) {
+						if (i != 0) {
+							int ysft = image_list[i].block->ysft;
+							if (ysft > 0) {
+								max_ysft = max_ysft > ysft ? max_ysft : ysft;
+							} else if (ysft < 0) {
+								min_ysft = min_ysft < ysft ? min_ysft : ysft;
+							}
+						}
+					}
+					y_len = 180 + max_ysft - min_ysft;
+					stitch_image = lisa_mem_alloc(x_len * y_len);
+					memset(stitch_image, 0xFF, x_len * y_len);
+
+					for (int i = 0; i < image_size; i++)
+					{
+						rec_image_block_t temp_image = image_list[i];
+						in_size.height = temp_image.block->width;
+						in_size.width = temp_image.block->height;
+						shift[0] = temp_image.block->xsft;
+						shift[1] = temp_image.block->ysft;
+						stitch_img_T_len((uint8_t*)temp_image.block->data, stitch_image, &in_size, &out_size, &last_stitch, shift, in_status, y_len, x_len);
+						
+						if (temp_image.block) {
+							if (temp_image.block->data)
+								lisa_mem_free(temp_image.block->data);
+							lisa_mem_free(temp_image.block);
+						}
+					}
+					last_img_param.fmt = image_list[image_size - 1].block->fmt;
+					last_img_param.depth = image_list[image_size - 1].block->depth;
+					x_len = 0;
+					y_len = 0;
+					
+					img_frame_protocol_t in_img_frame_msg = {
+						.tag = IMAGE_FRAME_MASSAGE_TAG,
+						.ver = IMAGE_FRAME_MASSAGE_VER,     // TODO 调试阶段数据不对，写死，后期根据CSK上来的数据
+						.fuid = stitch_index / IMAGE_COUNT,
+						.type = IMAGE_FRAME_MASSAGE_TYPE,   // TODO 调试阶段数据不对，写死，后期根据CSK上来的数据
+						.fmt = IMAGE_FRAME_MASSAGE_FMT,
+						.xsft = last_stitch.x,
+						.ysft = last_stitch.y,
+						.width = out_size.width,
+						.height = out_size.height,
+						.depth = last_img_param.depth,
+						.reserved = 0,
+						.data = stitch_image
+					};
+
+					stitch_index += IMAGE_COUNT - (stitch_index % IMAGE_COUNT);
 					LISA_LOGD(TAG, "send remaining image frame before send end image");
 					_compress_and_send_image_frame(handle, &in_img_frame_msg);
+					lisa_mem_free(stitch_image);
 				}
 				lisa_evs_websocket_end_image(handle->evs->ws);
 				LISA_LOGD(TAG, "Send image end event");
@@ -344,8 +440,8 @@ void _rec_tx_image_thread_fun(void *arg)
 			if (image_block.index == 0) {
 				in_status = ISTITCH_ISTATUS_BEGIN_GLOBAL_;  // 扫描第一个图片
 				_reset_image_process_param(stitch_image, &in_size, &out_size, &last_stitch);
-			} else if (stitch_index % 5 == 0) {
-				in_status = ISTITCH_ISTATUS_BEGIN_BATCH_;  // 某次拼接开始
+			} else if(stitch_index % IMAGE_COUNT == 0) {
+				in_status = ISTITCH_ISTATUS_BEGIN_BATCH_; // 某次拼接开始
 			} else {
 				in_status = ISTITCH_ISTATUS_CONTINUE_;
 			}
@@ -355,37 +451,73 @@ void _rec_tx_image_thread_fun(void *arg)
 					image_block.block->width, image_block.block->height);
 			shift[0] = image_block.block->xsft;
 			shift[1] = image_block.block->ysft;
-			in_size.height = image_block.block->width;
-			in_size.width = image_block.block->height;
-
-			stitch_img_T((uint8_t *)image_block.block->data, stitch_image, &in_size, &out_size,
-					&last_stitch, shift, in_status);
+			x_len += image_block.block->width;
+			if (shift[0] > 0) {
+				x_len += shift[0];
+			}
+			memcpy(&(image_list[stitch_index % IMAGE_COUNT]), &image_block, sizeof(rec_image_block_t));
 			stitch_index++;
-			last_img_param.fmt = image_block.block->fmt;
-			last_img_param.depth = image_block.block->depth;
-			if (image_block.block->data) lisa_mem_free(image_block.block->data);
 
-			if (stitch_index % 5 == 0) {
-				img_frame_protocol_t in_img_frame_msg = {.tag = IMAGE_FRAME_MASSAGE_TAG,
-						.ver = IMAGE_FRAME_MASSAGE_VER,
-						.fuid = stitch_index / 5,
-						.type = IMAGE_FRAME_MASSAGE_TYPE,
-						.fmt = IMAGE_FRAME_MASSAGE_FMT,
-						.xsft = last_stitch.x,
-						.ysft = last_stitch.y,
-						.width = out_size.width,
-						.height = out_size.height,
-						.depth = image_block.block->depth,
-						.reserved = 0,
-						.data = stitch_image};
+			if (stitch_index % IMAGE_COUNT == 0) {
+				int32_t max_ysft = 0;
+				int32_t min_ysft = 0;
+				for (int i = 0; i < IMAGE_COUNT; i++) {
+					if (i != 0) {
+						int32_t ysft = image_list[i].block->ysft;
+						if (ysft > 0) {
+							max_ysft = ysft > max_ysft ? ysft : max_ysft;
+						} else if (ysft < 0) {
+							min_ysft = ysft < min_ysft ? ysft : min_ysft;
+						}
+					}
+				}
+				y_len = 180 + max_ysft - min_ysft;
+				stitch_image = lisa_mem_alloc(x_len * y_len);
+				memset(stitch_image, 0xFF, x_len * y_len);
+				for (int i = 0; i < IMAGE_COUNT; i++)
+				{
+					rec_image_block_t temp_image = image_list[i];
+					in_size.height = temp_image.block->width;
+					in_size.width = temp_image.block->height;
+					shift[0] = temp_image.block->xsft;
+					shift[1] = temp_image.block->ysft;
+					int ret = stitch_img_T_len((uint8_t*)temp_image.block->data, stitch_image, &in_size, &out_size, &last_stitch, shift, in_status, y_len, x_len);
+					if (temp_image.block) {
+						if (temp_image.block->data)
+							lisa_mem_free(temp_image.block->data);
+						lisa_mem_free(temp_image.block);
+					}
+
+				}
+				last_img_param.fmt = image_list[IMAGE_COUNT - 1].block->fmt;
+				last_img_param.depth = image_list[IMAGE_COUNT - 1].block->depth;
+				x_len = 0;
+				y_len = 0;
+				
+				img_frame_protocol_t in_img_frame_msg = {
+					.tag = IMAGE_FRAME_MASSAGE_TAG,
+					.ver = IMAGE_FRAME_MASSAGE_VER,
+					.fuid = stitch_index / IMAGE_COUNT,
+					.type = IMAGE_FRAME_MASSAGE_TYPE,
+					.fmt = IMAGE_FRAME_MASSAGE_FMT,
+					.xsft = last_stitch.x,
+					.ysft = last_stitch.y,
+					.width = out_size.width,
+					.height = out_size.height,
+					.depth = image_block.block->depth,
+					.reserved = 0,
+					.data = stitch_image
+				};
 
 				_compress_and_send_image_frame(handle, &in_img_frame_msg);
-				_reset_image_process_param(stitch_image, &in_size, &out_size, NULL);
+				lisa_mem_free(stitch_image);
+				_reset_image_process_param(stitch_image, &in_size, &out_size, &last_stitch);
 			}
-			if (image_block.block) lisa_mem_free(image_block.block);
+			// if (image_block.block)
+			// 	lisa_mem_free(image_block.block);
 		}
 	}
-	if (stitch_image) lisa_mem_free(stitch_image);
+	// if (stitch_image) lisa_mem_free(stitch_image);
 
 	lisa_thread_delete(handle->ctx->tx_image);
 }
