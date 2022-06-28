@@ -35,9 +35,7 @@ static FATFS s_fat_fs;
 
 static void s_fs_show(struct fs_mount_t *mp)
 {
-	unsigned int id = (uintptr_t)mp->storage_dev;
 	struct fs_statvfs sbuf;
-	const struct flash_area *pfa;
 	int rc;
 
 	rc = fs_statvfs(mp->mnt_point, &sbuf);

@@ -192,6 +192,10 @@ int wifi_sm_on_connect_scan_handler(const struct device *dev, wlan_event_t curre
         wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
         data->err = CSK_WIFI_ERR_AP_NOT_FOUND;
         wlan_event_give(&current_event);
+    } else if (current_event == WLAN_EVENT_4WAY_HANDSHAKE_FAILED) {
+        /* Not sure whether will go into here */
+        LOG_ERR("STA_SM[%s]: handshake failed", wifi_sta_sm_str);
+        wifi_obj_set_sm(WIFI_SM_STA_ON_HANDSHAKE_EXCEPTION);
     } else {
         LOG_ERR("STA_SM[%s]: unknown failed", wifi_sta_sm_str);
     }
@@ -573,10 +577,15 @@ static int wifi_sta_get_connected_info(const struct device *dev)
     data->sta_config.ssid[ap_info.ssid.ssid_len] = '\0';
     config.field = WLAN_STA_FIELD_PSK;
 
-    ret = wlan_sta_get_config(&config);
-    CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
+    if (strlen(data->sta_config.pwd)) {
+        /* When PSK mode is OPEN, this function will failed and return -1 */
+        ret = wlan_sta_get_config(&config);
+        CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
+        memcpy(data->sta_config.pwd, config.u.psk, CSK_WIFI_PWD_LEN);
+    } else {
+        memcpy(data->sta_config.pwd, "\0", CSK_WIFI_PWD_LEN);
+    }
 
-    memcpy(data->sta_config.pwd, config.u.psk, CSK_WIFI_PWD_LEN);
     data->sta_config.pwd[CSK_WIFI_PWD_LEN - 1] = '\0';
     sprintf(data->sta_config.bssid, MACSTR, MACTOSTR(ap_info.bssid));
     data->sta_config.rssi = -(ap_info.rssi * 0.5);
@@ -790,7 +799,7 @@ static void csk_wifi_receive_pkt(struct mbuf *mb, uint16_t len, void *arg)
     
     struct net_pkt* pkt = NULL;
     if (mb) {
-        pkt = net_pkt_rx_alloc_with_buffer(netif, len, AF_UNSPEC, 0, K_NO_WAIT);
+        pkt = net_pkt_rx_alloc_with_buffer(netif, len, AF_UNSPEC, 0, K_MSEC(CONFIG_NET_RX_ALLOC_TIMEOUT));
         if (pkt == NULL) {
             goto __cleanup;
         }

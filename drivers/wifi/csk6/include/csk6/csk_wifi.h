@@ -185,6 +185,8 @@ int csk_wifi_remove_callback(csk_wifi_event_cb_t *wifi_event_cb);
  * @param ap_info[in/out] Pointer to WiFi AP information structure
  * @param result[out] Pointer to WIFI operation result
  * @param timeout[in] How long to try to scan neighboring WIFI Access Point
+ * 
+ * @note timeout parameter only supports K_FOREVER or K_NO_WAIT
  *
  * @return  Number of neighboring APs imformation
  * @retval -EAGAIN(11) errno code if timeout or invalid state
@@ -207,6 +209,8 @@ int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, 
  * @param sta_config[in/out] Pointer to WIFI Station configuration structure
  * @param result[out] Pointer to WIFI operation result
  * @param timeout[in] How long to try to connect WIFI Access Point
+ * 
+ * @note timeout parameter only supports K_FOREVER or K_NO_WAIT
  *
  * @retval 0 Success
  * @retval -EAGAIN(11) errno code if timeout or invalid state
@@ -226,6 +230,8 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
  *
  * @param result[out] Pointer to WIFI operation result
  * @param timeout[in] How long to try to disconnect from WIFI Access Point
+ * 
+ * @note timeout parameter only supports K_FOREVER or K_NO_WAIT
  *
  * @return 0 if successful, negative errno code on failure.
  * @retval -EAGAIN(11) errno code if timeout or invalid state
