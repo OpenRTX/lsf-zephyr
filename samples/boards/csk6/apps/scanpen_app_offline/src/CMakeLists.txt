@@ -19,3 +19,5 @@ if(CONFIG_MCUMGR)
 zephyr_library_sources(./mcumgr_domain.c)
 zephyr_library_sources(./mcumgr_udp.c)
 endif()
+
+zephyr_library_sources(./shell_dump.c)
