@@ -87,6 +87,18 @@ void out_img_transfer(uint8_t *src, uint8_t *dst, uint32_t width, uint32_t heigh
 int stitch_img_T(uint8_t *in_img, uint8_t *ou_img, CVSize *in_size, CVSize *ou_size, CVSize *last_stitch, int *shift, int in_status);
 
 /**
+ * 拼接图像(竖向拼接)
+ * para：[in]in_img---裁剪转置后的图像数据
+ *		 [out]ou_img---拼接后的图像(竖向)
+ *		 [in]in_size---in_img对应的图像大小
+ *		 [out]ou_size---ou_img对应的图像大小
+ *		 [inout]last_stitch---上一次拼接后的位置信息
+ *		 [in]shift---当前图像基于上一张图像的偏移信息
+ *		 [in]in_status---拼接状态，参考枚举ISTITCH_ISTATUS_
+ **/
+int stitch_img_T_len(uint8_t *in_img, uint8_t *ou_img, CVSize *in_size, CVSize *ou_size, CVSize *last_stitch, int *shift, int in_status, int x_len, int y_len);
+
+/**
  * @brief 横向拼接原图
  * @param in_img 			原图
  * @param ou_img 			拼接后图片
