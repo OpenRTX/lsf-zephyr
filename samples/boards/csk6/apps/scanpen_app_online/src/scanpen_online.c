@@ -416,7 +416,22 @@ ERR_OPEN_FILE:
  */
 uint32_t _read_cp_buffer(uint8_t *data, unsigned int len, int wait_ms)
 {
+	#if 0
 	return recv_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, data, len, wait_ms);
+	#else
+	int iret;
+	if(lisa_vcapture_is_runing(vcap_handler) == 0){
+		k_msleep(10);
+		return 0;
+	}
+	iret = lisa_vcapture_readi(vcap_handler,data,len);
+	if(iret >= 0){
+		return iret;
+	}
+	LISA_LOGE(TAG,"Read vcapture datai failed iret %d\n",iret);
+	k_msleep(10);
+	return 0;
+	#endif
 }
 
 /**

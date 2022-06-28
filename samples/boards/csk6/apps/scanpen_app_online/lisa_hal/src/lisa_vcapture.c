@@ -89,7 +89,7 @@ static void _dump_params(const lisa_vcapture_context_t *ctx)
  *
  * @retval   status
  */
-static vcapture_status_e _vcapture_get_status(const lisa_vcapture_context_t *ctx)
+vcapture_status_e _vcapture_get_status(const lisa_vcapture_context_t *ctx)
 {
 	// need mutex TODO
 	return ctx->vcapture_st;
@@ -350,12 +350,12 @@ int8_t lisa_vcapture_start(lisa_vcapture_handler_t *handler)
 		goto _err_status;
 	}
 
-	int ret = vcap_event_register(ctx->vcapture, AVF_STREAM_EVENT_THRES_NOTIFY,
-			_vcapture_data_process, ctx, IMAGE_CAPTURE_EVENT_THRES);
-	if (ret != 0) {
-		LISA_LOGE(TAG, "[%s %d]vcap_event_register failed\n", __FUNCTION__, __LINE__);
-		goto _err_vcap_event;
-	}
+	// int ret = vcap_event_register(ctx->vcapture, AVF_STREAM_EVENT_THRES_NOTIFY,
+	// 		_vcapture_data_process, ctx, IMAGE_CAPTURE_EVENT_THRES);
+	// if (ret != 0) {
+	// 	LISA_LOGE(TAG, "[%s %d]vcap_event_register failed\n", __FUNCTION__, __LINE__);
+	// 	goto _err_vcap_event;
+	// }
 	vcap_set_fmt(ctx->vcapture, &ctx->fmt);
 
 	if (vcap_start(ctx->vcapture) != 0) {
@@ -480,4 +480,19 @@ int8_t lisa_vcapture_destroy(lisa_vcapture_handler_t *handler)
 _err_status:
 _err_handler:
 	return -1;
+}
+
+
+int lisa_vcapture_readi(lisa_vcapture_handler_t* handle,char* buffer,uint32_t len){
+	
+	return vcap_read_datai(handle->ctx->vcapture ,buffer,len);
+}
+
+int lisa_vcapture_is_runing(lisa_vcapture_handler_t* handle){
+	lisa_vcapture_context_t *ctx = handle->ctx;
+	if (_vcapture_get_status(ctx) != VCAPTURE_STATUS_START) {
+		return 0;
+	}	
+
+	return 1;
 }
