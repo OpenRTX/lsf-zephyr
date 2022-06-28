@@ -94,7 +94,8 @@ __attribute__((aligned(32),
 	       used)) static char swp_frames[5][sizeof(frame_info_t) + 180 * 128] = { 0 };
 
 #define BUILD_CHECK(x) do {char var[!!(x) - 1] __attribute__((unused));} while(0)
-
+lisa_semaphore_t *s_ocr_res_sema = NULL;
+static lisa_thread_t *s_offline_recognize_thread = NULL;
 
 // 单行扫描
 static bool s_singleline = false;
@@ -172,7 +173,7 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			send_ocr_simulation_image_once(&recv_image);
 		} break;
 		case VCAPTURE_OCR:
-			// LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
+			 LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
 #if(CONFIG_AVF_MODULES_ALG_OCR) 
 			snprintf(ocr_result,sizeof(ocr_result),"%s",data);
 			lisa_semaphore_give(s_ocr_res_sema);
@@ -1066,5 +1067,8 @@ void start_scanpen_online()
 	create_cam2cp_thread();
 	_video_init();
 	pen_head_button_init();
+#if (CONFIG_AVF_MODULES_ALG_OCR)
+		create_offline_recognize_thread();
+#endif	
 }
 

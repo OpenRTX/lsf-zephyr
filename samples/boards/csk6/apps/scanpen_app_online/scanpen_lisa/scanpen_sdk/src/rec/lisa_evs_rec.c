@@ -21,7 +21,7 @@
 #define REC_TX_IMAGE_THREAD_PRIORITY 	5
 #define REC_TX_IMAGE_THREAD_STACKSIZE (5 * 1024)
 /// 图像队列参数
-#define REC_IMAGE_QUEUE_COUNT (200)
+#define REC_IMAGE_QUEUE_COUNT (500)
 #define REC_IMAGE_QUEUE_NAME ("image_queue")
 #define REC_IMAGE_QUEUE_ITEM_SIZE (sizeof(rec_image_block_t))
 
