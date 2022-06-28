@@ -6,6 +6,25 @@
 #include <lisa_err.h>
 #include "lisa_evs_error.h"
 
+typedef struct{
+	uint16_t 	tag;
+	uint8_t 	version;
+	uint16_t 	fuid;
+	uint8_t 	type;
+	uint8_t 	format;
+	signed char x_shift;
+	signed char y_shift;
+	uint16_t 	width;
+	uint16_t 	heigth;
+	uint8_t 	depth;
+	uint16_t 	check_sum;
+	uint8_t 	data[0];
+} __attribute__ ((__packed__)) cv_image_recv_t;
+
+cv_image_recv_t *search_img_header(uint8_t *data_ptr, int data_size);
+uint32_t send_one_img(cv_image_recv_t *img);
+int get_img_nums(uint8_t *data_ptr, int data_size, int *remind_size);
+
 typedef struct {
 		uint16_t tag;  //标记
 		uint8_t ver;  //版本
