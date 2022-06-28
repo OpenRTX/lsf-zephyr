@@ -388,19 +388,28 @@ lisa_err_t lisa_evs_pack_spi_data(uint8_t *dst, uint8_t *src, uint32_t len, lisa
 #include <drivers/spi.h>
 
 #define UINT8_MAX_NUM	(0xff)
-const struct device *spi;
+const struct device *g_spi = NULL;
 static void lisa_spi_init(void)
 {
     printk("spi master example\n");
-	spi = DEVICE_DT_GET(DT_NODELABEL(spi0));
-	if (!device_is_ready(spi)) {
-		printk("SPI device %s is not ready\n", spi->name);
+	g_spi = DEVICE_DT_GET(DT_NODELABEL(spi0));
+	if (!device_is_ready(g_spi)) {
+		printk("SPI device %s is not ready\n", g_spi->name);
 		return;
 	}
 }
 
 int lisa_spi_write(uint8_t *data, uint32_t len)
 {
+	if(NULL == g_spi) {
+		LISA_LOGE(TAG, "lisa spi not init");
+		return -1;
+	}
+
+	if(NULL == data) {
+		LISA_LOGE(TAG, "spi write data null");
+		return -1;
+	}
     struct spi_config spi_cfg = {0};
     /* spi master 8bit, LSB first*/
 	spi_cfg.operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_TRANSFER_LSB;
@@ -414,7 +423,7 @@ int lisa_spi_write(uint8_t *data, uint32_t len)
 	tx_set.buffers = &_package;
 	tx_set.count = 1;
 
-	return spi_write(spi, &spi_cfg, &tx_set);
+	return spi_write(g_spi, &spi_cfg, &tx_set);
 }
 
 lisa_err_t lisa_evs_parser_cp_init(read_cp_data read_cb)
