@@ -641,7 +641,7 @@ void create_cp_task_protocol_thread()
 	lisa_thread_attr_t thread_attr;
 	thread_attr.name = "cp_task_protocol_thread";
 	thread_attr.stack_size = 2 * 1024;
-	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+	thread_attr.priority = OS_PRIORITY_HIGH;  // OS_PRIORITY_NORMAL
 
 	s_cp_task_run = 1;
 	//解析图片

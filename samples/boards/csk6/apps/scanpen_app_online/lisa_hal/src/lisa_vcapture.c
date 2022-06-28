@@ -29,6 +29,7 @@ typedef enum {
 	/* start status*/
 	VCAPTURE_STATUS_START,
 	/* stop status*/
+	VCAPTURE_STATUS_STOPING,
 	VCAPTURE_STATUS_STOP = VCAPTURE_STATUS_INIT,
 } vcapture_status_e;
 
@@ -420,7 +421,7 @@ int8_t lisa_vcapture_stop(lisa_vcapture_handler_t *handler)
 		LISA_LOGE(TAG, "[%s %d]vcapture not start", __FUNCTION__, __LINE__);
 		goto _err_status;
 	}
-
+	_vcapture_set_status(ctx, VCAPTURE_STATUS_STOPING);
 	vcap_event_unregister(ctx->vcapture, AVF_STREAM_EVENT_THRES_NOTIFY);
 	vcap_stop(ctx->vcapture);
 	/*while(k_msgq_num_used_get(&ctx->msgq) > 0) {*/
