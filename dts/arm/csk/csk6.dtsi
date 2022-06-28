@@ -18,7 +18,7 @@
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			
+
 			mpu: mpu@e000ed90 {
 				compatible = "arm,armv8m-mpu";
 				reg = <0xe000ed90 0x40>;
@@ -43,7 +43,7 @@
 		compatible = "listenai,csk6-psram";
 		reg = <0x30000000 DT_SIZE_M(8)>;
 		label = "psram0";
-	};	
+	};
 
 	soc {
 
@@ -219,7 +219,7 @@
 				#pwm-cells = <2>;
 			};
 		};
-		
+
 		i2c0: i2c@45600000 {
 			compatible = "listenai,csk-i2c";
 			reg = <0x45600000 0x100000>;
@@ -237,7 +237,7 @@
 			#size-cells = <0>;
 			label = "I2C_1";
 		};
-		
+
 		usbotg: usbd@41000000 {
 			compatible = "listenai,csk-usbd";
 			reg = <0x41000000 0x1000000>;
@@ -248,10 +248,10 @@
 			label = "USBD";
 		};
 
-		wdt: watchdog@44200000 {
+		wdt: watchdog@46b00000 {
 			compatible = "listenai,csk6-watchdog";
-			reg = <0x44200000 0x100000>;
-			interrupts = <7 0>;
+			reg = <0x46B00000 0x100000>;
+			interrupts = <26 0>;
 			label = "WDT";
 			status = "okay";
 		};
