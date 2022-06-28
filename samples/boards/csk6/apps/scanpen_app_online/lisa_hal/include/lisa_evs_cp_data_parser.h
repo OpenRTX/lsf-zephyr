@@ -23,6 +23,7 @@ typedef struct{
 
 cv_image_recv_t *search_img_header(uint8_t *data_ptr, int data_size);
 uint32_t send_one_img(cv_image_recv_t *img);
+int get_img_nums(uint8_t *data_ptr, int data_size, int *remind_size);
 
 typedef struct {
 		uint16_t tag;  //标记

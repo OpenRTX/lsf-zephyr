@@ -63,33 +63,10 @@ static char s_request_id[40] = {0};
 
 static lisa_evs_t *s_handle = NULL;
 
-// static void ocr_recognize_thread(void *arg1, void *arg2, void *arg3);
-// K_THREAD_DEFINE(ocr_recogize_thr, 2048,
-// 				ocr_recognize_thread, NULL, NULL, NULL,
-// 				OS_PRIORITY_NORMAL, 0, 0);
 K_MUTEX_DEFINE(img_send_mutex);
 
-// static void cp_task_protocol_thread(void *arg1, void *arg2, void *arg3);
-// K_THREAD_DEFINE(read_avf_data_thr, 2048,
-// 				cp_task_protocol_thread, NULL, NULL, NULL,
-// 				5, 0, 0);
-// K_SEM_DEFINE(read_avf_data_sem, 0, 1);
-
-static lisa_thread_t *s_offline_recognize_thread = NULL;
-static lisa_thread_t *s_send_ocr_simulation_image_thread = NULL;
-// static lisa_thread_t *s_cp_task_protocol_thread = NULL;
-// static int s_cp_task_run = 0;
-static lisa_thread_t *s_test_send_audio_thread = NULL;
-
-// static lisa_queue_t *s_image_queue = NULL;
 static bool s_ws_connected = false;
 
-#define	IMAGE_STREAM_BUFFER_SIZE	(128 * 180 * 1 + 16)
-struct k_pipe image_stream_pipe;
-unsigned char *image_stread_pipe_buffer = NULL;
-// static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
-// static lisa_semaphore_t *s_ocr_image_sema = NULL;
-static lisa_semaphore_t *s_ocr_res_sema = NULL;
 static bool s_debug_mode = false;
 
 typedef struct {
@@ -268,31 +245,6 @@ void scan_image_cb(char *data, int len, lisa_image_transfer_status_e status)
 	k_mutex_unlock(&img_send_mutex);
 }
 
-/**
- * @brief 从ringbuf中接受一组图片
- *
- * @param ring_buffer
- * @param data
- * @param len
- * @param wait_ms
- * @return int
- */
-//lisa_evs_parser_cp_data
-int recv_ocr_simulation_image_once(uint8_t *data, unsigned int len, int wait_ms)
-{
-	size_t bytes_read;
-	if (wait_ms == LISA_WAIT_FOREVER) {
-		k_pipe_get(&image_stream_pipe, data, len, &bytes_read, 1, K_FOREVER);
-	} else {
-		k_pipe_get(&image_stream_pipe, data, len, &bytes_read, 1, K_MSEC(wait_ms));
-	}
-	if (bytes_read < len) {
-		printk("---could not read target len, %d  %d\n", bytes_read, len);
-	}
-	return bytes_read;
-}
-
-
 typedef enum {
 	IMG_WAITING_HEADER,
 	IMG_WAITING_BODY,
@@ -310,6 +262,7 @@ uint32_t img_stream_buf_cur_len = 0;
 img_state_e img_state = IMG_WAITING_HEADER;
 #define	IMG_HEADER_SIZE		sizeof(cv_image_recv_t)
 #define IMG_BODY_SIZE(img)	((img)->depth * (img)->heigth * (img)->width)
+#define	IMAGE_STREAM_BUFFER_SIZE	(128 * 180 * 1 + 16)
 
 void img_stream_buf_write(uint8_t *data_ptr, uint32_t size)
 {
@@ -333,139 +286,134 @@ void send_ocr_simulation_image_once(lisa_image_msg_t *data)
 	int remind_size = data->size;
 	uint8_t *current_op_data_ptr = data->data;
 	printk("----cb trigge %d\n", data->size);
-	while (1) {
-		if (img_state == IMG_WAITING_HEADER) {
-			printk("detecting head\n");
-			__ASSERT(img_stream_buf_cur_len >= 0, ">= 0");
-			if (img_stream_buf_cur_len == 0) {
-				int remind_size_temp = 0; //TODO: remove
-				int img_nums = get_img_nums(current_op_data_ptr, remind_size, &remind_size_temp);
-				if (img_nums > 0) {
-					for (int cnt = 0; cnt < img_nums; cnt++) {
-						cv_image_recv_t *img = search_img_header(current_op_data_ptr, remind_size);
-						__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, current_op_data_ptr);
-						int garbage_size = (uint8_t *)img - current_op_data_ptr;
-						current_op_data_ptr += garbage_size;
-						remind_size -= garbage_size;
-						__ASSERT(img == current_op_data_ptr, "garbage processing failed, %p  %p", img, current_op_data_ptr);
-						int send_size = send_one_img(img);
-						current_op_data_ptr += send_size;
-						remind_size -= send_size;
-					}
-				} else {
-
+	if (img_state == IMG_WAITING_HEADER) {
+		printk("detecting head\n");
+		__ASSERT(img_stream_buf_cur_len >= 0, ">= 0");
+		if (img_stream_buf_cur_len == 0) {
+			int remind_size_temp = 0; //TODO: remove
+			int img_nums = get_img_nums(current_op_data_ptr, remind_size, &remind_size_temp);
+			if (img_nums > 0) {
+				for (int cnt = 0; cnt < img_nums; cnt++) {
+					cv_image_recv_t *img = search_img_header(current_op_data_ptr, remind_size);
+					__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, current_op_data_ptr);
+					int garbage_size = (uint8_t *)img - current_op_data_ptr;
+					current_op_data_ptr += garbage_size;
+					remind_size -= garbage_size;
+					__ASSERT(img == current_op_data_ptr, "garbage processing failed, %p  %p", img, current_op_data_ptr);
+					int send_size = send_one_img(img);
+					current_op_data_ptr += send_size;
+					remind_size -= send_size;
 				}
-				__ASSERT(remind_size_temp == remind_size, "remind size err, %d  %d", remind_size_temp, remind_size);
-				if (remind_size_temp) {
-					img_stream_buf_write(current_op_data_ptr, remind_size_temp);
-				}
-				cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
-				img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
-				goto __exit;
 			} else {
-				__ASSERT((img_stream_buf_cur_len + data->size) >= IMG_HEADER_SIZE, "check img_stream_buf_cur_len failed");
 
-				printk("-------------- recombine frame head\n");
-				//img_state == IMG_WAITING_HEADER, img_stream_buf_cur_len > 0,
-				//it means that img_stream_buf has a part of img header data.
-				img_stream_buf_write(data->data, data->size);
-				uint8_t *img_stream_buf_temp = img_stream_buf;
-				int img_buf_remind_size = 0;
-				int img_nums = get_img_nums(img_stream_buf_temp, img_stream_buf_cur_len, &img_buf_remind_size);
-				if (img_nums > 0) {
-					uint8_t *current_img_buf_ptr = NULL;
-					for (int cnt = 0; cnt < img_nums; cnt++) {
-						cv_image_recv_t *img = search_img_header(img_stream_buf_temp, img_stream_buf_cur_len);
-						__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, img_stream_buf_temp);
-						int garbage_size = (uint8_t *)img - img_stream_buf_temp;
-						img_stream_buf_temp += garbage_size;
-						img_stream_buf_cur_len -= garbage_size;
-						__ASSERT(img == img_stream_buf_temp, "garbage processing failed, %p  %p", img, img_stream_buf_temp);
-						int send_size = send_one_img(img);
-						img_stream_buf_temp += send_size;
-						img_stream_buf_cur_len -= send_size;
-						current_img_buf_ptr = img_stream_buf_temp;
-					}
-					__ASSERT(img_stream_buf_cur_len == img_buf_remind_size, "size failed, %d  %d", img_stream_buf_cur_len, img_buf_remind_size);
-					memcpy(img_stream_buf, current_img_buf_ptr, img_stream_buf_cur_len);
-				} else {
-
-				}
-				cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
-				img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
-				goto __exit;
 			}
-		}
-		if (img_state == IMG_WAITING_BODY) {
-			printk("detecting body  len:%d\n", img_stream_buf_cur_len);
-			uint8_t *new_data_ptr = data->data;
-			int new_data_size = data->size;
+			__ASSERT(remind_size_temp == remind_size, "remind size err, %d  %d", remind_size_temp, remind_size);
+			if (remind_size_temp) {
+				img_stream_buf_write(current_op_data_ptr, remind_size_temp);
+			}
 			cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
-			__ASSERT(img != NULL, "fatal err, count not found head when detecting img body");
-			__ASSERT(img == img_stream_buf, "decode failed  img:%p  img_stream_buf:%p, diff:%d  size:%d",
-						img, img_stream_buf, (uint8_t *)img - img_stream_buf, img_stream_buf_cur_len);
-			//img_stream_buf_cur_len = 1 header + 0.x body
-			int need_new_data = IMG_HEADER_SIZE + IMG_BODY_SIZE(img) - img_stream_buf_cur_len;
-			if (new_data_size < need_new_data) { // data < 1 img
-				// copy new data into img_stream_buf
-				img_stream_buf_write(new_data_ptr, new_data_size);
-				printk("%d  data < 1 img,  len: %d\n", __LINE__, img_stream_buf_cur_len);
-				img_state = IMG_WAITING_BODY;
-				goto __exit;
-			} else if (new_data_size > need_new_data) { // data > 1 img
-				// 1 img < new data + old data < 2 img  ==>  new data < 1 img, old data < 1 img
-				// 2 img < new data + old data  ==>  new data > 1 img
-				img_stream_buf_write(new_data_ptr, need_new_data);
-				new_data_ptr += need_new_data;
-				new_data_size -= need_new_data;
+			img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
+			return;
+		} else {
+			__ASSERT((img_stream_buf_cur_len + data->size) >= IMG_HEADER_SIZE, "check img_stream_buf_cur_len failed");
 
-				int send_size = send_one_img(img);
-				__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
-				img_stream_buf_cur_len -= send_size; //should be zero
-				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
-
-				int remind_new_data_size = new_data_size;
-				uint8_t *current_new_data_ptr = new_data_ptr;
-
-				int remind_size_temp = 0; //TODO: remove
-				int img_nums = get_img_nums(current_new_data_ptr, remind_new_data_size, &remind_size_temp);
-				if (img_nums > 0) {
-					for (int cnt = 0; cnt < img_nums; cnt++) {
-						cv_image_recv_t *img = search_img_header(current_new_data_ptr, remind_new_data_size);
-						__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, current_new_data_ptr);
-						int garbage_size = (uint8_t *)img - current_new_data_ptr;
-						current_new_data_ptr += garbage_size;
-						remind_new_data_size -= garbage_size;
-						__ASSERT(img == current_new_data_ptr, "garbage processing failed, %p  %p", img, current_new_data_ptr);
-						int send_size = send_one_img(img);
-						current_new_data_ptr += send_size;
-						remind_new_data_size -= send_size;
-					}
-				} else {
-
+			printk("-------------- recombine frame head\n");
+			//img_state == IMG_WAITING_HEADER, img_stream_buf_cur_len > 0,
+			//it means that img_stream_buf has a part of img header data.
+			img_stream_buf_write(data->data, data->size);
+			uint8_t *img_stream_buf_temp = img_stream_buf;
+			int img_buf_remind_size = 0;
+			int img_nums = get_img_nums(img_stream_buf_temp, img_stream_buf_cur_len, &img_buf_remind_size);
+			if (img_nums > 0) {
+				uint8_t *current_img_buf_ptr = NULL;
+				for (int cnt = 0; cnt < img_nums; cnt++) {
+					cv_image_recv_t *img = search_img_header(img_stream_buf_temp, img_stream_buf_cur_len);
+					__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, img_stream_buf_temp);
+					int garbage_size = (uint8_t *)img - img_stream_buf_temp;
+					img_stream_buf_temp += garbage_size;
+					img_stream_buf_cur_len -= garbage_size;
+					__ASSERT(img == img_stream_buf_temp, "garbage processing failed, %p  %p", img, img_stream_buf_temp);
+					int send_size = send_one_img(img);
+					img_stream_buf_temp += send_size;
+					img_stream_buf_cur_len -= send_size;
+					current_img_buf_ptr = img_stream_buf_temp;
 				}
-				__ASSERT(remind_new_data_size == remind_size_temp, "remind size err, %d  %d", remind_new_data_size, remind_size_temp);
+				__ASSERT(img_stream_buf_cur_len == img_buf_remind_size, "size failed, %d  %d", img_stream_buf_cur_len, img_buf_remind_size);
+				memcpy(img_stream_buf, current_img_buf_ptr, img_stream_buf_cur_len);
+			} else {
 
-				if (remind_size_temp) {
-					img_stream_buf_write(current_new_data_ptr, remind_size_temp);
-				}
-				cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
-				img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
-				goto __exit;
-			} else { //data = 1 img
-				img_stream_buf_write(new_data_ptr, new_data_size);
-				int send_size = send_one_img(img);
-				__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
-				img_stream_buf_cur_len -= send_size; //should be zero
-				__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
-				img_state = IMG_WAITING_HEADER;
-				goto __exit;
 			}
+			cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
+			img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
+			return;
 		}
 	}
+	if (img_state == IMG_WAITING_BODY) {
+		printk("detecting body  len:%d\n", img_stream_buf_cur_len);
+		uint8_t *new_data_ptr = data->data;
+		int new_data_size = data->size;
+		cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
+		__ASSERT(img != NULL, "fatal err, count not found head when detecting img body");
+		__ASSERT(img == img_stream_buf, "decode failed  img:%p  img_stream_buf:%p, diff:%d  size:%d",
+					img, img_stream_buf, (uint8_t *)img - img_stream_buf, img_stream_buf_cur_len);
+		//img_stream_buf_cur_len = 1 header + 0.x body
+		int need_new_data = IMG_HEADER_SIZE + IMG_BODY_SIZE(img) - img_stream_buf_cur_len;
+		if (new_data_size < need_new_data) { // data < 1 img
+			// copy new data into img_stream_buf
+			img_stream_buf_write(new_data_ptr, new_data_size);
+			printk("%d  data < 1 img,  len: %d\n", __LINE__, img_stream_buf_cur_len);
+			img_state = IMG_WAITING_BODY;
+			return;
+		} else if (new_data_size > need_new_data) { // data > 1 img
+			// 1 img < new data + old data < 2 img  ==>  new data < 1 img, old data < 1 img
+			// 2 img < new data + old data  ==>  new data > 1 img
+			img_stream_buf_write(new_data_ptr, need_new_data);
+			new_data_ptr += need_new_data;
+			new_data_size -= need_new_data;
 
-__exit:
-	return;
+			int send_size = send_one_img(img);
+			__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
+			img_stream_buf_cur_len -= send_size; //should be zero
+			__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
+
+			int remind_new_data_size = new_data_size;
+			uint8_t *current_new_data_ptr = new_data_ptr;
+
+			int remind_size_temp = 0; //TODO: remove
+			int img_nums = get_img_nums(current_new_data_ptr, remind_new_data_size, &remind_size_temp);
+			if (img_nums > 0) {
+				for (int cnt = 0; cnt < img_nums; cnt++) {
+					cv_image_recv_t *img = search_img_header(current_new_data_ptr, remind_new_data_size);
+					__ASSERT(img != NULL, "get img ptr failed, %p  %p", img, current_new_data_ptr);
+					int garbage_size = (uint8_t *)img - current_new_data_ptr;
+					current_new_data_ptr += garbage_size;
+					remind_new_data_size -= garbage_size;
+					__ASSERT(img == current_new_data_ptr, "garbage processing failed, %p  %p", img, current_new_data_ptr);
+					int send_size = send_one_img(img);
+					current_new_data_ptr += send_size;
+					remind_new_data_size -= send_size;
+				}
+			} else {
+
+			}
+			__ASSERT(remind_new_data_size == remind_size_temp, "remind size err, %d  %d", remind_new_data_size, remind_size_temp);
+
+			if (remind_size_temp) {
+				img_stream_buf_write(current_new_data_ptr, remind_size_temp);
+			}
+			cv_image_recv_t *img = search_img_header(img_stream_buf, img_stream_buf_cur_len);
+			img_state = (img) ? IMG_WAITING_BODY : IMG_WAITING_HEADER;
+			return;
+		} else { //data = 1 img
+			img_stream_buf_write(new_data_ptr, new_data_size);
+			int send_size = send_one_img(img);
+			__ASSERT(send_size == IMG_BODY_SIZE(img) + IMG_HEADER_SIZE, "send size err");
+			img_stream_buf_cur_len -= send_size; //should be zero
+			__ASSERT(img_stream_buf_cur_len == 0, "not equal to zero %d", img_stream_buf_cur_len);
+			img_state = IMG_WAITING_HEADER;
+			return;
+		}
+	}
 }
 
 /**
@@ -709,8 +657,8 @@ lisa_evs_state_t evs_get_state()
 	strcpy(state.speaker_state.version, "1.0");
 	state.speaker_state.volume = 100;
 	// platform相关
-	strcpy(state.platform_info.platform_name, "FreeRTOS");
-	strcpy(state.platform_info.platform_version, "10.2.1");
+	strcpy(state.platform_info.platform_name, "ZephyrRTOS");
+	strcpy(state.platform_info.platform_version, "2.7.0-rc2");
 	return state;
 }
 
@@ -961,6 +909,43 @@ void create_cam2cp_thread()
 	}
 }
 
+/**
+ * @brief 启动在线ocr识别
+ *
+ */
+void ocr_test_online_start()
+{
+	s_singleline = true;
+
+	if (img_stream_buf != NULL) {
+		printk("--------------err, ocr double start\n");
+		return;
+	}
+
+	img_stream_buf = lisa_mem_alloc(IMAGE_STREAM_BUFFER_SIZE);
+	if (!img_stream_buf) {
+		LISA_LOGE(TAG, "buffer malloc failed \n");
+		printk("----buffer malloc failed\n");
+		return;
+	}
+
+	img_state = IMG_WAITING_HEADER;
+	img_stream_buf_cleanup();
+	lisa_evs_register_image_callback(scan_image_cb);
+}
+
+void ocr_test_online_stop()
+{
+	lisa_evs_register_image_callback(NULL);
+	// k_sem_take(&read_avf_data_sem, K_FOREVER);
+	k_mutex_lock(&img_send_mutex, K_FOREVER);
+	lisa_evs_rec_image_end(s_handle->rec, s_request_id);
+	k_mutex_unlock(&img_send_mutex);
+
+	lisa_mem_free(img_stream_buf);
+	img_stream_buf = NULL;
+}
+
 #define PEN_HEAD_BUTTON KEY1
 static button_handle *pen_head_button;
 static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
@@ -1008,43 +993,6 @@ int pen_head_button_init(void)
 	pen_head_button->cb = pen_head_button_cb;
 
 	pen_head_button->start(pen_head_button);
-}
-
-/**
- * @brief 启动在线ocr识别
- *
- */
-void ocr_test_online_start()
-{
-	s_singleline = true;
-
-	if (img_stream_buf != NULL) {
-		printk("--------------err, ocr double start\n");
-		return;
-	}
-
-	img_stream_buf = lisa_mem_alloc(IMAGE_STREAM_BUFFER_SIZE);
-	if (!img_stream_buf) {
-		LISA_LOGE(TAG, "buffer malloc failed \n");
-		printk("----buffer malloc failed\n");
-		return;
-	}
-
-	img_state = IMG_WAITING_HEADER;
-	img_stream_buf_cleanup();
-	lisa_evs_register_image_callback(scan_image_cb);
-}
-
-void ocr_test_online_stop()
-{
-	lisa_evs_register_image_callback(NULL);
-	// k_sem_take(&read_avf_data_sem, K_FOREVER);
-	k_mutex_lock(&img_send_mutex, K_FOREVER);
-	lisa_evs_rec_image_end(s_handle->rec, s_request_id);
-	k_mutex_unlock(&img_send_mutex);
-
-	lisa_mem_free(img_stream_buf);
-	img_stream_buf = NULL;
 }
 
 /**
