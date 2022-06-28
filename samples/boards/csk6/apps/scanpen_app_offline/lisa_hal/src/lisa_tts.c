@@ -130,7 +130,7 @@ _err_handler:
  *
  * @retval  -1 failed 0 success
  */
-int8_t lisa_tts_play(lisa_tts_handler_t *handler, const char *text, lisa_tts_config_t *config)
+int8_t lisa_tts_play(lisa_tts_handler_t *handler, const char *text, atts_config_t *config)
 {
 	int ret = 0;
 
@@ -156,8 +156,8 @@ int8_t lisa_tts_play(lisa_tts_handler_t *handler, const char *text, lisa_tts_con
 	atts_set_fmt(ctx->tts,  ctx);
 	atts_start(ctx->tts);
 	k_msleep(100);
-#if 0
-	atts_set_cmd(ctx->tts, config, sizeof(lisa_tts_config_t));
+#if 1
+	atts_set_cmd(ctx->tts, config, sizeof(atts_config_t));
 	k_msleep(50);
 #endif
 	ret = atts_play(ctx->tts, text, strlen(text));

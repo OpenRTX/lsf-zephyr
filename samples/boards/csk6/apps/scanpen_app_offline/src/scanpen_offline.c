@@ -11,6 +11,8 @@
 #include <devicetree.h>
 #include <drivers/video.h>
 
+#include "tts_playback.h"
+
 #include "lisa_buttons.h"
 #include "lisa_vcapture.h"
 #include "lisa_translate.h"
@@ -153,7 +155,7 @@ void  offline_recognize_thread(void *arg)
 		// params.ttscb = _tts_cb;
 		// tts_handler = lisa_tts_create(&params);
 #if 1
-		lisa_tts_config_t tts_config = {
+		atts_config_t tts_config = {
 			.role 		= ivTTS_ROLE_XIAOYAN,
 			.language	= ivTTS_LANGUAGE_AUTO,
 			.speed		= ivTTS_SPEED_NORMAL,
