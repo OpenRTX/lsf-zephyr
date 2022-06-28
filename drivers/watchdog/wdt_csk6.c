@@ -15,11 +15,6 @@
 
 static void wdt_csk6_irq_handler(void *param);
 
-enum {
-	WDT_CSK6_MODE_INT,
-	WDT_CSK6_MODE_RST,
-};
-
 typedef struct wdt_csk6_data {
 	void *wdt;
 	wdt_callback_t cb;
@@ -69,6 +64,8 @@ static int wdt_csk6_init(const struct device *dev)
 
 static int wdt_csk6_setup(const struct device *dev, uint8_t options)
 {
+	wdt_csk6_data_t *data = WDT_CSK_DATA(dev);
+	AON_WDT_Enable(data->wdt);
 	return 0;
 }
 
@@ -88,7 +85,6 @@ static int wdt_csk6_install_timeout(const struct device *dev, const struct wdt_t
 	AON_WDT_Control(data->wdt, HAL_AON_WDT_TIME_CFG, cfg->window.max / 1000 * WDT_CLK);
 	AON_WDT_Control(data->wdt, HAL_AON_WDT_INTERRUPT_EN, 1);
 	AON_WDT_Control(data->wdt, HAL_AON_WDT_RESET_PMU_CTRL, reset_pmu_ctrl);
-	AON_WDT_Enable(data->wdt);
 
 	data->cb = cfg->callback;
 
