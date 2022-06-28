@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
- *
  * SPDX-License-Identifier: Apache-2.0
  */
 /delete-node/ &storage_partition;
@@ -39,7 +37,7 @@
 
 	pwr_amp:audio_pwr_amp{
 		compatible = "listenai,pwr-amp";
-		enalbe-gpios = <&gpioa 4 1>;
+		enable-gpios = <&gpioa 4 1>;
 		label = "audio_pwr_amp";	
 		status = "okay";
 	};

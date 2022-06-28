@@ -68,7 +68,6 @@ static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 	int r = info->r_pos;
 	int w = info->w_pos;
 	int cnt = info->frame_cnt;
-	char *addr = info->addr;
 
 	w %= info->frame_cnt;
 
@@ -84,7 +83,7 @@ static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 		}
 	}
 
-	return info->addr + w * info->frame_size;
+	return (char*)info->addr + w * info->frame_size;
 }
 
 static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
@@ -134,8 +133,8 @@ void video_ap2cp_thread(void *p1, void *p2, void *p3)
 	info->tag = 0x12345678;
 
 	LOG_INF("##########Frames info##########");
-	LOG_INF("info       :%p.", info);
-	LOG_INF("buffer addr:%p.", info->addr);
+	LOG_INF("info       :%p.", (void*)info);
+	LOG_INF("buffer addr:%p.", (void*)info->addr);
 	LOG_INF("frame  size:%u.", info->frame_size);
 	LOG_INF("frame count:%d.", info->frame_cnt);
 	LOG_INF("write   pos:%d.", info->w_pos);
