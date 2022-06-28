@@ -21,7 +21,7 @@ struct counter_csk_config {
 
 };
 struct counter_csk_data {
-	struct counter_alarm_cfg *alarm_cfg;
+	struct counter_alarm_cfg alarm_cfg;
 	uint32_t ticks;
 	void *handle;
 };
@@ -56,6 +56,7 @@ static void rtc_csk_isr(const struct device *dev)
 
 	uint32_t status;
     uint32_t event = 0;
+	uint32_t now = csk_get_value(dev);
     status = rtc->reg->STATUS;
     rtc->reg->STATUS = (status & 0xff);
 
@@ -84,8 +85,8 @@ static void rtc_csk_isr(const struct device *dev)
         event |= CSK_RTC_EVENT_ALARM_INT;
     }
 
-	if (data->alarm_cfg->callback != NULL) {
-		data->alarm_cfg->callback(dev, 0, data->alarm_cfg->ticks, data->alarm_cfg->user_data);
+	if (data->alarm_cfg.callback != NULL) {
+		data->alarm_cfg.callback(dev, 0, now, data->alarm_cfg.user_data);
 	}
 }
 
@@ -161,7 +162,8 @@ static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 	RTC_SetAlarm(RTC_Handler, &alarm_time);
 
 	// alarm callback funt 
-	 data->alarm_cfg = (struct counter_alarm_cfg *)alarm_cfg;
+	data->alarm_cfg.callback = alarm_cfg->callback;
+	data->alarm_cfg.user_data = alarm_cfg->user_data;
 
 	// open alarm INT
 	RTC_Control(RTC_Handler, CSK_RTC_CTRL_ALARM_INT, 1);
