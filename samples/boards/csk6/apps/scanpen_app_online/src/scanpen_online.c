@@ -1051,6 +1051,61 @@ void create_offline_recognize_thread()
 	}
 }
 #endif
+
+static lisa_thread_t *s_cp_task_protocol_thread = NULL;
+/**
+ * @brief cp task protocol线程，用于图片数据接受和解析
+ *
+ * @param argv
+ */
+void cp_task_protocol_thread(void *argv)
+{
+	int iret;
+	static char cbuffer[4096];
+	lisa_image_msg_t msg;
+
+	while (1) {
+		if(lisa_vcapture_is_runing(vcap_handler) == 0){
+			k_msleep(10);
+			continue;
+		}
+		iret = lisa_vcapture_readi(vcap_handler,cbuffer,sizeof(cbuffer));
+		if(iret <= 0){
+			LISA_LOGE(TAG,"Read vcapture datai failed iret %d\n",iret);
+			k_msleep(10);
+	
+			continue;
+		}
+		msg.status = LISA_IMAGE_FRAME_NONE;
+		msg.data = cbuffer;
+		msg.size = iret;
+		send_ocr_simulation_image_once(&msg);
+	}
+}
+/**
+ * @brief Create a cp task protocol thread object
+ *
+ */
+void create_cp_task_protocol_thread()
+{
+	/*
+	 *if (s_cp_task_protocol_thread) {
+	 *    return;
+	 *}
+	 */
+	// 1. cp_task_protocol_thread
+	lisa_thread_attr_t thread_attr;
+	thread_attr.name = "cp_task_protocol_thread";
+	thread_attr.stack_size = 2 * 1024;
+	thread_attr.priority = OS_PRIORITY_HIGH;  // OS_PRIORITY_NORMAL
+
+	//解析图片
+	s_cp_task_protocol_thread = lisa_thread_create(&thread_attr, cp_task_protocol_thread, NULL);
+	if (s_cp_task_protocol_thread == NULL) {
+		LISA_LOGE(TAG, "thread_create: cp_task_protocol_thread failed");
+		return;
+	}
+}
 /**
  * @brief 启动扫描笔app
  *
@@ -1067,6 +1122,7 @@ void start_scanpen_online()
 	create_cam2cp_thread();
 	_video_init();
 	pen_head_button_init();
+	create_cp_task_protocol_thread();
 #if (CONFIG_AVF_MODULES_ALG_OCR)
 		create_offline_recognize_thread();
 #endif	

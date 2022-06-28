@@ -10,6 +10,7 @@
 #include <lisa_log.h>
 #include <lisa_mem.h>
 #include <lisa_thread.h>
+#include <lisa_mutex.h>
 
 #include "lisa_vcapture.h"
 
@@ -29,6 +30,7 @@ typedef enum {
 	/* start status*/
 	VCAPTURE_STATUS_START,
 	/* stop status*/
+	VCAPTURE_STATUS_STOPING,
 	VCAPTURE_STATUS_STOP = VCAPTURE_STATUS_INIT,
 } vcapture_status_e;
 
@@ -62,6 +64,7 @@ struct _lisa_vcapture_context_t {
 	struct k_msgq msgq;
 	vcapture_msgq_data_t *msgq_databuf;
 	/*vcapture data*/
+	lisa_mutex_t* vcap_mutex;
 	vcapture_t *vcapture;
 
 	uint8_t use_ocr;
@@ -89,7 +92,7 @@ static void _dump_params(const lisa_vcapture_context_t *ctx)
  *
  * @retval   status
  */
-static vcapture_status_e _vcapture_get_status(const lisa_vcapture_context_t *ctx)
+vcapture_status_e _vcapture_get_status(const lisa_vcapture_context_t *ctx)
 {
 	// need mutex TODO
 	return ctx->vcapture_st;
@@ -274,7 +277,11 @@ lisa_vcapture_handler_t *lisa_vcapture_create(const lisa_vcapture_params_t *cons
 		goto _err_ctx_malloc;
 	}
 	memset(ctx, 0, sizeof(lisa_vcapture_context_t));
-
+	ctx->vcap_mutex = lisa_mutex_create();
+	if (ctx->vcap_mutex == NULL) {
+		LISA_LOGE(TAG, "[%s %d]lisa_mutex_create FAILED!\n", __FUNCTION__, __LINE__);
+		goto _err_msgq_malloc;
+	}
 	ctx->fmt.rate = params->fmt.rate;
 	ctx->fmt.channels = params->fmt.channels;
 	ctx->fmt.bits = params->fmt.bits;
@@ -309,7 +316,6 @@ lisa_vcapture_handler_t *lisa_vcapture_create(const lisa_vcapture_params_t *cons
 		k_sem_init(&ctx->ocr.compelete_sem, 0, 1);
 		vcap_ocr_notify_event_register(ctx->vcapture, _vcapture_alg_ocr_event_notify, ctx);
 	}
-
 	_vcapture_set_status(ctx, VCAPTURE_STATUS_INIT);
 
 	g_vcapture_handler->ctx = ctx;
@@ -337,7 +343,7 @@ _err_fmt:
  */
 int8_t lisa_vcapture_start(lisa_vcapture_handler_t *handler)
 {
-	if (handler == NULL) {
+	if ((handler == NULL)||(handler->ctx == NULL)){
 		LISA_LOGE(
 				TAG, "[%s %d]lisa vcapture handler hasn't been created!\n", __FUNCTION__, __LINE__);
 		goto _err_handler;
@@ -345,17 +351,18 @@ int8_t lisa_vcapture_start(lisa_vcapture_handler_t *handler)
 	LISA_LOGD(TAG, "Start vcapture\n");
 
 	lisa_vcapture_context_t *ctx = handler->ctx;
+	lisa_mutex_lock(ctx->vcap_mutex,LISA_WAIT_FOREVER);
 	if (_vcapture_get_status(ctx) != VCAPTURE_STATUS_INIT) {
 		LISA_LOGE(TAG, "[%s %d]vcapture not init", __FUNCTION__, __LINE__);
 		goto _err_status;
 	}
 
-	int ret = vcap_event_register(ctx->vcapture, AVF_STREAM_EVENT_THRES_NOTIFY,
-			_vcapture_data_process, ctx, IMAGE_CAPTURE_EVENT_THRES);
-	if (ret != 0) {
-		LISA_LOGE(TAG, "[%s %d]vcap_event_register failed\n", __FUNCTION__, __LINE__);
-		goto _err_vcap_event;
-	}
+	// int ret = vcap_event_register(ctx->vcapture, AVF_STREAM_EVENT_THRES_NOTIFY,
+	// 		_vcapture_data_process, ctx, IMAGE_CAPTURE_EVENT_THRES);
+	// if (ret != 0) {
+	// 	LISA_LOGE(TAG, "[%s %d]vcap_event_register failed\n", __FUNCTION__, __LINE__);
+	// 	goto _err_vcap_event;
+	// }
 	vcap_set_fmt(ctx->vcapture, &ctx->fmt);
 
 	if (vcap_start(ctx->vcapture) != 0) {
@@ -384,7 +391,7 @@ int8_t lisa_vcapture_start(lisa_vcapture_handler_t *handler)
  */
 	_vcapture_set_status(ctx, VCAPTURE_STATUS_START);
 	ctx->vcapturecb(VCAPTURE_START, NULL, 0);
-
+	lisa_mutex_unlock(ctx->vcap_mutex);
 	return 0;
 _err_thread_cre:
 	if (ctx->use_ocr == 1)
@@ -396,6 +403,7 @@ _err_vcap_start:
 _err_vcap_event:
 _err_status:
 _err_handler:
+	lisa_mutex_unlock(ctx->vcap_mutex);
 	return -1;
 }
 
@@ -408,7 +416,7 @@ _err_handler:
  */
 int8_t lisa_vcapture_stop(lisa_vcapture_handler_t *handler)
 {
-	if (handler == NULL) {
+	if ((handler == NULL)||(handler->ctx == NULL)) {
 		LISA_LOGE(
 				TAG, "[%s %d]lisa vcapture handler hasn't been created!\n", __FUNCTION__, __LINE__);
 		goto _err_handler;
@@ -416,11 +424,12 @@ int8_t lisa_vcapture_stop(lisa_vcapture_handler_t *handler)
 	LISA_LOGD(TAG, "Stop vcapture\n");
 
 	lisa_vcapture_context_t *ctx = handler->ctx;
+	lisa_mutex_lock(ctx->vcap_mutex,LISA_WAIT_FOREVER);
 	if (_vcapture_get_status(ctx) != VCAPTURE_STATUS_START) {
 		LISA_LOGE(TAG, "[%s %d]vcapture not start", __FUNCTION__, __LINE__);
 		goto _err_status;
 	}
-
+	_vcapture_set_status(ctx, VCAPTURE_STATUS_STOPING);
 	vcap_event_unregister(ctx->vcapture, AVF_STREAM_EVENT_THRES_NOTIFY);
 	vcap_stop(ctx->vcapture);
 	/*while(k_msgq_num_used_get(&ctx->msgq) > 0) {*/
@@ -437,10 +446,11 @@ int8_t lisa_vcapture_stop(lisa_vcapture_handler_t *handler)
 
 	ctx->vcapturecb(VCAPTURE_STOP, NULL, 0);
 	_vcapture_set_status(ctx, VCAPTURE_STATUS_STOP);
-
+	lisa_mutex_unlock(ctx->vcap_mutex);
 	return 0;
 _err_status:
 _err_handler:
+	lisa_mutex_unlock(ctx->vcap_mutex);
 	return -1;
 }
 
@@ -453,7 +463,7 @@ _err_handler:
  */
 int8_t lisa_vcapture_destroy(lisa_vcapture_handler_t *handler)
 {
-	if (handler == NULL) {
+	if ((handler == NULL)||(handler->ctx == NULL)) {
 		LISA_LOGE(
 				TAG, "[%s %d]lisa vcapture handler hasn't been created!\n", __FUNCTION__, __LINE__);
 		goto _err_handler;
@@ -461,7 +471,7 @@ int8_t lisa_vcapture_destroy(lisa_vcapture_handler_t *handler)
 	LISA_LOGD(TAG, "Start stop\n");
 
 	lisa_vcapture_context_t *ctx = handler->ctx;
-
+	lisa_mutex_lock(ctx->vcap_mutex,LISA_WAIT_FOREVER);
 	if ((_vcapture_get_status(ctx) != VCAPTURE_STATUS_STOP) &&
 			(_vcapture_get_status(ctx) != VCAPTURE_STATUS_INIT)) {
 		LISA_LOGE(TAG, "[%s %d]vcapture not init", __FUNCTION__, __LINE__);
@@ -473,11 +483,44 @@ int8_t lisa_vcapture_destroy(lisa_vcapture_handler_t *handler)
 	lisa_mem_free(ctx->msgq_databuf);
 	lisa_mem_free(ctx);
 	lisa_mem_free(handler);
-
+	lisa_mutex_delete(ctx->vcap_mutex);
 	g_vcapture_handler = NULL;
 
 	return 0;
 _err_status:
 _err_handler:
+	lisa_mutex_unlock(ctx->vcap_mutex);
 	return -1;
+}
+
+
+int lisa_vcapture_readi(lisa_vcapture_handler_t* handle,char* buffer,uint32_t len){
+	int32_t iret;
+
+	if ((handle == NULL)||(handle->ctx == NULL)) {
+		LISA_LOGE(
+				TAG, "[%s %d]lisa vcapture handler hasn't been created!\n", __FUNCTION__, __LINE__);
+		return -1;
+	}	
+	lisa_mutex_lock(handle->ctx->vcap_mutex,LISA_WAIT_FOREVER);
+	iret = vcap_read_datai(handle->ctx->vcapture ,buffer,len);
+	lisa_mutex_unlock(handle->ctx->vcap_mutex);
+	return iret;
+}
+
+int lisa_vcapture_is_runing(lisa_vcapture_handler_t* handle){
+	if ((handle == NULL)||(handle->ctx == NULL)) {
+		LISA_LOGE(
+				TAG, "[%s %d]lisa vcapture handler hasn't been created!\n", __FUNCTION__, __LINE__);
+		return 0;
+	}	
+
+	lisa_vcapture_context_t *ctx = handle->ctx;
+	lisa_mutex_lock(ctx->vcap_mutex,LISA_WAIT_FOREVER);
+	if (_vcapture_get_status(ctx) != VCAPTURE_STATUS_START) {
+		lisa_mutex_unlock(ctx->vcap_mutex);
+		return 0;
+	}	
+	lisa_mutex_unlock(ctx->vcap_mutex);
+	return 1;
 }
