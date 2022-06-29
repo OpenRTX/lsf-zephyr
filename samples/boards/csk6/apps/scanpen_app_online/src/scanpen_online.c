@@ -1071,7 +1071,6 @@ void cp_task_protocol_thread(void *argv)
 		}
 		iret = lisa_vcapture_readi(vcap_handler,cbuffer,sizeof(cbuffer));
 		if(iret <= 0){
-			LISA_LOGE(TAG,"Read vcapture datai failed iret %d\n",iret);
 			k_msleep(10);
 	
 			continue;
