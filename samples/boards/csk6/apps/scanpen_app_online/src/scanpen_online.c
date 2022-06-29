@@ -1252,41 +1252,39 @@ void start_scanpen_online()
 
 
 enum {
-	VIDEO_HAND_SCAN_LEFT,
-	VIDEO_HAND_SCAN_RIGHT
+	HOLDPEN_LEFT,
+	HOLDPEN_RIGHT
 };
 /**
- * @brief 设置扫描笔持笔扫描模式
+ * @brief 设置扫描笔左右手持笔扫描模式
  *
  * @param hand
  */
-static int set_hand_scan_mode(uint8_t hand){
+static int set_hold_pen_mode(uint8_t hand){
 	const struct device *video = device_get_binding(VIDEO_DEV);
 	int r = 0;
 	uint8_t right_val = 0x42;
 	uint8_t left_val = 0x4e;
 
-	if(hand == VIDEO_HAND_SCAN_LEFT){
+	if(hand == HOLDPEN_LEFT){
 		r = video_set_ctrl(video, 0x00, &left_val);		// left
 		LISA_LOGD(TAG, "set_hand_scan_mode:left %d\n", r);
-
 	}
-	else if(hand == VIDEO_HAND_SCAN_RIGHT){
+	else if(hand == HOLDPEN_RIGHT){
 		r = video_set_ctrl(video, 0x00, &right_val);		// right
 		LISA_LOGD(TAG, "set_hand_scan_mode:right %d\n", r);
-
 	}
 	return r;
 }
-static int _set_handscan_mode(const struct shell *shell, size_t argc, char **argv)
+static int _set_holdpen_mode(const struct shell *shell, size_t argc, char **argv)
 {
 	int type = atoi(argv[1]);
 	switch (type) {
 		case 0:
-			set_hand_scan_mode(VIDEO_HAND_SCAN_LEFT);
+			set_hold_pen_mode(HOLDPEN_LEFT);
 			break;
 		case 1:
-			set_hand_scan_mode(VIDEO_HAND_SCAN_RIGHT);
+			set_hold_pen_mode(HOLDPEN_RIGHT);
 			break;
 		default:
 			LISA_LOGD(TAG, "err subcmd %d\n", type);
@@ -1295,7 +1293,7 @@ static int _set_handscan_mode(const struct shell *shell, size_t argc, char **arg
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(scanpen_app_test,
-		SHELL_CMD_ARG(set_handscan_mode, NULL, "0:left 1:right", _set_handscan_mode, 0, 0),
+		SHELL_CMD_ARG(set_holdpen_mode, NULL, "0:left 1:right", _set_holdpen_mode, 0, 0),
 		SHELL_SUBCMD_SET_END /* Array terminated. */
-)
+);
 SHELL_CMD_REGISTER(scanpen_app, &scanpen_app_test, "1scanpen_app related commands.", NULL);
