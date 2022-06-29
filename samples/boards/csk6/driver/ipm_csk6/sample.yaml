@@ -1,4 +1,5 @@
 tests:
   sample.board.csk6.driver.ipm_csk6:
-    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_9s_nano
+    platform_allow: csk6002_c3_nano csk6002_9s_nano
+    build_only: true
     tags: csk6
