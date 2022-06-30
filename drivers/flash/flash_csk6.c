@@ -14,6 +14,7 @@
 
 #include <string.h>
 #include <kernel.h>
+#include <cache.h>
 #include <drivers/flash.h>
 #include <hal/venus_ap.h>
 #include <hal/spiflash.h>
@@ -46,13 +47,13 @@ static const struct flash_parameters flash_csk6_parameters = {
 
 static int flash_csk6_read(const struct device *dev, off_t address, void *buffer, size_t length)
 {
-	int iret = 0;
 	if (length == 0) {
 		return 0;
 	}
 	if (buffer == NULL || address > FLASH_CHIP_SZ || address + length > FLASH_CHIP_SZ) {
 		return -EINVAL;
 	}
+	sys_cache_data_range((void*)(FLASH_BASE_ADDRESS+address), length, K_CACHE_INVD);
 	memcpy(buffer,(void*)(FLASH_BASE_ADDRESS+address),length);
 	return 0;
 }
