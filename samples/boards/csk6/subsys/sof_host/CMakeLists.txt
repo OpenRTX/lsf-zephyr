@@ -49,6 +49,8 @@ if(BUILD_DSP_FIRMWARE)
 
   unset(ENV{XCC_USE_CLANG})
   unset(ENV{ZEPHYR_TOOLCHAIN_VARIANT})
-  target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ./src) 
+  target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ./src)
 
 endif()
+
+add_subdirectory_ifdef(CONFIG_VIDEO drivers)
