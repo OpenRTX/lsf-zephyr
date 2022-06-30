@@ -18,6 +18,8 @@
 #include "lisa_uart_port.h"
 #include "lisa_uart_recv.h"
 #include "lisa_evs_cp_data_parser.h"
+#include "dict.h"
+#include "dict_demo.h"
 
 //#include "lisa_evs_uuid.h"
 #include <fs/fs.h>
@@ -233,6 +235,33 @@ static int _video_init()
 static void  offline_recognize_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
+
+	printk("offline_recognize_thread !\n");
+	s_fs_mount();
+	dict_init(NULL_DICT);
+	#if 1
+	#define DICT_TEST_SIZE (16*1024)
+	char* out = lisa_mem_alloc(DICT_TEST_SIZE);
+	if(out) {
+		int gif_len = 0;
+		memset(out, 0, DICT_TEST_SIZE);
+		dict_test("cherry", out, NULL, &gif_len);
+
+		memset(out, 0, DICT_TEST_SIZE);
+		dict_test("tea", out, NULL, &gif_len);
+
+		// k_msleep(1000);
+	
+		memset(out, 0, DICT_TEST_SIZE);
+		dict_test("茶", out, NULL, &gif_len);
+
+		memset(out, 0, DICT_TEST_SIZE);
+		dict_test("人", out, NULL, &gif_len);
+	} else {
+		printk("Address not 4 byte aligned or NULL error \n");
+	}
+	if(out) lisa_mem_free(out);
+	#endif
 
 	s_ocr_res_sema = lisa_semaphore_create(1);
 
