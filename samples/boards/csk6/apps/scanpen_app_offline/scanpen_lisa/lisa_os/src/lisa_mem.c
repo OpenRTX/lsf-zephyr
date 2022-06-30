@@ -156,3 +156,15 @@ static void lisa_heap_test(int argc, char *argv[])
 SYS_INIT(lisa_heap_prepare, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
 #endif
 
+#include <shell/shell.h>
+static int psram_info(const struct shell *shell, size_t argc, char **argv)
+{
+	lisa_heap_info();
+	return 0;
+}
+SHELL_STATIC_SUBCMD_SET_CREATE(
+		lisa_heap_print, SHELL_CMD_ARG(psram_info, NULL, "psram_info", psram_info, 0, 0),
+		SHELL_SUBCMD_SET_END /* Array terminated. */
+);
+
+SHELL_CMD_REGISTER(lisa_heap, &lisa_heap_print, "lisa_cfg related commands.", NULL);
