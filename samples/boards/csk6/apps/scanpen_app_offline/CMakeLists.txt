@@ -6,6 +6,9 @@ cmake_minimum_required(VERSION 3.20.0)
 #
 #set(ZEPHYR_EXTRA_MODULES $ENV{ZEPHYR_BASE}/../modules/lib/sof_host)
 
+
+set(BOARD_ROOT ${CMAKE_CURRENT_LIST_DIR})
+
 if("${BOARD}" STREQUAL "csk6011a_9s_scanpen" OR "${BOARD}" STREQUAL "csk6002_c3_nano"  OR "${BOARD}" STREQUAL "csk6002_9s_nano" OR "${BOARD}" STREQUAL "csk6012_9s_scanpen")
   set(BUILD_DSP_FIRMWARE OFF)
   find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
