@@ -18,6 +18,9 @@ config MPU_ALLOW_FLASH_WRITE
 
 config CSK6_FLASH_STALL_SECOND_CORE
 	bool  "Stall second core when write and erase flash"
-	default n
+	default y
 	help
-		Enable stall second core operation when write and erase flash
+		Enable stall second core operation when write and erase flash.The second core of stall is triggered when the 
+		flash area is written or erased using the driver.Because the CSK6's second core and flash driver cannot access 
+		flash at the same time.If you are not running the second core or the second core does not access the flash region, 
+		set this configuration to disable(n).
