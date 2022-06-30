@@ -1,0 +1,1 @@
+zephyr_library_sources_ifdef(CONFIG_VIDEO_BF30A2	bf30a2.c)

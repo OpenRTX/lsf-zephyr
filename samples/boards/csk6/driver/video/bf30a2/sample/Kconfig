@@ -1,0 +1,9 @@
+
+# path to custom driver Kconfig file.
+source "samples/boards/csk6/driver/video/bf30a2/sample/drivers/Kconfig.bf30a2"
+
+# path to zephyr base Kconfig file.
+source "Kconfig.zephyr"
+
+
+
