@@ -11,6 +11,8 @@
 #include <devicetree.h>
 #include <drivers/video.h>
 
+#include "tts_playback.h"
+
 #include "lisa_buttons.h"
 #include "lisa_vcapture.h"
 #include "lisa_translate.h"
@@ -31,24 +33,37 @@ static volatile lisa_thread_t *s_cam2cp_thread = NULL;
 
 static char ocr_result[1024] = {0};
 
+static volatile uint32_t tts_done = 0;
+
 
 typedef struct {
 	volatile char *addr;
 	volatile uint32_t frame_size;
 	volatile uint32_t frame_cnt;
 	volatile uint32_t w_pos;
-	volatile uint32_t r_pos;
 	volatile uint32_t tag;
+} __attribute__((aligned(32))) swap_block_ap_t;
+
+typedef struct {
+	volatile uint32_t r_pos;
+} __attribute__((aligned(32))) swap_block_cp_t;
+
+typedef struct {
+	swap_block_ap_t ap_share;
+	swap_block_cp_t cp_share;
 } __packed frames_info_t;
 
 typedef struct frame_info {
 	uint32_t id;
 	uint32_t sum;
-} __packed frame_info_t;
+} __attribute__((aligned(32))) frame_info_t;
 
 Z_GENERIC_SECTION(.psram_section)
 __attribute__((aligned(32),
 	       used)) static char swp_frames[5][sizeof(frame_info_t) + 180 * 128] = { 0 };
+
+#define BUILD_CHECK(x) do {char var[!!(x) - 1] __attribute__((unused));} while(0)
+
 
 
 
@@ -66,6 +81,7 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 		//	LISA_LOGD(TAG, "vcapture msg VCAPTURE_DATA \n");
 		} break;
 		case VCAPTURE_OCR:
+			memset(ocr_result, 0, sizeof(ocr_result));
 			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
 			memcpy(ocr_result, data, len);
 			break;
@@ -83,8 +99,9 @@ void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 			break;
 		case TTS_PLAY_OVER:
 			LISA_LOGD(TAG, "TTS_PLAY_OVER \n");
-			lisa_tts_stop(tts_handler);
-			lisa_tts_destroy(tts_handler);
+			// lisa_tts_stop(tts_handler);
+			tts_done = 1;
+			// lisa_tts_destroy(tts_handler);
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
@@ -114,19 +131,56 @@ void  offline_recognize_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
 	char trans_data[1024] = {0};
+
+	/* create translate */
+	trans_handler = lisa_translate_create();
+
+	/* create tts */
+	lisa_tts_params_t params;
+	memset(&params, 0, sizeof(lisa_tts_params_t));
+	params.ttscb = _tts_cb;
+	tts_handler = lisa_tts_create(&params);
+	LISA_LOGD(TAG, "TTS_INIT_DONE \n");
+
 	while (true) {
 		lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
 
-		trans_handler = lisa_translate_create();
+		// trans_handler = lisa_translate_create();
+		memset(trans_data, 0, sizeof(trans_data));
 		lisa_translate_exec(trans_handler, ocr_result, trans_data, 1024, 40000);
-		lisa_translate_destroy(trans_handler);
+		// lisa_translate_destroy(trans_handler);
 
-		lisa_tts_params_t params;
-		memset(&params, 0, sizeof(lisa_tts_params_t));
-		params.ttscb = _tts_cb;
-		tts_handler = lisa_tts_create(&params);
+		// lisa_tts_params_t params;
+		// memset(&params, 0, sizeof(lisa_tts_params_t));
+		// params.ttscb = _tts_cb;
+		// tts_handler = lisa_tts_create(&params);
+#if 1
+		atts_config_t tts_config = {
+			.role 		= ivTTS_ROLE_XIAOYAN,
+			.language	= ivTTS_LANGUAGE_AUTO,
+			.speed		= ivTTS_SPEED_NORMAL,
+			.volume		= ivTTS_VOLUME_NORMAL,
+		};
 
+		if(trans_data[0] > 127){
+			tts_config.role = ivTTS_ROLE_XIAOYAN;
+		}else{
+			tts_config.role = ivTTS_ROLE_CATHERINE;
+		}
+
+		lisa_tts_play(tts_handler, trans_data, &tts_config);
+#else
 		lisa_tts_play(tts_handler, trans_data);
+#endif
+
+		while(!tts_done){
+			k_msleep(100);
+		}
+
+		lisa_tts_stop(tts_handler);
+		tts_done = 0;
+		
+		k_msleep(100);
 	}
 
 }
@@ -153,20 +207,19 @@ void create_offline_recognize_thread()
 	}
 }
 
-
 static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 {
-	if (info == NULL || info->addr == NULL || info->frame_cnt <= 0) {
+	if (info == NULL || info->ap_share.addr == NULL || info->ap_share.frame_cnt <= 0) {
 		return NULL;
 	}
 
-	SCB_InvalidateDCache_by_Addr(info, sizeof(frames_info_t));
-	int r = info->r_pos;
-	int w = info->w_pos;
-	int cnt = info->frame_cnt;
-	char *addr = info->addr;
+	// SCB_InvalidateDCache_by_Addr(info, sizeof(frames_info_t));
+	int r = info->cp_share.r_pos;
+	int w = info->ap_share.w_pos;
+	int cnt = info->ap_share.frame_cnt;
+	char *addr = info->ap_share.addr;
 
-	w %= info->frame_cnt;
+	w %= info->ap_share.frame_cnt;
 
 	if (w > r) {
 		if ((r + cnt - w) <= 1) {
@@ -180,20 +233,20 @@ static inline char *bf30a2_frames_info_get_free(frames_info_t *info)
 		}
 	}
 
-	return info->addr + w * info->frame_size;
+	return info->ap_share.addr + w * info->ap_share.frame_size;
 }
 
 static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
 {
-	if (info == NULL || info->addr == NULL || info->frame_cnt <= 0) {
+	if (info == NULL || info->ap_share.addr == NULL || info->ap_share.frame_cnt <= 0) {
 		return -1;
 	}
 
-	info->w_pos++;
-	info->w_pos %= info->frame_cnt;
-	SCB_CleanDCache_by_Addr(info, sizeof(frames_info_t));
+	info->ap_share.w_pos++;
+	info->ap_share.w_pos %= info->ap_share.frame_cnt;
+	// SCB_CleanDCache_by_Addr(info, sizeof(frames_info_t));
 
-	return info->w_pos;
+	return info->ap_share.w_pos;
 }
 
 #define VIDEO_DEV DT_LABEL(DT_INST(0, byd_bf30a2))
@@ -210,11 +263,12 @@ uint32_t calc_sum(uint8_t *src, uint32_t size)
 	return sum;
 }
 
-
-static void video_ap2cp_thread(void *arg1)
+void video_ap2cp_thread(void *p1)
 {
 	struct video_buffer *vbuf = NULL;
-	frames_info_t *info = (frames_info_t *)0x30704000;
+
+	/*Don't change this next line,it is reserved for video share memory size 256 Bytes!!!!!!!!!!!!!!*/
+	frames_info_t *info = (frames_info_t *)(CONFIG_SOF_IPC_SHM_BASE_ADDRESS + CONFIG_SOF_IPC_SHM_SIZE - 0x100);
 
 	const struct device *video = device_get_binding(VIDEO_DEV);
 
@@ -223,26 +277,30 @@ static void video_ap2cp_thread(void *arg1)
 		return;
 	}
 	memset(info, 0, sizeof(frames_info_t));
-	info->addr = &swp_frames[0][0];
-	info->frame_size = 180 * 128 + sizeof(frame_info_t);
-	info->frame_cnt = 5;
-	info->w_pos = 0;
-	info->r_pos = 0;
-	info->tag = 0x12345678;
+	info->ap_share.addr = &swp_frames[0][0];
+	info->ap_share.frame_size = 180 * 128 + sizeof(frame_info_t);
+	info->ap_share.frame_cnt = 5;
+	info->ap_share.w_pos = 0;
+	info->cp_share.r_pos = 0;
+	info->ap_share.tag = 0x12345678;
 
 	LISA_LOGI(TAG, "##########Frames info##########");
 	LISA_LOGI(TAG, "info       :%p.", info);
-	LISA_LOGI(TAG, "buffer addr:%p.", info->addr);
-	LISA_LOGI(TAG, "frame  size:%u.", info->frame_size);
-	LISA_LOGI(TAG, "frame count:%d.", info->frame_cnt);
-	LISA_LOGI(TAG, "write   pos:%d.", info->w_pos);
-	LISA_LOGI(TAG, "read    pos:%d.", info->r_pos);
+	LISA_LOGI(TAG, "buffer addr:%p.", info->ap_share.addr);
+	LISA_LOGI(TAG, "frame  size:%u.", info->ap_share.frame_size);
+	LISA_LOGI(TAG, "frame count:%d.", info->ap_share.frame_cnt);
+	LISA_LOGI(TAG, "write   pos:%d.", info->ap_share.w_pos);
+	LISA_LOGI(TAG, "read    pos:%d.", info->cp_share.r_pos);
+	LISA_LOGI(TAG, "sizeof(frame_info_t):%d, sizeof(swap_block_ap_t):%d.", sizeof(frame_info_t), sizeof(swap_block_ap_t));
 
 	uint32_t last_tick = 0;
 	int id = 0;
 	int fps = 0;
 	int frame_cnt = 0;
 	int discard_cnt = 0;
+
+	BUILD_CHECK(sizeof(frames_info_t) % 32 == 0);
+
 	while (1) {
 		vbuf = NULL;
 		video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_FOREVER);
@@ -250,11 +308,23 @@ static void video_ap2cp_thread(void *arg1)
 		/* send datas to cp core */
 		char *buffer = bf30a2_frames_info_get_free(info);
 		if (buffer != NULL) {
+			if ((buffer < info->ap_share.addr) || (buffer >= (info->ap_share.addr + info->ap_share.frame_size * info->ap_share.frame_cnt))) {
+				LISA_LOGI(TAG, "##########Frames info##########");
+				LISA_LOGI(TAG, "info       :%p.", info);
+				LISA_LOGI(TAG, "buffer addr:%p.", info->ap_share.addr);
+				LISA_LOGI(TAG, "frame  size:%u.", info->ap_share.frame_size);
+				LISA_LOGI(TAG, "frame count:%d.", info->ap_share.frame_cnt);
+				LISA_LOGI(TAG, "write   pos:%d.", info->ap_share.w_pos);
+				LISA_LOGI(TAG, "read    pos:%d.", info->cp_share.r_pos);
+
+				LISA_LOGI(TAG, "buffer:%p.", buffer);
+				k_panic();
+			}
 			frame_info_t *frame_info = (frame_info_t *)buffer;
 			frame_info->id = id++;
 			memcpy(buffer + sizeof(frame_info_t), vbuf->buffer, 180 * 128);
 			frame_info->sum = calc_sum(buffer + sizeof(frame_info_t), 180 * 128);
-			SCB_CleanDCache_by_Addr(buffer, info->frame_size);
+			SCB_CleanDCache_by_Addr(buffer, info->ap_share.frame_size);
 			bf30a2_frames_info_update_w_pos(info);
 			fps = vbuf->timestamp - last_tick > 0 ?
 				      1000 / (vbuf->timestamp - last_tick) :
@@ -263,15 +333,15 @@ static void video_ap2cp_thread(void *arg1)
 		} else {
 			discard_cnt++;
 		}
+
 		if (frame_cnt % 10 == 0) {
 			LISA_LOGI(TAG, "fps:%d, T:%d, D%d.", fps, frame_cnt, discard_cnt);
 		}
 		video_enqueue(video, VIDEO_EP_OUT, vbuf);
 	}
-
 }
 
-static void create_cam2cp_thread()
+void create_cam2cp_thread()
 {
 
 	if (s_cam2cp_thread) {
@@ -281,7 +351,7 @@ static void create_cam2cp_thread()
 	lisa_thread_attr_t thread_attr;
 	thread_attr.name = "cam2cp_thread";
 	thread_attr.stack_size = 2 * 1024;
-	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+	thread_attr.priority = OS_PRIORITY_HIGHER;  // OS_PRIORITY_NORMAL
 
 	s_cam2cp_thread = lisa_thread_create(&thread_attr, video_ap2cp_thread, NULL);
 	if (s_cam2cp_thread == NULL) {
@@ -297,9 +367,9 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 	/* long button has the PRESS/RELEASE state */
 	if (sta == PRESS) {
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
-		lisa_translate_destroy(trans_handler);
-		lisa_tts_stop(tts_handler);
-		lisa_tts_destroy(tts_handler);
+		// lisa_translate_destroy(trans_handler);
+		// lisa_tts_stop(tts_handler);
+		// lisa_tts_destroy(tts_handler);
 		_video_init();
 		lisa_vcapture_start(vcap_handler);
 	} else if (sta == RELEASE) {

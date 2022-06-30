@@ -60,3 +60,7 @@ if(BUILD_DSP_FIRMWARE)
   target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ./src) 
 
 endif()
+
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/drivers/dma/dma_csk6.c ITCM_TEXT)
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/../modules/hal/listenai/csk6/drivers/cm33/dma.c ITCM_TEXT)
+zephyr_code_relocate($ENV{ZEPHYR_BASE}/drivers/video/bf30a2.c ITCM_TEXT)
