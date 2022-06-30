@@ -15,3 +15,9 @@ config MPU_ALLOW_FLASH_WRITE
 	bool "Add MPU access to write to flash"
 	help
 	  Enable this to allow MPU RWX access to flash memory
+
+config CSK6_FLASH_STALL_SECOND_CORE
+	bool  "Stall second core when write and erase flash"
+	default n
+	help
+		Enable stall second core operation when write and erase flash

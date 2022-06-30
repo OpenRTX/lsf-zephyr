@@ -20,6 +20,7 @@
 #include <hal/spiflash.h>
 
 
+#if (CSK6_FLASH_STALL_SECOND_CORE)
 #define FLASH_OPT_ENTER() \
 	int flash_irq_key = irq_lock();\
 	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x1;
@@ -27,6 +28,15 @@
 #define FLASH_OPT_EXIT() \
 	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x0;\
 	irq_unlock(flash_irq_key);
+#else
+
+#define FLASH_OPT_ENTER() \
+	int flash_irq_key = irq_lock();
+
+#define FLASH_OPT_EXIT() \
+	irq_unlock(flash_irq_key);
+
+#endif
 
 typedef struct {
 	FLASH_DEV flash_dev;
