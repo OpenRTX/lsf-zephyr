@@ -1,0 +1,28 @@
+# BF30A2
+
+# Copyright (c) 2022 listenai
+# SPDX-License-Identifier: Apache-2.0
+
+config VIDEO_BF30A2
+	bool "1/15 inch QVGA CMOS Image Sensor BF30A2"
+	help
+	  Enable driver for BF30A2 CMOS digital image sensor device.
+
+config VIDEO_BF30A2_RECEIVE_BUF_NUM
+	int "Must be greater than or equal to 2"
+	default 2
+	help
+	  Config the number of buffers that the bf30a2 driver receives raw data.
+
+config VIDEO_BF30A2_RECEIVE_THREAD_PRIORITY
+	int "the priority of thread"
+	default 1
+	help
+	  Config the priority of thread.
+
+config VIDEO_BF30A2_TIMER_TIMEOUT
+	int "timeout of ms"
+	default 5
+	help
+	  Config the timeout value for timer.
+

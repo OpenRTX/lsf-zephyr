@@ -1,4 +1,4 @@
-&csk6002_9s_nano_pinctrl{
+&csk6011a_9s_nano_pinctrl{
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
                         pinctrls = <&pinmuxb 2 8>;
                 };
@@ -45,8 +45,6 @@
             status = "okay";
             label = "VIDEO";
             reg = <0x6e>;
-            pd-gpios = <&gpioa 5 0>;
-            pwr-gpios = <&gpioa 5 0>;
             product-id = <0x3b02>;
             spi = <&spi1>;
 	    xclk-gpios = <&gpioa 7 0>;
