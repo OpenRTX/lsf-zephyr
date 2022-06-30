@@ -49,9 +49,8 @@ source "drivers/video/Kconfig.ov7725"
 
 source "drivers/video/Kconfig.ov2640"
 
-source "drivers/video/Kconfig.bf30a2"
-
 source "drivers/video/Kconfig.csk6_dvp"
+
 source "drivers/video/Kconfig.ov9655"
 
 endif # VIDEO
