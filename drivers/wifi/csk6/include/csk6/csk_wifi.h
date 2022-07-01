@@ -12,6 +12,11 @@ extern "C" {
 #define CSK_WIFI_BSSID_LEN      17
 #define CSK_WIFI_PWD_LEN        64
 
+#define CSK_WIFI_STATUS_STA_CONNECTED       0
+#define CSK_WIFI_STATUS_STA_CONNECTING      1
+#define CSK_WIFI_STATUS_STA_DISCONNECTED    2
+#define CSK_WIFI_STATUS_STA_UNKNOWN         3
+
 /* TODO: Add WIFI state machine transition diagram */
 
 /**
@@ -96,6 +101,7 @@ typedef enum {
     CSK_WIFI_EVT_AP_STACONNECTED =      BIT(4),     /* WIFI-SoftAP station connected event bit */
     CSK_WIFI_EVT_AP_STADISCONNECTED =   BIT(5),     /* WIFI-SoftAP station disconnected event bit */
     CSK_WIFI_EVT_SCAN_DONE =            BIT(6),     /* WIFI-SoftAP scan done event bit */
+    CSK_WIFI_EVT_STA_CONNECTING =       BIT(7),     /* WIFI-Station connecting event bit */
 } csk_wifi_event_t;
 
 /**
@@ -238,6 +244,14 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
  * @retval -EIO(5) errno code if other wifi error reason occured
  */
 int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout);
+
+/**
+ * @brief get station status 
+ * 
+ * @return the WiFi station status. For example, CSK_WIFI_STATUS_STA_CONNECTED
+ */
+int csk_wifi_sta_get_status();
+
 #endif
 
 #ifdef CONFIG_CSK_WIFI_SOFTAP
