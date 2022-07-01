@@ -32,13 +32,28 @@ static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, 
     k_sem_give(&ipv4_sem);
 }
 
-static void connected_cb(wifi_mgr_sta_config_t *connected_info, void *arg)
+static void connection_cb(wifi_mgr_connection_info_t *connection_info, void *arg)
 {
-    printk("Connected to AP successfully\n");
-    printk("ssid: %s  bssid: %s  channel: %d  rssi: %d\n",
-            connected_info->ssid, connected_info->bssid, connected_info->channel, connected_info->rssi);
-    k_sem_give(&wifi_conn_sem);
+    int ret = 0;
+
+    switch (connection_info->status) {
+    case WIFI_MGR_STA_DISCONNECTED:
+        break;
+    case WIFI_MGR_STA_CONNECTING:
+        break;
+    case WIFI_MGR_STA_CONNECTED:
+        printk("Connected to AP successfully\n");
+        printk("ssid: %s  bssid: %s  channel: %d  rssi: %d\n",
+            connection_info->sta_info->ssid, connection_info->sta_info->bssid,
+            connection_info->sta_info->channel, connection_info->sta_info->rssi);
+        k_sem_give(&wifi_conn_sem);
+        break;
+    default:
+        break;
+    }
+
 }
+
 
 static void scandone_cb(wifi_mgr_scan_info_t *aps_info, int ap_num, void *arg)
 {
@@ -53,8 +68,9 @@ void main(void)
         abort();
     }
 
-    wifi_mgr_sta_add_connected_cb(connected_cb, NULL);
     wifi_mgr_add_scan_done_cb(scandone_cb, NULL);
+
+    wifi_mgr_sta_add_connection_cb(connection_cb, NULL);
     
     wifi_mgr_scan_info_t *aps_info;
     int ap_num = wifi_mgr_scan_ap(&aps_info, false);
