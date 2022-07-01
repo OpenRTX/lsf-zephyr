@@ -170,6 +170,9 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 {
 	printk("@@recv_cmd_type_e:%d\n", type);
 	int pack_len = 0;
+	uint16_t algo_out_len = 0;
+	char *algo_out = NULL;
+
 	switch (type) {
 		case e_cmd_scan_tts_text:
 			LISA_LOGD(TAG, "tts text :%s, len:%d\n", data, len);
@@ -177,22 +180,21 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 			memset(&params, 0, sizeof(lisa_tts_params_t));
 			params.ttscb = _tts_cb;
 			tts_handler = lisa_tts_create(&params);
-
-			// lisa_tts_play(tts_handler, trans_data);
 			break;
 		case e_cmd_scan_translate_text:
 			memset(ocr_result, 0, 1024);
 			memcpy(ocr_result, data, len);
 			LISA_LOGD(TAG, "translate text :%s, len:%d\n", data, len);
-			char trans_data[1024] = {0};
+			#define TRANS_TEST_SIZE (1*1024)
+			algo_out = lisa_mem_alloc(TRANS_TEST_SIZE);
 			trans_handler = lisa_translate_create();
-			lisa_translate_exec(trans_handler, ocr_result, trans_data, 1024, 40000);
+			lisa_translate_exec(trans_handler, ocr_result, algo_out, 1024, 40000);
 			lisa_translate_destroy(trans_handler);
-			uint16_t trans_len = strlen(trans_data);
+			algo_out_len = strlen(algo_out);
 			// spi pack
-			uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(trans_len+16);
+			uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(algo_out_len+16);
 			if(text_pack) {
-				pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)trans_data, trans_len, LISA_UP_TEXT_TRANSLATE);
+				pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)algo_out, algo_out_len, LISA_UP_TEXT_TRANSLATE);
 				printk("pack len:%d\n", pack_len);
 				for(int i=0;i < pack_len; i++) {
 					printk("%02x ", text_pack[i]);
@@ -207,6 +209,36 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 			break;
 		case e_cmd_scan_word_search_text:
 			LISA_LOGD(TAG, "word_search text :%s, len:%d\n", data, len);
+			memset(ocr_result, 0, 1024);
+			memcpy(ocr_result, data, len);
+			dict_init(NULL_DICT);
+			#if 1
+			#define DICT_TEST_SIZE (16*1024)
+			algo_out = lisa_mem_alloc(DICT_TEST_SIZE);
+			if(algo_out) {
+				int gif_len = 0;
+				dict_test(ocr_result, algo_out, NULL, &gif_len);
+				algo_out_len = strlen(algo_out);
+				// spi pack
+				uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(algo_out_len+16);
+				if(text_pack) {
+					pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)algo_out, algo_out_len, LISA_UP_TEXT_WORD_SEARCH);
+					printk("pack len:%d\n", pack_len);
+					for(int i=0;i < pack_len; i++) {
+						printk("%02x ", text_pack[i]);
+					}
+					printk("\n");
+					// spi send
+					lisa_spi_write(text_pack, pack_len);
+					lisa_thread_mdelay(50);
+					// pack free
+					lisa_mem_free(text_pack);
+				}
+				lisa_mem_free(algo_out);
+			} else {
+				printk("Address not 4 byte aligned or NULL error \n");
+			}
+			#endif
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
@@ -237,31 +269,6 @@ static void  offline_recognize_thread(void *arg)
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
 
 	printk("offline_recognize_thread !\n");
-	s_fs_mount();
-	dict_init(NULL_DICT);
-	#if 1
-	#define DICT_TEST_SIZE (16*1024)
-	char* out = lisa_mem_alloc(DICT_TEST_SIZE);
-	if(out) {
-		int gif_len = 0;
-		memset(out, 0, DICT_TEST_SIZE);
-		dict_test("cherry", out, NULL, &gif_len);
-
-		memset(out, 0, DICT_TEST_SIZE);
-		dict_test("tea", out, NULL, &gif_len);
-
-		// k_msleep(1000);
-	
-		memset(out, 0, DICT_TEST_SIZE);
-		dict_test("茶", out, NULL, &gif_len);
-
-		memset(out, 0, DICT_TEST_SIZE);
-		dict_test("人", out, NULL, &gif_len);
-	} else {
-		printk("Address not 4 byte aligned or NULL error \n");
-	}
-	if(out) lisa_mem_free(out);
-	#endif
 
 	s_ocr_res_sema = lisa_semaphore_create(1);
 
