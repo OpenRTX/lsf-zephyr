@@ -40,7 +40,7 @@ typedef struct {
 } vcapture_msgq_data_t;
 
 typedef struct {
-	char result_str[128];
+	char result_str[1024];
 	struct k_sem compelete_sem;
 } vcapture_ocr_t;
 
@@ -418,6 +418,9 @@ int8_t lisa_vcapture_stop(lisa_vcapture_handler_t *handler)
 		LISA_LOGE(TAG, "[%s %d]vcapture not start", __FUNCTION__, __LINE__);
 		goto _err_status;
 	}
+
+	vcap_last(ctx->vcapture);
+	k_msleep(100);
 
 	vcap_event_unregister(ctx->vcapture, AVF_STREAM_EVENT_THRES_NOTIFY);
 	vcap_stop(ctx->vcapture);

@@ -127,7 +127,7 @@ lisa_err_t zephyr_button_init(void)
 		return;
 	}
 
-	ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_BOTH | GPIO_INT_DEBOUNCE);
+	ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_BOTH);
 	if (ret != 0) {
 		LISA_LOGE(TAG, "Error %d: failed to configure interrupt on %s pin %d\n", ret,
 				button.port->name, button.pin);

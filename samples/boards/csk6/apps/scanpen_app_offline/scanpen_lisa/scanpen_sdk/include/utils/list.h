@@ -35,7 +35,7 @@
 
 #define READ_ONCE(x)                                                                               \
 	({                                                                                         \
-		compiletime_assert_rwonce_type(x);                                                 \
+		/*compiletime_assert_rwonce_type(x)*/;                                                 \
 		__READ_ONCE(x);                                                                    \
 	})
 
