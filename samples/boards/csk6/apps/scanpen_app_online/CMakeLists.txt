@@ -56,6 +56,9 @@ if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano"  O
     zephyr_code_relocate( ${ZEPHYR_BASE}/modules/mbedtls/zephyr_init.c PSRAMAP_BSS)
   endif()
 
+  if((CONFIG_CODE_DATA_RELOCATION))
+    zephyr_code_relocate($ENV{ZEPHYR_BASE}/subsys/net/lib/sockets/sockets_tls.c PSRAMAP_BSS)
+  endif()
  
   zephyr_compile_options(-g3 -gdwarf-2)
 endif()
