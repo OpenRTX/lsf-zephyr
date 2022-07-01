@@ -96,10 +96,10 @@ static inline void wifi_reset_result(void)
     k_msgq_purge(&wifi_result_msgq);
 }
 
-static inline int wifi_give_result(wifi_ret_msg_t *ret_msg, bool asnyc_mode)
+static inline int wifi_give_result(wifi_ret_msg_t *ret_msg, bool async_mode)
 {
     int ret = 0;
-    if (asnyc_mode == false) {
+    if (async_mode == false) {
         if (!k_msgq_num_free_get(&wifi_result_msgq)) {
             wifi_reset_result(); /* clean the message queue */
         }
