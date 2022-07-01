@@ -989,11 +989,6 @@ BF30A2_FAST_CODE static int bf30a2_driv_stream_start(const struct device *dev)
 		return -1;
 	}
 
-	int r = bf30a2_chip_config(dev);
-	if (r != 0) {
-		LOG_ERR("chip config error.");
-		return r;
-	}
 	bf30a2_dev_cs_enable(dev, true);
 	bf30a2_chip_write_register(dev, 0xCF, 0xF0);
 	bf30a2_stream_start_internal(dev);
@@ -1060,7 +1055,16 @@ BF30A2_FAST_CODE static int bf30a2_driv_enqueue(const struct device *dev, enum v
 
 BF30A2_FAST_CODE static int bf30a2_set_ctrl(const struct device *dev, unsigned int cid, void *value)
 {
-	return 0;
+	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
+
+	LOG_DBG("Video:Config register %X val %X!", cid, *(uint8_t*)value);
+
+	int32_t r = bf30a2_chip_write_register(dev, cid, *(uint8_t*)value);
+	if (r != 0) {
+		LOG_ERR("Config register %X error!", cid);
+		return r;
+	}
+	return r;
 }
 
 BF30A2_FAST_CODE static int bf30a2_driv_flush(const struct device *dev, enum video_endpoint_id ep, bool cancel)
