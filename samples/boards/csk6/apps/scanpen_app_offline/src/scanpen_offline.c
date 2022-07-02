@@ -26,6 +26,9 @@
 #include <lisa_time.h>
 #define TAG "scanpen_offline"
 
+#include <drivers/flash.h>
+#include <storage/flash_map.h>
+
 static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
 static lisa_semaphore_t *s_ocr_image_sema = NULL;
 static lisa_semaphore_t *s_ocr_res_sema = NULL;
@@ -149,6 +152,16 @@ static void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 	}
 }
 
+#if FLASH_AREA_LABEL_EXISTS(image_1)
+#define UPLOAD_FLASH_AREA_ID FLASH_AREA_ID(image_1)
+#else
+// #define UPLOAD_FLASH_AREA_ID FLASH_AREA_ID(image_0)
+#error "can't find image1"
+#endif
+#define BLOCK_SIZE (4096)
+static const struct flash_area *fa;
+static int tts_audio_offset = 0;
+static char *tts_audio_buffer = NULL;
 static void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 {
 	switch (msg) {
@@ -157,8 +170,14 @@ static void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 			break;
 		case TTS_PLAY_OVER:
 			LISA_LOGD(TAG, "TTS_PLAY_OVER \n");
-			//lisa_tts_stop(tts_handler);
-			//lisa_tts_destroy(tts_handler);
+			 lisa_semaphore_give(s_ocr_res_sema);
+			break;
+		case TTS_AUDIO:
+			printk("len:%d\n", len);
+			if(tts_audio_buffer) {
+				memcpy(tts_audio_buffer+tts_audio_offset, data, len);
+				tts_audio_offset += len;
+			}
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
@@ -270,6 +289,14 @@ static void  offline_recognize_thread(void *arg)
 
 	printk("offline_recognize_thread !\n");
 
+	tts_audio_buffer = lisa_mem_alloc(100 * 4096);
+	lisa_tts_params_t params;
+	memset(&params, 0, sizeof(lisa_tts_params_t));
+	params.ttscb = _tts_cb;
+	tts_handler = lisa_tts_create(&params);
+	char *trans_data = "This is an English short sentence synthesis test case";
+	lisa_tts_start(tts_handler, trans_data);
+
 	s_ocr_res_sema = lisa_semaphore_create(1);
 
 	if (!s_send_ocr_simulation_image_buffer) {
@@ -282,11 +309,35 @@ static void  offline_recognize_thread(void *arg)
 	unsigned char *crop_image_buffer = lisa_mem_alloc(CROP_BUF_LEN);
 	int ret_len = 0;
 	while (true) {
-		// lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
+		lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
+		lisa_tts_stop(tts_handler);
+		lisa_tts_destroy(tts_handler);
+	#if 1
+		k_msleep(2000);
+		LISA_LOGI(TAG, "storage tts audio");
+		if (flash_area_open(UPLOAD_FLASH_AREA_ID, &fa)) {
+			LISA_LOGE(TAG, "open image_1 partiton failed!!");
+		}
+		LISA_LOGI(TAG, "fa_dev_name:%s", fa->fa_dev_name);
+		int ret = flash_area_erase(fa, 0, BLOCK_SIZE*100);
+		if (ret) {
+			LISA_LOGE(TAG, "flash partiton erase failed!,ret[%d]", ret);
+		}
+		ret = flash_area_write(fa, 0, (uint8_t *)tts_audio_buffer, tts_audio_offset);
+		if (ret) {
+			LISA_LOGE(TAG, "flash partiton write failed!,ret[%d]", ret);
+		}
+		LISA_LOGI(TAG, "close flash area ,total:%d", tts_audio_offset);
+		flash_area_close(fa);
+		if(tts_audio_buffer) lisa_mem_free(tts_audio_buffer);
+	#endif
+
+		#if 0
 		ret_len = recv_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, crop_image_buffer, CROP_BUF_LEN, LISA_WAIT_FOREVER);
 		// spi send, unnecessary packed
-		printk("ret_len:%d\n", ret_len);
+		// printk("ret_len:%d\n", ret_len);
 		lisa_spi_write(crop_image_buffer, ret_len);
+		#endif
 	}
 }
 
