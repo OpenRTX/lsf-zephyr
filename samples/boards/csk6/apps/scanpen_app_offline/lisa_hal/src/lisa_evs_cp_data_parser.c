@@ -402,7 +402,7 @@ static void lisa_spi_init(void)
 int lisa_spi_write(uint8_t *data, uint32_t len)
 {
 	if(NULL == g_spi) {
-		LISA_LOGE(TAG, "lisa spi not init");
+		// LISA_LOGE(TAG, "lisa spi not init");
 		return -1;
 	}
 
