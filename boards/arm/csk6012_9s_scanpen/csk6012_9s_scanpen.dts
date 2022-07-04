@@ -322,37 +322,49 @@
                 /* filesystem: Kb */
                 filesystem_part: partition@260000 {
                         label = "filesystem";
-                        reg = <0x260000 0x2a0000>;
+                        reg = <0x260000 0x200000>;
                 };
 
                 /* cp partition: 3MB  */
-                hifi4_partition: partition@500000 {
+                hifi4_partition: partition@460000 {
                         label = "cp-image";
-                        reg = <0x500000 0x300000>;
+                        reg = <0x460000 0x140000>;
                 };
 
 				/*cutline partition: 512K */
-                cutline_partition: partition@800000 {
+                cutline_partition: partition@5A0000 {
                         label = "cutline";
-                        reg = <0x800000 0x80000>;
+                        reg = <0x5A0000 0x80000>;
                 };
 
 				/*ocr partition: 2.5M */
-                ocr_partition: partition@880000 {
+                ocr_partition: partition@620000 {
                         label = "ocr";
-                        reg = <0x880000 0x280000>;
+                        reg = <0x620000 0x280000>;
                 };
 
 				/*tts partition: 4M */
-                tts_partition: partition@b00000 {
+                tts_partition: partition@8a0000 {
                         label = "tts";
-                        reg = <0xb00000 0x480000>;
+                        reg = <0x8a0000 0x240000>;
                 };
 
 				/*trans partition: 16M */
-                trans_partition: partition@f80000 {
+                trans_partition: partition@ae0000 {
                         label = "trans";
-                        reg = <0xf80000 0x1000000>;
+                        reg = <0xae0000 0x1000000>;
+                };
+
+				/*dict_cn */
+                dictcn_partition: partition@1ae0000 {
+                        label = "dict-cn";
+                        reg = <0x1ae0000 0x100000>;
+                };
+
+				/*dict_en */
+                dicten_partition: partition@1be0000 {
+                        label = "dict-en";
+                        reg = <0x1be0000 0x2c0000>;
                 };
 
 				/* Reserve the final 512 KiB*/

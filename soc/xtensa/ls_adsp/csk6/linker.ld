@@ -20,25 +20,10 @@ OUTPUT_ARCH(xtensa)
 
 #include "linker-defs.h"
 
+#if CONFIG_CP_XIP
 
-//#include <devicetree.h>
-
-#define CP_XIP (1)
-
-#if CP_XIP
-/* #if DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
-
-#define LOAD_FROM_FLASH   1
-/* #define MTD_NODE          DT_MTD_FROM_FIXED_PARTITION(DT_NODE_BY_FIXED_PARTITION_LABEL(cp_image)) */
-/* #define MTD_BASE_START    DT_REG_ADDR(MTD_NODE) */
-/* #define MTD_BASE_SIZE     DT_REG_SIZE(MTD_NODE) */
-/* #define MTD_OFFSET        DT_PROP_OR(MTD_NODE, cp_offset, 0x50000000) */
-
-/* #define FLASH_PHY_START       DT_REG_ADDR(DT_NODE_BY_FIXED_PARTITION_LABEL(cp_image)) + MTD_OFFSET + MTD_BASE_START */
-/* #define FLASH_PHY_SIZE        DT_REG_SIZE(DT_NODE_BY_FIXED_PARTITION_LABEL(cp_image)) */
-
-#define FLASH_PHY_START       (0x18000000 + 0x50000000 + 0x500000)
-#define FLASH_PHY_SIZE        (0x300000)
+#define FLASH_PHY_START   (CONFIG_CP_XIP_RUN_ADDRESS)
+#define FLASH_PHY_SIZE    (CONFIG_CP_XIP_MAX_SIZE)
 
 #define RAMABLE_REGION    sdram0
 #define ROMABLE_REGION    FLASH
@@ -51,32 +36,32 @@ OUTPUT_ARCH(xtensa)
 #define FLASH_START       (VECTORS_START + VECTORS_SIZE)
 #define FLASH_SIZE        (FLASH_PHY_START + FLASH_PHY_SIZE - FLASH_START)
 
-#define RESET_VECTOR        (FLASH_START)
+#define RESET_VECTOR      (FLASH_START)
 
-#define SDRAM0_START_X    0x60000000
-#define SDRAM0_SIZE_X     SDRAM0_SIZE
+#define SDRAM0_START_X    (SDRAM0_BASE - ISR_VECTOR_SIZE)
+#define SDRAM0_SIZE_X     (SDRAM0_SIZE + ISR_VECTOR_SIZE)
 
 #else
 
 #define RAMABLE_REGION    sdram0
 #define ROMABLE_REGION    sdram0
 
-#define RESET_TEXT_ADDR   0x60000000
+#define RESET_TEXT_ADDR   (SDRAM0_BASE - ISR_VECTOR_SIZE)
 
 #define VECTORS_START     (RESET_TEXT_ADDR + MEM_RESET_TEXT_SIZE + MEM_RESET_LIT_SIZE)
 #define VECTORS_SIZE      0x298
 
-#define FLASH_START  0
-#define FLASH_SIZE   0
+#define FLASH_START       0
+#define FLASH_SIZE        0
 
-#define RESET_VECTOR        (RESET_TEXT_ADDR)
+#define RESET_VECTOR      (RESET_TEXT_ADDR)
 
 #define SDRAM0_START_X    (VECTORS_START + VECTORS_SIZE)
-#define SDRAM0_SIZE_X     SDRAM0_SIZE - ISR_VECTOR_SIZE
+#define SDRAM0_SIZE_X     (SDRAM0_SIZE - ISR_VECTOR_SIZE)
 
-#endif /* end of DT_HAS_FIXED_PARTITION_LABEL(cp_image) */
+#endif /* CONFIG_CP_XIP */
 
-#if CP_XIP
+#if CONFIG_CP_XIP
 #define SECTION_PROLOGUE(name, options, align) name options : align
 #define GROUP_ROM_LINK_IN(vregion, lregion) > lregion
 #define SECTION_DATA_PROLOGUE(name, options, align) SECTION_PROLOGUE(name, options, align)
@@ -86,7 +71,7 @@ OUTPUT_ARCH(xtensa)
 #define GROUP_ROM_LINK_IN(vregion, lregion) > lregion
 #define SECTION_DATA_PROLOGUE(name, options, align) SECTION_PROLOGUE(name, options, align)
 #define GROUP_DATA_LINK_IN(vregion, lregion) > vregion
-#endif
+#endif /* CONFIG_CP_XIP */
 
 PROVIDE(__memctl_default = 0x00000000);
 PROVIDE(_MemErrorHandler = 0x00000000);
@@ -441,7 +426,7 @@ SECTIONS
     XIP_COPY_DEF(.UserExceptionVector.text)
     XIP_COPY_DEF(.DoubleExceptionVector.text)
 
-#if CP_XIP
+#if CONFIG_CP_XIP
     /* text */
     XIP_COPY_DEF(.iram.text)
     XIP_COPY_DEF(.dram1.rodata)
@@ -491,7 +476,7 @@ SECTIONS
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
-#endif
+#endif /* CONFIG_CP_XIP */
 
     __copy_table_end__ = .;
 
@@ -537,7 +522,7 @@ SECTIONS
     _dram1_bss_end = ABSOLUTE(.);
   } >luna_sharedmem_dram AT > ROMABLE_REGION
 
-#if CP_XIP
+#if CONFIG_CP_XIP
   .dram1.text_rodata : ALIGN(8)
   {
     . = ALIGN (8);
@@ -549,7 +534,7 @@ SECTIONS
     . = ALIGN (8);
     _iram_text_rodata_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > ROMABLE_REGION
-#endif
+#endif /* CONFIG_CP_XIP */
 
   .sharedmem.text : ALIGN(4)
   {
@@ -608,7 +593,7 @@ SECTIONS
     _iram_text_end = ABSOLUTE(.);
   } >iram_text_start AT > ROMABLE_REGION
 
-  #if CP_XIP
+  #if CONFIG_CP_XIP
   .ai_lib.text_rodata : ALIGN(4)
   {
     . = ALIGN (4);
@@ -855,7 +840,7 @@ SECTIONS
     . = ALIGN (4);
     _ai_lib_text_rodata_end = ABSOLUTE(.);    
   } >RAMABLE_REGION AT > ROMABLE_REGION
-#endif
+#endif /* CONFIG_CP_XIP */
 
   .rtos.rodata : ALIGN(4)
   {
