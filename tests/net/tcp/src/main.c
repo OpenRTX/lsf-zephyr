@@ -1363,7 +1363,25 @@ fail:
 	net_pkt_unref(pkt);
 }
 
-static void test_server_recv_out_of_order_data(void)
+struct out_of_order_check_struct {
+	int seq_offset;
+	int length;
+	int ack_offset;
+	int delay_ms;
+};
+
+static struct out_of_order_check_struct out_of_order_check_list[] = {
+	{ 30, 10, 0, 0}, /* First packet will be out-of-order */
+	{ 20, 10, 0, 0},
+	{ 10, 10, 0, 0},
+	{ 0,  10, 40, 0}, /* First sequence complete */
+	{ 60, 10, 40, 0},
+	{ 70, 10, 40, 0},
+	{ 40, 25, 80, 0}, /* Some bigger data */
+};
+
+static void checklist_based_out_of_order_test(struct out_of_order_check_struct *check_list,
+					      int num_checks, int sequence_base)
 {
 	const uint8_t *data = lorem_ipsum + 10;
 	struct net_pkt *pkt;
