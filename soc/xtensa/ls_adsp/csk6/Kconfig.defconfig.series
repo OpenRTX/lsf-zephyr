@@ -47,6 +47,18 @@ config DYNAMIC_INTERRUPTS
 config LOG
 	default y
 
+config CP_XIP
+	bool "Enable DSP runs in xip mode"
+	default n
+		
+config CP_XIP_RUN_ADDRESS
+	hex "DSP XIP run address"
+	default 0x68500000 if CP_XIP
+
+config CP_XIP_MAX_SIZE
+	hex "DSP XIP max size"
+	default 0x300000 if CP_XIP	
+
 # To prevent test uses TEST_LOGGING_MINIMAL
 config TEST_LOGGING_DEFAULTS
 	default n
