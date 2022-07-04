@@ -308,7 +308,7 @@ static int bf30a2_chip_xclk_init(const struct device *dev)
 	hDvp->PIXEL_CLK_DIV = 4;
 	hDvp->PIXEL_CLK_EN = 1;
 
- 	const char *xclk_gpio_label = DT_GPIO_LABEL_BY_IDX(DT_DRV_INST(0), xclk_gpios, 0);
+	const char *xclk_gpio_label = DT_GPIO_LABEL_BY_IDX(DT_DRV_INST(0), xclk_gpios, 0);
 	const uint8_t xclk_gpio_pin = DT_GPIO_PIN_BY_IDX(DT_DRV_INST(0), xclk_gpios, 0);
 
 	if (strcmp(xclk_gpio_label, "GPIO_A") == 0) {
@@ -976,11 +976,6 @@ static int bf30a2_driv_stream_start(const struct device *dev)
 		return -1;
 	}
 
-	int r = bf30a2_chip_config(dev);
-	if (r != 0) {
-		LOG_ERR("chip config error.");
-		return r;
-	}
 	bf30a2_dev_cs_enable(dev, true);
 	bf30a2_chip_write_register(dev, 0xCF, 0xF0);
 	bf30a2_stream_start_internal(dev);
@@ -1042,6 +1037,36 @@ static int bf30a2_driv_enqueue(const struct device *dev, enum video_endpoint_id 
 
 static int bf30a2_set_ctrl(const struct device *dev, unsigned int cid, void *value)
 {
+	struct bf30a2_dev_data *data = (struct bf30a2_dev_data *)dev->data;
+	int32_t r;
+	uint8_t id[2] = { 0 };
+
+	if (cid == VIDEO_CID_HFLIP) {
+		r = bf30a2_chip_read_register(dev, 0x00, &id[0], 1);
+		if (r != 0) {
+			LOG_ERR("Read register %X error!", cid);
+			return r;
+		}
+		r = bf30a2_chip_write_register(dev, 0x00, &id[0] || (1 << 3));
+		if (r != 0) {
+			LOG_ERR("Config register %X error!", cid);
+			return r;
+		}
+	}
+
+	if (cid == VIDEO_CID_VFLIP) {
+		r = bf30a2_chip_read_register(dev, 0x00, &id[0], 1);
+		if (r != 0) {
+			LOG_ERR("Read register %X error!", cid);
+			return r;
+		}
+		r = bf30a2_chip_write_register(dev, 0x00, &id[0] || (1 << 2));
+		if (r != 0) {
+			LOG_ERR("Config register %X error!", cid);
+			return r;
+		}
+	}
+
 	return 0;
 }
 
