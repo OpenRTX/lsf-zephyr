@@ -64,7 +64,7 @@
         /* filesystem: 2.625MB */
         filesystem_part: partition@260000 {
 					label = "filesystem";
-					reg = <0x260000 0x2a0000>;
+					reg = <0x260000 0x1a0000>;
 			};
 	};
 };
@@ -90,9 +90,9 @@
 &gpt0 {
 	status = "okay";
 
-       pwm2: pwm2 {
+	pwm2: pwm2 {
         clock-prescaler = <1>;
-        status = "disabled";
+        status = "okay";
         pinctrl-0 = <&pinctrl_pwm2_default>; 
         pinctrl-names = "default";
     };
@@ -100,37 +100,21 @@
 
 &spi0 {
 	    status = "okay";
-		spi-max-frequency = <40000000>;
-		pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>;
-		pinctrl-names = "default";
+		    spi-max-frequency = <25000000>;
 };
 
 &spi1 {
     status = "okay";
     spi-max-frequency = <100000000>;
-    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>;
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>; 
 	pinctrl-names = "default";
 };
 
-&uart2 {
-    status = "okay";
-    current-speed = <115200>;
-	pinctrl-0 = <&pinctrl_uart2_tx_default &pinctrl_uart2_rx_default>;
-	pinctrl-names = "default";
-};
 
 &csk6012_9s_scanpen_pinctrl {
 
                 pinctrl_pwm2_default: pwm2_default{
                     pinctrls = <&pinmuxb 6 11>;
-                };
-
-				pinctrl_uart2_tx_default: uart2_tx_default{
-                    pinctrls = <&pinmuxb 6 3>;
-                };
-
-				pinctrl_uart2_rx_default: uart2_rx_default{
-                    pinctrls = <&pinmuxb 7 3>;
                 };
 
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
@@ -141,23 +125,6 @@
                         pinctrls = <&pinmuxb 3 8>;
                 };
 
-				/* SPIC alternate function */
-				pinctrl_spi0_cs_default: spi0_cs_default{
-						pinctrls = <&pinmuxa 20 6>;
-				};
-
-				pinctrl_spi0_miso_default: spi0_miso_default{
-						pinctrls = <&pinmuxa 17 6>;
-				};
-
-				pinctrl_spi0_mosi_default: spi0_mosi_default{
-						pinctrls = <&pinmuxa 18 6>;
-				};
-
-				pinctrl_spi0_sclk_default: spi0_sclk_default{
-						pinctrls = <&pinmuxa 19 6>;
-				};
-
 				pinctrl_spi1_sclk_default: spi1_sclk_default {
                     pinctrls = < &pinmuxb 0 7 >;
                 };
@@ -167,7 +134,7 @@
                 };
 
                 pinctrl_spi1_miso_default: spi1_miso_default {
-                    pinctrls = < &pinmuxb 1 7 >;
+                    pinctrls = < &pinmuxa 20 7 >;
                 };
 
                 pinctrl_spi1_cs_default: spi1_cs_default {

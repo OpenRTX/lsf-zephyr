@@ -10,6 +10,20 @@
                 pinctrls = <&pinmuxa 1 11>;
         };
         /* SPIC alternate function */
+        pinctrl_spi0_cs_default: spi0_cs_default{
+                pinctrls = <&pinmuxa 12 6>;
+        };
+
+        pinctrl_spi0_miso_default: spi0_miso_default{
+        };
+
+        pinctrl_spi0_mosi_default: spi0_mosi_default{
+                pinctrls = <&pinmuxa 10 6>;
+        };
+
+        pinctrl_spi0_sclk_default: spi0_sclk_default{
+                pinctrls = <&pinmuxa 11 6>;
+        };
         
         pinctrl_spi1_sclk_default: spi1_sclk_default{
         };
@@ -38,6 +52,15 @@
         
         pinctrl_uart0_tx_default: uart0_tx_default{
                 pinctrls = <&pinmuxb 11 2>;
+        };
+
+        /* ADC alternate function */
+        pinctrl_adc0_ch0_default: adc0_ch0_default{
+                pinctrls = <&pinmuxb 6 16>;
+        };
+        
+        pinctrl_adc0_ch1_default: adc0_ch1_default{
+                pinctrls = <&pinmuxb 7 16>;
         };
 
         pinctrl_adc0_ch2_default: adc0_ch2_default{
@@ -84,7 +107,7 @@
         leds {
                 compatible = "gpio-leds";
                 camleds1: cam_led_0 {
-                        gpios = <&gpiob 5 0>;
+                        gpios = <&gpiob 7 0>;
                         label = "cam_led_0";
                 };
 
@@ -115,6 +138,17 @@
 
         };
 
+        wifi_module: xr819s {
+                compatible = "wifi,xr819s";
+                label = "WiFi module";
+                dataready-gpios = <&gpioa 16 0>;
+                reset-gpios = <&gpioa 17 0>;
+                sdio-clk-gpios = <&gpioa 20 0>;
+                sdio-cmd-gpios = <&gpioa 18 0>;
+                sdio-dat0-gpios = <&gpioa 19 0>;
+                status = "okay";
+        };
+
 };
 &gpt0 {
 	status = "okay";
@@ -128,6 +162,52 @@
 
 &spi0 {
         status = "okay";
+        pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_cs_default>; 
+        pinctrl-names = "default";
+        cs-gpios = <&gpioa 12 0>;
+        st7789v@0 {
+                compatible = "sitronix,st7789v";
+                label = "ST7789V";
+                status = "disabled";
+                spi-max-frequency = <20000000>;
+                reg = <0>;
+                cmd-data-gpios = <&gpioa 14 1>;
+                reset-gpios = <&gpioa 15 1>;
+                width = <320>;
+                height = <170>;
+                x-offset = <0>;
+                y-offset = <35>;
+                // reg:0xBB
+                vcom = <0x1e>;
+                // reg:0xB7
+                gctrl = <0x35>;
+                // reg:0xC3
+                vrhs = <0x0b>;
+                // reg:0xC4
+                vdvs = <0x20>;
+                // reg:0x36
+                mdac = <0xA3>;
+                // reg:0x26
+                gamma = <0x01>;
+                // reg:0x3a
+                colmod = <0x05>;
+                // reg:0xc0
+                lcm = <0x2c>;
+                // reg:0xb2
+                porch-param = [0c 0c 00 33 33];
+                // reg:0xDF
+                cmd2en-param = [5a 69 02 01];
+                // reg:0xD0
+                pwctrl1-param = [a4 a1];
+                // reg:0xE0
+                pvgam-param = [d0 06 0b 07 07 24 2e 32 46 37 13 13 2d 33];
+                // reg:0xE1
+                nvgam-param = [d0 02 06 09 08 05 29 44 42 38 14 14 2a 30];
+                // reg:b0
+                ram-param = [00 F0];
+                // reg:b1
+                rgb-param = [CD 08 14];
+            };
     };
 &spi1 {
     status = "disabled";
@@ -172,7 +252,7 @@
 };
 
 &uart2 {
-        status = "okay";
+        status = "disabled";
 };
 
 &mailbox0 {
@@ -238,16 +318,16 @@
                         reg = <0x240000 0x20000>;
                 };
 
-                /* filesystem: Kb */
+                /* filesystem: 5.5MB */
                 filesystem_part: partition@260000 {
                         label = "filesystem";
-                        reg = <0x260000 0x2a0000>;
+                        reg = <0x260000 0x1a0000>;
                 };
 
-                /* cp partition: 3MB  */
-                hifi4_partition: partition@500000 {
+                /* cp partition: 64KB  */
+                hifi4_partition: partition@400000 {
                         label = "cp-image";
-                        reg = <0x500000 0x300000>;
+                        reg = <0x400000 0x400000>;
                 };
 
 				/*cutline partition: 512K */
