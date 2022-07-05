@@ -29,8 +29,8 @@
 #include "dict.h"
 #include "dict_demo.h"
 
-
-static lisa_semaphore_t *s_ocr_res_sema = NULL;
+static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
+static lisa_semaphore_t *s_ocr_image_sema = NULL;
 static lisa_thread_t *s_offline_recognize_thread = NULL;
 static lisa_thread_t *s_tts_thread = NULL;
 static lisa_semaphore_t *s_tts_sema = NULL;
@@ -73,7 +73,55 @@ __attribute__((aligned(32),
 
 #define BUILD_CHECK(x) do {char var[!!(x) - 1] __attribute__((unused));} while(0)
 
+typedef struct {
+	lisa_image_transfer_status_e status;
+	char *data;
+	int size;
+} lisa_image_msg_t;
 
+/**
+ * @brief 从ringbuf中接受一组图片
+ *
+ * @param ring_buffer
+ * @param data
+ * @param len
+ * @param wait_ms
+ * @return int
+ */
+static int recv_ocr_simulation_image_once(
+		struct lisa_ring_buffer *ring_buffer, uint8_t *data, unsigned int len, int wait_ms)
+{
+	int ret = lisa_ring_buffer_get(ring_buffer, data, len);
+	while (ret <= 0) {
+		lisa_semaphore_take(s_ocr_image_sema, LISA_WAIT_FOREVER);
+		ret = lisa_ring_buffer_get(ring_buffer, data, len);
+	}
+	return ret;
+}
+
+/**
+ * @brief 从ringbuf中发送一组图片
+ *
+ * @param ring_buffer
+ * @param data
+ */
+static void send_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer, lisa_image_msg_t *data)
+{
+	bool need_wake = false;
+	if (lisa_ring_buffer_len(ring_buffer) <= 0) {
+		need_wake = true;
+	}
+
+	int ret = lisa_ring_buffer_put(ring_buffer, data->data, data->size);
+	if (need_wake) {
+		lisa_semaphore_give(s_ocr_image_sema);
+	}
+	if (ret != data->size) {
+		LISA_LOGE(TAG, "write stream full \n");
+	}
+
+	lisa_thread_mdelay(15);
+}
 
 
 void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
@@ -84,10 +132,14 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			break;
 		case VCAPTURE_STOP:
 			LISA_LOGD(TAG, "vcapture msg VCAPTURE_STOP \n");
-			lisa_semaphore_give(s_ocr_res_sema);
 			break;
 		case VCAPTURE_DATA: {
 		//	LISA_LOGD(TAG, "vcapture msg VCAPTURE_DATA \n");
+			lisa_image_msg_t recv_image;
+			recv_image.status = LISA_IMAGE_FRAME_NONE;
+			recv_image.data = (char *)data;
+			recv_image.size = len;
+			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image);
 		} break;
 		case VCAPTURE_OCR:
 			memset(ocr_result, 0, sizeof(ocr_result));
@@ -182,14 +234,22 @@ void  offline_recognize_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
 
-	s_ocr_res_sema = lisa_semaphore_create(1);
-
-	while (true) {
-		lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
-		
-		k_msleep(100);
+	if (!s_send_ocr_simulation_image_buffer) {
+		unsigned char *buffer = lisa_mem_alloc(64 * 1024);
+		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 64 * 1024);
+		s_ocr_image_sema = lisa_semaphore_create(2);
 	}
 
+	#define CROP_BUF_LEN (4*1024)
+	unsigned char *crop_image_buffer = lisa_mem_alloc(CROP_BUF_LEN);
+	int ret_len = 0;
+
+	while (true) {
+		ret_len = recv_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, crop_image_buffer, CROP_BUF_LEN, LISA_WAIT_FOREVER);
+		// spi send, unnecessary packed
+		printk("ret_len:%d\n", ret_len);
+		lisa_spi_write(crop_image_buffer, ret_len);
+	}
 }
 
 /**
