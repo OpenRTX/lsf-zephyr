@@ -15,7 +15,7 @@ if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano"  O
   zephyr_compile_options(-g3 -gdwarf-2)
   add_subdirectory(lisa_hal)
   add_subdirectory(scanpen_lisa/lisa_os)
-  add_subdirectory(scanpen_lisa/lisa_net)
+  # add_subdirectory(scanpen_lisa/lisa_net)
   # add_subdirectory(scanpen_lisa/unit_test)
   add_subdirectory(scanpen_lisa/scanpen_sdk)
   # add_subdirectory(scanpen_lisa/scanpen_app)
