@@ -23,6 +23,9 @@
 #include <lisa_time.h>
 #define TAG "scanpen_offline"
 
+#include "dict.h"
+#include "dict_demo.h"
+
 
 static lisa_semaphore_t *s_ocr_res_sema = NULL;
 static lisa_thread_t *s_offline_recognize_thread = NULL;
@@ -111,6 +114,69 @@ static int _video_init()
 	return 0;
 }
 
+static void dirc_test(const char *data, uint32_t len)
+{
+	memset(ocr_result, 0, 1024);
+	memcpy(ocr_result, data, len);
+	dict_init(NULL_DICT);
+
+	#define DICT_TEST_SIZE (16*1024)
+	char *algo_out = lisa_mem_alloc(DICT_TEST_SIZE);
+	if(algo_out) {
+		int gif_len = 0;
+		dict_test(ocr_result, algo_out, NULL, &gif_len);
+		uint32_t algo_out_len = strlen(algo_out);
+		// spi pack
+		uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(algo_out_len+16);
+		if(text_pack) {
+			#if 0
+			uint32_t pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)algo_out, algo_out_len, LISA_UP_TEXT_WORD_SEARCH);
+			printk("pack len:%d\n", pack_len);
+			for(int i=0;i < pack_len; i++) {
+				printk("%02x ", text_pack[i]);
+			}
+			printk("\n");
+			// spi send
+			lisa_spi_write(text_pack, pack_len);
+			lisa_thread_mdelay(50);
+			#endif
+			// pack free
+			lisa_mem_free(text_pack);
+		}
+		lisa_mem_free(algo_out);
+	} else {
+		printk("Address not 4 byte aligned or NULL error \n");
+	}
+}
+
+static void trans_test(const char *data, uint32_t len)
+{
+	memset(ocr_result, 0, 1024);
+	memcpy(ocr_result, data, len);
+	LISA_LOGD(TAG, "translate text :%s, len:%d\n", data, len);
+	#define TRANS_TEST_SIZE (1*1024)
+	char *algo_out = lisa_mem_alloc(TRANS_TEST_SIZE);
+	trans_handler = lisa_translate_create();
+	lisa_translate_exec(trans_handler, ocr_result, algo_out, 1024, 40000);
+	lisa_translate_destroy(trans_handler);
+	int algo_out_len = strlen(algo_out);
+	#if 0
+	// spi pack
+	uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(algo_out_len+16);
+	if(text_pack) {
+		pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)algo_out, algo_out_len, LISA_UP_TEXT_TRANSLATE);
+		printk("pack len:%d\n", pack_len);
+		for(int i=0;i < pack_len; i++) {
+			printk("%02x ", text_pack[i]);
+		}
+		printk("\n");
+	}
+	// spi send
+	lisa_spi_write(text_pack, pack_len);
+	lisa_thread_mdelay(50);
+	#endif
+}
+
 void  offline_recognize_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
@@ -192,14 +258,32 @@ static void tts_test_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
 
+	printk("######dirc_test##########\n");
+	char *dirc_data = "cherry";
+	int dirc_len = strlen(dirc_data);
+	dirc_test(dirc_data, dirc_len);
+
+	char *dirc_cn_data = "人";
+	dirc_len = strlen(dirc_cn_data);
+	dirc_test(dirc_cn_data, dirc_len);
+
+	printk("######trans_test##########\n");
+	char *trans_data = "good morning";
+	int trnas_len = strlen(trans_data);
+	trans_test(trans_data, trnas_len);
+
+	char *trans_cn_data = "中文翻译测试";
+	trnas_len = strlen(trans_cn_data);
+	trans_test(trans_cn_data, trnas_len);
+
 #if TTS_AUDIO_SAVE_FLASH
 	tts_audio_buffer = lisa_mem_alloc(100 * 4096);
 #endif
 
 	s_tts_sema = lisa_semaphore_create(1);
 
-	// char *trans_data = "This is an English short sentence synthesis test case";
-	char *trans_data = "这是一个中文短句测试用例";
+	// char *tts_data = "This is an English short sentence synthesis test case";
+	char *tts_data = "这是一个中文短句测试用例";
 	/* create tts */
 	lisa_tts_params_t params;
 	memset(&params, 0, sizeof(lisa_tts_params_t));
@@ -213,12 +297,12 @@ static void tts_test_thread(void *arg)
 		.speed		= ivTTS_SPEED_NORMAL,
 		.volume		= ivTTS_VOLUME_NORMAL,
 	};
-	if(trans_data[0] > 127){
+	if(tts_data[0] > 127){
 		tts_config.role = ivTTS_ROLE_XIAOYAN;
 	}else{
 		tts_config.role = ivTTS_ROLE_CATHERINE;
 	}
-	lisa_tts_play(tts_handler, trans_data, &tts_config);
+	lisa_tts_play(tts_handler, tts_data, &tts_config);
 
 	while (true) {
 		lisa_semaphore_take(s_tts_sema, LISA_WAIT_FOREVER);
@@ -429,9 +513,6 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 	/* long button has the PRESS/RELEASE state */
 	if (sta == PRESS) {
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
-		// lisa_translate_destroy(trans_handler);
-		// lisa_tts_stop(tts_handler);
-		// lisa_tts_destroy(tts_handler);
 		_video_init();
 		lisa_vcapture_start(vcap_handler);
 	} else if (sta == RELEASE) {
