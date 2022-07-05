@@ -54,6 +54,11 @@
 #define OCR_FRM_HDR_LEN (8)
 #define OCR_FRM_HDR_CONTINUE_LEN (OCR_FRM_HDR_LEN - 2)
 
+#define TEXT_FRM_HDR_TAG (0x5d46)
+#define TEXT_FRM_HDR_TAG_H (0x5d)
+#define TEXT_FRM_HDR_LEN (8)
+#define TEXT_FRM_HDR_CONTINUE_LEN (TEXT_FRM_HDR_LEN - 2)
+
 #define OCR_FRAME_FORMAT_INDEX_LENGTH (2)
 #define OCR_FRAME_FORMAT_INDEX_CHECKSUM (6)
 
@@ -307,8 +312,123 @@ lisa_err_t lisa_evs_parser_cp_data()
     return LISA_OK;
 }
 
+static lisa_err_t lisa_spi_upload_text(uint8_t *dst, uint8_t *src, uint32_t len, lisa_spi_upload_type_e type)
+{
+	if(NULL == dst || NULL == src) {
+		return LISA_FAIL;
+	}
+
+	text_frame_t *_frame = (text_frame_t *)dst;
+
+	switch (type) {
+    case LISA_UP_TEXT_OCR:
+		_frame->tag = OCR_FRM_HDR_TAG;
+		break;
+    case LISA_UP_TEXT_TRANSLATE:
+    case LISA_UP_TEXT_WORD_SEARCH:
+		_frame->tag = TEXT_FRM_HDR_TAG;
+		break;
+    default:
+        break;
+    }
+
+	_frame->len = len;
+	_frame->checksum = _image_pack_check(src, len);
+	int8_t offset = (sizeof(text_frame_t) - sizeof(uint8_t *));
+	memcpy(dst + offset, src, len);
+
+	return (len+offset);
+}
+
+static lisa_err_t lisa_spi_upload_audio(uint8_t *dst, uint8_t *src, uint32_t len, lisa_spi_upload_type_e type)
+{
+	if(NULL == dst || NULL == src) {
+		return LISA_FAIL;
+	}
+
+	tts_frame_t *_frame = (tts_frame_t *)dst;
+
+	_frame->tag = TTS_FRM_HDR_TAG;
+	_frame->len = len;
+	_frame->checksum = _image_pack_check(src, len);
+	int8_t offset = (sizeof(tts_frame_t) - sizeof(uint8_t *));
+	memcpy(dst + offset, src, len);
+
+	return (len+offset);
+}
+
+lisa_err_t lisa_evs_pack_spi_data(uint8_t *dst, uint8_t *src, uint32_t len, lisa_spi_upload_type_e type)
+{
+	if(NULL == dst || NULL == src) {
+		return LISA_FAIL;
+	}
+	lisa_err_t ret = LISA_FAIL;
+    // parser body
+    switch (type) {
+    case LISA_UP_TEXT_OCR:
+    case LISA_UP_TEXT_TRANSLATE:
+    case LISA_UP_TEXT_WORD_SEARCH:
+		ret = lisa_spi_upload_text(dst, src, len, type);
+        break;
+	case LISA_UP_AUDIO:
+		ret = lisa_spi_upload_audio(dst, src, len, type);
+		break;
+    default:
+        break;
+    }
+    return ret;
+}
+
+#include <kernel.h>
+#include <string.h>
+#include <errno.h>
+#include <zephyr.h>
+#include <sys/printk.h>
+#include <device.h>
+#include <drivers/spi.h>
+
+#define UINT8_MAX_NUM	(0xff)
+const struct device *g_spi = NULL;
+static void lisa_spi_init(void)
+{
+    printk("spi master example\n");
+	g_spi = DEVICE_DT_GET(DT_NODELABEL(spi0));
+	if (!device_is_ready(g_spi)) {
+		printk("SPI device %s is not ready\n", g_spi->name);
+		return;
+	}
+}
+
+int lisa_spi_write(uint8_t *data, uint32_t len)
+{
+	if(NULL == g_spi) {
+		// LISA_LOGE(TAG, "lisa spi not init");
+		return -1;
+	}
+
+	if(NULL == data) {
+		LISA_LOGE(TAG, "spi write data null");
+		return -1;
+	}
+    struct spi_config spi_cfg = {0};
+    /* spi master 8bit, LSB first*/
+	spi_cfg.operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_TRANSFER_LSB;
+	spi_cfg.frequency = 40 * 1000000UL;
+
+    /* Make spi transaction package buffers */
+	struct spi_buf_set tx_set;
+	struct spi_buf _package;
+	_package.buf = data;
+	_package.len = len;
+	tx_set.buffers = &_package;
+	tx_set.count = 1;
+
+	return spi_write(g_spi, &spi_cfg, &tx_set);
+}
+
 lisa_err_t lisa_evs_parser_cp_init(read_cp_data read_cb)
 {
+	lisa_spi_init();
     if (!read_cb) return LISA_FAIL;
     g_read_cb = read_cb;
 	if (!image_data_buffer) {
