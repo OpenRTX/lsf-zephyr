@@ -17,6 +17,9 @@
 #include "lisa_vcapture.h"
 #include "lisa_translate.h"
 #include "lisa_tts.h"
+#include "lisa_uart_port.h"
+#include "lisa_uart_recv.h"
+#include "lisa_evs_cp_data_parser.h"
 
 //#include "lisa_evs_uuid.h"
 #include <fs/fs.h>
@@ -35,6 +38,7 @@ static lisa_vcapture_handler_t *vcap_handler = NULL;
 static lisa_translate_handler_t *trans_handler = NULL;
 static lisa_tts_handler_t *tts_handler = NULL;
 static volatile lisa_thread_t *s_cam2cp_thread = NULL;
+static lisa_thread_t *s_uart_proto_thread = NULL;
 
 static char ocr_result[1024] = {0};
 
@@ -119,7 +123,6 @@ static void dirc_test(const char *data, uint32_t len)
 	memset(ocr_result, 0, 1024);
 	memcpy(ocr_result, data, len);
 	dict_init(NULL_DICT);
-
 	#define DICT_TEST_SIZE (16*1024)
 	char *algo_out = lisa_mem_alloc(DICT_TEST_SIZE);
 	if(algo_out) {
@@ -129,7 +132,6 @@ static void dirc_test(const char *data, uint32_t len)
 		// spi pack
 		uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(algo_out_len+16);
 		if(text_pack) {
-			#if 0
 			uint32_t pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)algo_out, algo_out_len, LISA_UP_TEXT_WORD_SEARCH);
 			printk("pack len:%d\n", pack_len);
 			for(int i=0;i < pack_len; i++) {
@@ -139,7 +141,6 @@ static void dirc_test(const char *data, uint32_t len)
 			// spi send
 			lisa_spi_write(text_pack, pack_len);
 			lisa_thread_mdelay(50);
-			#endif
 			// pack free
 			lisa_mem_free(text_pack);
 		}
@@ -159,22 +160,22 @@ static void trans_test(const char *data, uint32_t len)
 	trans_handler = lisa_translate_create();
 	lisa_translate_exec(trans_handler, ocr_result, algo_out, 1024, 40000);
 	lisa_translate_destroy(trans_handler);
-	int algo_out_len = strlen(algo_out);
-	#if 0
+	uint32_t algo_out_len = strlen(algo_out);
 	// spi pack
 	uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(algo_out_len+16);
 	if(text_pack) {
-		pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)algo_out, algo_out_len, LISA_UP_TEXT_TRANSLATE);
+		uint32_t pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)algo_out, algo_out_len, LISA_UP_TEXT_TRANSLATE);
 		printk("pack len:%d\n", pack_len);
 		for(int i=0;i < pack_len; i++) {
 			printk("%02x ", text_pack[i]);
 		}
 		printk("\n");
+		// spi send
+		lisa_spi_write(text_pack, pack_len);
+		lisa_thread_mdelay(50);
+		// pack free
+		if(text_pack) lisa_mem_free(text_pack);
 	}
-	// spi send
-	lisa_spi_write(text_pack, pack_len);
-	lisa_thread_mdelay(50);
-	#endif
 }
 
 void  offline_recognize_thread(void *arg)
@@ -540,10 +541,67 @@ int pen_head_button_init(void)
 	pen_head_button->start(pen_head_button);
 }
 
+static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
+{
+	printk("@@recv_cmd_type_e:%d\n", type);
+	int pack_len = 0;
+	uint16_t algo_out_len = 0;
+	char *algo_out = NULL;
+
+	switch (type) {
+		case e_cmd_scan_tts_text:
+			LISA_LOGD(TAG, "tts text :%s, len:%d\n", data, len);
+			lisa_tts_params_t params;
+			memset(&params, 0, sizeof(lisa_tts_params_t));
+			params.ttscb = _tts_cb;
+			tts_handler = lisa_tts_create(&params);
+			break;
+		case e_cmd_scan_translate_text:
+			trans_test(data, len);
+			break;
+		case e_cmd_scan_word_search_text:
+			dirc_test(data, len);
+			break;
+		default:
+			LISA_LOGE(TAG, "unsupport tts msg\n");
+			break;
+	}
+}
+
+static void create_uart_proto_thread(void)
+{
+	if (s_uart_proto_thread) {
+		return;
+	}
+	lisa_thread_attr_t thread_attr;
+	thread_attr.name = "uart_proto";
+	thread_attr.stack_size = 4 * 1024;
+	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+
+	s_uart_proto_thread = lisa_thread_create(&thread_attr, prot_recv_task, _uart_recv_cb);
+	if (s_uart_proto_thread == NULL) {
+		LISA_LOGE(TAG, "thread_create:  _uart_proto_thread failed");
+		return;
+	}
+}
+
 void ocr_test_offline_start()
 {
+	/* button initialize */
 	pen_head_button_init();
+
+	/* image data from AP to dsp */
 	create_cam2cp_thread();
+
+	/* dsp callback image process */
 	create_offline_recognize_thread();
+
+	/* tts thread */
 	create_tts_thread();
+
+	/* spi protocol */
+	// lisa_evs_parser_cp_init(NULL);
+
+	/* uart protocol */
+	// create_uart_proto_thread();
 }
