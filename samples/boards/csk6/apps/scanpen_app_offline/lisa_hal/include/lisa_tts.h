@@ -25,6 +25,8 @@ typedef enum {
 	TTS_START = 0,
 	/*when tts play over callbak this msg*/
 	TTS_PLAY_OVER,
+	/* TTS data */
+	TTS_AUDIO,
 	/*reserved*/
 	TTS_ERR,
 } lisa_tts_cbmsg_e;
