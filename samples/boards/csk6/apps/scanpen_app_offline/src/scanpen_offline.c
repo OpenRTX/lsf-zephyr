@@ -26,6 +26,8 @@
 
 static lisa_semaphore_t *s_ocr_res_sema = NULL;
 static lisa_thread_t *s_offline_recognize_thread = NULL;
+static lisa_thread_t *s_tts_thread = NULL;
+static lisa_semaphore_t *s_tts_sema = NULL;
 static lisa_vcapture_handler_t *vcap_handler = NULL;
 static lisa_translate_handler_t *trans_handler = NULL;
 static lisa_tts_handler_t *tts_handler = NULL;
@@ -91,24 +93,6 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 	}
 }
 
-void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
-{
-	switch (msg) {
-		case TTS_START:
-			LISA_LOGD(TAG, "TTS_START \n");
-			break;
-		case TTS_PLAY_OVER:
-			LISA_LOGD(TAG, "TTS_PLAY_OVER \n");
-			// lisa_tts_stop(tts_handler);
-			tts_done = 1;
-			// lisa_tts_destroy(tts_handler);
-			break;
-		default:
-			LISA_LOGE(TAG, "unsupport tts msg\n");
-			break;
-	}
-}
-
 static int _video_init()
 {
 	lisa_vcapture_params_t params;
@@ -130,55 +114,11 @@ static int _video_init()
 void  offline_recognize_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
-	char trans_data[1024] = {0};
 
-	/* create translate */
-	trans_handler = lisa_translate_create();
-
-	/* create tts */
-	lisa_tts_params_t params;
-	memset(&params, 0, sizeof(lisa_tts_params_t));
-	params.ttscb = _tts_cb;
-	tts_handler = lisa_tts_create(&params);
-	LISA_LOGD(TAG, "TTS_INIT_DONE \n");
+	s_ocr_res_sema = lisa_semaphore_create(1);
 
 	while (true) {
 		lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
-
-		// trans_handler = lisa_translate_create();
-		memset(trans_data, 0, sizeof(trans_data));
-		lisa_translate_exec(trans_handler, ocr_result, trans_data, 1024, 40000);
-		// lisa_translate_destroy(trans_handler);
-
-		// lisa_tts_params_t params;
-		// memset(&params, 0, sizeof(lisa_tts_params_t));
-		// params.ttscb = _tts_cb;
-		// tts_handler = lisa_tts_create(&params);
-#if 1
-		atts_config_t tts_config = {
-			.role 		= ivTTS_ROLE_XIAOYAN,
-			.language	= ivTTS_LANGUAGE_AUTO,
-			.speed		= ivTTS_SPEED_NORMAL,
-			.volume		= ivTTS_VOLUME_NORMAL,
-		};
-
-		if(trans_data[0] > 127){
-			tts_config.role = ivTTS_ROLE_XIAOYAN;
-		}else{
-			tts_config.role = ivTTS_ROLE_CATHERINE;
-		}
-
-		lisa_tts_play(tts_handler, trans_data, &tts_config);
-#else
-		lisa_tts_play(tts_handler, trans_data);
-#endif
-
-		while(!tts_done){
-			k_msleep(100);
-		}
-
-		lisa_tts_stop(tts_handler);
-		tts_done = 0;
 		
 		k_msleep(100);
 	}
@@ -202,6 +142,128 @@ void create_offline_recognize_thread()
 
 	s_offline_recognize_thread = lisa_thread_create(&thread_attr, offline_recognize_thread, NULL);
 	if (s_offline_recognize_thread == NULL) {
+		LISA_LOGE(TAG, "thread_create:  offline_recognize_thread failed");
+		return;
+	}
+}
+
+
+/*******************************************************/
+/****************** tts test   ***********************/
+/*******************************************************/
+#define TTS_AUDIO_SAVE_FLASH 0
+
+#if TTS_AUDIO_SAVE_FLASH
+#include <drivers/flash.h>
+#include <storage/flash_map.h>
+#define UPLOAD_FLASH_AREA_ID FLASH_AREA_ID(image_1)
+#define BLOCK_SIZE (4096)
+static const struct flash_area *fa;
+static int tts_audio_offset = 0;
+static char *tts_audio_buffer = NULL;
+#endif
+
+static void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
+{
+	switch (msg) {
+		case TTS_START:
+			LISA_LOGD(TAG, "TTS_START \n");
+			break;
+		case TTS_PLAY_OVER:
+			LISA_LOGD(TAG, "TTS_PLAY_OVER \n");
+			lisa_semaphore_give(s_tts_sema);
+			break;
+		case TTS_AUDIO:
+			printk("len:%d\n", len);
+			#if TTS_AUDIO_SAVE_FLASH
+			if(tts_audio_buffer) {
+				memcpy(tts_audio_buffer+tts_audio_offset, data, len);
+				tts_audio_offset += len;
+			}
+			#endif
+			break;
+		default:
+			LISA_LOGE(TAG, "unsupport tts msg\n");
+			break;
+	}
+}
+
+static void tts_test_thread(void *arg)
+{
+	LISA_LOGI(TAG, "%s", __FUNCTION__);
+
+#if TTS_AUDIO_SAVE_FLASH
+	tts_audio_buffer = lisa_mem_alloc(100 * 4096);
+#endif
+
+	s_tts_sema = lisa_semaphore_create(1);
+
+	// char *trans_data = "This is an English short sentence synthesis test case";
+	char *trans_data = "这是一个中文短句测试用例";
+	/* create tts */
+	lisa_tts_params_t params;
+	memset(&params, 0, sizeof(lisa_tts_params_t));
+	params.ttscb = _tts_cb;
+	tts_handler = lisa_tts_create(&params);
+	LISA_LOGD(TAG, "TTS_INIT_DONE \n");
+
+	atts_config_t tts_config = {
+		.role 		= ivTTS_ROLE_XIAOYAN,
+		.language	= ivTTS_LANGUAGE_AUTO,
+		.speed		= ivTTS_SPEED_NORMAL,
+		.volume		= ivTTS_VOLUME_NORMAL,
+	};
+	if(trans_data[0] > 127){
+		tts_config.role = ivTTS_ROLE_XIAOYAN;
+	}else{
+		tts_config.role = ivTTS_ROLE_CATHERINE;
+	}
+	lisa_tts_play(tts_handler, trans_data, &tts_config);
+
+	while (true) {
+		lisa_semaphore_take(s_tts_sema, LISA_WAIT_FOREVER);
+		lisa_tts_stop(tts_handler);
+		lisa_tts_destroy(tts_handler);
+
+#if TTS_AUDIO_SAVE_FLASH
+		k_msleep(2000);
+		LISA_LOGI(TAG, "storage tts audio");
+		if (flash_area_open(UPLOAD_FLASH_AREA_ID, &fa)) {
+			LISA_LOGE(TAG, "open image_1 partiton failed!!");
+		}
+		LISA_LOGI(TAG, "fa_dev_name:%s", fa->fa_dev_name);
+		int ret = flash_area_erase(fa, 0, BLOCK_SIZE*100);
+		if (ret) {
+			LISA_LOGE(TAG, "flash partiton erase failed!,ret[%d]", ret);
+		}
+		ret = flash_area_write(fa, 0, (uint8_t *)tts_audio_buffer, tts_audio_offset);
+		if (ret) {
+			LISA_LOGE(TAG, "flash partiton write failed!,ret[%d]", ret);
+		}
+		LISA_LOGI(TAG, "close flash area ,total:%d", tts_audio_offset);
+		flash_area_close(fa);
+		if(tts_audio_buffer) lisa_mem_free(tts_audio_buffer);
+#endif
+	}
+}
+
+/**
+ * @brief Create a tts thread object
+ *
+ */
+void create_tts_thread()
+{
+	if (s_tts_thread) {
+		return;
+	}
+
+	lisa_thread_attr_t thread_attr;
+	thread_attr.name = "tts_thread";
+	thread_attr.stack_size = 4 * 1024;
+	thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+
+	s_tts_thread = lisa_thread_create(&thread_attr, tts_test_thread, NULL);
+	if (s_tts_thread == NULL) {
 		LISA_LOGE(TAG, "thread_create:  offline_recognize_thread failed");
 		return;
 	}
@@ -401,6 +463,6 @@ void ocr_test_offline_start()
 {
 	pen_head_button_init();
 	create_cam2cp_thread();
-	s_ocr_res_sema = lisa_semaphore_create(1);
 	create_offline_recognize_thread();
+	create_tts_thread();
 }
