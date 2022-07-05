@@ -43,7 +43,7 @@ lisa_translate_handler_t *lisa_translate_create(void);
  *
  * @retval  -1 failed 0 success
  */
-int8_t lisa_translate_exec(lisa_translate_handler_t *handler, const char *text, uint32_t buffer,
+int8_t lisa_translate_exec(lisa_translate_handler_t *handler, const char *text, uint32_t *buffer,
 		uint32_t size, uint32_t timoutms);
 /**
  * @brief	translate resource recycle func
