@@ -65,7 +65,7 @@
         /* filesystem: 2.625MB */
         filesystem_part: partition@260000 {
 					label = "filesystem";
-					reg = <0x260000 0x2a0000>;
+					reg = <0x260000 0x1a0000>;
 			};
 	};
 };
