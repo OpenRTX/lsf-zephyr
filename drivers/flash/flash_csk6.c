@@ -96,7 +96,7 @@ static int flash_csk6_write(const struct device *dev, off_t address, const void 
 	}
 
 	FLASH_OPT_ENTER();
-	sflash_write_protection_set((void *)dev->config, false);
+	// sflash_write_protection_set((void *)dev->config, false);
 	if(0 != ADDRESS_IS_IN_SOC_FLASH_AREA((uint32_t)buffer)){
 		iret = flash_csk6_write_with_cp(dev,address,buffer,length);
 	}
@@ -107,7 +107,7 @@ static int flash_csk6_write(const struct device *dev, off_t address, const void 
 			iret = 0;
 		}
 	}
-	sflash_write_protection_set((void *)dev->config, true);
+	// sflash_write_protection_set((void *)dev->config, true);
 	FLASH_OPT_EXIT();
 
 	return iret;
@@ -122,14 +122,14 @@ static int flash_csk6_erase(const struct device *dev, off_t start, size_t len)
 	}
 
 	FLASH_OPT_ENTER();
-	sflash_write_protection_set((void *)dev->config, false);
+	// sflash_write_protection_set((void *)dev->config, false);
 
 	if (0 != sflash_erase((void *)dev->config, FLASH_BASE_ADDRESS + start, len)) {
 		iret = -EIO;
 	} else {
 		iret = 0;
 	}
-	sflash_write_protection_set((void *)dev->config, true);
+	// sflash_write_protection_set((void *)dev->config, true);
 
 	FLASH_OPT_EXIT();
 
@@ -162,6 +162,8 @@ static int flash_csk6_init(const struct device *dev)
 	unsigned int key;
 	key = irq_lock();
 	sflash_init((void *)dev->config);
+
+	sflash_write_protection_set((void *)dev->config, false);
 	irq_unlock(key);
 	return 0;
 }
