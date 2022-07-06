@@ -108,7 +108,7 @@
         leds {
                 compatible = "gpio-leds";
                 camleds1: cam_led_0 {
-                        gpios = <&gpiob 7 0>;
+                        gpios = <&gpioa 10 0>;
                         label = "cam_led_0";
                 };
 

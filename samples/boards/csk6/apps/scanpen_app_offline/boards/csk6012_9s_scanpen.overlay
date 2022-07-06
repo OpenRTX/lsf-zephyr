@@ -111,11 +111,25 @@
 	pinctrl-names = "default";
 };
 
+&uart2 {
+    status = "okay";
+    current-speed = <115200>;
+	pinctrl-0 = <&pinctrl_uart2_tx_default &pinctrl_uart2_rx_default>;
+	pinctrl-names = "default";
+};
 
 &csk6012_9s_scanpen_pinctrl {
 
                 pinctrl_pwm2_default: pwm2_default{
                     pinctrls = <&pinmuxb 6 11>;
+                };
+
+				pinctrl_uart2_tx_default: uart2_tx_default{
+                    pinctrls = <&pinmuxa 18 3>;
+                };
+
+				pinctrl_uart2_rx_default: uart2_rx_default{
+                    pinctrls = <&pinmuxa 15 3>;
                 };
 
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
