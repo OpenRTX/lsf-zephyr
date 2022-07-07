@@ -318,23 +318,38 @@ static lisa_err_t lisa_spi_upload_text(uint8_t *dst, uint8_t *src, uint32_t len,
 		return LISA_FAIL;
 	}
 
-	text_frame_t *_frame = (text_frame_t *)dst;
-
+	int32_t offset = 0;
 	switch (type) {
-    case LISA_UP_TEXT_OCR:
+    case LISA_UP_TEXT_OCR: {
+		ocr_frame_t *_frame = (ocr_frame_t *)dst;
 		_frame->tag = OCR_FRM_HDR_TAG;
+		_frame->len = len;
+		_frame->checksum = _image_pack_check(src, len);
+		offset = (sizeof(ocr_frame_t) - sizeof(uint8_t *));
 		break;
-    case LISA_UP_TEXT_TRANSLATE:
-    case LISA_UP_TEXT_WORD_SEARCH:
-		_frame->tag = TEXT_FRM_HDR_TAG;
+	}
+    case LISA_UP_TEXT_TRANSLATE: {
+		text_frame_t *_frame = (text_frame_t *)dst;
+		_frame->tag = OCR_FRM_HDR_TAG;
+		_frame->type = 0x01;
+		_frame->len = len;
+		_frame->checksum = _image_pack_check(src, len);
+		offset = (sizeof(text_frame_t) - sizeof(uint8_t *));
 		break;
+	}
+    case LISA_UP_TEXT_WORD_SEARCH: {
+		text_frame_t *_frame = (text_frame_t *)dst;
+		_frame->tag = OCR_FRM_HDR_TAG;
+		_frame->type = 0x02;
+		_frame->len = len;
+		_frame->checksum = _image_pack_check(src, len);
+		offset = (sizeof(text_frame_t) - sizeof(uint8_t *));
+		break;
+	}
     default:
         break;
     }
 
-	_frame->len = len;
-	_frame->checksum = _image_pack_check(src, len);
-	int8_t offset = (sizeof(text_frame_t) - sizeof(uint8_t *));
 	memcpy(dst + offset, src, len);
 
 	return (len+offset);
