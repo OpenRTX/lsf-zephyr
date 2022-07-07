@@ -30,10 +30,13 @@
 #include "dict_demo.h"
 
 static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
+static struct lisa_ring_buffer *s_tts_audio_ring_buffer = NULL;
 static lisa_semaphore_t *s_ocr_image_sema = NULL;
 static lisa_thread_t *s_offline_recognize_thread = NULL;
 static lisa_thread_t *s_tts_thread = NULL;
+static lisa_thread_t *s_tts_send_thread = NULL;
 static lisa_semaphore_t *s_tts_sema = NULL;
+static lisa_semaphore_t *s_tts_ring_buffer_sema = NULL;
 static lisa_vcapture_handler_t *vcap_handler = NULL;
 static lisa_translate_handler_t *trans_handler = NULL;
 static lisa_tts_handler_t *tts_handler = NULL;
@@ -88,12 +91,12 @@ typedef struct {
  * @param wait_ms
  * @return int
  */
-static int recv_ocr_simulation_image_once(
-		struct lisa_ring_buffer *ring_buffer, uint8_t *data, unsigned int len, int wait_ms)
+static int recv_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer,
+				uint8_t *data, unsigned int len, lisa_semaphore_t *sema, int wait_ms)
 {
 	int ret = lisa_ring_buffer_get(ring_buffer, data, len);
 	while (ret <= 0) {
-		lisa_semaphore_take(s_ocr_image_sema, LISA_WAIT_FOREVER);
+		lisa_semaphore_take(sema, LISA_WAIT_FOREVER);
 		ret = lisa_ring_buffer_get(ring_buffer, data, len);
 	}
 	return ret;
@@ -105,7 +108,8 @@ static int recv_ocr_simulation_image_once(
  * @param ring_buffer
  * @param data
  */
-static void send_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer, lisa_image_msg_t *data)
+static void send_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer,
+				lisa_image_msg_t *data, lisa_semaphore_t *sema)
 {
 	bool need_wake = false;
 	if (lisa_ring_buffer_len(ring_buffer) <= 0) {
@@ -114,7 +118,7 @@ static void send_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer,
 
 	int ret = lisa_ring_buffer_put(ring_buffer, data->data, data->size);
 	if (need_wake) {
-		lisa_semaphore_give(s_ocr_image_sema);
+		lisa_semaphore_give(sema);
 	}
 	if (ret != data->size) {
 		LISA_LOGE(TAG, "write stream full \n");
@@ -139,7 +143,7 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			recv_image.status = LISA_IMAGE_FRAME_NONE;
 			recv_image.data = (char *)data;
 			recv_image.size = len;
-			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image);
+			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image, s_ocr_image_sema);
 		} break;
 		case VCAPTURE_OCR:
 			memset(ocr_result, 0, sizeof(ocr_result));
@@ -245,7 +249,8 @@ void  offline_recognize_thread(void *arg)
 	int ret_len = 0;
 
 	while (true) {
-		ret_len = recv_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, crop_image_buffer, CROP_BUF_LEN, LISA_WAIT_FOREVER);
+		ret_len = recv_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer,
+						crop_image_buffer, CROP_BUF_LEN, s_ocr_image_sema, LISA_WAIT_FOREVER);
 		// spi send, unnecessary packed
 		printk("ret_len:%d\n", ret_len);
 		lisa_spi_write(crop_image_buffer, ret_len);
@@ -290,6 +295,28 @@ static int tts_audio_offset = 0;
 static char *tts_audio_buffer = NULL;
 #endif
 
+static int tts_test(uint8_t *text, uint32_t len)
+{
+	if(NULL == tts_handler) {
+		printk("tts_handler null\n");
+		return -1;
+	}
+
+	atts_config_t tts_config = {
+		.role 		= ivTTS_ROLE_XIAOYAN,
+		.language	= ivTTS_LANGUAGE_AUTO,
+		.speed		= ivTTS_SPEED_NORMAL,
+		.volume		= ivTTS_VOLUME_NORMAL,
+	};
+	if(text[0] > 127){
+		tts_config.role = ivTTS_ROLE_XIAOYAN;
+	}else{
+		tts_config.role = ivTTS_ROLE_CATHERINE;
+	}
+	lisa_tts_play(tts_handler, text, &tts_config);
+	return 0;
+}
+
 static void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 {
 	switch (msg) {
@@ -308,6 +335,11 @@ static void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 				tts_audio_offset += len;
 			}
 			#endif
+			lisa_image_msg_t recv_image;
+			recv_image.status = LISA_IMAGE_FRAME_NONE;
+			recv_image.data = (char *)data;
+			recv_image.size = len;
+			send_ocr_simulation_image_once(s_tts_audio_ring_buffer, &recv_image, s_tts_ring_buffer_sema);
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
@@ -319,32 +351,12 @@ static void tts_test_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
 
-	printk("######dirc_test##########\n");
-	char *dirc_data = "cherry";
-	int dirc_len = strlen(dirc_data);
-	dirc_test(dirc_data, dirc_len);
-
-	char *dirc_cn_data = "人";
-	dirc_len = strlen(dirc_cn_data);
-	dirc_test(dirc_cn_data, dirc_len);
-
-	printk("######trans_test##########\n");
-	char *trans_data = "good morning";
-	int trnas_len = strlen(trans_data);
-	trans_test(trans_data, trnas_len);
-
-	char *trans_cn_data = "中文翻译测试";
-	trnas_len = strlen(trans_cn_data);
-	trans_test(trans_cn_data, trnas_len);
-
 #if TTS_AUDIO_SAVE_FLASH
 	tts_audio_buffer = lisa_mem_alloc(100 * 4096);
 #endif
 
 	s_tts_sema = lisa_semaphore_create(1);
 
-	// char *tts_data = "This is an English short sentence synthesis test case";
-	char *tts_data = "这是一个中文短句测试用例";
 	/* create tts */
 	lisa_tts_params_t params;
 	memset(&params, 0, sizeof(lisa_tts_params_t));
@@ -352,23 +364,9 @@ static void tts_test_thread(void *arg)
 	tts_handler = lisa_tts_create(&params);
 	LISA_LOGD(TAG, "TTS_INIT_DONE \n");
 
-	atts_config_t tts_config = {
-		.role 		= ivTTS_ROLE_XIAOYAN,
-		.language	= ivTTS_LANGUAGE_AUTO,
-		.speed		= ivTTS_SPEED_NORMAL,
-		.volume		= ivTTS_VOLUME_NORMAL,
-	};
-	if(tts_data[0] > 127){
-		tts_config.role = ivTTS_ROLE_XIAOYAN;
-	}else{
-		tts_config.role = ivTTS_ROLE_CATHERINE;
-	}
-	lisa_tts_play(tts_handler, tts_data, &tts_config);
-
 	while (true) {
 		lisa_semaphore_take(s_tts_sema, LISA_WAIT_FOREVER);
 		lisa_tts_stop(tts_handler);
-		lisa_tts_destroy(tts_handler);
 
 #if TTS_AUDIO_SAVE_FLASH
 		k_msleep(2000);
@@ -390,13 +388,34 @@ static void tts_test_thread(void *arg)
 		if(tts_audio_buffer) lisa_mem_free(tts_audio_buffer);
 #endif
 	}
+	lisa_tts_destroy(tts_handler);
+}
+
+static void tts_send_thread(void *arg)
+{
+	LISA_LOGI(TAG, "%s", __FUNCTION__);
+	s_tts_ring_buffer_sema = lisa_semaphore_create(2);
+	if (!s_tts_audio_ring_buffer) {
+		unsigned char *buffer = lisa_mem_alloc(64 * 1024);
+		s_tts_audio_ring_buffer = lisa_ring_buffer_init(buffer, 64 * 1024);
+	}
+	int send_len = 0;
+	#define TTS_AUDIO_BUF_LEN (4*1024)
+	unsigned char *tts_buffer = lisa_mem_alloc(TTS_AUDIO_BUF_LEN);
+	while (true) {
+		send_len = recv_ocr_simulation_image_once(s_tts_audio_ring_buffer,
+						tts_buffer, TTS_AUDIO_BUF_LEN, s_tts_ring_buffer_sema, LISA_WAIT_FOREVER);
+		// spi send, unnecessary packed
+		printk("tts send_len:%d\n", send_len);
+		lisa_spi_write(tts_buffer, send_len);
+	}
 }
 
 /**
  * @brief Create a tts thread object
  *
  */
-void create_tts_thread()
+static void create_tts_thread()
 {
 	if (s_tts_thread) {
 		return;
@@ -409,7 +428,18 @@ void create_tts_thread()
 
 	s_tts_thread = lisa_thread_create(&thread_attr, tts_test_thread, NULL);
 	if (s_tts_thread == NULL) {
-		LISA_LOGE(TAG, "thread_create:  offline_recognize_thread failed");
+		LISA_LOGE(TAG, "thread_create:  tts_test_thread failed");
+		return;
+	}
+
+	lisa_thread_attr_t tts_thread_attr;
+	tts_thread_attr.name = "tts_send_thrd";
+	tts_thread_attr.stack_size = 4 * 1024;
+	tts_thread_attr.priority = OS_PRIORITY_NORMAL;  // OS_PRIORITY_NORMAL
+
+	s_tts_send_thread = lisa_thread_create(&tts_thread_attr, tts_send_thread, NULL);
+	if (s_tts_send_thread == NULL) {
+		LISA_LOGE(TAG, "thread_create:  tts_send_thread failed");
 		return;
 	}
 }
@@ -645,6 +675,34 @@ static void create_uart_proto_thread(void)
 	}
 }
 
+static void test_app(void)
+{
+#if 1
+	printk("######dirc_test##########\n");
+	char *dirc_data = "cherry";
+	int dirc_len = strlen(dirc_data);
+	dirc_test(dirc_data, dirc_len);
+
+	char *dirc_cn_data = "人";
+	dirc_len = strlen(dirc_cn_data);
+	dirc_test(dirc_cn_data, dirc_len);
+
+	printk("######trans_test##########\n");
+	char *trans_data = "good morning";
+	int trnas_len = strlen(trans_data);
+	trans_test(trans_data, trnas_len);
+
+	char *trans_cn_data = "中文翻译测试";
+	trnas_len = strlen(trans_cn_data);
+	trans_test(trans_cn_data, trnas_len);
+#endif
+
+	printk("######tts_test##########\n");
+	// char *tts_data = "This is an English short sentence synthesis test case";
+	char *tts_data = "这是一个中文短句测试用例";
+	tts_test(tts_data, strlen(tts_data));
+}
+
 void ocr_test_offline_start()
 {
 	/* button initialize */
@@ -664,4 +722,8 @@ void ocr_test_offline_start()
 
 	/* uart protocol */
 	// create_uart_proto_thread();
+
+	/* unit testing */
+	k_msleep(1000);
+	test_app();
 }
