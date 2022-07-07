@@ -127,6 +127,27 @@ static void send_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer,
 	lisa_thread_mdelay(15);
 }
 
+static void ocr_text_send(const char *data, uint32_t len)
+{
+	memset(ocr_result, 0, 1024);
+	memcpy(ocr_result, data, len);
+	// spi pack
+	uint8_t *text_pack = (uint8_t *)lisa_mem_alloc(len+16);
+	if(text_pack) {
+		uint32_t pack_len = lisa_evs_pack_spi_data(text_pack, (uint8_t *)ocr_result, len, LISA_UP_TEXT_OCR);
+		printk("pack len:%d\n", pack_len);
+		for(int i=0;i < pack_len; i++) {
+			printk("%02x ", text_pack[i]);
+		}
+		printk("\n");
+		// spi send
+		lisa_spi_write(text_pack, pack_len);
+		lisa_thread_mdelay(50);
+		// pack free
+		lisa_mem_free(text_pack);
+	}
+}
+
 
 void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 {
@@ -146,9 +167,8 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image, s_ocr_image_sema);
 		} break;
 		case VCAPTURE_OCR:
-			memset(ocr_result, 0, sizeof(ocr_result));
 			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
-			memcpy(ocr_result, data, len);
+			ocr_text_send(data, len);
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport vcapture msg\n");
@@ -402,12 +422,17 @@ static void tts_send_thread(void *arg)
 	int send_len = 0;
 	#define TTS_AUDIO_BUF_LEN (4*1024)
 	unsigned char *tts_buffer = lisa_mem_alloc(TTS_AUDIO_BUF_LEN);
+
+	// packed
+	uint8_t *audio_pack = lisa_mem_alloc(TTS_AUDIO_BUF_LEN+16);
+
 	while (true) {
 		send_len = recv_ocr_simulation_image_once(s_tts_audio_ring_buffer,
 						tts_buffer, TTS_AUDIO_BUF_LEN, s_tts_ring_buffer_sema, LISA_WAIT_FOREVER);
-		// spi send, unnecessary packed
-		printk("tts send_len:%d\n", send_len);
-		lisa_spi_write(tts_buffer, send_len);
+		uint32_t pack_len = lisa_evs_pack_spi_data(audio_pack, (uint8_t *)tts_buffer, send_len, LISA_UP_AUDIO);
+		// spi send
+		printk("tts pack_len:%d\n", pack_len);
+		lisa_spi_write(audio_pack, pack_len);
 	}
 }
 
@@ -677,7 +702,9 @@ static void create_uart_proto_thread(void)
 
 static void test_app(void)
 {
-#if 1
+	// wait all thread ready
+	k_msleep(1000);
+#if 0 // algo test
 	printk("######dirc_test##########\n");
 	char *dirc_data = "cherry";
 	int dirc_len = strlen(dirc_data);
@@ -697,10 +724,38 @@ static void test_app(void)
 	trans_test(trans_cn_data, trnas_len);
 #endif
 
-	printk("######tts_test##########\n");
+#if 1 // protocol test
+	uint8_t *ocr_txt = "good";
+	ocr_text_send(ocr_txt, strlen(ocr_txt));
+
+	char *trans_spi = "中文";
+	int trnas_spi_len = strlen(trans_spi);
+	trans_test(trans_spi, trnas_spi_len);
+
+	#define _BUF_LEN (64)
+	uint8_t *test_buffer = lisa_mem_alloc(_BUF_LEN);
+	for(int i=0;i<20;i++) {
+		test_buffer[16+i] = i;
+	}
+	uint32_t pack_len = lisa_evs_pack_spi_data(test_buffer, test_buffer+16, 20, LISA_UP_AUDIO);
+	// spi send
+	printk("tts pack_len:%d\n", pack_len);
+	for(int k=0;k<pack_len;k++) {
+		printk("%02x ", test_buffer[k]);;
+	}
+	printk("\n");
+#endif
+
+	printk("######tts_cn_test##########\n");
 	// char *tts_data = "This is an English short sentence synthesis test case";
 	char *tts_data = "这是一个中文短句测试用例";
 	tts_test(tts_data, strlen(tts_data));
+#if 0
+	k_msleep(5000);
+	printk("######tts_en_test##########\n");
+	char *tts_en_data = "This is an English short sentence synthesis test case";
+	tts_test(tts_en_data, strlen(tts_en_data));
+#endif
 }
 
 void ocr_test_offline_start()
@@ -724,6 +779,5 @@ void ocr_test_offline_start()
 	// create_uart_proto_thread();
 
 	/* unit testing */
-	k_msleep(1000);
 	test_app();
 }

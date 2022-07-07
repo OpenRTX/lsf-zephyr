@@ -20,7 +20,7 @@ typedef struct {
 		uint16_t checksum;
 		uint8_t *data;  //数据
 } img_frame_t;
-
+#pragma pack(1)
 typedef struct {
 		uint16_t tag; //标记
 		uint8_t fmt; //FMT
@@ -31,17 +31,21 @@ typedef struct {
 		uint16_t checksum; 
 		uint8_t *data;
 } tts_frame_t;
+#pragma pack()
 
+#pragma pack(1)
 typedef struct {
 		uint16_t tag; //标记
 		uint32_t len; // 数据长度
 		uint16_t checksum;
 		uint8_t *data;
 } ocr_frame_t;
+#pragma pack()
 
 #pragma pack(1)
 typedef struct {
 		uint16_t tag; //标记
+		uint32_t type;
 		uint32_t len; // 数据长度
 		uint16_t checksum;
 		uint8_t *data;
