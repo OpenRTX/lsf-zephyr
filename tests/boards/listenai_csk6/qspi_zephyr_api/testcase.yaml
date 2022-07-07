@@ -1,0 +1,4 @@
+tests:
+  boards.csk6.flash:
+    platform_allow: csk6002_9s_nano csk6002_c3_nano
+    tags: flash
