@@ -1,0 +1,6 @@
+&ls_adsp_csk6_pinctrl{
+                pinctrl_uart2_tx_default: uart2_tx_default {
+                        pinctrls = < &pinmuxb 0x4 0x3 >;
+                };
+};
+
