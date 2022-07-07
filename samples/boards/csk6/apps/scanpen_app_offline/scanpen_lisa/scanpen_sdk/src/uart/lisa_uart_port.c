@@ -6,6 +6,17 @@
 #include <lisa_semaphore.h>
 #include <lisa_thread.h>
 
+#include <kernel.h>
+#include <zephyr.h>
+#include <sys/printk.h>
+#include <string.h>
+#include <devicetree.h>
+#include <logging/log.h>
+#include <drivers/uart.h>
+#include "lisa_evs_cp_data_parser.h"
+
+#define UART2		DT_NODELABEL(uart2)
+
 #undef	TAG
 #define TAG	"[PROT]"
 
@@ -20,6 +31,8 @@ typedef struct {
 
 static lisa_semaphore_t *s_uart_data_sema = NULL;
 static struct lisa_ring_buffer *s_recv_ring_buffer = NULL;
+
+const struct device *uart2 = DEVICE_DT_GET(UART2);
 
 
 /**
@@ -87,7 +100,7 @@ void prot_recv_data(char *data, uint32_t size)
 void prot_send_data(void *data, int size)
 {
  // TODO: to driver
-
+	uart_fifo_fill(uart2, data, size);		/* 发送字符串*/
 }
 
 void prot_reset_fifo(void)
@@ -116,17 +129,6 @@ void prot_send_ready(void)
 
 }
 
-#include <kernel.h>
-#include <zephyr.h>
-#include <sys/printk.h>
-#include <string.h>
-#include <devicetree.h>
-#include <logging/log.h>
-#include <drivers/uart.h>
-#include "lisa_evs_cp_data_parser.h"
-
-#define UART2		DT_NODELABEL(uart2)
-
 uint8_t rx_buffer[100];
 
 static void uart_rx_callback(const struct device *dev, void *user_data){
@@ -146,8 +148,6 @@ static void uart_rx_callback(const struct device *dev, void *user_data){
 void prot_recv_task(void *arg)
 {
 	prot_uart_init();
-
-	const struct device *uart2 = DEVICE_DT_GET(UART2);
 
 	if(!device_is_ready(uart2)){
 		LISA_LOGE(TAG, "device:%s is not ready!", uart2->name);
