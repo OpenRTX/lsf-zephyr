@@ -45,8 +45,25 @@ static lisa_thread_t *s_uart_proto_thread = NULL;
 
 static char ocr_result[1024] = {0};
 
-static volatile uint32_t tts_done = 0;
-
+typedef enum {
+	e_work_status_idle = 0,
+	e_work_status_scanning,
+	e_work_status_waiting,
+	e_work_status_deny,
+	e_work_status_adjust,
+	e_work_status_ready,
+	e_work_status_camera_error,
+	e_work_status_camera_decode_error,
+	e_work_status_stitch_error,
+	e_work_status_text_output,
+	e_work_status_text_finish,
+	e_work_status_tts_output,
+	e_work_status_tts_finish,
+	e_work_status_trans_start,
+	e_work_status_trans_finish,
+	e_work_status_dict_start,
+	e_work_status_dict_finish,
+} work_status_e;
 
 typedef struct {
 	volatile char *addr;
@@ -81,6 +98,11 @@ typedef struct {
 	char *data;
 	int size;
 } lisa_image_msg_t;
+
+ static void work_status_set(work_status_e sta)
+ {
+	send_proc_scan_work_status(sta);
+ }
 
 /**
  * @brief 从ringbuf中接受一组图片
@@ -129,6 +151,7 @@ static void send_ocr_simulation_image_once(struct lisa_ring_buffer *ring_buffer,
 
 static void ocr_text_send(const char *data, uint32_t len)
 {
+	work_status_set(e_work_status_text_output);
 	memset(ocr_result, 0, 1024);
 	memcpy(ocr_result, data, len);
 	// spi pack
@@ -146,6 +169,7 @@ static void ocr_text_send(const char *data, uint32_t len)
 		// pack free
 		lisa_mem_free(text_pack);
 	}
+	work_status_set(e_work_status_text_finish);
 }
 
 
@@ -196,6 +220,7 @@ static int _video_init()
 
 static void dirc_test(const char *data, uint32_t len)
 {
+	work_status_set(e_work_status_dict_start);
 	memset(ocr_result, 0, 1024);
 	memcpy(ocr_result, data, len);
 	dict_init(NULL_DICT);
@@ -224,10 +249,12 @@ static void dirc_test(const char *data, uint32_t len)
 	} else {
 		printk("Address not 4 byte aligned or NULL error \n");
 	}
+	work_status_set(e_work_status_dict_finish);
 }
 
 static void trans_test(const char *data, uint32_t len)
 {
+	work_status_set(e_work_status_trans_start);
 	memset(ocr_result, 0, 1024);
 	memcpy(ocr_result, data, len);
 	LISA_LOGD(TAG, "translate text :%s, len:%d\n", data, len);
@@ -252,6 +279,7 @@ static void trans_test(const char *data, uint32_t len)
 		// pack free
 		if(text_pack) lisa_mem_free(text_pack);
 	}
+	work_status_set(e_work_status_trans_finish);
 }
 
 void  offline_recognize_thread(void *arg)
@@ -334,6 +362,7 @@ static int tts_test(uint8_t *text, uint32_t len)
 		tts_config.role = ivTTS_ROLE_CATHERINE;
 	}
 	lisa_tts_play(tts_handler, text, &tts_config);
+	work_status_set(e_work_status_tts_output);
 	return 0;
 }
 
@@ -387,6 +416,7 @@ static void tts_test_thread(void *arg)
 	while (true) {
 		lisa_semaphore_take(s_tts_sema, LISA_WAIT_FOREVER);
 		lisa_tts_stop(tts_handler);
+		work_status_set(e_work_status_tts_finish);
 
 #if TTS_AUDIO_SAVE_FLASH
 		k_msleep(2000);
@@ -631,9 +661,11 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
 		_video_init();
 		lisa_vcapture_start(vcap_handler);
+		work_status_set(e_work_status_scanning);
 	} else if (sta == RELEASE) {
 		lisa_vcapture_stop(vcap_handler);
 		lisa_vcapture_destroy(vcap_handler);
+		work_status_set(e_work_status_idle);
 		LISA_LOGD(TAG, "send_uart_scan_stop\n");
 	}
 }
@@ -704,27 +736,26 @@ static void test_app(void)
 {
 	// wait all thread ready
 	k_msleep(1000);
-#if 0 // algo test
+#if 1 // algo test
 	printk("######dirc_test##########\n");
 	char *dirc_data = "cherry";
-	int dirc_len = strlen(dirc_data);
-	dirc_test(dirc_data, dirc_len);
+	dirc_test(dirc_data,  strlen(dirc_data));
 
 	char *dirc_cn_data = "人";
-	dirc_len = strlen(dirc_cn_data);
-	dirc_test(dirc_cn_data, dirc_len);
+	dirc_test(dirc_cn_data, strlen(dirc_cn_data));
 
 	printk("######trans_test##########\n");
 	char *trans_data = "good morning";
-	int trnas_len = strlen(trans_data);
-	trans_test(trans_data, trnas_len);
+	trans_test(trans_data, strlen(trans_data));
 
 	char *trans_cn_data = "中文翻译测试";
-	trnas_len = strlen(trans_cn_data);
-	trans_test(trans_cn_data, trnas_len);
+	trans_test(trans_cn_data, strlen(trans_cn_data));
+
+	char *ocr_data = "hello world";
+	ocr_text_send(ocr_data, strlen(ocr_data));
 #endif
 
-#if 1 // protocol test
+#if 0 // protocol test
 	uint8_t *ocr_txt = "good";
 	ocr_text_send(ocr_txt, strlen(ocr_txt));
 
@@ -746,10 +777,13 @@ static void test_app(void)
 	printk("\n");
 #endif
 
+#if 0
 	printk("######tts_cn_test##########\n");
 	// char *tts_data = "This is an English short sentence synthesis test case";
 	char *tts_data = "这是一个中文短句测试用例";
 	tts_test(tts_data, strlen(tts_data));
+#endif
+
 #if 0
 	k_msleep(5000);
 	printk("######tts_en_test##########\n");
