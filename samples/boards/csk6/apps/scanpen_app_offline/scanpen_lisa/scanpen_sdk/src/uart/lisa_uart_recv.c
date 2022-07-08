@@ -188,6 +188,9 @@ static frame_info_e recv_proc_scan_work_mode(frame_desc_u *head)
 		e_frame_info = e_frame_error_state;
 	}
 #endif
+	if(NULL != s_uart_rx_callback) {
+		s_uart_rx_callback(p_recv_cmd->workmode.cmd, &p_recv_cmd->workmode.mode, 0);
+	}
 	return e_frame_info;
 }
 
