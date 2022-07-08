@@ -10,21 +10,21 @@
 #define ESR_ANGLE_LEN			(20)
 
 #define VERSION_MAJOR				(1)
-#define VERSION_MINOR				(1)
-#define VERSION_RESVE				(28)
-#define VERSION_BUILD				(3) // alpha
+#define VERSION_MINOR				(0)
+#define VERSION_RESVE				(0)
+#define VERSION_BUILD				(0) // alpha
 
 #define STITCH_VERSION_MAJOR 1
 #define STITCH_VERSION_MINOR 0
-#define STITCH_VERSION_RESVE 8
+#define STITCH_VERSION_RESVE 0
 
 #define CUTLINE_VERSION_MAJOR 1
 #define CUTLINE_VERSION_MINOR 0
-#define CUTLINE_VERSION_RESVE 6
+#define CUTLINE_VERSION_RESVE 0
 
 #define OCR_VERSION_MAJOR 1
-#define OCR_VERSION_MINOR 1
-#define OCR_VERSION_RESVE 9
+#define OCR_VERSION_MINOR 0
+#define OCR_VERSION_RESVE 0
 
 typedef enum {
 	e_up_cmd_communicate_status = 0x01,
