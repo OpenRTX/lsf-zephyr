@@ -5,6 +5,7 @@
 #include <lisa_queue.h>
 #include <lisa_semaphore.h>
 #include <lisa_mem.h>
+#include <lisa_timer.h>
 
 #include <zephyr.h>
 #include <device.h>
@@ -29,22 +30,6 @@
 #include "dict.h"
 #include "dict_demo.h"
 
-static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
-static struct lisa_ring_buffer *s_tts_audio_ring_buffer = NULL;
-static lisa_semaphore_t *s_ocr_image_sema = NULL;
-static lisa_thread_t *s_offline_recognize_thread = NULL;
-static lisa_thread_t *s_tts_thread = NULL;
-static lisa_thread_t *s_tts_send_thread = NULL;
-static lisa_semaphore_t *s_tts_sema = NULL;
-static lisa_semaphore_t *s_tts_ring_buffer_sema = NULL;
-static lisa_vcapture_handler_t *vcap_handler = NULL;
-static lisa_translate_handler_t *trans_handler = NULL;
-static lisa_tts_handler_t *tts_handler = NULL;
-static volatile lisa_thread_t *s_cam2cp_thread = NULL;
-static lisa_thread_t *s_uart_proto_thread = NULL;
-
-static char ocr_result[1024] = {0};
-
 typedef enum {
 	e_work_status_idle = 0,
 	e_work_status_scanning,
@@ -64,6 +49,46 @@ typedef enum {
 	e_work_status_dict_start,
 	e_work_status_dict_finish,
 } work_status_e;
+
+typedef enum {
+	e_scan_mode_singleline = 0,
+	e_scan_mode_multiline,
+	e_scan_mode_invalid,
+	e_scan_mode_factory,
+	e_scan_mode_debug = 4,
+	e_scan_mode_age,
+	e_scan_mode_adjust,
+	e_scan_mode_offline_ocr,
+	e_scan_mode_adjust_serial,
+	e_scan_mode_maximum_picture,
+	e_scan_mode_reboot = 10,
+	e_scan_mode_offline_image_uart,
+	e_scan_mode_online_image_uart,
+	e_scan_mode_stitch_image_uart,
+	e_scan_mode_max,
+} scan_mode_e;
+
+/* ocr */
+static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
+static lisa_semaphore_t *s_ocr_image_sema = NULL;
+static lisa_thread_t *s_offline_recognize_thread = NULL;
+static volatile lisa_thread_t *s_cam2cp_thread = NULL;
+static lisa_vcapture_handler_t *vcap_handler = NULL;
+static lisa_timer_t *multiline_scan_timer;
+static char ocr_result[1024] = {0};
+/* tts */
+static struct lisa_ring_buffer *s_tts_audio_ring_buffer = NULL;
+static lisa_thread_t *s_tts_thread = NULL;
+static lisa_thread_t *s_tts_send_thread = NULL;
+static lisa_semaphore_t *s_tts_sema = NULL;
+static lisa_semaphore_t *s_tts_ring_buffer_sema = NULL;
+static lisa_tts_handler_t *tts_handler = NULL;
+/* translate */
+static lisa_translate_handler_t *trans_handler = NULL;
+/* protocol */
+static lisa_thread_t *s_uart_proto_thread = NULL;
+
+static scan_mode_e s_scan_mode = e_scan_mode_singleline;
 
 typedef struct {
 	volatile char *addr;
@@ -282,6 +307,14 @@ static void trans_test(const char *data, uint32_t len)
 	work_status_set(e_work_status_trans_finish);
 }
 
+static void multiline_scan_timer_cb(void *arg)
+{
+	/* set idle */
+	LISA_LOGD(TAG, "###timer callback==");
+	work_status_set(e_work_status_idle);
+	lisa_timer_stop(multiline_scan_timer);
+}
+
 void  offline_recognize_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
@@ -290,6 +323,13 @@ void  offline_recognize_thread(void *arg)
 		unsigned char *buffer = lisa_mem_alloc(64 * 1024);
 		s_send_ocr_simulation_image_buffer = lisa_ring_buffer_init(buffer, 64 * 1024);
 		s_ocr_image_sema = lisa_semaphore_create(2);
+	}
+
+	// timer
+	multiline_scan_timer = lisa_timer_create(OS_TIMER_PERIODIC, multiline_scan_timer_cb, NULL, LISA_WAIT_FOREVER);
+	if (multiline_scan_timer == NULL) {
+		LISA_LOGE(TAG, "buttons timer create error");
+		return -1;
 	}
 
 	#define CROP_BUF_LEN (4*1024)
@@ -303,6 +343,7 @@ void  offline_recognize_thread(void *arg)
 		printk("ret_len:%d\n", ret_len);
 		lisa_spi_write(crop_image_buffer, ret_len);
 	}
+	lisa_timer_delete(multiline_scan_timer);
 }
 
 /**
@@ -665,7 +706,19 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 	} else if (sta == RELEASE) {
 		lisa_vcapture_stop(vcap_handler);
 		lisa_vcapture_destroy(vcap_handler);
-		work_status_set(e_work_status_idle);
+		if(e_scan_mode_multiline == s_scan_mode) {
+			/* set the time */
+			lisa_err_t sta = lisa_timer_change_period(multiline_scan_timer, 2000);
+			if (sta != LISA_OK) {
+				LISA_LOGE(TAG, "timer change period error");
+			}
+			if (!lisa_timer_isactive(multiline_scan_timer)) {
+				lisa_timer_start(multiline_scan_timer);
+			}
+			work_status_set(e_work_status_waiting);
+		} else {
+			work_status_set(e_work_status_idle);
+		}
 		LISA_LOGD(TAG, "send_uart_scan_stop\n");
 	}
 }
@@ -691,17 +744,11 @@ int pen_head_button_init(void)
 static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 {
 	printk("@@recv_cmd_type_e:%d\n", type);
-	int pack_len = 0;
-	uint16_t algo_out_len = 0;
-	char *algo_out = NULL;
 
 	switch (type) {
 		case e_cmd_scan_tts_text:
 			LISA_LOGD(TAG, "tts text :%s, len:%d\n", data, len);
-			lisa_tts_params_t params;
-			memset(&params, 0, sizeof(lisa_tts_params_t));
-			params.ttscb = _tts_cb;
-			tts_handler = lisa_tts_create(&params);
+			tts_test(data, len);
 			break;
 		case e_cmd_scan_translate_text:
 			trans_test(data, len);
@@ -709,6 +756,12 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 		case e_cmd_scan_word_search_text:
 			dirc_test(data, len);
 			break;
+		case e_cmd_scan_work_mode: {
+			uint8_t *mode = (uint8_t *)data;
+			s_scan_mode = mode[0];
+			LISA_LOGD(TAG, "receive scan mode:%d\n", s_scan_mode);
+			break;
+		}
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
 			break;
@@ -736,7 +789,7 @@ static void test_app(void)
 {
 	// wait all thread ready
 	k_msleep(1000);
-#if 1 // algo test
+#if 0 // algo test
 	printk("######dirc_test##########\n");
 	char *dirc_data = "cherry";
 	dirc_test(dirc_data,  strlen(dirc_data));
@@ -789,6 +842,23 @@ static void test_app(void)
 	printk("######tts_en_test##########\n");
 	char *tts_en_data = "This is an English short sentence synthesis test case";
 	tts_test(tts_en_data, strlen(tts_en_data));
+#endif
+
+#if 1 // multiline scan timer test
+	printk("timer start11\n");
+	lisa_err_t sta = lisa_timer_change_period(multiline_scan_timer, 2000);
+	if (sta != LISA_OK) {
+		LISA_LOGE(TAG, "timer change period error");
+	}
+	if (!lisa_timer_isactive(multiline_scan_timer)) {
+		lisa_timer_start(multiline_scan_timer);
+	}
+	k_msleep(1000);
+	printk("timer start222\n");
+	sta = lisa_timer_change_period(multiline_scan_timer, 4000);
+	if (sta != LISA_OK) {
+		LISA_LOGE(TAG, "timer change period error");
+	}
 #endif
 }
 
