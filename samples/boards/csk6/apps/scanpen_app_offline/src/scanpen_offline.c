@@ -79,6 +79,7 @@ static volatile lisa_thread_t *s_cam2cp_thread = NULL;
 static lisa_vcapture_handler_t *vcap_handler = NULL;
 static lisa_timer_t *multiline_scan_timer;
 static char ocr_result[1024] = {0};
+
 /* tts */
 static struct lisa_ring_buffer *s_tts_audio_ring_buffer = NULL;
 static lisa_thread_t *s_tts_thread = NULL;
@@ -86,8 +87,15 @@ static lisa_thread_t *s_tts_send_thread = NULL;
 static lisa_semaphore_t *s_tts_sema = NULL;
 static lisa_semaphore_t *s_tts_ring_buffer_sema = NULL;
 static lisa_tts_handler_t *tts_handler = NULL;
+#define TTS_BASE_SPEED_MIN					50
+#define TTS_BASE_SPEED_NORMAL				100
+#define TTS_BASE_SPEED_MAX					150
+static int16_t g_synth_voice_speed = ivTTS_SPEED_NORMAL;
+static int16_t g_base_speed = TTS_BASE_SPEED_NORMAL; // TTS_BASE_SPEED_MIN-TTS_BASE_SPEED_MAX
+
 /* translate */
 static lisa_translate_handler_t *trans_handler = NULL;
+
 /* protocol */
 static lisa_thread_t *s_uart_proto_thread = NULL;
 
@@ -126,6 +134,55 @@ typedef struct {
 	char *data;
 	int size;
 } lisa_image_msg_t;
+
+enum {
+       HOLDPEN_LEFT,
+       HOLDPEN_RIGHT
+};
+/**
+ * @brief 设置扫描笔左右手持笔扫描模式
+ *
+ * @param hand
+ */
+static int set_holdpen_mode(uint8_t hand)
+{
+       const struct device *video = device_get_binding(VIDEO_DEV);
+       int r = 0;
+       uint8_t right_val = 0x42;
+       uint8_t left_val = 0x4e;
+
+       if(hand == HOLDPEN_LEFT){
+               r = video_set_ctrl(video, 0x00, &left_val);             // left
+               LISA_LOGD(TAG, "set_hand_scan_mode:left %d\n", r);
+       }
+       else if(hand == HOLDPEN_RIGHT){
+               r = video_set_ctrl(video, 0x00, &right_val);            // right
+               LISA_LOGD(TAG, "set_hand_scan_mode:right %d\n", r);
+       }
+       return r;
+}
+
+static int _set_holdpen_mode(const struct shell *shell, size_t argc, char **argv)
+{
+       int type = atoi(argv[1]);
+       switch (type) {
+               case 0:
+                       set_holdpen_mode(HOLDPEN_LEFT);
+                       break;
+               case 1:
+                       set_holdpen_mode(HOLDPEN_RIGHT);
+                       break;
+               default:
+                       LISA_LOGD(TAG, "err subcmd %d\n", type);
+                       break;
+       }
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(scanpen_app_test,
+               SHELL_CMD_ARG(set_holdpen_mode, NULL, "0:left 1:right", _set_holdpen_mode, 0, 0),
+               SHELL_SUBCMD_SET_END /* Array terminated. */
+);
+SHELL_CMD_REGISTER(scanpen_app, &scanpen_app_test, "scanpen_app related commands.", NULL);
 
  static void work_status_set(work_status_e sta)
  {
@@ -397,7 +454,6 @@ static int tts_test(uint8_t *text, uint32_t len)
 	atts_config_t tts_config = {
 		.role 		= ivTTS_ROLE_XIAOYAN,
 		.language	= ivTTS_LANGUAGE_AUTO,
-		.speed		= ivTTS_SPEED_NORMAL,
 		.volume		= ivTTS_VOLUME_NORMAL,
 	};
 	if(text[0] > 127){
@@ -405,6 +461,7 @@ static int tts_test(uint8_t *text, uint32_t len)
 	}else{
 		tts_config.role = ivTTS_ROLE_CATHERINE;
 	}
+	tts_config.speed = g_synth_voice_speed;
 	lisa_tts_play(tts_handler, text, &tts_config);
 	work_status_set(e_work_status_tts_output);
 	return 0;
@@ -742,6 +799,72 @@ int pen_head_button_init(void)
 	pen_head_button->start(pen_head_button);
 }
 
+static int16_t base_speed_to_voice_speed(int16_t speed)
+{
+	int16_t voice_speed = ivTTS_SPEED_NORMAL;
+	printk("enter speed:%d", speed);
+	if (speed < TTS_BASE_SPEED_MIN) {
+		speed = TTS_BASE_SPEED_MIN;
+	}
+	if (speed > TTS_BASE_SPEED_MAX) {
+		speed = TTS_BASE_SPEED_MAX;
+	}
+	int rate = (speed - TTS_BASE_SPEED_MIN) * 100/ (TTS_BASE_SPEED_MAX - TTS_BASE_SPEED_MIN);
+	voice_speed = (ivTTS_SPEED_MAX - ivTTS_SPEED_MIN) * rate / 100 + ivTTS_SPEED_MIN;
+	printk("voice speed:%d, rate:%d, base speed:%d\n", voice_speed, rate, speed);
+	return voice_speed;
+}
+
+static int set_tts_voice_speech(uint8_t type, uint8_t speed)
+{
+	printk("type:%d, speed:%d\n", type, speed);
+	int16_t _tts_speed = 0;
+	if(e_tts_base_voice_speed == type) {
+		g_synth_voice_speed = base_speed_to_voice_speed(speed);
+		g_base_speed = speed;
+	} else if(e_tts_synth_voice_speed == type) {
+		switch (speed) {
+		case 0: // 慢速
+			_tts_speed = g_base_speed * 6 / 10;
+			break;
+		case 1: // 中速
+			_tts_speed = g_base_speed * 7 / 10;
+			break;
+		case 2: // 快速
+			_tts_speed = g_base_speed * 1;
+			break;
+		default:
+			break;
+		}
+		g_synth_voice_speed = base_speed_to_voice_speed(_tts_speed);
+	} else {
+		printk("not support type(%d)\n", type);
+		return -1;
+	}
+	return 0;
+}
+
+static int cmd_scan_set_para(void *data)
+{
+	uint8_t *src = (uint8_t *)data;
+	printk("src:0x%x, 0x%x, 0x%x\n", src[0], src[1], src[2]);
+	switch (src[0]) {
+		case e_scan_para_multiline_time:
+			break;
+		case e_tts_base_voice_speed:
+		case e_tts_synth_voice_speed:
+			set_tts_voice_speech(src[0], src[1]);
+			break;
+		case e_left_hand_hold:
+			set_holdpen_mode(src[1]);
+			break;
+		default:
+			return LISA_FAIL;
+			break;
+	}
+	return LISA_OK;
+}
+
 static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 {
 	printk("@@recv_cmd_type_e:%d\n", type);
@@ -763,6 +886,9 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 			LISA_LOGD(TAG, "receive scan mode:%d\n", s_scan_mode);
 			break;
 		}
+		case e_cmd_scan_set_para:
+			cmd_scan_set_para(data);
+			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
 			break;
@@ -785,55 +911,6 @@ static void create_uart_proto_thread(void)
 		return;
 	}
 }
-
-
-enum {
-       HOLDPEN_LEFT,
-       HOLDPEN_RIGHT
-};
-/**
- * @brief 设置扫描笔左右手持笔扫描模式
- *
- * @param hand
- */
-static int set_holdpen_mode(uint8_t hand){
-       const struct device *video = device_get_binding(VIDEO_DEV);
-       int r = 0;
-       uint8_t right_val = 0x42;
-       uint8_t left_val = 0x4e;
-
-       if(hand == HOLDPEN_LEFT){
-               r = video_set_ctrl(video, 0x00, &left_val);             // left
-               LISA_LOGD(TAG, "set_hand_scan_mode:left %d\n", r);
-       }
-       else if(hand == HOLDPEN_RIGHT){
-               r = video_set_ctrl(video, 0x00, &right_val);            // right
-               LISA_LOGD(TAG, "set_hand_scan_mode:right %d\n", r);
-       }
-       return r;
-}
-static int _set_holdpen_mode(const struct shell *shell, size_t argc, char **argv)
-{
-       int type = atoi(argv[1]);
-       switch (type) {
-               case 0:
-                       set_holdpen_mode(HOLDPEN_LEFT);
-                       break;
-               case 1:
-                       set_holdpen_mode(HOLDPEN_RIGHT);
-                       break;
-               default:
-                       LISA_LOGD(TAG, "err subcmd %d\n", type);
-                       break;
-       }
-}
-
-SHELL_STATIC_SUBCMD_SET_CREATE(scanpen_app_test,
-               SHELL_CMD_ARG(set_holdpen_mode, NULL, "0:left 1:right", _set_holdpen_mode, 0, 0),
-               SHELL_SUBCMD_SET_END /* Array terminated. */
-);
-SHELL_CMD_REGISTER(scanpen_app, &scanpen_app_test, "scanpen_app related commands.", NULL);
-
 
 static void test_app(void)
 {
