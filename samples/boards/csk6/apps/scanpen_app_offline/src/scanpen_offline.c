@@ -6,6 +6,7 @@
 #include <lisa_semaphore.h>
 #include <lisa_mem.h>
 #include <lisa_timer.h>
+#include <shell/shell.h>
 
 #include <zephyr.h>
 #include <device.h>
@@ -29,6 +30,8 @@
 
 #include "dict.h"
 #include "dict_demo.h"
+
+#define VIDEO_DEV DT_LABEL(DT_INST(0, byd_bf30a2))
 
 typedef enum {
 	e_work_status_idle = 0,
@@ -582,8 +585,6 @@ static inline int32_t bf30a2_frames_info_update_w_pos(frames_info_t *info)
 	return info->ap_share.w_pos;
 }
 
-#define VIDEO_DEV DT_LABEL(DT_INST(0, byd_bf30a2))
-
 uint32_t calc_sum(uint8_t *src, uint32_t size)
 {
 	uint32_t sum = 0;
@@ -784,6 +785,55 @@ static void create_uart_proto_thread(void)
 		return;
 	}
 }
+
+
+enum {
+       HOLDPEN_LEFT,
+       HOLDPEN_RIGHT
+};
+/**
+ * @brief 设置扫描笔左右手持笔扫描模式
+ *
+ * @param hand
+ */
+static int set_holdpen_mode(uint8_t hand){
+       const struct device *video = device_get_binding(VIDEO_DEV);
+       int r = 0;
+       uint8_t right_val = 0x42;
+       uint8_t left_val = 0x4e;
+
+       if(hand == HOLDPEN_LEFT){
+               r = video_set_ctrl(video, 0x00, &left_val);             // left
+               LISA_LOGD(TAG, "set_hand_scan_mode:left %d\n", r);
+       }
+       else if(hand == HOLDPEN_RIGHT){
+               r = video_set_ctrl(video, 0x00, &right_val);            // right
+               LISA_LOGD(TAG, "set_hand_scan_mode:right %d\n", r);
+       }
+       return r;
+}
+static int _set_holdpen_mode(const struct shell *shell, size_t argc, char **argv)
+{
+       int type = atoi(argv[1]);
+       switch (type) {
+               case 0:
+                       set_holdpen_mode(HOLDPEN_LEFT);
+                       break;
+               case 1:
+                       set_holdpen_mode(HOLDPEN_RIGHT);
+                       break;
+               default:
+                       LISA_LOGD(TAG, "err subcmd %d\n", type);
+                       break;
+       }
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(scanpen_app_test,
+               SHELL_CMD_ARG(set_holdpen_mode, NULL, "0:left 1:right", _set_holdpen_mode, 0, 0),
+               SHELL_SUBCMD_SET_END /* Array terminated. */
+);
+SHELL_CMD_REGISTER(scanpen_app, &scanpen_app_test, "scanpen_app related commands.", NULL);
+
 
 static void test_app(void)
 {
