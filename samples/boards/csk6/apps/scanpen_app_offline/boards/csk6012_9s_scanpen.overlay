@@ -70,9 +70,9 @@
 	};
 };
 
-&i2c0 {
+&i2c1 {
         status = "okay";
-        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-0 = <&pinctrl_i2c1_scl_default &pinctrl_i2c1_sda_default>; 
         pinctrl-names = "default";
 
         bf30a2: bf30a2@6e {
@@ -80,8 +80,8 @@
             status = "okay";
             label = "VIDEO";
             reg = <0x6e>;
-            pd-gpios = <&gpioa 20 0>;
-            pwr-gpios = <&gpioa 5 0>;
+            pd-gpios = <&gpioa 14 0>;
+            pwr-gpios = <&gpioa 6 0>;
             product-id = <0x3b02>;
             spi = <&spi1>;
 			xclk-gpios = <&gpioa 11 0>;
@@ -132,20 +132,20 @@
                     pinctrls = <&pinmuxa 15 3>;
                 };
 
-                pinctrl_i2c0_scl_default: i2c0_scl_default{
-                        pinctrls = <&pinmuxb 2 8>;
+                pinctrl_i2c1_scl_default: i2c1_scl_default{
+                        pinctrls = <&pinmuxa 13 9>;
                 };
                 
-                pinctrl_i2c0_sda_default: i2c0_sda_default{
-                        pinctrls = <&pinmuxb 3 8>;
+                pinctrl_i2c1_sda_default: i2c1_sda_default{
+                        pinctrls = <&pinmuxa 12 9>;
                 };
 
 				pinctrl_spi1_sclk_default: spi1_sclk_default {
-                    pinctrls = < &pinmuxb 0 7 >;
+                    pinctrls = < &pinmuxa 8 7 >;
                 };
 
                 pinctrl_spi1_mosi_default: spi1_mosi_default {
-                    pinctrls = < &pinmuxb 1 7 >;
+                    pinctrls = < &pinmuxa 7 7 >;
                 };
 
                 pinctrl_spi1_miso_default: spi1_miso_default {
@@ -154,6 +154,22 @@
 
                 pinctrl_spi1_cs_default: spi1_cs_default {
                     pinctrls = < &pinmuxa 9 7 >;
+                };
+                
+                pinctrl_spi0_sclk_default: spi0_sclk_default {
+                    pinctrls = < &pinmuxb 9 6 >;
+                };
+
+                pinctrl_spi0_mosi_default: spi0_mosi_default {
+                    pinctrls = < &pinmuxb 6 6 >;
+                };
+
+                pinctrl_spi0_miso_default: spi0_miso_default {
+                    pinctrls = < &pinmuxb 7 6 >;
+                };
+
+                pinctrl_spi0_cs_default: spi0_cs_default {
+                    pinctrls = < &pinmuxb 8 6 >;
                 };
 };
 

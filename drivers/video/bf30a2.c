@@ -389,6 +389,8 @@ static int bf30a2_chip_i2c_init(const struct device *dev)
 		return -1;
 	}
 
+	LOG_INF("I2C addr:%d", data->chip_data.i2c_bus.addr);
+	
 	if (i2c_configure(data->chip_data.i2c_bus.bus,
 			  I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER)) {
 		LOG_ERR("I2C config failed!");
@@ -1125,6 +1127,15 @@ static int bf30a2_dev_init(const struct device *dev)
 	data->sem = &g_sem_bf30a2;
 	k_timer_user_data_set(&g_timer_bf30a2, (void *)dev);
 
+	printk("port:%d,pin:%d\n",data->chip_data.pd_gpios.port,data->chip_data.pd_gpios.pin);
+	printk("port:%d,pin:%d\n",data->chip_data.pwr_gpios.port,data->chip_data.pwr_gpios.pin);
+	printk("port:%d,pin:%d\n",data->chip_data.xclk_gpios.port,data->chip_data.xclk_gpios.pin);
+
+	gpio_pin_configure_dt(&data->chip_data.pd_gpios, GPIO_OUTPUT_LOW);
+	gpio_pin_configure_dt(&data->chip_data.pwr_gpios, GPIO_OUTPUT_HIGH);
+	// gpio_pin_set_dt(&data->chip_data.pd_gpios, 0);
+	// gpio_pin_set_dt(&data->chip_data.pwr_gpios, 1);
+
 	bf30a2_chip_init(dev);
 
 	uint32_t i;
@@ -1173,15 +1184,9 @@ static int bf30a2_dev_init(const struct device *dev)
 
 #define BF30A2_CHIP_DATA(inst)                                                                     \
 	{                                                                                          \
-		.xclk_gpios =                                                                      \
-			Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), xclk_gpios),             \
-				      (GPIO_DT_SPEC_GET(DT_DRV_INST(inst), xclk_gpios)), ({ 0 })), \
-		.pd_gpios =                                                                        \
-			Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), pd_gpios),               \
-				      (GPIO_DT_SPEC_GET(DT_DRV_INST(inst), pd_gpios)), ({ 0 })),   \
-		.pwr_gpios =                                                                       \
-			Z_COND_CODE_1(DT_NODE_HAS_PROP(DT_DRV_INST(inst), pwr_gpios),              \
-				      (GPIO_DT_SPEC_GET(DT_DRV_INST(inst), pwr_gpios)), ({ 0 })),  \
+		.xclk_gpios =  GPIO_DT_SPEC_GET(DT_DRV_INST(inst), xclk_gpios), \
+		.pd_gpios =      GPIO_DT_SPEC_GET(DT_DRV_INST(inst), pd_gpios),  \
+		.pwr_gpios =  GPIO_DT_SPEC_GET(DT_DRV_INST(inst), pwr_gpios),  \
 		.i2c_bus = I2C_DT_SPEC_GET(DT_DRV_INST(inst)),                                     \
 		.spi_bus = BF30A2_SPI_DT_SPEC_GET(                                                 \
 			DT_DRV_INST(inst), SPI_WORD_SET(8) | SPI_OP_MODE_SLAVE | SPI_TRANSFER_MSB, \
