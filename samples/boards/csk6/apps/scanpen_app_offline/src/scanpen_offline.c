@@ -1022,7 +1022,7 @@ void ocr_test_offline_start()
 	lisa_evs_parser_cp_init(NULL);
 
 	/* uart protocol */
-	// create_uart_proto_thread();
+	create_uart_proto_thread();
 
 	/* unit testing */
 	test_app();

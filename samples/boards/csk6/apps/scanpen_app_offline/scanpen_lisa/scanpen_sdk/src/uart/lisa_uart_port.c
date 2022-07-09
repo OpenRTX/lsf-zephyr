@@ -100,7 +100,11 @@ void prot_recv_data(char *data, uint32_t size)
 void prot_send_data(void *data, int size)
 {
  // TODO: to driver
-	uart_fifo_fill(uart2, data, size);		/* 发送字符串*/
+	uint8_t *temp = (uint8_t *)data;
+	for(int i = 0; i < size; i++)
+		printk("%02x ", temp[i]);
+	printk("\n");
+	uart_fifo_fill(uart2, (const uint8_t *)data, size);		/* 发送字符串*/
 }
 
 void prot_reset_fifo(void)
