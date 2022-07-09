@@ -82,14 +82,14 @@ static int buttons_st = 0;
 /*
  * Get button configuration from the devicetree sw0 alias. This is mandatory.
  */
-#define SW0_NODE DT_ALIAS(fy_key)
-#define FY_KEY_NODE DT_NODELABEL(fy_key)
-#define GPIO_FY_KEY DT_GPIO_CTLR_BY_IDX(FY_KEY_NODE, gpios, 0)
+#define SW0_NODE DT_ALIAS(pwrlock)
+#define SCAN_KEY_NODE DT_NODELABEL(pwrlock)
+#define GPIO_SCAN_KEY DT_GPIO_CTLR_BY_IDX(SCAN_KEY_NODE, gpios, 0)
 /*#if !DT_NODE_HAS_STATUS(SW0_NODE, okay)*/
 /*#error "Unsupported board: sw0 devicetree alias is not defined"*/
 /*#endif*/
 /*static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios, {0});*/
-static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET_OR(FY_KEY_NODE, gpios, {0});
+static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET_OR(SCAN_KEY_NODE, gpios, {0});
 static struct gpio_callback button_cb_data;
 
 /*
