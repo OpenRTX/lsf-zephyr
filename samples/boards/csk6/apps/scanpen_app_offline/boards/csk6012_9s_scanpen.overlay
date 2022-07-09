@@ -28,13 +28,7 @@
 		 avf-audio-pwr-amp = &pwr_amp;
 	 };
 
-	gpio,user {
-		compatible = "listenai,csk-gpio-user";
-		fy_key: fykey {
-				gpios = <&gpiob 4 1>;
-				label = "fykey";
-		};
-	};
+
 	fstab {
 		compatible = "zephyr,fstab";
 		lfs1: lfs1 {
