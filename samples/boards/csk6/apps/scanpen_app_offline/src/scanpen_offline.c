@@ -99,7 +99,7 @@ static lisa_translate_handler_t *trans_handler = NULL;
 /* protocol */
 static lisa_thread_t *s_uart_proto_thread = NULL;
 
-static scan_mode_e s_scan_mode = e_scan_mode_singleline;
+static scan_mode_e s_scan_mode = e_scan_mode_offline_ocr;
 
 typedef struct {
 	volatile char *addr;
@@ -281,11 +281,13 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 			break;
 		case VCAPTURE_DATA: {
 		//	LISA_LOGD(TAG, "vcapture msg VCAPTURE_DATA \n");
-			lisa_image_msg_t recv_image;
-			recv_image.status = LISA_IMAGE_FRAME_NONE;
-			recv_image.data = (char *)data;
-			recv_image.size = len;
-			send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image, s_ocr_image_sema);
+			if(e_scan_mode_singleline == s_scan_mode || e_scan_mode_multiline == s_scan_mode) {
+				lisa_image_msg_t recv_image;
+				recv_image.status = LISA_IMAGE_FRAME_NONE;
+				recv_image.data = (char *)data;
+				recv_image.size = len;
+				send_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer, &recv_image, s_ocr_image_sema);
+			}
 		} break;
 		case VCAPTURE_OCR:
 			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
@@ -489,8 +491,8 @@ static void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 			LISA_LOGD(TAG, "TTS_PLAY_OVER \n");
 			lisa_semaphore_give(s_tts_sema);
 			break;
-		case TTS_AUDIO:
-			printk("len:%d\n", len);
+		case TTS_AUDIO: {
+			// printk("len:%d\n", len);
 			#if TTS_AUDIO_SAVE_FLASH
 			if(tts_audio_buffer) {
 				memcpy(tts_audio_buffer+tts_audio_offset, data, len);
@@ -503,6 +505,7 @@ static void _tts_cb(lisa_tts_cbmsg_e msg, void *data, uint32_t len)
 			recv_image.size = len;
 			send_ocr_simulation_image_once(s_tts_audio_ring_buffer, &recv_image, s_tts_ring_buffer_sema);
 			break;
+		}
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
 			break;
@@ -1016,7 +1019,7 @@ void ocr_test_offline_start()
 	create_tts_thread();
 
 	/* spi protocol */
-	// lisa_evs_parser_cp_init(NULL);
+	lisa_evs_parser_cp_init(NULL);
 
 	/* uart protocol */
 	// create_uart_proto_thread();
