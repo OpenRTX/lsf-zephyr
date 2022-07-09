@@ -182,7 +182,19 @@ SHELL_STATIC_SUBCMD_SET_CREATE(scanpen_app_test,
                SHELL_CMD_ARG(set_holdpen_mode, NULL, "0:left 1:right", _set_holdpen_mode, 0, 0),
                SHELL_SUBCMD_SET_END /* Array terminated. */
 );
-SHELL_CMD_REGISTER(scanpen_app, &scanpen_app_test, "scanpen_app related commands.", NULL);
+SHELL_CMD_REGISTER(handmode, &scanpen_app_test, "scanpen hand mode", NULL);
+
+
+static int _lisa_heap_psram_info(const struct shell *shell, size_t argc, char **argv)
+{
+	lisa_heap_info();
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(lisa_psram_test,
+               SHELL_CMD_ARG(psram, NULL, NULL, _lisa_heap_psram_info, 0, 0),
+               SHELL_SUBCMD_SET_END /* Array terminated. */
+);
+SHELL_CMD_REGISTER(lisa_heap, &lisa_psram_test, "lisa psram", NULL);
 
  static void work_status_set(work_status_e sta)
  {
@@ -400,7 +412,7 @@ void  offline_recognize_thread(void *arg)
 		ret_len = recv_ocr_simulation_image_once(s_send_ocr_simulation_image_buffer,
 						crop_image_buffer, CROP_BUF_LEN, s_ocr_image_sema, LISA_WAIT_FOREVER);
 		// spi send, unnecessary packed
-		printk("ret_len:%d\n", ret_len);
+		// printk("ret_len:%d\n", ret_len);
 		lisa_spi_write(crop_image_buffer, ret_len);
 	}
 	lisa_timer_delete(multiline_scan_timer);
