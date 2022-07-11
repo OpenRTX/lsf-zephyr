@@ -20,6 +20,7 @@ LOG_MODULE_REGISTER(fs_nvs, CONFIG_NVS_LOG_LEVEL);
 /* nvs_al_size returns size aligned to fs->write_block_size */
 static inline size_t nvs_al_size(struct nvs_fs *fs, size_t len)
 {
+    LOG_INF("len:%d", len);
 	uint8_t write_block_size = fs->flash_parameters->write_block_size;
 
 	if (write_block_size <= 1U) {
