@@ -289,6 +289,8 @@ bool frame_recv_proc(void *arg)
 	case e_cmd_proto_version:
 	case e_cmd_switch_mic_ch:
 	case e_cmd_scan_tts_text:
+	case e_cmd_scan_translate_text:
+	case e_cmd_scan_word_search_text:
 	case e_cmd_scan_tts_auth_code:
 	case e_cmd_manual_adjust_info:
 	case e_cmd_manual_adjust_abs_info:
