@@ -89,8 +89,10 @@ static frame_info_e recv_proc_scan_text(frame_desc_u *head)
 	LISA_LOGI(TAG, "text cmd:%d, txt:%s, len:%d", p_recv_cmd->tts_txt.cmd, &p_recv_cmd->tts_txt.data[0], txt_len);
 	if(NULL != s_uart_rx_callback) {
 		s_uart_rx_callback(p_recv_cmd->tts_txt.cmd, &p_recv_cmd->tts_txt.data[0], txt_len);
+	} else {
+		return e_frame_error_state;
 	}
-	return e_frame_info;
+	return e_frame_correct;
 }
 
 static frame_info_e recv_proc_scan_tts_authcode(frame_desc_u *head)
@@ -289,6 +291,8 @@ bool frame_recv_proc(void *arg)
 	case e_cmd_proto_version:
 	case e_cmd_switch_mic_ch:
 	case e_cmd_scan_tts_text:
+	case e_cmd_scan_translate_text:
+	case e_cmd_scan_word_search_text:
 	case e_cmd_scan_tts_auth_code:
 	case e_cmd_manual_adjust_info:
 	case e_cmd_manual_adjust_abs_info:
