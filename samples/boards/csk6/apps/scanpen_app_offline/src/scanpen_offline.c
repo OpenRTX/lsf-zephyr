@@ -1002,6 +1002,27 @@ static void test_app(void)
 		LISA_LOGE(TAG, "timer change period error");
 	}
 #endif
+
+#if 0 // spi0 test
+	#define _BUF_LEN (184)
+	uint8_t *test_buffer = lisa_mem_alloc(_BUF_LEN);
+	for(int i=0;i<_BUF_LEN;i++) {
+		test_buffer[i] = i;
+	}
+	printk("#####%p\n", test_buffer);
+	// uint32_t pack_len = lisa_evs_pack_spi_data(test_buffer, test_buffer+16, 20, LISA_UP_TEXT_WORD_SEARCH);
+	// spi send
+	printk("tts pack_len:%d\n", _BUF_LEN);
+	for(int k=0;k<_BUF_LEN;k++) {
+		printk("%02x ", test_buffer[k]);;
+	}
+	printk("\n");
+
+	lisa_spi_write(test_buffer, _BUF_LEN);
+	lisa_thread_mdelay(50);
+		// pack free
+	if(test_buffer) lisa_mem_free(test_buffer);
+#endif
 }
 
 void ocr_test_offline_start()
