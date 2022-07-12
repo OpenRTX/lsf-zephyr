@@ -187,6 +187,7 @@ static void hosted_event_handler(hosted_event_t events, void *arg)
         k_sem_give(&init_sem);
     } else if (events & HOSTED_WIFI_EVT_STA_DISCONNECTED) {
         wifi_send_event(wifi_obj_get_dev(CSK_WIFI_MODE_STA), CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
+        wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0);
     } else if (events & HOSTED_WIFI_EVT_AP_STACONNECTED) {
         wifi_send_event(wifi_obj_get_dev(CSK_WIFI_MODE_AP), CSK_WIFI_EVT_AP_STACONNECTED, NULL, 0, K_FOREVER);
     } else if (events & HOSTED_WIFI_EVT_AP_STADISCONNECTED) {
