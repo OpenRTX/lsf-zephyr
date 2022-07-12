@@ -83,11 +83,12 @@ static void rtc_csk_isr(const struct device *dev)
 
     if((status & STATUS_ALARM_INT) && (rtc->info->flag & RTC_FLAG_ALARM)){
         event |= CSK_RTC_EVENT_ALARM_INT;
+		if (data->alarm_cfg.callback != NULL) {
+			data->alarm_cfg.callback(dev, 0, now, data->alarm_cfg.user_data);
+		}
     }
 
-	if (data->alarm_cfg.callback != NULL) {
-		data->alarm_cfg.callback(dev, 0, now, data->alarm_cfg.user_data);
-	}
+
 }
 
 static void rtc_csk_irq_config(void)
