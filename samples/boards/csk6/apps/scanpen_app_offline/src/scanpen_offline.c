@@ -671,6 +671,9 @@ uint32_t calc_sum(uint8_t *src, uint32_t size)
 
 void video_ap2cp_thread(void *p1)
 {
+
+	_video_init();
+
 	struct video_buffer *vbuf = NULL;
 
 	/*Don't change this next line,it is reserved for video share memory size 256 Bytes!!!!!!!!!!!!!!*/
@@ -773,12 +776,11 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 	/* long button has the PRESS/RELEASE state */
 	if (sta == PRESS) {
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
-		_video_init();
 		lisa_vcapture_start(vcap_handler);
 		work_status_set(e_work_status_scanning);
 	} else if (sta == RELEASE) {
 		lisa_vcapture_stop(vcap_handler);
-		lisa_vcapture_destroy(vcap_handler);
+		// lisa_vcapture_destroy(vcap_handler);
 		if(e_scan_mode_multiline == s_scan_mode) {
 			/* set the time */
 			lisa_err_t sta = lisa_timer_change_period(multiline_scan_timer, 2000);
