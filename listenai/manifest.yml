@@ -28,7 +28,7 @@ manifest:
       path: modules/lib/protobuf-c
     - name: esp-hosted
       remote: listenai
-      revision: 27e26f38ce1dc0f8f5433ff3581911a8b77275ab
+      revision: 1fd5bad4904e659b9fc7a71d3e813ab48b4b7136
       path: modules/lib/esp-hosted
     - name: mcuboot
       remote: listenai
