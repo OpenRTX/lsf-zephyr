@@ -125,25 +125,12 @@ static frame_info_e recv_proc_manual_adjust_info(frame_desc_u *head)
 	p_recv_cmd = (recv_cmd_pack_e *)&(head->frame_u.data_t.data[0]);
 	e_frame_info = e_frame_error_argv;
 
-	// if(e_scan_mode_adjust != scan_update_mode_get()) {
-	// 	LISA_LOGW(TAG, "not adjust mode, don't support manual set adjust info. current[%d], update[%d]", scan_cur_mode_get(), scan_update_mode_get());
-	// 	return e_frame_error_state;
-	// }
-	// int16_t x_shift = 0;
-	// int16_t y_shift = 0;
-
-	// memcpy(&x_shift, &p_recv_cmd->manual_adjust_info.x_shift[0], sizeof(int16_t));
-	// memcpy(&y_shift, &p_recv_cmd->manual_adjust_info.y_shift[0], sizeof(int16_t));
-
-	// LISA_LOGD(TAG, "manual adjust info x_shift=%d, y_shift=%d", x_shift, y_shift);
-	// int ret = recv_uart_manual_adjust_info(x_shift, y_shift, false);
-	// if(0 == ret) {
-	// 	e_frame_info = e_frame_correct;
-	// } else {
-	// 	e_frame_info = e_frame_error_state;
-	// }
-
-	return e_frame_info;
+	if(NULL != s_uart_rx_callback) {
+		s_uart_rx_callback(p_recv_cmd->workmode.cmd, &head->frame_u.data_t.data[0], 0);
+	} else {
+		return e_frame_error_argv;
+	}
+	return e_frame_correct;
 }
 
 static frame_info_e recv_proc_manual_adjust_abs_info(frame_desc_u *head)
@@ -192,8 +179,10 @@ static frame_info_e recv_proc_scan_work_mode(frame_desc_u *head)
 #endif
 	if(NULL != s_uart_rx_callback) {
 		s_uart_rx_callback(p_recv_cmd->workmode.cmd, &p_recv_cmd->workmode.mode, 0);
+	} else {
+		return e_frame_error_argv;
 	}
-	return e_frame_info;
+	return e_frame_correct;
 }
 
 static void recv_proc_all_version_query(frame_desc_u *head)

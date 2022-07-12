@@ -31,6 +31,12 @@
 #include "dict.h"
 #include "dict_demo.h"
 
+#include "lisa_evs.h"
+
+#define PREF_X_AXIS "axis"
+#define PREF_V_START "vstart"
+#define PREF_V_STOP "vstop"
+
 #define VIDEO_DEV DT_LABEL(DT_INST(0, byd_bf30a2))
 
 typedef enum {
@@ -710,37 +716,51 @@ void video_ap2cp_thread(void *p1)
 
 	BUILD_CHECK(sizeof(frames_info_t) % 32 == 0);
 
-	while (1) {
+	uint8_t *spi_image_buffer = lisa_mem_alloc(128*180+16);
+	if(!spi_image_buffer) {
+		LISA_LOGE(TAG, "spi_image_buffer malloc fail.");
+	}
+
+	while (1)
+	{
 		vbuf = NULL;
 		video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_FOREVER);
 		frame_cnt++;
-		/* send datas to cp core */
-		char *buffer = bf30a2_frames_info_get_free(info);
-		if (buffer != NULL) {
-			if ((buffer < info->ap_share.addr) || (buffer >= (info->ap_share.addr + info->ap_share.frame_size * info->ap_share.frame_cnt))) {
-				LISA_LOGI(TAG, "##########Frames info##########");
-				LISA_LOGI(TAG, "info       :%p.", info);
-				LISA_LOGI(TAG, "buffer addr:%p.", info->ap_share.addr);
-				LISA_LOGI(TAG, "frame  size:%u.", info->ap_share.frame_size);
-				LISA_LOGI(TAG, "frame count:%d.", info->ap_share.frame_cnt);
-				LISA_LOGI(TAG, "write   pos:%d.", info->ap_share.w_pos);
-				LISA_LOGI(TAG, "read    pos:%d.", info->cp_share.r_pos);
+		if(s_scan_mode != e_scan_mode_adjust)
+		{
+			/* send datas to cp core */
+			char *buffer = bf30a2_frames_info_get_free(info);
+			if (buffer != NULL)
+			{
+				if ((buffer < info->ap_share.addr) || (buffer >= (info->ap_share.addr + info->ap_share.frame_size * info->ap_share.frame_cnt))) {
+					LISA_LOGI(TAG, "##########Frames info##########");
+					LISA_LOGI(TAG, "info       :%p.", info);
+					LISA_LOGI(TAG, "buffer addr:%p.", info->ap_share.addr);
+					LISA_LOGI(TAG, "frame  size:%u.", info->ap_share.frame_size);
+					LISA_LOGI(TAG, "frame count:%d.", info->ap_share.frame_cnt);
+					LISA_LOGI(TAG, "write   pos:%d.", info->ap_share.w_pos);
+					LISA_LOGI(TAG, "read    pos:%d.", info->cp_share.r_pos);
 
-				LISA_LOGI(TAG, "buffer:%p.", buffer);
-				k_panic();
+					LISA_LOGI(TAG, "buffer:%p.", buffer);
+					k_panic();
+				}
+				frame_info_t *frame_info = (frame_info_t *)buffer;
+				frame_info->id = id++;
+				memcpy(buffer + sizeof(frame_info_t), vbuf->buffer, 180 * 128);
+				frame_info->sum = calc_sum(buffer + sizeof(frame_info_t), 180 * 128);
+				SCB_CleanDCache_by_Addr(buffer, info->ap_share.frame_size);
+				bf30a2_frames_info_update_w_pos(info);
+				fps = vbuf->timestamp - last_tick > 0 ?
+						1000 / (vbuf->timestamp - last_tick) :
+						0;
+				last_tick = vbuf->timestamp;
+			} else {
+				discard_cnt++;
 			}
-			frame_info_t *frame_info = (frame_info_t *)buffer;
-			frame_info->id = id++;
-			memcpy(buffer + sizeof(frame_info_t), vbuf->buffer, 180 * 128);
-			frame_info->sum = calc_sum(buffer + sizeof(frame_info_t), 180 * 128);
-			SCB_CleanDCache_by_Addr(buffer, info->ap_share.frame_size);
-			bf30a2_frames_info_update_w_pos(info);
-			fps = vbuf->timestamp - last_tick > 0 ?
-				      1000 / (vbuf->timestamp - last_tick) :
-				      0;
-			last_tick = vbuf->timestamp;
 		} else {
-			discard_cnt++;
+			uint32_t pack_len = lisa_spi_upload_image(spi_image_buffer, vbuf->buffer, 180 * 128, frame_cnt);
+			printk("pack_len:%s\n", pack_len);
+			lisa_spi_write(spi_image_buffer, pack_len);
 		}
 
 		if (frame_cnt % 10 == 0) {
@@ -882,6 +902,162 @@ static int cmd_scan_set_para(void *data)
 	return LISA_OK;
 }
 
+#define BF30A2_FRAME_WIDTH_ADJUST (240)
+#define BF30A2_FRAME_HEIGHT_ADJUST (320)
+#define BF30A2_FRAME_LEN_ADJUST (76800)
+#define BF30A2_FRAME_WIDTH (128)
+#define BF30A2_FRAME_HEIGHT (180)
+#define BF30A2_FRAME_LEN (23040)
+#define X_AXIS 0x3b
+#define V_START 0x46
+#define V_STOP 0x7d
+#define LFS_ADJUST_INFO "adjust info"
+
+typedef struct {
+	uint8_t isAdjust;
+	uint8_t vstart;
+	uint8_t vstop;
+	uint8_t x_axis;
+	uint16_t checkSum;
+	uint16_t hand;
+} adjust_info_t;
+
+adjust_info_t manual_adjust_info = {
+	.isAdjust = 0,
+	.vstart = V_START,
+	.vstop = V_STOP,
+	.x_axis = X_AXIS,
+	.checkSum = (X_AXIS+V_START+V_STOP),
+};
+
+static int video_param_set(void *data, uint32_t len)
+{
+	recv_cmd_pack_e *p_recv_cmd = (recv_cmd_pack_e *)data;
+
+	// 相对偏移量
+	int16_t x_shift = 0;
+	int16_t y_shift = 0;
+
+	memcpy(&x_shift, &p_recv_cmd->manual_adjust_info.x_shift[0], sizeof(int16_t));
+	memcpy(&y_shift, &p_recv_cmd->manual_adjust_info.y_shift[0], sizeof(int16_t));
+
+	LISA_LOGD(TAG, "manual adjust info x_shift=%d, y_shift=%d", x_shift, y_shift);
+	// 绝对偏移量
+	int16_t x_absolute_shift = 0x00;
+	int16_t y_absolute_shift = 0x00;
+
+	x_absolute_shift = (manual_adjust_info.x_axis >> 4) * 16 + x_shift;
+	y_absolute_shift = manual_adjust_info.vstart + y_shift;
+
+	LISA_LOGD(TAG, "x_absolute_shift:%d, y_absolute_shift:%d", x_absolute_shift, y_absolute_shift);
+
+	// 绝对偏移x[0, 112]
+	if(x_absolute_shift < 0)
+		x_absolute_shift = 0;
+	if(x_absolute_shift > (BF30A2_FRAME_WIDTH_ADJUST - BF30A2_FRAME_WIDTH))
+		x_absolute_shift = BF30A2_FRAME_WIDTH_ADJUST - BF30A2_FRAME_WIDTH;
+
+	// 绝对偏移y[0, 138]: y最大右偏移140会有问题
+	if(y_absolute_shift < 0)
+		y_absolute_shift = 0;
+	if(y_absolute_shift > (BF30A2_FRAME_HEIGHT_ADJUST - BF30A2_FRAME_HEIGHT - 2))
+		y_absolute_shift = BF30A2_FRAME_HEIGHT_ADJUST - BF30A2_FRAME_HEIGHT - 2;
+
+	// 2. fill adjust info struct
+	if (y_absolute_shift % 2 != 0)
+		y_absolute_shift -= 1; // 奇数变偶数
+	if (x_absolute_shift % 16 != 0)
+		x_absolute_shift = (x_absolute_shift / 16) * 16; // 变为16的倍数
+	manual_adjust_info.vstart = y_absolute_shift;
+	manual_adjust_info.vstop = (y_absolute_shift + BF30A2_FRAME_HEIGHT) / 2;
+	manual_adjust_info.x_axis = (x_absolute_shift / 16) << 4;
+	manual_adjust_info.x_axis = ((x_absolute_shift + BF30A2_FRAME_WIDTH) / 16) | manual_adjust_info.x_axis;
+	manual_adjust_info.checkSum = manual_adjust_info.x_axis + manual_adjust_info.vstart + manual_adjust_info.vstop;
+	manual_adjust_info.isAdjust = 1;
+
+	return LISA_OK;
+}
+
+static int save_adjust_info(void)
+{
+	if(!manual_adjust_info.isAdjust) {
+		LISA_LOGI(TAG, " is not adjsut");
+		// return LISA_OK;
+	}
+	cJSON *json_root = cJSON_CreateObject();  // create a json array root
+	cJSON_AddNumberToObject(json_root, "isAdjust", manual_adjust_info.isAdjust);
+	cJSON_AddNumberToObject(json_root, "x_axis", manual_adjust_info.x_axis);
+	cJSON_AddNumberToObject(json_root, "vstart", manual_adjust_info.vstart);
+	cJSON_AddNumberToObject(json_root, "vstop", manual_adjust_info.vstop);
+	cJSON_AddNumberToObject(json_root, "hand", manual_adjust_info.hand);
+	cJSON_AddNumberToObject(json_root, "checkSum", manual_adjust_info.checkSum);
+	char *_adjsut_info_json = cJSON_Print(json_root);
+	printk("_adjsut_info_json:%d\n", _adjsut_info_json);
+
+	// save to lfs
+	lisa_pref_put_string(LFS_ADJUST_INFO, _adjsut_info_json);
+
+	cJSON_free(_adjsut_info_json);
+	cJSON_free(json_root);
+
+	return LISA_OK;
+}
+
+static int get_adjust_info(void)
+{
+	int ret = LISA_FAIL;
+
+	char *_info = NULL;
+	lisa_pref_get_string(LFS_ADJUST_INFO, &_info);
+
+	printk("_info:%s\n", _info);
+
+	cJSON *root = cJSON_Parse(_info);
+	if (!root) {
+		LISA_LOGE(TAG, "parse %s failed \n", LFS_ADJUST_INFO);
+		return LISA_FAIL;
+	}
+	cJSON *sub_root = cJSON_GetObjectItem(root, "isAdjust");
+	if (sub_root) {
+		manual_adjust_info.isAdjust = sub_root->valueint;
+		printk("isAdjust:%d\n", manual_adjust_info.isAdjust);
+	}
+
+	sub_root = cJSON_GetObjectItem(root, "x_axis");
+	if (sub_root) {
+		manual_adjust_info.x_axis = sub_root->valueint;
+		printk("x_axis:0x%x\n", manual_adjust_info.x_axis);
+	}
+
+	sub_root = cJSON_GetObjectItem(root, "vstop");
+	if (sub_root) {
+		manual_adjust_info.vstop = sub_root->valueint;
+		printk("vstop:0x%x\n", manual_adjust_info.vstop);
+	}
+
+	sub_root = cJSON_GetObjectItem(root, "vstart");
+	if (sub_root) {
+		manual_adjust_info.vstart = sub_root->valueint;
+		printk("vstart:0x%x\n", manual_adjust_info.vstart);
+	}
+
+	sub_root = cJSON_GetObjectItem(root, "checkSum");
+	if (sub_root) {
+		manual_adjust_info.checkSum = sub_root->valueint;
+		printk("checkSum:0x%x\n", manual_adjust_info.checkSum);
+	}
+
+	sub_root = cJSON_GetObjectItem(root, "hand");
+	if (sub_root) {
+		manual_adjust_info.hand = sub_root->valueint;
+		printk("hand:0x%x\n", manual_adjust_info.hand);
+	}
+
+	cJSON_Delete(root);
+
+	return LISA_OK;
+}
+
 static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 {
 	printk("@@recv_cmd_type_e:%d\n", type);
@@ -905,6 +1081,9 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 		}
 		case e_cmd_scan_set_para:
 			cmd_scan_set_para(data);
+			break;
+		case e_cmd_manual_adjust_info:
+			video_param_set(data, len);
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
@@ -1023,10 +1202,19 @@ static void test_app(void)
 		// pack free
 	if(test_buffer) lisa_mem_free(test_buffer);
 #endif
+
+#if 1
+	save_adjust_info();
+
+	get_adjust_info();
+#endif
 }
 
 void ocr_test_offline_start()
 {
+	/* storage information on flash */
+	lisa_pref_init();
+
 	/* button initialize */
 	pen_head_button_init();
 

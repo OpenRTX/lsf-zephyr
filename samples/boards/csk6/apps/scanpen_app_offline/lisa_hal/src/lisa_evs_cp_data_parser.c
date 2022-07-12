@@ -376,6 +376,31 @@ static lisa_err_t lisa_spi_upload_audio(uint8_t *dst, uint8_t *src, uint32_t len
 	return (len+offset);
 }
 
+lisa_err_t lisa_spi_upload_image(uint8_t *dst, uint8_t *src, uint32_t len, uint32_t idx)
+{
+	if(NULL == dst || NULL == src) {
+		return LISA_FAIL;
+	}
+
+	img_frame_t *_frame = (img_frame_t *)dst;
+
+	_frame->tag = IMAGE_FRM_HDR_TAG;
+	_frame->ver = 0;
+	_frame->fuid = idx;
+	_frame->type = LISA_UP_IMAGE;
+	_frame->fmt = 1;
+	_frame->xsft = 0;
+	_frame->ysft = 0;
+	_frame->width = 128;
+	_frame->height = 180;
+	_frame->depth = 1;
+	_frame->checksum = _image_pack_check(src, len);
+	int8_t offset = (sizeof(img_frame_t) - sizeof(uint8_t *));
+	memcpy(dst + offset, src, len);
+
+	return (len+offset);
+}
+
 lisa_err_t lisa_evs_pack_spi_data(uint8_t *dst, uint8_t *src, uint32_t len, lisa_spi_upload_type_e type)
 {
 	if(NULL == dst || NULL == src) {

@@ -129,4 +129,6 @@ lisa_err_t lisa_evs_pack_spi_data(uint8_t *dst, uint8_t *src, uint32_t len, lisa
 
 int lisa_spi_write(uint8_t *data, uint32_t len);
 
+lisa_err_t lisa_spi_upload_image(uint8_t *dst, uint8_t *src, uint32_t len, uint32_t idx);
+
 #endif //__LISA_EVS_SDK_SPI_PARSER_H__
