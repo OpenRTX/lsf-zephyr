@@ -58,7 +58,7 @@ static int csk_gpio_a_pinmux_set(gpio_pin_t pin)
 {
     uint32_t pin_func = CSK_IOMUX_FUNC_DEFAULT;
 
-    if((pin <=2) || ((pin >= 10) && (pin <= 14)))
+    if((pin < 2) || ((pin >= 10) && (pin <= 14)))
     {
         pin_func = CSK_IOMUX_FUNC_ALTER1;
     }
