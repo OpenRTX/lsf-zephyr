@@ -29,6 +29,12 @@ LOG_MODULE_REGISTER(csk6_keysense, LOG_LEVEL_WRN);
 /* Common settings supported by most ADCs */
 #define ADC_RESOLUTION		11
 
+static int csk6_adc_keysense_get_sample(const struct device *dev, uint32_t *value);
+static void keysense_press_handler(struct k_work *work);
+static void keysense_release_handler(struct k_work *work);
+K_WORK_DEFINE(key_press_work, keysense_press_handler);
+K_WORK_DEFINE(key_release_work, keysense_release_handler);
+
 struct adc_channel_cfg channel_cfg = {
 	.gain = ADC_GAIN_1,
 	.reference = ADC_REF_INTERNAL,
@@ -59,6 +65,41 @@ struct keysense_csk6_data {
 
 	kscan_callback_t cb;
 };
+
+static void keysense_press_handler(struct k_work *work)
+{
+	const struct device *dev = DEVICE_DT_INST_GET(0);
+	uint32_t key_voltage = 0;
+	uint8_t i;
+	struct keysense_csk6_cfg *config = DEV_CFG(dev);
+
+	csk6_adc_keysense_get_sample(dev, &key_voltage);
+
+	LOG_DBG("KEYSENSE press, voltage:%d mV\n", key_voltage);
+
+	for(i = 0; i < config->analog_key_num; i++)
+	{
+		if((key_voltage > (config->analog_key_voltage[i] - ANALOG_KEY_TRIGGER_OFFSET)) && (key_voltage < (config->analog_key_voltage[i] + ANALOG_KEY_TRIGGER_OFFSET)))
+			break;
+	}
+
+	if(i < config->analog_key_num)
+	{
+		DEV_CB(dev)(dev, i, 0, true);
+	}
+}
+
+static void keysense_release_handler(struct k_work *work)
+{
+	const struct device *dev = DEVICE_DT_INST_GET(0);
+	uint32_t key_voltage = 0;
+
+	csk6_adc_keysense_get_sample(dev, &key_voltage);
+
+	LOG_DBG("KEYSENSE release, voltage:%d mV\n", key_voltage);
+
+	DEV_CB(dev)(dev, 0, 0, false);
+}
 
 static void keysense_csk6_isr(const void *arg)
 {
@@ -110,39 +151,15 @@ static int csk6_adc_keysense_get_sample(const struct device *dev, uint32_t *valu
 }
 
 
-static void keysense_press_event(void* param){
-	const struct device *dev = DEVICE_DT_INST_GET(0);
-	uint32_t key_voltage = 0;
-	uint8_t i;
-	struct keysense_csk6_cfg *config = DEV_CFG(dev);
-
-	csk6_adc_keysense_get_sample(dev, &key_voltage);
-
-	LOG_DBG("KEYSENSE press, voltage:%d mV\n", key_voltage);
-
-	for(i = 0; i < config->analog_key_num; i++)
-	{
-		if((key_voltage > (config->analog_key_voltage[i] - ANALOG_KEY_TRIGGER_OFFSET)) && (key_voltage < (config->analog_key_voltage[i] + ANALOG_KEY_TRIGGER_OFFSET)))
-			break;
-	}
-
-	if(i < config->analog_key_num)
-	{
-		DEV_CB(dev)(dev, i, 0, true);
-	}
+static void keysense_press_event(void* param)
+{
+	k_work_submit(&key_press_work);
 }
 
-static void keysense_release_event(void* param){
-	const struct device *dev = DEVICE_DT_INST_GET(0);
-	uint32_t key_voltage = 0;
-
-	csk6_adc_keysense_get_sample(dev, &key_voltage);
-
-	LOG_DBG("KEYSENSE release, voltage:%d mV\n", key_voltage);
-
-	DEV_CB(dev)(dev, 0, 0, false);
+static void keysense_release_event(void* param)
+{
+	k_work_submit(&key_release_work);
 }
-
 
 static int kscan_csk6_config(const struct device *dev,
 				kscan_callback_t callback)
