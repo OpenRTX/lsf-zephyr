@@ -209,14 +209,19 @@ csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
     }
     ch_info->cb_info.callback(dev, ch_info->cb_info.user_data, channel, ret);
 }
-
-ISR_DIRECT_DECLARE(dma_direct_irq_handler)
+static void dma_direct_irq_handler(const struct device *dev)
 {
     extern void dma_irq_handler(void);
     dma_irq_handler();
-
-    return 1;
 }
+
+// ISR_DIRECT_DECLARE(dma_direct_irq_handler)
+// {
+//     extern void dma_irq_handler(void);
+//     dma_irq_handler();
+
+//     return 1;
+// }
 
 static int csk_dma_init(const struct device *dev)
 {
@@ -232,8 +237,8 @@ static int csk_dma_init(const struct device *dev)
 		return -ENOMEM;
 	}
     
-    IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
-                dma_direct_irq_handler, Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
+    IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority),
+                dma_direct_irq_handler, Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)), 0);
 	irq_enable(DT_INST_IRQN(0));
     return 0;
 }

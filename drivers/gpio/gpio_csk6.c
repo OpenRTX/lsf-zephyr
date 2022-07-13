@@ -9,7 +9,12 @@
 
 #include "gpio_utils.h"
 
+#ifndef CONFIG_SOC_LS_ADSP_CSK6
 #include "hal/gpio.h"
+#else
+#include "hal/gpio_venus.h"
+#endif
+
 #include "hal/Driver_GPIO.h"
 #include <hal/IOMuxManager.h>
 
@@ -266,12 +271,6 @@ static const struct gpio_driver_api csk_gpio_driver_api = {
     static int csk_gpio_##n##_init(const struct device *dev)	\
 	{		\
         GPIO_Initialize(csk_gpio_get_driver_ctx(n), NULL, NULL); \
-		IRQ_CONNECT(DT_INST_IRQ_BY_IDX(n, 0, irq),		\
-			    DT_INST_IRQ_BY_IDX(n, 0, priority),		\
-			    csk_gpio_isr,				\
-			    DEVICE_DT_INST_GET(n), 0);			\
-									\
-		irq_enable(DT_INST_IRQ_BY_IDX(n, 0, irq));		\
 		return 0;						\
 	}
 

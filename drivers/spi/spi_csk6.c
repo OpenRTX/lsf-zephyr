@@ -120,6 +120,8 @@ static int csk_spi_configure(const struct device *dev, const struct spi_config *
     return 0;
 }
 
+static uint8_t test_buff[8 * 1024] = {0};
+
 static void csk_spi_hal_transceive(const struct device *dev)
 {
 	struct csk_spi_data *data = dev->data;
@@ -144,7 +146,11 @@ static void csk_spi_hal_transceive(const struct device *dev)
 	if (ctx->tx_buf != NULL && ctx->rx_buf != NULL) {
 		SPI_Transfer(data->driver_context, ctx->tx_buf, ctx->rx_buf, real_trans_size);
 	} else if (ctx->tx_buf != NULL) {
-		SPI_Send(data->driver_context, ctx->tx_buf, real_trans_size);
+		int len = ROUND_UP(real_trans_size, 16);
+		memset(test_buff, 0, len);
+		memcpy(test_buff, ctx->tx_buf, real_trans_size);
+		SPI_Send(data->driver_context, test_buff, len);
+		// SPI_Send(data->driver_context, ctx->tx_buf, real_trans_size);
 	} else if (ctx->rx_buf != NULL) {
 		SPI_Receive(data->driver_context, ctx->rx_buf, real_trans_size);
 	} else {

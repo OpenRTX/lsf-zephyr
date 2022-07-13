@@ -4,3 +4,8 @@
                 };
 };
 
+&spi_fake {
+        status = "okay";
+
+        
+};

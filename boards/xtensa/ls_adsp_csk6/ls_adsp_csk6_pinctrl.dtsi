@@ -69,6 +69,18 @@
                 pinctrl_spi1_cs_default: spi1_cs_default{
                 };
                 
+                pinctrl_spi_fake_sclk_default: spi_fake_sclk_default{
+                };
+                
+                pinctrl_spi_fake_mosi_default: spi_fake_mosi_default{
+                };
+
+                pinctrl_spi_fake_miso_default: spi_fake_miso_default{
+                };    
+
+                pinctrl_spi_fake_cs_default: spi_fake_cs_default{
+                };
+
                 /* ADC alternate function */
                 pinctrl_adc0_ch0_default: adc0_ch0_default{
                 };

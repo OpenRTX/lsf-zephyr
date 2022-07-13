@@ -26,49 +26,35 @@
     pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>; 
     pinctrl-names = "default";
     
-	st7789v@0 {
-            compatible = "sitronix,st7789v";
-            label = "ST7789V";
-            status = "okay";
-            spi-max-frequency = <20000000>;
-            reg = <0>;
-            cmd-data-gpios = <&gpioa 8 1>;
-            reset-gpios = <&gpioa 9 0>;
-            width = <320>;
-            height = <170>;
-            x-offset = <0>;
-            y-offset = <35>;
-            // reg:0xBB
-            vcom = <0x1e>;
-            // reg:0xB7
-            gctrl = <0x35>;
-            // reg:0xC3
-            vrhs = <0x0b>;
-            // reg:0xC4
-            vdvs = <0x20>;
-            // reg:0x36
-            mdac = <0xA3>;
-            // reg:0x26
-            gamma = <0x01>;
-            // reg:0x3a
-            colmod = <0x05>;
-            // reg:0xc0
-            lcm = <0x2c>;
-            // reg:0xb2
-            porch-param = [0c 0c 00 33 33];
-            // reg:0xDF
-            cmd2en-param = [5a 69 02 01];
-            // reg:0xD0
-            pwctrl1-param = [a4 a1];
-            // reg:0xE0
-            pvgam-param = [d0 06 0b 07 07 24 2e 32 46 37 13 13 2d 33];
-            // reg:0xE1
-            nvgam-param = [d0 02 06 09 08 05 29 44 42 38 14 14 2a 30];
-            // reg:b0
-            ram-param = [00 F0];
-            // reg:b1
-            rgb-param = [CD 08 14];
-	};
+    display: ili9341@0 {
+        compatible = "ilitek,ili9341";
+        status = "okay";
+        label = "ILI9341";
+        reg = <0>;
+
+        rotation = <0>;
+        pixel-format = <1>;
+        reset-gpios = <&gpioa 8 1>;
+        cmd-data-gpios = <&gpioa 9 1>;
+        spi-max-frequency = <25000000>;
+        pwctrla = [ 39 2c 00 34 02  ];
+        pwctrlb = [ 00 c1 30  ];
+        timctrla = [ 85 00 78  ];
+        timctrlb = [ 00 00  ];
+        pwseqctrl = [ 64 03 12 81  ];
+        pwctrl1 = [ 1d  ];
+        pwctrl2 = [ 12  ];
+        vmctrl1 = [ 33 3f  ];
+        vmctrl2 = [ 92  ];
+        frmctr1 = [ 00 12  ];
+        disctrl = [ 08 82 27  ];
+        enable3g = [ 02  ];
+        gamset = [ 01  ];
+        pumpratioctrl = [ 10  ];
+        pgamctrl = [ 0f 22 1c 1b 08 0f 48 b8 34 05 0c 09 0f 07 00  ];
+        ngamctrl = [ 00 23 24 07 10 07 38 47 4b 0A 13 06 30 38 0f  ];
+        etmod = [ 06  ];
+};
 };
 
 &i2c0 {

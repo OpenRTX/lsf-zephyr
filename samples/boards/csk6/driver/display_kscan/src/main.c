@@ -18,6 +18,10 @@ LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 #include <drivers/display.h>
 #include <drivers/kscan.h>
 
+#if DT_NODE_HAS_STATUS(DT_INST(0, ilitek_ili9341), okay)
+#define DISPLAY_DEV_NAME DT_LABEL(DT_INST(0, ilitek_ili9341))
+#endif
+
 #if DT_NODE_HAS_STATUS(DT_INST(0, ilitek_ili9340), okay)
 #define DISPLAY_DEV_NAME DT_LABEL(DT_INST(0, ilitek_ili9340))
 #endif
@@ -98,6 +102,7 @@ static void k_callback(const struct device *dev, uint32_t row, uint32_t col,
 
 void kscan_init(void)
 {
+#if DT_NODE_HAS_STATUS(DT_INST(0, betterlife_bl6xxx), okay)
 	const struct device *kscan_dev = device_get_binding(DISPLAY_KSAN_DEV_NAME);
 
 	if (!device_is_ready(kscan_dev)) {
@@ -107,6 +112,7 @@ void kscan_init(void)
 
 	kscan_config(kscan_dev, k_callback);
 	kscan_enable_callback(kscan_dev);
+#endif
 }
 
 static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf,
@@ -223,6 +229,58 @@ static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf,
 	memset(buf, color, buf_size);
 }
 
+#ifndef CONFIG_SOC_LS_ADSP_CSK6
+#define CP_BOOT_ADDRESS 0x60000000
+#define SYSCTRL_RESET_CP (0xCAFE000B)
+#define SYSCTRL_RELEASE_CP (0xCAFE100B)
+#define SYSCTRL_RESET_NPU (0xCAFE000C)
+#define CP_PSRAM_BASE (0x68400000)
+#define AP_PSRAM_BASE (0x30000000)
+
+#define CP_FW_ADDR (0x18000000 + 0x00200000)
+#define CP_FW_LEN 500000
+
+#include "venus_ap.h"
+#include "cmn_sysctrl_reg_venus.h"
+#include "PSRAMManager.h"
+#include <cache.h>
+
+void prepare_cp_run()
+{
+	PSRAM_Initialize();
+
+	SYSCFG_RegDef *cmn_sys_ctrl = (SYSCFG_RegDef *)CMN_SYSCTRL_BASE;
+
+	// set boot address
+	cmn_sys_ctrl->REG_CP_CTRL2.all = CP_BOOT_ADDRESS;
+	cmn_sys_ctrl->REG_CP_CTRL1.bit.CP_STAT_VECTOR_SEL = 0x1;
+
+	// stall HIFI4
+	cmn_sys_ctrl->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x1;
+
+	// release CP & NPU
+	cmn_sys_ctrl->REG_SW_RESET_CP.all = SYSCTRL_RELEASE_CP;
+	if (cmn_sys_ctrl->REG_SW_RESET_NPU.all) { // = 1 NPU reset
+		cmn_sys_ctrl->REG_SW_RESET_NPU.all = SYSCTRL_RESET_NPU;
+	}
+
+	__DMB();
+   	memcpy((void *)AP_PSRAM_BASE, (void *)CP_FW_ADDR, CP_FW_LEN);
+
+    sys_cache_data_range((void *)AP_PSRAM_BASE, CP_FW_LEN, K_CACHE_WB);
+	__DSB();
+
+	// run cp
+	cmn_sys_ctrl->REG_SW_RESET_CP.all = SYSCTRL_RESET_CP;
+	cmn_sys_ctrl->REG_SW_RESET_CP.all = SYSCTRL_RELEASE_CP;
+	cmn_sys_ctrl->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x0;
+
+	printk("Set CP boot address:%x.\n", CP_BOOT_ADDRESS);
+	printk("Boot CP...\n");
+}
+
+#endif
+
 void main(void)
 {
 	size_t x;
@@ -240,10 +298,15 @@ void main(void)
 	size_t buf_size = 0;
 	fill_buffer fill_buffer_fnc = NULL;
 
-	LOG_INF("Display sample for %s", DISPLAY_DEV_NAME);
+	// while(1) {
+	// 	LOG_INF("Display sample for %s", DISPLAY_DEV_NAME);
+	// 	k_msleep(500);
+	// }
 
-	kscan_init();
-
+	// kscan_init();
+#ifndef CONFIG_SOC_LS_ADSP_CSK6
+	prepare_cp_run();
+#endif
 	display_dev = device_get_binding(DISPLAY_DEV_NAME);
 
 	if (display_dev == NULL) {
@@ -306,14 +369,15 @@ void main(void)
 		LOG_ERR("Unsupported pixel format. Aborting sample.");
 		RETURN_FROM_MAIN(1);
 	}
-
+	// buf_size = 320;
+	printk("buf_size:%u\n");
 	buf = k_malloc(buf_size);
 
 	if (buf == NULL) {
 		LOG_ERR("Could not allocate memory. Aborting sample.");
 		RETURN_FROM_MAIN(1);
 	}
-
+	
 	(void)memset(buf, 0xFFu, buf_size);
 
 	buf_desc.buf_size = buf_size;

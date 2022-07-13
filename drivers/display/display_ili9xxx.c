@@ -25,7 +25,7 @@ int ili9xxx_transmit(const struct device *dev, uint8_t cmd, const void *tx_data,
 		     size_t tx_len)
 {
 	const struct ili9xxx_config *config = dev->config;
-
+	const uint8_t dummy[32] = {0};
 	int r;
 	struct spi_buf tx_buf;
 	struct spi_buf_set tx_bufs = { .buffers = &tx_buf, .count = 1U };
@@ -33,20 +33,28 @@ int ili9xxx_transmit(const struct device *dev, uint8_t cmd, const void *tx_data,
 	/* send command */
 	tx_buf.buf = &cmd;
 	tx_buf.len = 1U;
-
+	printk("ILI9xxx Send CMD:0x%02x\n", cmd);
 	gpio_pin_set_dt(&config->cmd_data, ILI9XXX_CMD);
 	r = spi_write_dt(&config->spi, &tx_bufs);
-	if (r < 0) {
-		return r;
-	}
+
+	// tx_buf.buf = (void *)dummy;
+	// tx_buf.len = 8;
+	// r = spi_write_dt(&config->spi, &tx_bufs);
+	// if (r < 0) {
+	// 	return r;
+	// }
 
 	/* send data (if any) */
 	if (tx_data != NULL) {
 		tx_buf.buf = (void *)tx_data;
 		tx_buf.len = tx_len;
-
+		printk("ILI9xxx Send Data, len:%d\n", tx_len);
 		gpio_pin_set_dt(&config->cmd_data, ILI9XXX_DATA);
 		r = spi_write_dt(&config->spi, &tx_bufs);
+		
+		// tx_buf.buf = (void *)dummy;
+		// tx_buf.len = 8;
+		// r = spi_write_dt(&config->spi, &tx_bufs);
 		if (r < 0) {
 			return r;
 		}
@@ -129,7 +137,7 @@ static int ili9xxx_write(const struct device *dev, const uint16_t x,
 			 desc->buf_size,
 		 "Input buffer to small");
 
-	LOG_DBG("Writing %dx%d (w,h) @ %dx%d (x,y)", desc->width, desc->height,
+	printk("Writing %dx%d (w,h) @ %dx%d (x,y)\n", desc->width, desc->height,
 		x, y);
 	r = ili9xxx_set_mem_area(dev, x, y, desc->width, desc->height);
 	if (r < 0) {
