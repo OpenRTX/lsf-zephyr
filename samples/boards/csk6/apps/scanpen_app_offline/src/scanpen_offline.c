@@ -13,6 +13,9 @@
 #include <devicetree.h>
 #include <drivers/video.h>
 
+#include <drivers/flash.h>
+#include <storage/flash_map.h>
+
 #include "tts_playback.h"
 
 #include "lisa_buttons.h"
@@ -161,6 +164,8 @@ enum {
 #define X_AXIS_REG 0x2f
 #define V_START_REG 0x19
 #define V_STOP_REG 0x1a
+#define STORAGE_FLASH_AREA_ID FLASH_AREA_ID(storage)
+#define STORAGE_BLOCK_SIZE (4096)
 
 typedef struct {
 	uint8_t update;
@@ -497,8 +502,6 @@ void create_offline_recognize_thread()
 #define TTS_AUDIO_SAVE_FLASH 0
 
 #if TTS_AUDIO_SAVE_FLASH
-#include <drivers/flash.h>
-#include <storage/flash_map.h>
 #define UPLOAD_FLASH_AREA_ID FLASH_AREA_ID(image_1)
 #define BLOCK_SIZE (4096)
 static const struct flash_area *fa;
@@ -721,10 +724,6 @@ void video_ap2cp_thread(void *p1)
 {
 	_video_init();
 
-	camera_get_adjust_info();
-
-	camera_set_adjust_param(&manual_adjust_info);
-
 	struct video_buffer *vbuf = NULL;
 
 	video = device_get_binding(VIDEO_DEV);
@@ -765,6 +764,10 @@ void video_ap2cp_thread(void *p1)
 	if(!spi_image_buffer) {
 		LISA_LOGE(TAG, "spi_image_buffer malloc fail.");
 	}
+
+	camera_get_adjust_info();
+
+	camera_set_adjust_param(&manual_adjust_info);
 
 	while (1)
 	{
@@ -1023,7 +1026,7 @@ static int camera_set_adjust_param(adjust_info_t *_info)
 static int camera_save_adjust_info(void)
 {
 	if(!manual_adjust_info.update) {
-		LISA_LOGI(TAG, "adjsut info not update!!!");
+		LISA_LOGI(TAG, "adjust info not update!!!");
 		return LISA_OK;
 	}
 	cJSON *json_root = cJSON_CreateObject();  // create a json array root
@@ -1034,10 +1037,24 @@ static int camera_save_adjust_info(void)
 	cJSON_AddNumberToObject(json_root, "hand", manual_adjust_info.hand);
 	cJSON_AddNumberToObject(json_root, "checkSum", manual_adjust_info.checkSum);
 	char *_adjsut_info_json = cJSON_Print(json_root);
-	printk("_adjsut_info_json:%s\n", _adjsut_info_json);
+	printk("_adjsut_info_json:%s, len:%d\n", _adjsut_info_json, strlen(_adjsut_info_json));
 
-	// save to lfs
-	lisa_pref_put_string(LFS_ADJUST_INFO, _adjsut_info_json);
+	// save to flash
+	// lisa_pref_put_string(LFS_ADJUST_INFO, _adjsut_info_json);
+	static const struct flash_area *fa;
+	LISA_LOGI(TAG, "storage adjust info");
+	if (flash_area_open(STORAGE_FLASH_AREA_ID, &fa)) {
+		LISA_LOGE(TAG, "open storage partiton failed!!");
+	}
+	int ret = flash_area_erase(fa, 0, STORAGE_BLOCK_SIZE);
+	if (ret) {
+		LISA_LOGE(TAG, "flash partiton erase failed!,ret[%d]", ret);
+	}
+	ret = flash_area_write(fa, 0, (uint8_t *)_adjsut_info_json, strlen(_adjsut_info_json));
+	if (ret) {
+		LISA_LOGE(TAG, "flash partiton write failed!,ret[%d]", ret);
+	}
+	flash_area_close(fa);
 
 	cJSON_free(_adjsut_info_json);
 	cJSON_free(json_root);
@@ -1049,16 +1066,27 @@ static int camera_get_adjust_info(void)
 {
 	int ret = LISA_FAIL;
 
-	char *_info = NULL;
-	lisa_pref_get_string(LFS_ADJUST_INFO, &_info);
-
-	printk("_info:%s\n", _info);
+	char *_info = lisa_mem_alloc(STORAGE_BLOCK_SIZE);
+	// lisa_pref_get_string(LFS_ADJUST_INFO, &_info);
+	static const struct flash_area *fa;
+	LISA_LOGI(TAG, "storage adjust info");
+	if (flash_area_open(STORAGE_FLASH_AREA_ID, &fa)) {
+		LISA_LOGE(TAG, "open storage partiton failed!!");
+	}
+	ret = flash_area_read(fa, 0, (uint8_t *)_info, STORAGE_BLOCK_SIZE);
+	if (ret) {
+		LISA_LOGE(TAG, "flash partiton write failed!,ret[%d]", ret);
+	}
+	flash_area_close(fa);
 
 	cJSON *root = cJSON_Parse(_info);
 	if (!root) {
 		LISA_LOGE(TAG, "parse %s failed \n", LFS_ADJUST_INFO);
 		return LISA_FAIL;
 	}
+
+	// printk("_info:%s, len:%d\n", _info, strlen(_info));
+
 	cJSON *sub_root = cJSON_GetObjectItem(root, "isAdjust");
 	if (sub_root) {
 		manual_adjust_info.isAdjust = sub_root->valueint;
@@ -1096,6 +1124,8 @@ static int camera_get_adjust_info(void)
 	}
 
 	cJSON_Delete(root);
+
+	if(_info) lisa_mem_free(_info);
 
 	return LISA_OK;
 }
@@ -1266,9 +1296,6 @@ static void test_app(void)
 
 void ocr_test_offline_start()
 {
-	/* storage information on flash */
-	lisa_pref_init();
-
 	/* image data from AP to dsp */
 	create_cam2cp_thread();
 

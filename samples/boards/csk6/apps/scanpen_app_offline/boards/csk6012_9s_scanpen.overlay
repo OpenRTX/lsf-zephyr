@@ -64,9 +64,14 @@
 		#size-cells = <1>;
         /* filesystem: 2.625MB */
         filesystem_part: partition@260000 {
-					label = "filesystem";
-					reg = <0x260000 0x1a0000>;
-			};
+			label = "filesystem";
+			reg = <0x260000 0x1a0000>;
+		};
+		/* Reserve the final 512 KiB*/
+        storage_partition: partition@1f00000 {
+			label = "storage";
+			reg = <0x1f80000 0x80000>;
+        };
 	};
 };
 
