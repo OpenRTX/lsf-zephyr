@@ -1156,9 +1156,11 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 			break;
 		case e_cmd_manual_adjust_info:
 			camera_calc_adjust_param(data, len);
-
 			camera_set_adjust_param(&manual_adjust_info);
-
+			// stop camera
+			lisa_vcapture_stop(vcap_handler);
+			// start camera
+			lisa_vcapture_start(vcap_handler);
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
