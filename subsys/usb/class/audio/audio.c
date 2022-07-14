@@ -102,14 +102,14 @@ static struct usb_ep_cfg_data dev##_usb_audio_ep_data_##i[] = {		      \
  * @param [in] i	Instance of device of current type (dev)
  * @param [in] id	Param for counting logic entities
  */
-#define DEFINE_AUDIO_DESCRIPTOR_BIDIR(dev, i, id)			  \
+#define DEFINE_AUDIO_DESCRIPTOR_BIDIR(dev, i, id, in_type, out_type)			  \
 USBD_CLASS_DESCR_DEFINE(primary, audio)					  \
 struct dev##_descriptor_##i dev##_desc_##i = {				  \
 	USB_AUDIO_IAD(3)						  \
 	.std_ac_interface = INIT_STD_IF(USB_AUDIO_AUDIOCONTROL, 0, 0, 0), \
 	.cs_ac_interface = INIT_CS_AC_IF_BIDIR(dev, i, 2),		  \
 	.input_terminal_0 = INIT_IN_TERMINAL(dev##_MIC, i, id,		  \
-						USB_AUDIO_IO_HEADSET),	  \
+						in_type),	  \
 	.feature_unit_0 = INIT_FEATURE_UNIT(dev##_MIC, i, id+1, id),	  \
 	.output_terminal_0 = INIT_OUT_TERMINAL(id+2, id+1,		  \
 					USB_AUDIO_USB_STREAMING),	  \
@@ -117,7 +117,7 @@ struct dev##_descriptor_##i dev##_desc_##i = {				  \
 					USB_AUDIO_USB_STREAMING),	  \
 	.feature_unit_1 = INIT_FEATURE_UNIT(dev##_HP, i, id+4, id+3),	  \
 	.output_terminal_1 = INIT_OUT_TERMINAL(id+5, id+4,		  \
-						USB_AUDIO_IO_HEADSET),	  \
+						out_type),	  \
 	.as_interface_alt_0_0 = INIT_STD_IF(USB_AUDIO_AUDIOSTREAMING,	  \
 						1, 0, 0),		  \
 	.as_interface_alt_0_1 = INIT_STD_IF(USB_AUDIO_AUDIOSTREAMING,	  \
@@ -939,6 +939,13 @@ void usb_audio_register(const struct device *dev,
 			    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,		  \
 			    DUMMY_API)
 
+#define HEADSET_MIC_DEVICE_IN_TYPE(i) \
+	DT_PROP(DT_INST(i, COMPAT_HS), mic_##device_type)
+
+#define HEADSET_HP_DEVICE_OUT_TYPE(i) \
+	DT_PROP(DT_INST(i, COMPAT_HS), hp_##device_type)
+
+
 #define DEFINE_BUF_POOL(name, size) \
 	NET_BUF_POOL_FIXED_DEFINE(name, 5, size, net_buf_destroy)
 
@@ -966,7 +973,7 @@ void usb_audio_register(const struct device *dev,
 	DEFINE_AUDIO_DEV_DATA_BIDIR(dev, i, &audio_data_pool_hs_##i, \
 				    EP_SIZE(dev##_MIC, i)); \
 	DECLARE_DESCRIPTOR_BIDIR(dev, i, 2); \
-	DEFINE_AUDIO_DESCRIPTOR_BIDIR(dev, i, dev##_ID(i)); \
+	DEFINE_AUDIO_DESCRIPTOR_BIDIR(dev, i, dev##_ID(i), HEADSET_MIC_DEVICE_IN_TYPE(i), HEADSET_HP_DEVICE_OUT_TYPE(i)); \
 	DEFINE_AUDIO_DEVICE(dev, i);)
 
 UTIL_LISTIFY(HEADPHONES_DEVICE_COUNT, HEADPHONES_DEVICE, HP)
