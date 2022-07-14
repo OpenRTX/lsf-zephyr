@@ -6,6 +6,7 @@
 #include <lisa_err.h>
 #include "lisa_evs_error.h"
 
+#pragma pack(1)
 typedef struct {
 		uint16_t tag;  //标记
 		uint8_t ver;  //版本
@@ -20,6 +21,8 @@ typedef struct {
 		uint16_t checksum;
 		uint8_t *data;  //数据
 } img_frame_t;
+#pragma pack()
+
 #pragma pack(1)
 typedef struct {
 		uint16_t tag; //标记

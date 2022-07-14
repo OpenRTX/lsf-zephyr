@@ -105,7 +105,9 @@ static lisa_translate_handler_t *trans_handler = NULL;
 /* protocol */
 static lisa_thread_t *s_uart_proto_thread = NULL;
 
-static scan_mode_e s_scan_mode = e_scan_mode_offline_ocr;
+static scan_mode_e s_scan_mode = e_scan_mode_adjust;
+
+const struct device *video = NULL;
 
 typedef struct {
 	volatile char *addr;
@@ -145,6 +147,44 @@ enum {
        HOLDPEN_LEFT,
        HOLDPEN_RIGHT
 };
+
+#define BF30A2_FRAME_WIDTH_ADJUST (240)
+#define BF30A2_FRAME_HEIGHT_ADJUST (320)
+#define BF30A2_FRAME_LEN_ADJUST (76800)
+#define BF30A2_FRAME_WIDTH (128)
+#define BF30A2_FRAME_HEIGHT (180)
+#define BF30A2_FRAME_LEN (23040)
+#define X_AXIS_VAL 0x3b
+#define V_START_VAL 0x46
+#define V_STOP_VAL 0x7d
+#define LFS_ADJUST_INFO "adjustInfo"
+#define X_AXIS_REG 0x2f
+#define V_START_REG 0x19
+#define V_STOP_REG 0x1a
+
+typedef struct {
+	uint8_t update;
+	uint8_t isAdjust;
+	uint8_t vstart;
+	uint8_t vstop;
+	uint8_t x_axis;
+	uint16_t checkSum;
+	uint16_t hand;
+} adjust_info_t;
+
+adjust_info_t manual_adjust_info = {
+	.update = 0,
+	.isAdjust = 0,
+	.vstart = V_START_VAL,
+	.vstop = V_STOP_VAL,
+	.x_axis = X_AXIS_VAL,
+	.checkSum = (X_AXIS_VAL+V_START_VAL+V_STOP_VAL),
+};
+
+static int camera_get_adjust_info(void);
+static int camera_save_adjust_info(void);
+static int camera_set_adjust_param(adjust_info_t *_info);
+
 /**
  * @brief 设置扫描笔左右手持笔扫描模式
  *
@@ -297,7 +337,9 @@ void _image_data_cb(lisa_vcapture_cbmsg_e msg, void *data, uint32_t len)
 		} break;
 		case VCAPTURE_OCR:
 			LISA_LOGD(TAG, "OCR result [len: %d] %s\n", len, data);
-			ocr_text_send(data, len);
+			if(e_scan_mode_offline_ocr == s_scan_mode) {
+				ocr_text_send(data, len);
+			}
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport vcapture msg\n");
@@ -677,15 +719,18 @@ uint32_t calc_sum(uint8_t *src, uint32_t size)
 
 void video_ap2cp_thread(void *p1)
 {
-
 	_video_init();
+
+	camera_get_adjust_info();
+
+	camera_set_adjust_param(&manual_adjust_info);
 
 	struct video_buffer *vbuf = NULL;
 
+	video = device_get_binding(VIDEO_DEV);
+
 	/*Don't change this next line,it is reserved for video share memory size 256 Bytes!!!!!!!!!!!!!!*/
 	frames_info_t *info = (frames_info_t *)(CONFIG_SOF_IPC_SHM_BASE_ADDRESS + CONFIG_SOF_IPC_SHM_SIZE - 0x100);
-
-	const struct device *video = device_get_binding(VIDEO_DEV);
 
 	if (!device_is_ready(video)) {
 		printk("ipm device is null.\n");
@@ -726,8 +771,17 @@ void video_ap2cp_thread(void *p1)
 		vbuf = NULL;
 		video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_FOREVER);
 		frame_cnt++;
-		if(s_scan_mode != e_scan_mode_adjust)
-		{
+		if(e_scan_mode_adjust == s_scan_mode) {
+			uint32_t pack_len = lisa_spi_upload_image(spi_image_buffer, vbuf->buffer, 180 * 128, frame_cnt);
+			printk("pack_len:%d\n", pack_len);
+			lisa_spi_write(spi_image_buffer, pack_len);
+		} else if(e_scan_mode_factory == s_scan_mode) {
+			if(frame_cnt <= 10) {
+				uint32_t pack_len = lisa_spi_upload_image(spi_image_buffer, vbuf->buffer, 180 * 128, frame_cnt);
+				printk("pack_len:%d\n", pack_len);
+				lisa_spi_write(spi_image_buffer, pack_len);
+			}
+		} else {
 			/* send datas to cp core */
 			char *buffer = bf30a2_frames_info_get_free(info);
 			if (buffer != NULL)
@@ -757,10 +811,6 @@ void video_ap2cp_thread(void *p1)
 			} else {
 				discard_cnt++;
 			}
-		} else {
-			uint32_t pack_len = lisa_spi_upload_image(spi_image_buffer, vbuf->buffer, 180 * 128, frame_cnt);
-			printk("pack_len:%s\n", pack_len);
-			lisa_spi_write(spi_image_buffer, pack_len);
 		}
 
 		if (frame_cnt % 10 == 0) {
@@ -772,7 +822,6 @@ void video_ap2cp_thread(void *p1)
 
 void create_cam2cp_thread()
 {
-
 	if (s_cam2cp_thread) {
 		LISA_LOGE(TAG, "s_cam2cp_thread exist ");
 		return;
@@ -796,6 +845,7 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 	/* long button has the PRESS/RELEASE state */
 	if (sta == PRESS) {
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
+		manual_adjust_info.update = 0;
 		lisa_vcapture_start(vcap_handler);
 		work_status_set(e_work_status_scanning);
 	} else if (sta == RELEASE) {
@@ -814,6 +864,7 @@ static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 		} else {
 			work_status_set(e_work_status_idle);
 		}
+		camera_save_adjust_info();
 		LISA_LOGD(TAG, "send_uart_scan_stop\n");
 	}
 }
@@ -902,35 +953,7 @@ static int cmd_scan_set_para(void *data)
 	return LISA_OK;
 }
 
-#define BF30A2_FRAME_WIDTH_ADJUST (240)
-#define BF30A2_FRAME_HEIGHT_ADJUST (320)
-#define BF30A2_FRAME_LEN_ADJUST (76800)
-#define BF30A2_FRAME_WIDTH (128)
-#define BF30A2_FRAME_HEIGHT (180)
-#define BF30A2_FRAME_LEN (23040)
-#define X_AXIS 0x3b
-#define V_START 0x46
-#define V_STOP 0x7d
-#define LFS_ADJUST_INFO "adjust info"
-
-typedef struct {
-	uint8_t isAdjust;
-	uint8_t vstart;
-	uint8_t vstop;
-	uint8_t x_axis;
-	uint16_t checkSum;
-	uint16_t hand;
-} adjust_info_t;
-
-adjust_info_t manual_adjust_info = {
-	.isAdjust = 0,
-	.vstart = V_START,
-	.vstop = V_STOP,
-	.x_axis = X_AXIS,
-	.checkSum = (X_AXIS+V_START+V_STOP),
-};
-
-static int video_param_set(void *data, uint32_t len)
+static int camera_calc_adjust_param(void *data, uint32_t len)
 {
 	recv_cmd_pack_e *p_recv_cmd = (recv_cmd_pack_e *)data;
 
@@ -974,15 +997,34 @@ static int video_param_set(void *data, uint32_t len)
 	manual_adjust_info.x_axis = ((x_absolute_shift + BF30A2_FRAME_WIDTH) / 16) | manual_adjust_info.x_axis;
 	manual_adjust_info.checkSum = manual_adjust_info.x_axis + manual_adjust_info.vstart + manual_adjust_info.vstop;
 	manual_adjust_info.isAdjust = 1;
+	manual_adjust_info.update = 1;
 
 	return LISA_OK;
 }
 
-static int save_adjust_info(void)
+static int camera_set_adjust_param(adjust_info_t *_info)
 {
-	if(!manual_adjust_info.isAdjust) {
-		LISA_LOGI(TAG, " is not adjsut");
-		// return LISA_OK;
+	uint8_t ret = 0;
+
+	if(_info->isAdjust) {
+		ret = video_set_ctrl(video, X_AXIS_REG, &_info->x_axis);
+		LISA_LOGD(TAG, "video_set_ctrl, x_axis, r:%d\n", ret);
+
+		ret = video_set_ctrl(video, V_START_REG, &_info->vstart);
+		LISA_LOGD(TAG, "video_set_ctrl, vstart, r:%d\n", ret);
+
+		ret = video_set_ctrl(video, V_STOP_REG, &_info->vstop);
+		LISA_LOGD(TAG, "video_set_ctrl, vstop, r:%d\n", ret);
+	}
+
+	return LISA_OK;
+}
+
+static int camera_save_adjust_info(void)
+{
+	if(!manual_adjust_info.update) {
+		LISA_LOGI(TAG, "adjsut info not update!!!");
+		return LISA_OK;
 	}
 	cJSON *json_root = cJSON_CreateObject();  // create a json array root
 	cJSON_AddNumberToObject(json_root, "isAdjust", manual_adjust_info.isAdjust);
@@ -992,7 +1034,7 @@ static int save_adjust_info(void)
 	cJSON_AddNumberToObject(json_root, "hand", manual_adjust_info.hand);
 	cJSON_AddNumberToObject(json_root, "checkSum", manual_adjust_info.checkSum);
 	char *_adjsut_info_json = cJSON_Print(json_root);
-	printk("_adjsut_info_json:%d\n", _adjsut_info_json);
+	printk("_adjsut_info_json:%s\n", _adjsut_info_json);
 
 	// save to lfs
 	lisa_pref_put_string(LFS_ADJUST_INFO, _adjsut_info_json);
@@ -1003,7 +1045,7 @@ static int save_adjust_info(void)
 	return LISA_OK;
 }
 
-static int get_adjust_info(void)
+static int camera_get_adjust_info(void)
 {
 	int ret = LISA_FAIL;
 
@@ -1083,7 +1125,10 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 			cmd_scan_set_para(data);
 			break;
 		case e_cmd_manual_adjust_info:
-			video_param_set(data, len);
+			camera_calc_adjust_param(data, len);
+
+			camera_set_adjust_param(&manual_adjust_info);
+
 			break;
 		default:
 			LISA_LOGE(TAG, "unsupport tts msg\n");
@@ -1203,10 +1248,19 @@ static void test_app(void)
 	if(test_buffer) lisa_mem_free(test_buffer);
 #endif
 
-#if 1
-	save_adjust_info();
+#if 0
+	camera_save_adjust_info();
 
-	get_adjust_info();
+	camera_get_adjust_info();
+#endif
+
+#if 0 // camrea api test
+	struct video_format fmt;
+	fmt.width = 1;
+	fmt.height = 2;
+	fmt.pixelformat = 3;
+	fmt.pitch = 4;
+	video_set_format(video, VIDEO_EP_OUT, &fmt);
 #endif
 }
 
@@ -1214,9 +1268,6 @@ void ocr_test_offline_start()
 {
 	/* storage information on flash */
 	lisa_pref_init();
-
-	/* button initialize */
-	pen_head_button_init();
 
 	/* image data from AP to dsp */
 	create_cam2cp_thread();
@@ -1232,6 +1283,9 @@ void ocr_test_offline_start()
 
 	/* uart protocol */
 	create_uart_proto_thread();
+
+	/* button initialize */
+	pen_head_button_init();
 
 	/* unit testing */
 	test_app();
