@@ -439,6 +439,7 @@ static void trans_test(const char *data, uint32_t len)
 		// pack free
 		if(text_pack) lisa_mem_free(text_pack);
 	}
+	if(algo_out) lisa_mem_free(algo_out);
 	work_status_set(e_work_status_trans_finish);
 }
 
