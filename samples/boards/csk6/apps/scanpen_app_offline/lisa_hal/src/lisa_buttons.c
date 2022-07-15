@@ -143,7 +143,7 @@ lisa_err_t zephyr_button_init(void)
 		led.port = NULL;
 	}
 	if (led.port) {
-		ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT);
+		ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT | GPIO_OUTPUT_INIT_HIGH);
 		if (ret != 0) {
 			LISA_LOGE(TAG, "Error %d: failed to configure LED device %s pin %d\n", ret,
 					led.port->name, led.pin);
