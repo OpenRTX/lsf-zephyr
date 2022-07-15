@@ -80,6 +80,8 @@ typedef enum {
 	e_scan_mode_max,
 } scan_mode_e;
 
+#define SCAN_DEFAULT_WORK_MODE (e_scan_mode_singleline)
+
 /* ocr */
 static struct lisa_ring_buffer *s_send_ocr_simulation_image_buffer = NULL;
 static lisa_semaphore_t *s_ocr_image_sema = NULL;
@@ -108,9 +110,15 @@ static lisa_translate_handler_t *trans_handler = NULL;
 /* protocol */
 static lisa_thread_t *s_uart_proto_thread = NULL;
 
-static scan_mode_e s_scan_mode = e_scan_mode_adjust;
+static scan_mode_e s_scan_mode = SCAN_DEFAULT_WORK_MODE;
 
 const struct device *video = NULL;
+
+static int g_frame_cnt = 0;
+
+/* button */
+#define PEN_HEAD_BUTTON KEY1
+static button_handle *pen_head_button;
 
 typedef struct {
 	volatile char *addr;
@@ -755,7 +763,6 @@ void video_ap2cp_thread(void *p1)
 	uint32_t last_tick = 0;
 	int id = 0;
 	int fps = 0;
-	int frame_cnt = 0;
 	int discard_cnt = 0;
 
 	BUILD_CHECK(sizeof(frames_info_t) % 32 == 0);
@@ -773,14 +780,14 @@ void video_ap2cp_thread(void *p1)
 	{
 		vbuf = NULL;
 		video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_FOREVER);
-		frame_cnt++;
-		if(e_scan_mode_adjust == s_scan_mode) {
-			uint32_t pack_len = lisa_spi_upload_image(spi_image_buffer, vbuf->buffer, 180 * 128, frame_cnt);
+		g_frame_cnt++;
+		if(e_scan_mode_adjust == s_scan_mode || e_scan_mode_age == s_scan_mode) {
+			uint32_t pack_len = lisa_spi_upload_image(spi_image_buffer, vbuf->buffer, 180 * 128, g_frame_cnt);
 			printk("pack_len:%d\n", pack_len);
 			lisa_spi_write(spi_image_buffer, pack_len);
 		} else if(e_scan_mode_factory == s_scan_mode) {
-			if(frame_cnt <= 10) {
-				uint32_t pack_len = lisa_spi_upload_image(spi_image_buffer, vbuf->buffer, 180 * 128, frame_cnt);
+			if(g_frame_cnt <= 10) {
+				uint32_t pack_len = lisa_spi_upload_image(spi_image_buffer, vbuf->buffer, 180 * 128, g_frame_cnt);
 				printk("pack_len:%d\n", pack_len);
 				lisa_spi_write(spi_image_buffer, pack_len);
 			}
@@ -816,8 +823,8 @@ void video_ap2cp_thread(void *p1)
 			}
 		}
 
-		if (frame_cnt % 10 == 0) {
-			LISA_LOGI(TAG, "fps:%d, T:%d, D%d.", fps, frame_cnt, discard_cnt);
+		if (g_frame_cnt % 10 == 0) {
+			LISA_LOGI(TAG, "fps:%d, T:%d, D%d.", fps, g_frame_cnt, discard_cnt);
 		}
 		video_enqueue(video, VIDEO_EP_OUT, vbuf);
 	}
@@ -841,14 +848,14 @@ void create_cam2cp_thread()
 	}
 }
 
-#define PEN_HEAD_BUTTON KEY1
-static button_handle *pen_head_button;
+
 static void pen_head_button_cb(BUTTON_STATE sta, void *arg)
 {
 	/* long button has the PRESS/RELEASE state */
 	if (sta == PRESS) {
 		LISA_LOGD(TAG, "send_uart_scan_start\n");
 		manual_adjust_info.update = 0;
+		g_frame_cnt = 0;
 		lisa_vcapture_start(vcap_handler);
 		work_status_set(e_work_status_scanning);
 	} else if (sta == RELEASE) {
@@ -1130,6 +1137,63 @@ static int camera_get_adjust_info(void)
 	return LISA_OK;
 }
 
+bool scan_mode_set(scan_mode_e mode)
+{
+	static int last_mode = SCAN_DEFAULT_WORK_MODE;
+	if(mode >= e_scan_mode_max) {
+		printk("no such scan mode(%d)", mode);
+		return false;
+	}
+
+	// handle last mode
+	switch (last_mode) {
+		case e_scan_mode_age: {
+			if(mode != e_scan_mode_age) {
+				// enable scan switch io interrupt
+				pen_head_button->start(pen_head_button);
+				// stop scan
+				lisa_vcapture_stop(vcap_handler);
+			}
+			break;
+		}
+		default:
+			break;
+	}
+
+	if(e_scan_mode_adjust_serial == mode) {
+		mode = e_scan_mode_adjust;
+	}
+	// set current mode
+	LISA_LOGD(TAG, "receive scan mode:%d\n", s_scan_mode);
+	switch (mode) {
+		case e_scan_mode_singleline:
+		case e_scan_mode_offline_ocr:
+		case e_scan_mode_maximum_picture:
+		case e_scan_mode_factory:
+		case e_scan_mode_debug:
+		case e_scan_mode_invalid:
+		case e_scan_mode_adjust:
+			s_scan_mode = mode;
+			break;
+		case e_scan_mode_age: {
+			s_scan_mode = mode;
+			// disable scan switch io interrupt
+			pen_head_button->stop(pen_head_button);
+			// start scan
+			g_frame_cnt = 0;
+			lisa_vcapture_start(vcap_handler);
+			break;
+		}
+		case e_scan_mode_reboot:
+			break;
+		default:
+			printk("no such scan mode(%d)", mode);
+			break;
+	}
+	last_mode = s_scan_mode;
+	return true;
+}
+
 static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 {
 	printk("@@recv_cmd_type_e:%d\n", type);
@@ -1147,8 +1211,7 @@ static void _uart_recv_cb(recv_cmd_type_e type, void *data, uint32_t len)
 			break;
 		case e_cmd_scan_work_mode: {
 			uint8_t *mode = (uint8_t *)data;
-			s_scan_mode = mode[0];
-			LISA_LOGD(TAG, "receive scan mode:%d\n", s_scan_mode);
+			scan_mode_set(mode[0]);
 			break;
 		}
 		case e_cmd_scan_set_para:
