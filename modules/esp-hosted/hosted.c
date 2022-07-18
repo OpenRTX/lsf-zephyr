@@ -6,6 +6,7 @@
 #include "hosted_gpio.h"
 #include "spi_drv.h"
 #include "netdev_api.h"
+#include "vhci_if.h"
 #include "adapter.h"
 
 #include "hosted/hosted.h"
@@ -21,6 +22,7 @@ int hosted_init()
 {
 	reset_slave();
 	network_init(); //init virturl network interface for wifi
+    ble_vhci_init(); //init virturl hci interface for ble
 	spi_link_init(spi_driver_event_handler);
     hosted_init_status = 1;
     return SUCCESS;
