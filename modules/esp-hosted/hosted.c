@@ -99,7 +99,7 @@ static void reset_slave(void)
 	csk_write_pin(&reset_spec, GPIO_PIN_SET);
 
 	/* stop spi transactions short time to avoid slave sync issues */
-    hosted_wait_sync(K_FOREVER);
+    hosted_wait_sync(K_SECONDS(CONFIG_HOSTED_INIT_TIMEOUT));
 }
 
 static void spi_driver_event_handler(uint8_t event)

@@ -6,6 +6,10 @@ menuconfig ESP_HOSTED
 
 if ESP_HOSTED
 
+config HOSTED_INIT_TIMEOUT
+	int "Hosted Init Timeout(s)"
+	default 3
+
 config HOSTED_TRANSACTION_STACK
 	int "Hosted Transaction Thread Stack"
 	default 2048
