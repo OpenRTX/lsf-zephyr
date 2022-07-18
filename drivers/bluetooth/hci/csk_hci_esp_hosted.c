@@ -7,8 +7,6 @@
 
 #include <drivers/bluetooth/hci_driver.h>
 
-#include "spi_drv.h"
-#include "netdev_api.h"
 #include "vhci_if.h"
 #include "hosted/hosted.h"
 
@@ -23,47 +21,9 @@ LOG_MODULE_REGISTER(csk_ble, CONFIG_BT_LOG_LEVEL);
 #define HCI_EVT                 0x04
 #define HCI_ISO                 0x05
 
-static vhci_handle_t *vhci_hdl;
-
-static int bt_csk_send(struct net_buf *buf)
-{
-	int err = 0;
-	uint8_t pkt_indicator;
-
-	switch (bt_buf_get_type(buf)) {
-	case BT_BUF_ACL_OUT:
-		pkt_indicator = HCI_ACL;
-		break;
-	case BT_BUF_CMD:
-		pkt_indicator = HCI_CMD;
-		break;
-	case BT_BUF_ISO_OUT:
-		pkt_indicator = HCI_ISO;
-		break;
-	default:
-		LOG_ERR("Unknown type %u", bt_buf_get_type(buf));
-		goto done;
-	}
-	net_buf_push_u8(buf, pkt_indicator);
-
-	LOG_HEXDUMP_DBG(buf->data, buf->len, "Final HCI buffer:");
-
-	uint8_t *send_buf = k_malloc(buf->len);
-	memcpy(send_buf, buf->data, buf->len);
-	vhci_hdl->fops->write(vhci_hdl, send_buf, buf->len);
-
-done:
-	net_buf_unref(buf);
-	return err;
-}
-
-
-static int bt_csk_open(void)
-{
-	int err;
-	err = vhci_hdl->fops->open(vhci_hdl);
-	return 0;
-}
+static vhci_handle_t *s_vhci_hdl = NULL;
+static hosted_event_callback_t s_driver_event_cb;
+static K_SEM_DEFINE(init_sem, 0, 1);
 
 static bool is_hci_event_discardable(const uint8_t *evt_data)
 {
@@ -161,7 +121,6 @@ static struct net_buf *bt_csk_acl_recv(uint8_t *data, size_t remaining)
 
 	LOG_DBG("len %u", remaining);
 	net_buf_add_mem(buf, data, remaining);
-
 	return buf;
 }
 
@@ -205,8 +164,6 @@ static int hci_csk_host_rcv_pkt(uint8_t *data, uint16_t len)
 	struct net_buf *buf = NULL;
 	size_t remaining = len;
 
-	LOG_HEXDUMP_DBG(data, len, "host packet data:");
-
 	pkt_indicator = *data++;
 	remaining -= sizeof(pkt_indicator);
 
@@ -237,27 +194,54 @@ static int hci_csk_host_rcv_pkt(uint8_t *data, uint16_t len)
 	return 0;
 }
 
-static void hci_recv_ready(void)
+static void ble_hci_recv_cb(vhci_handle_t *vhci_hdl, void *arg)
 {
 	uint16_t rx_buf_len = 0;
-	uint8_t *read_buf;
-	read_buf = vhci_hdl->fops->read(vhci_hdl, &rx_buf_len);
-	LOG_HEXDUMP_DBG(read_buf, rx_buf_len, "ctrl packet data:");
+	uint8_t *read_buf = ble_vhci_read(vhci_hdl, &rx_buf_len);
+	__ASSERT(read_buf != NULL, "ble_vhci_read failed");
+	LOG_HEXDUMP_DBG(read_buf, rx_buf_len, "hci_rx:");
 	hci_csk_host_rcv_pkt(read_buf, rx_buf_len);
-	k_free(read_buf);
+	ble_vhci_free_rx(read_buf);
 }
 
-static hosted_event_callback_t s_driver_event_cb;
-K_SEM_DEFINE(init_sem, 0, 1);
-
-static void hosted_event_handler(hosted_event_t events, void *arg)
+static int bt_csk_send(struct net_buf *buf)
 {
-    if (events & HOSTED_LINK_EVT_ACTIVE) {
-        k_sem_give(&init_sem);
-		printk("hosted init done\n");
-    } else {
+	int err = 0;
+	uint8_t pkt_indicator;
 
-    }
+	switch (bt_buf_get_type(buf)) {
+	case BT_BUF_ACL_OUT:
+		pkt_indicator = HCI_ACL;
+		break;
+	case BT_BUF_CMD:
+		pkt_indicator = HCI_CMD;
+		break;
+	case BT_BUF_ISO_OUT:
+		pkt_indicator = HCI_ISO;
+		break;
+	default:
+		LOG_ERR("Unknown type %u", bt_buf_get_type(buf));
+		goto done;
+	}
+	net_buf_push_u8(buf, pkt_indicator);
+	LOG_HEXDUMP_DBG(buf->data, buf->len, "hci_tx:");
+
+	uint8_t *send_buf = k_malloc(buf->len);
+	memcpy(send_buf, buf->data, buf->len);
+	ble_vhci_write(s_vhci_hdl, send_buf, buf->len);
+
+done:
+	net_buf_unref(buf);
+	return err;
+}
+
+static int bt_csk_open(void)
+{
+	s_vhci_hdl = ble_vhci_open(ble_hci_recv_cb, NULL);
+	if (s_vhci_hdl == NULL) {
+		return -1;
+	}
+	return 0;
 }
 
 static const struct bt_hci_driver drv = {
@@ -270,6 +254,16 @@ static const struct bt_hci_driver drv = {
 #endif
 };
 
+static void hosted_event_handler(hosted_event_t events, void *arg)
+{
+    if (events & HOSTED_LINK_EVT_ACTIVE) {
+        k_sem_give(&init_sem);
+		printk("hosted init done\n");
+    } else {
+
+    }
+}
+
 static int csk_ble_init(const struct device *unused)
 {
 	ARG_UNUSED(unused);
@@ -281,7 +275,6 @@ static int csk_ble_init(const struct device *unused)
 	if (ret != 0) {
 		return ret;
 	}
-	vhci_hdl = vhci_init(hci_recv_ready);
 
 	bt_hci_driver_register(&drv);
 
