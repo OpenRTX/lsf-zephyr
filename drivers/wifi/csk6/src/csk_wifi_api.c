@@ -45,6 +45,11 @@ __exit:
     return ret;
 }
 
+int csk_wifi_deinit(void)
+{
+    return -ENOTSUP;
+}
+
 int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, k_timeout_t timeout)
 {
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
