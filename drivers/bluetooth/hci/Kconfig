@@ -38,7 +38,7 @@ config BT_RPMSG
 
 config BT_SPI
 	bool "SPI HCI"
-	depends on SPI
+	select SPI #Fixme: depends on SPI
 	help
 	  Supports Bluetooth ICs using SPI as the communication protocol.
 	  HCI packets are sent and received as single Byte transfers,
@@ -52,6 +52,12 @@ config BT_STM32_IPM
 	select HAS_STM32LIB
 	help
 	  TODO
+
+config CSK_BLE_ESP32C3
+	bool "CSK-ESP32C3 BLE Driver"
+	select ESP_HOSTED
+	select GPIO
+	select SPI
 
 config BT_USERCHAN
 	bool "HCI User Channel based driver"
