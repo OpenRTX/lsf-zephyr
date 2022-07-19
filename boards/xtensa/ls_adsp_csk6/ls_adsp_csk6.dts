@@ -13,7 +13,7 @@
 	model = "ls_adsp_csk6";
 	chosen {
 		zephyr,sram = &sram0;
-		zephyr,console = &uart2;
+		zephyr,console = &uart0;
 	};
 
 	soc {
@@ -46,7 +46,10 @@
 };
 
 &uart0 {
-        status = "disabled";
+	pinctrl-0 = <&pinctrl_uart0_rx_default &pinctrl_uart0_tx_default>; 
+	pinctrl-names = "default";
+	current-speed = <115200>;
+	status = "okay";
 };
 
 &uart1 {
@@ -57,5 +60,5 @@
 	pinctrl-0 = <&pinctrl_uart2_rx_default &pinctrl_uart2_tx_default>; 
 	pinctrl-names = "default";
 	current-speed = <115200>;
-	status = "okay";
+	status = "disabled";
 };
