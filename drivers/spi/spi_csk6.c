@@ -146,9 +146,14 @@ static void csk_spi_hal_transceive(const struct device *dev)
 	if (ctx->tx_buf != NULL && ctx->rx_buf != NULL) {
 		SPI_Transfer(data->driver_context, ctx->tx_buf, ctx->rx_buf, real_trans_size);
 	} else if (ctx->tx_buf != NULL) {
-		int len = ROUND_UP(real_trans_size, 16);
+		int len = ROUND_UP(real_trans_size, 4);
 		memset(test_buff, 0, len);
-		memcpy(test_buff, ctx->tx_buf, real_trans_size);
+		
+		if (real_trans_size == 4) {
+			memcpy(test_buff, ctx->tx_buf, real_trans_size);
+		} else {
+			memcpy(test_buff + len - real_trans_size, ctx->tx_buf, real_trans_size);
+		}
 		SPI_Send(data->driver_context, test_buff, len);
 		// SPI_Send(data->driver_context, ctx->tx_buf, real_trans_size);
 	} else if (ctx->rx_buf != NULL) {

@@ -167,6 +167,15 @@ static void fill_buffer_rgb888(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
+static void fill_color(uint32_t color, uint8_t *buf, size_t buf_size)
+{
+	for (size_t idx = 0; idx < buf_size; idx += 3) {
+		*(buf + idx + 0) = color >> 16;
+		*(buf + idx + 1) = color >> 8;
+		*(buf + idx + 2) = color >> 0;
+	}
+}
+
 static uint16_t get_rgb565_color(enum corner corner, uint8_t grey)
 {
 	uint16_t color = 0;
@@ -298,19 +307,18 @@ void main(void)
 	size_t buf_size = 0;
 	fill_buffer fill_buffer_fnc = NULL;
 
-	// while(1) {
-	// 	LOG_INF("Display sample for %s", DISPLAY_DEV_NAME);
-	// 	k_msleep(500);
-	// }
-
-	// kscan_init();
 #ifndef CONFIG_SOC_LS_ADSP_CSK6
 	prepare_cp_run();
+	while(1) {
+		LOG_INF("Display sample for %s", DISPLAY_DEV_NAME);
+		k_msleep(500);
+	}
 #endif
+
 	display_dev = device_get_binding(DISPLAY_DEV_NAME);
 
 	if (display_dev == NULL) {
-		LOG_ERR("Device %s not found. Aborting sample.",
+		printk("Device %s not found. Aborting sample.",
 			DISPLAY_DEV_NAME);
 		RETURN_FROM_MAIN(1);
 	}
@@ -366,7 +374,7 @@ void main(void)
 		buf_size /= 8;
 		break;
 	default:
-		LOG_ERR("Unsupported pixel format. Aborting sample.");
+		printk("Unsupported pixel format. Aborting sample.");
 		RETURN_FROM_MAIN(1);
 	}
 	// buf_size = 320;
@@ -374,56 +382,30 @@ void main(void)
 	buf = k_malloc(buf_size);
 
 	if (buf == NULL) {
-		LOG_ERR("Could not allocate memory. Aborting sample.");
+		printk("Could not allocate memory. Aborting sample.");
 		RETURN_FROM_MAIN(1);
 	}
 	
-	(void)memset(buf, 0xFFu, buf_size);
-
 	buf_desc.buf_size = buf_size;
 	buf_desc.pitch = capabilities.x_resolution;
 	buf_desc.width = capabilities.x_resolution;
 	buf_desc.height = h_step;
-
-	for (int idx = 0; idx < capabilities.y_resolution; idx += h_step) {
-		display_write(display_dev, 0, idx, &buf_desc, buf);
-	}
-
-	buf_desc.pitch = rect_w;
-	buf_desc.width = rect_w;
-	buf_desc.height = rect_h;
-
-	fill_buffer_fnc(TOP_LEFT, 0, buf, buf_size);
-	x = 0;
-	y = 0;
-	display_write(display_dev, x, y, &buf_desc, buf);
-
-	fill_buffer_fnc(TOP_RIGHT, 0, buf, buf_size);
-	x = capabilities.x_resolution - rect_w;
-	y = 0;
-	display_write(display_dev, x, y, &buf_desc, buf);
-
-	fill_buffer_fnc(BOTTOM_RIGHT, 0, buf, buf_size);
-	x = capabilities.x_resolution - rect_w;
-	y = capabilities.y_resolution - rect_h;
-	display_write(display_dev, x, y, &buf_desc, buf);
-
 	display_blanking_off(display_dev);
+	
+	// fill_color(0x00FF00 >> (8 * 0), buf, buf_size);
+	// for (int idx = 0; idx < capabilities.y_resolution; idx += h_step) {
+	// 		display_write(display_dev, 0, idx, &buf_desc, buf);
+	// }
 
-	grey_count = 0;
-	x = 0;
-	y = capabilities.y_resolution - rect_h;
-
+	uint8_t i = 0;
 	while (1) {
-		fill_buffer_fnc(BOTTOM_LEFT, grey_count, buf, buf_size);
-		display_write(display_dev, x, y, &buf_desc, buf);
-		++grey_count;
-		k_msleep(grey_scale_sleep);
-#if CONFIG_TEST
-		if (grey_count >= 1024) {
-			break;
+		fill_color(0x00FF0000 >> (8 * i), buf, buf_size);
+		for (int idx = 0; idx < capabilities.y_resolution; idx += h_step) {
+			display_write(display_dev, 0, idx, &buf_desc, buf);
 		}
-#endif
+		i++;
+		i %= 3;
+		// k_msleep(500);
 	}
 
 	RETURN_FROM_MAIN(0);

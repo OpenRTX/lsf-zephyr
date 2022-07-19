@@ -33,7 +33,7 @@ int ili9xxx_transmit(const struct device *dev, uint8_t cmd, const void *tx_data,
 	/* send command */
 	tx_buf.buf = &cmd;
 	tx_buf.len = 1U;
-	printk("ILI9xxx Send CMD:0x%02x\n", cmd);
+	// printk("ILI9xxx Send CMD:0x%02x\n", cmd);
 	gpio_pin_set_dt(&config->cmd_data, ILI9XXX_CMD);
 	r = spi_write_dt(&config->spi, &tx_bufs);
 
@@ -48,7 +48,7 @@ int ili9xxx_transmit(const struct device *dev, uint8_t cmd, const void *tx_data,
 	if (tx_data != NULL) {
 		tx_buf.buf = (void *)tx_data;
 		tx_buf.len = tx_len;
-		printk("ILI9xxx Send Data, len:%d\n", tx_len);
+		// printk("ILI9xxx Send Data, len:%d\n", tx_len);
 		gpio_pin_set_dt(&config->cmd_data, ILI9XXX_DATA);
 		r = spi_write_dt(&config->spi, &tx_bufs);
 		
