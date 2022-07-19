@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_CSK6011A_9S_SCANPEN
+   bool "csk6011a_9s_scanpen Board"
+   depends on SOC_CSK6
