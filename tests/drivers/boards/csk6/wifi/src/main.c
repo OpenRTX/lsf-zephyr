@@ -4,27 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "kernel.h"
-#include "sys_clock.h"
-#include "ztest_assert.h"
-#include "ztest_test.h"
-#include <zephyr.h>
-#include <ztest.h>
+#include "test_csk_wifi.h"
 #include "logging/log.h"
-
-#include "csk6/csk_wifi.h"
 
 LOG_MODULE_DECLARE(test_csk6_wifi, CONFIG_LOG_DEFAULT_LEVEL);
 
 static csk_wifi_event_cb_t wifi_event_cb;
-K_MSGQ_DEFINE(test_csk_wifi_msgq, sizeof(uint32_t), 1, 4);
+K_MSGQ_DEFINE(test_csk_wifi_msgq, sizeof(csk_wifi_event_t), 1, 4);
 
-static int csk_wifi_msgq_give(csk_wifi_event_t events)
+int csk_wifi_msgq_give(csk_wifi_event_t events)
 {
 	return k_msgq_put(&test_csk_wifi_msgq, &events, K_NO_WAIT);
 }
 
-static int csk_wifi_msgq_take(csk_wifi_event_t *events, k_timeout_t timeout)
+int csk_wifi_msgq_take(csk_wifi_event_t *events, k_timeout_t timeout)
 {
 	return k_msgq_get(&test_csk_wifi_msgq, events, timeout);
 }
@@ -42,24 +35,28 @@ static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32
 
 
 
-static void connect_target_wifi_with_retry(csk_wifi_sta_config_t *sta_config, int retry_times, k_timeout_t timeout)
+static int connect_target_wifi_with_retry(csk_wifi_sta_config_t *sta_config, int retry_times)
 {
-	int ret = -1;
+	int ret = 0;
 	csk_wifi_result_t wifi_result;
 	int retry_count = 0;
 
 	do {
 		LOG_DBG("connecting to wifi: %s", sta_config->ssid);
-		ret = csk_wifi_sta_connect(sta_config, &wifi_result, timeout);
+		ret = csk_wifi_sta_connect(sta_config, &wifi_result, K_FOREVER);
 		printk("func:%s, line:%d, ssid: %s, len: %d\n", __FUNCTION__, __LINE__,
 		       sta_config->ssid, sizeof(sta_config->ssid));
 		if (ret == 0) {
 			break;
 		} else {
 			retry_count++;
+			k_msleep(1000);
 		}
 	} while (retry_count <= retry_times);
-
+	if (wifi_result > 0) {
+		ret = wifi_result;
+	}
+	return ret;
 }
 
 void test_csk_wifi_setup(void)
@@ -80,7 +77,7 @@ void test_csk_wifi_scan(void)
 	csk_wifi_result_t result;
 	csk_wifi_scan_info_t *aps_info;
 
-	ap_num = csk_wifi_scan_ap(&aps_info, &result, K_SECONDS(3));
+	ap_num = csk_wifi_scan_ap(&aps_info, &result, K_FOREVER);
 	zassert_not_equal(ap_num, 0, "ap_num is 0");
 
 	for (int idx = 0; idx < ap_num; idx++) {
@@ -98,15 +95,16 @@ void test_csk_wifi_scan(void)
 void test_csk_wifi_connect_with_correct_ssid_and_pwd(void)
 {
 	csk_wifi_sta_config_t sta_config = {
-		.ssid = CONFIG_EXAMPLE_WIFI_SSID,
-		.pwd = CONFIG_EXAMPLE_WIFI_PASSWORD,
+		.ssid = CONFIG_TEST_VALID_WIFI_SSID,
+		.pwd = CONFIG_TEST_VALID_WIFI_PASSWORD,
 		.encryption_mode = CSK_WIFI_AUTH_WPA2_PSK
 	};
 	csk_wifi_event_t event = CSK_WIFI_EVT_AP_STARTED;
-	int retry_count = 3;
+	int retry_count = 5;
 	int ret = 0;
 
-	connect_target_wifi_with_retry(&sta_config, retry_count, K_SECONDS(5));
+	ret = connect_target_wifi_with_retry(&sta_config, retry_count);
+	zassert_equal(ret, 0, "csk wifi msg take failed");
 
 	ret = csk_wifi_msgq_take(&event, K_SECONDS(5));
 	zassert_equal(ret, 0, "csk wifi msg take failed");
@@ -117,8 +115,8 @@ void test_csk_wifi_connect_with_correct_ssid_and_pwd(void)
 		sta_config.ssid, sta_config.pwd, sta_config.bssid, sta_config.channel,
 		sta_config.rssi);
 
-	char ssid[CSK_WIFI_SSID_LEN + 1] = CONFIG_EXAMPLE_WIFI_SSID;
-	char pwd[CSK_WIFI_PWD_LEN + 1] = CONFIG_EXAMPLE_WIFI_PASSWORD;
+	char ssid[CSK_WIFI_SSID_LEN + 1] = CONFIG_TEST_VALID_WIFI_SSID;
+	char pwd[CSK_WIFI_PWD_LEN + 1] = CONFIG_TEST_VALID_WIFI_PASSWORD;
 
 	zassert_mem_equal(sta_config.ssid, ssid, sizeof(sta_config.rssi), NULL);
 	zassert_mem_equal(sta_config.pwd, pwd, sizeof(sta_config.pwd), NULL);
@@ -130,18 +128,18 @@ void test_csk_wifi_connect_with_correct_ssid_and_pwd(void)
 void test_csk_wifi_connect_with_not_exist_ssid(void)
 {
 	csk_wifi_sta_config_t sta_config = {
-		.ssid = "not_exist_ssid123",
-		.pwd = "123123123",
+		.ssid = CONFIG_TEST_INVALID_WIFI_SSID,
+		.pwd = CONFIG_TEST_INVALID_WIFI_PASSWORD,
 		.encryption_mode = CSK_WIFI_AUTH_WPA2_PSK
 	};
 	csk_wifi_event_t event = -1;
 	int retry_count = 1;
 	int ret = 0;
 
-	connect_target_wifi_with_retry(&sta_config, retry_count, K_SECONDS(5));
-	ret = csk_wifi_msgq_take(&event, K_SECONDS(10));
-
-	zassert_equal(event, CSK_WIFI_EVT_STA_DISCONNECTED, "event not equal disconnected");
+	ret = connect_target_wifi_with_retry(&sta_config, retry_count);
+	zassert_equal(ret, CSK_WIFI_ERR_AP_NOT_FOUND, "event not equal ssid not found %d", ret);
+	ret = csk_wifi_msgq_take(&event, K_NO_WAIT);
+	zassert_equal(ret, -ENOMSG, "event not equal disconnected %d", ret);
 
 	LOG_DBG("ssid: %s  pwd: %s  bssid: %s  channel: %d  rssi: %d",
 		sta_config.ssid, sta_config.pwd, sta_config.bssid, sta_config.channel,
@@ -153,20 +151,18 @@ void test_csk_wifi_connect_with_not_exist_ssid(void)
 void test_csk_wifi_connect_with_correct_ssid_but_wrong_pwd(void)
 {
 	csk_wifi_sta_config_t sta_config = {
-		.ssid = CONFIG_EXAMPLE_WIFI_SSID,
-		.pwd = "123123123",
+		.ssid = CONFIG_TEST_VALID_WIFI_SSID,
+		.pwd = CONFIG_TEST_INVALID_WIFI_PASSWORD,
 		.encryption_mode = CSK_WIFI_AUTH_WPA2_PSK
 	};
 	csk_wifi_event_t event = CSK_WIFI_EVT_AP_STARTED;
 	int retry_count = 1;
 	int ret = 0;
 
-	connect_target_wifi_with_retry(&sta_config, retry_count, K_SECONDS(5));
-
-	ret = csk_wifi_msgq_take(&event, K_SECONDS(5));
-	zassert_equal(ret, 0, "csk wifi msg take failed");
-
-	zassert_equal(event, CSK_WIFI_EVT_STA_DISCONNECTED, "connect to target wifi failed");
+	ret = connect_target_wifi_with_retry(&sta_config, retry_count);
+	zassert_equal(ret, CSK_WIFI_ERR_INVALID_PASSWORD, "ret is not equal to CSK_WIFI_ERR_INVALID_PASSWORD %d", ret);
+	ret = csk_wifi_msgq_take(&event, K_NO_WAIT);
+	zassert_equal(ret, -ENOMSG, "csk wifi msg take failed %d", ret);
 
 	LOG_DBG("ssid: %s  pwd: %s  bssid: %s  channel: %d  rssi: %d",
 		sta_config.ssid, sta_config.pwd, sta_config.bssid, sta_config.channel,
@@ -180,6 +176,7 @@ void test_main(void)
 {
 	ztest_test_suite(csk_wifi_test,
 			 ztest_unit_test(test_csk_wifi_setup),
+			 ztest_unit_test(test_wifi_timeout_para),
 			 ztest_unit_test(test_csk_wifi_scan),
 			 ztest_unit_test(test_csk_wifi_connect_with_correct_ssid_but_wrong_pwd),
 			 ztest_unit_test(test_csk_wifi_connect_with_not_exist_ssid),

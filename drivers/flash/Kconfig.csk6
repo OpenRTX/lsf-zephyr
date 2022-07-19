@@ -6,6 +6,7 @@ config SOC_FLASH_CSK6
 	default y
 	select FLASH_HAS_DRIVER_ENABLED
 	select FLASH_HAS_PAGE_LAYOUT
+	select CACHE_MANAGEMENT
 	depends on HAS_CSK6
 	help
 	  Enable CSK6 internal flash driver.
@@ -14,3 +15,12 @@ config MPU_ALLOW_FLASH_WRITE
 	bool "Add MPU access to write to flash"
 	help
 	  Enable this to allow MPU RWX access to flash memory
+
+config CSK6_FLASH_STALL_SECOND_CORE
+	bool  "Stall second core when write and erase flash"
+	default y
+	help
+		Enable stall second core operation when write and erase flash.The second core of stall is triggered when the 
+		flash area is written or erased using the driver.Because the CSK6's second core and flash driver cannot access 
+		flash at the same time.If you are not running the second core or the second core does not access the flash region, 
+		set this configuration to disable(n).

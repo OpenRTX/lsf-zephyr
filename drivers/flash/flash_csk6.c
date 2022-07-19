@@ -14,16 +14,28 @@
 
 #include <string.h>
 #include <kernel.h>
+#include <cache.h>
 #include <drivers/flash.h>
-#include "hal/spiflash.h"
+#include <hal/venus_ap.h>
+#include <hal/spiflash.h>
 
-#define FALSH_DISABLE_IRQ (1)
-#if FALSH_DISABLE_IRQ
-#define FLASH_OPT_ENTER() int flash_irq_key = irq_lock()
-#define FLASH_OPT_EXIT() irq_unlock(flash_irq_key)
+
+#if (CSK6_FLASH_STALL_SECOND_CORE)
+#define FLASH_OPT_ENTER() \
+	int flash_irq_key = irq_lock();\
+	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x1;
+
+#define FLASH_OPT_EXIT() \
+	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x0;\
+	irq_unlock(flash_irq_key);
 #else
-#define FLASH_OPT_ENTER()
-#define FLASH_OPT_EXIT()
+
+#define FLASH_OPT_ENTER() \
+	int flash_irq_key = irq_lock();
+
+#define FLASH_OPT_EXIT() \
+	irq_unlock(flash_irq_key);
+
 #endif
 
 typedef struct {
@@ -45,20 +57,15 @@ static const struct flash_parameters flash_csk6_parameters = {
 
 static int flash_csk6_read(const struct device *dev, off_t address, void *buffer, size_t length)
 {
-	int iret = 0;
 	if (length == 0) {
 		return 0;
 	}
 	if (buffer == NULL || address > FLASH_CHIP_SZ || address + length > FLASH_CHIP_SZ) {
 		return -EINVAL;
 	}
-	FLASH_OPT_ENTER();
-	if (0 != sflash_read((void *)dev->config, FLASH_BASE_ADDRESS + address, buffer, length)) {
-		printk("sflash_read iret =%d\n", iret);
-		iret = -EIO;
-	}
-	FLASH_OPT_EXIT();
-	return iret;
+	sys_cache_data_range((void*)(FLASH_BASE_ADDRESS+address), length, K_CACHE_INVD);
+	memcpy(buffer,(void*)(FLASH_BASE_ADDRESS+address),length);
+	return 0;
 }
 
 /*If from data address in soc flash area ,copy to ram area first*/

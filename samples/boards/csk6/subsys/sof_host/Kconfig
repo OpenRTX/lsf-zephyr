@@ -4,6 +4,9 @@
 
 # Workaround for not being able to have commas in macro arguments
 
+# path to custom driver Kconfig file.
+source "samples/boards/csk6/driver/video/bf30a2/sample/drivers/Kconfig.bf30a2"
+
 DT_CHOSEN_Z_FLASH_SYSFS_STORAGE := zephyr,flash_sysfs_storage
 DT_CHOSEN_Z_FLASH_CONTROLLER := zephyr,flash_controller
 DT_CHOSEN_Z_INN_FLASH := zephyr,flash

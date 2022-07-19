@@ -34,9 +34,15 @@ This example uses ``minicom`` on the serial port ``/dev/ttyUSB0``:
 .. code-block:: console
 
     *** Booting Zephyr OS build 6d9b2a8c2aee  ***
-    spi master example
-    spi master sending data ...
-    spi master sending data ...
-    spi master sending data ...
-    spi master sending data ...
+    SPI test start 
+    SPI thread created
+    [Master]spi send data 
+    [Master]spi received data 
+    0x90x80x70x60x50x40x30x20x1
+    [Master]spi send data 
+    [Master]spi received data 
+    0x90x80x70x60x50x40x30x20x1
+    [Master]spi send data 
+    [Master]spi received data 
+    0x90x80x70x60x50x40x30x20x1
 

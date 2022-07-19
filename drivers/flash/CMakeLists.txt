@@ -70,3 +70,11 @@ zephyr_library_include_directories_ifdef(
 
 zephyr_library_sources_ifdef(CONFIG_FLASH_SHELL flash_shell.c)
 zephyr_library_sources_ifdef(CONFIG_FLASH_JESD216 jesd216.c)
+
+if(CONFIG_CSK6_FLASH_STALL_SECOND_CORE)
+  message(WARNING
+            "CONFIG_CSK6_FLASH_STALL_SECOND_CORE is enabled. The second core of stall is triggered when the flash is write or erase by using the driver." 
+            "Because the CSK6's second core and the flash driver(Write&Erase) cannot access flash at the same time."
+            "If you are not running the second core or the second core does not access the flash, set this configuration to disable(n)."
+          )
+endif()

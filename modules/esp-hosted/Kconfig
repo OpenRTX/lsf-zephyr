@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig ESP_HOSTED
+	bool "ESP-Hosted support"
+	select PROTOBUF_C
+
+if ESP_HOSTED
+
+config HOSTED_INIT_TIMEOUT
+	int "Hosted Init Timeout(s)"
+	default 3
+
+config HOSTED_TRANSACTION_STACK
+	int "Hosted Transaction Thread Stack"
+	default 2048
+
+config HOSTED_TRANSACTION_PRIORITY
+	int "Hosted Transaction Thread priority"
+	default 4
+
+config HOSTED_PROCESS_RX_STACK
+	int "Hosted Processing Thread Stack"
+	default 2048
+
+config HOSTED_PROCESS_RX_PRIORITY
+	int "Hosted Processing Thread priority"
+	default 5
+
+endif # ESP_HOSTED

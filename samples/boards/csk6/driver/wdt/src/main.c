@@ -10,23 +10,24 @@
 #include <sys/printk.h>
 #include <stdbool.h>
 
-#define WDT_FEED_TRIES 10
+#define WDT_FEED_TRIES 1
 
 #ifndef WDT_MAX_WINDOW
-#define WDT_MAX_WINDOW 16000
+#define WDT_MAX_WINDOW 2000
 #endif
 
 #define WDT_ALLOW_CALLBACK 1
 
 #if WDT_ALLOW_CALLBACK
 static void wdt_callback(const struct device *wdt_dev, int channel_id)
-{	
+{
 	static bool is_handled = false;
 
 	if (!is_handled) {
 		is_handled = !is_handled;
 		wdt_feed(wdt_dev, channel_id);
-		printk("Handled watchdog interrupt and feed the dog.System will reset after 16s.\n");
+		printk("Handled watchdog interrupt and feed the dog.System will reset after %ds.\n",
+			WDT_MAX_WINDOW / 1000);
 	} else {
 		printk("Handled watchdog interrupt again, wait for reset.\n");
 	}

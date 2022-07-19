@@ -1,0 +1,60 @@
+# Copyright (c) 2022, listenai
+# SPDX-License-Identifier: Apache-2.0
+
+description: listenai csk dvp controller
+
+include: [base.yaml, pinctrl-device.yaml]
+
+compatible: "listenai,csk-dvp"
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true
+
+    sensor-label:
+      required: true
+      type: string
+      description: |
+        label of connected sensor device
+
+    clock-prescaler:
+      type: int
+      required: false
+      description: |
+        Prescaler of clock to dvp sensor. Clock Freq = 150MHz/clock-prescaler
+        Perhaps the sensor's clock source is obtained elsewhere, so this option is not required
+
+    data-align-type:
+      type: string
+      required: true
+      description: |
+        Interface has data bus pin D0~D11. When the number of actual buses 
+        in use is less than 12, we can choose to use the high or low part 
+        of the actual pin bus
+      enum:
+        - "low_align"
+        - "high_align"
+
+    pclk-polarity:
+      type: string
+      required: true
+      enum:
+        - "post_edge_sampling"
+        - "negative_edge_sampling"
+
+    hsync-polarity:
+      type: string
+      required: true
+      enum:
+        - "active_high"
+        - "active_low"
+
+    vsync-polarity:
+      type: string
+      required: true
+      enum:
+        - "active_high"
+        - "active_low"
