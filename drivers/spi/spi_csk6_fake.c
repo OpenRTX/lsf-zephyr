@@ -26,7 +26,7 @@ struct spi_csk6_fake_data {
 	void *hal_dev;
 };
 
-static uint8_t g_buffer[20 * 1024] = { 0 };
+static uint8_t g_buffer[230400] = { 0 };
 
 K_SEM_DEFINE(g_spi_fake_sem, 0, 1);
 
@@ -116,6 +116,7 @@ static int32_t csk_spi_trans_hal(void *hal_dev, uint8_t *datas, uint32_t len)
 	uint8_t temp;
 	uint32_t l;
 
+	printk("csk_spi_trans_hal, len:%d\n", len);
 	if (len <= 4) {
 		return csk_spi_trans_hal_2(hal_dev, datas, len);
 	}
@@ -124,14 +125,7 @@ static int32_t csk_spi_trans_hal(void *hal_dev, uint8_t *datas, uint32_t len)
 	l = ROUND_UP(len, 8);
 	memset(g_buffer, 0, l);
 
-	memcpy(g_buffer + l - len, datas, len);
-	if (len == 4) {
-		uint32_t i;
-
-		for (i = 0; i < 100; i++) {
-			memcpy(g_buffer + i * 4, datas, len);
-		}
-	}
+	memcpy(g_buffer, datas, len);
 
 	for (n = 0; n < l;) {
 		temp = g_buffer[n + 0];
@@ -154,7 +148,7 @@ static int32_t csk_spi_trans_hal(void *hal_dev, uint8_t *datas, uint32_t len)
 	}
 	
 	uint32_t ctrl = CSK_I2S_MODE_MASTER | CSK_I2S_TDM_CHS(4) | CSK_I2S_TXCH_STEREO_SRC_STEREO |
-			CSK_I2S_DATA_FORMAT_DUAL_16BIT;
+			CSK_I2S_DATA_FORMAT_32BIT;
 
 	ctrl |= (CSK_I2S_PROTO_PCMMODE_B << CSK_I2S_PROTO_Pos);
 	r = I2S_Control(hal_dev, ctrl, 16000);
@@ -165,7 +159,21 @@ static int32_t csk_spi_trans_hal(void *hal_dev, uint8_t *datas, uint32_t len)
 	i2s->reg->REG_I2S_CFG1.bit.SLOTNUM = l / 4;
 
 	r = I2S_Send(hal_dev, g_buffer, l / 4, CH_BMP_STEREO, I2S_TX_FLAG_START_NOW);
-	
+
+	int k = arch_irq_lock();
+	k_busy_wait(l / 2);
+	GPIO_PinWrite(GPIOA(), 1 << 9, 0);
+
+	IOMuxManager_PinConfigure(1, 8, 0);
+	IOMuxManager_PinConfigure(1, 7, 0);
+
+	GPIO_SetDir(GPIOB(), 1 << 7, 1);
+	GPIO_PinWrite(GPIOB(), 1 << 7, 1);
+
+	GPIO_SetDir(GPIOB(), 1 << 8, 1);
+	GPIO_PinWrite(GPIOB(), 1 << 8, 0);
+	arch_irq_unlock(k);
+
 	if (r != 0) {
 		printk("I2S_Send return error,r:%d\n", r);
 		return r;
@@ -190,11 +198,19 @@ static int csk_spi_transceive(const struct device *dev, const struct spi_config 
 	struct spi_csk6_fake_data *data = (struct spi_csk6_fake_data *)dev->data;
 
 	for (i = 0; i < tx_bufs->count; i++, buf++) {
-		r = csk_spi_trans_hal(data->hal_dev, buf->buf, buf->len);
+		uint32_t n;
+		for (n = 0; n < buf->len / 720; n++) {
+			r = csk_spi_trans_hal(data->hal_dev, buf->buf + n * 720, 720);
+			if (r != 0) {
+				return r;
+			}
+		}
+		r = csk_spi_trans_hal(data->hal_dev, buf->buf + n * 720, buf->len % 720);
 		if (r != 0) {
 			return r;
 		}
 	}
+
 
 	return 0;
 }

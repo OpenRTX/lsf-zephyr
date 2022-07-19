@@ -137,8 +137,8 @@ static int ili9xxx_write(const struct device *dev, const uint16_t x,
 			 desc->buf_size,
 		 "Input buffer to small");
 
-	printk("Writing %dx%d (w,h) @ %dx%d (x,y)\n", desc->width, desc->height,
-		x, y);
+	// printk("Writing %dx%d (w,h) @ %dx%d (x,y)\n", desc->width, desc->height,
+	// 	x, y);
 	r = ili9xxx_set_mem_area(dev, x, y, desc->width, desc->height);
 	if (r < 0) {
 		return r;
