@@ -126,12 +126,12 @@ static int _video_init()
 
 	return 0;
 }
-
+#define ONLY_OCR	(0)
 void  offline_recognize_thread(void *arg)
 {
 	LISA_LOGI(TAG, "%s", __FUNCTION__);
 	char trans_data[1024] = {0};
-
+#if ONLY_OCR == 0
 	/* create translate */
 	trans_handler = lisa_translate_create();
 
@@ -141,20 +141,15 @@ void  offline_recognize_thread(void *arg)
 	params.ttscb = _tts_cb;
 	tts_handler = lisa_tts_create(&params);
 	LISA_LOGD(TAG, "TTS_INIT_DONE \n");
-
+#endif
 	while (true) {
 		lisa_semaphore_take(s_ocr_res_sema, LISA_WAIT_FOREVER);
-
+#if ONLY_OCR == 0
 		// trans_handler = lisa_translate_create();
 		memset(trans_data, 0, sizeof(trans_data));
 		lisa_translate_exec(trans_handler, ocr_result, trans_data, 1024, 40000);
 		// lisa_translate_destroy(trans_handler);
 
-		// lisa_tts_params_t params;
-		// memset(&params, 0, sizeof(lisa_tts_params_t));
-		// params.ttscb = _tts_cb;
-		// tts_handler = lisa_tts_create(&params);
-#if 1
 		atts_config_t tts_config = {
 			.role 		= ivTTS_ROLE_XIAOYAN,
 			.language	= ivTTS_LANGUAGE_AUTO,
@@ -169,9 +164,6 @@ void  offline_recognize_thread(void *arg)
 		}
 
 		lisa_tts_play(tts_handler, trans_data, &tts_config);
-#else
-		lisa_tts_play(tts_handler, trans_data);
-#endif
 
 		while(!tts_done){
 			k_msleep(100);
@@ -181,6 +173,7 @@ void  offline_recognize_thread(void *arg)
 		tts_done = 0;
 		
 		k_msleep(100);
+#endif
 	}
 
 }
