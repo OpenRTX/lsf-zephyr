@@ -68,16 +68,9 @@ LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 #define RETURN_FROM_MAIN(exit_code) return
 #endif
 
-enum corner {
-	TOP_LEFT,
-	TOP_RIGHT,
-	BOTTOM_RIGHT,
-	BOTTOM_LEFT
-};
+enum corner { TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT };
 
-typedef void (*fill_buffer)(enum corner corner, uint8_t grey, uint8_t *buf,
-			    size_t buf_size);
-
+typedef void (*fill_buffer)(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size);
 
 #ifdef CONFIG_ARCH_POSIX
 static void posix_exit_main(int exit_code)
@@ -93,8 +86,7 @@ static void posix_exit_main(int exit_code)
 }
 #endif
 
-static void k_callback(const struct device *dev, uint32_t row, uint32_t col,
-		       bool pressed)
+static void k_callback(const struct device *dev, uint32_t row, uint32_t col, bool pressed)
 {
 	ARG_UNUSED(dev);
 	printk("row = %u col = %u, pressed:%s\n", row, col, pressed ? "TRUE" : "FLASE");
@@ -115,8 +107,7 @@ void kscan_init(void)
 #endif
 }
 
-static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf,
-				 size_t buf_size)
+static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint32_t color = 0;
 
@@ -140,8 +131,7 @@ static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_rgb888(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_rgb888(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint32_t color = 0;
 
@@ -200,8 +190,7 @@ static uint16_t get_rgb565_color(enum corner corner, uint8_t grey)
 	return color;
 }
 
-static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color = get_rgb565_color(corner, grey);
 
@@ -211,8 +200,7 @@ static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color = get_rgb565_color(corner, grey);
 
@@ -221,8 +209,7 @@ static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf,
-			     size_t buf_size)
+static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color;
 
@@ -274,9 +261,9 @@ void prepare_cp_run()
 	}
 
 	__DMB();
-   	memcpy((void *)AP_PSRAM_BASE, (void *)CP_FW_ADDR, CP_FW_LEN);
+	memcpy((void *)AP_PSRAM_BASE, (void *)CP_FW_ADDR, CP_FW_LEN);
 
-    sys_cache_data_range((void *)AP_PSRAM_BASE, CP_FW_LEN, K_CACHE_WB);
+	sys_cache_data_range((void *)AP_PSRAM_BASE, CP_FW_LEN, K_CACHE_WB);
 	__DSB();
 
 	// run cp
@@ -309,7 +296,7 @@ void main(void)
 
 #ifndef CONFIG_SOC_LS_ADSP_CSK6
 	prepare_cp_run();
-	while(1) {
+	while (1) {
 		LOG_INF("Display sample for %s", DISPLAY_DEV_NAME);
 		k_msleep(500);
 	}
@@ -318,8 +305,7 @@ void main(void)
 	display_dev = device_get_binding(DISPLAY_DEV_NAME);
 
 	if (display_dev == NULL) {
-		printk("Device %s not found. Aborting sample.",
-			DISPLAY_DEV_NAME);
+		printk("Device %s not found. Aborting sample.", DISPLAY_DEV_NAME);
 		RETURN_FROM_MAIN(1);
 	}
 
@@ -377,35 +363,33 @@ void main(void)
 		printk("Unsupported pixel format. Aborting sample.");
 		RETURN_FROM_MAIN(1);
 	}
-	// buf_size = 320;
-	printk("buf_size:%u\n");
+
+	buf_size = 240 * 320 * 3;
+	printk("buf_size:%lu\n", buf_size);
 	buf = k_malloc(buf_size);
 
 	if (buf == NULL) {
 		printk("Could not allocate memory. Aborting sample.");
 		RETURN_FROM_MAIN(1);
 	}
-	
+
 	buf_desc.buf_size = buf_size;
 	buf_desc.pitch = capabilities.x_resolution;
 	buf_desc.width = capabilities.x_resolution;
-	buf_desc.height = h_step;
+	buf_desc.height = 320;
 	display_blanking_off(display_dev);
-	
-	// fill_color(0x00FF00 >> (8 * 0), buf, buf_size);
-	// for (int idx = 0; idx < capabilities.y_resolution; idx += h_step) {
-	// 		display_write(display_dev, 0, idx, &buf_desc, buf);
-	// }
 
-	uint8_t i = 0;
+	uint32_t i;
+	for (i = 0; i < buf_size; i++) {
+		buf[i] = i;
+	}
+	i = 0;
 	while (1) {
-		fill_color(0x00FF0000 >> (8 * i), buf, buf_size);
-		for (int idx = 0; idx < capabilities.y_resolution; idx += h_step) {
-			display_write(display_dev, 0, idx, &buf_desc, buf);
-		}
+		fill_color(0xff << (8 * i), buf, buf_size);
+		display_write(display_dev, 0, 0, &buf_desc, buf);
 		i++;
 		i %= 3;
-		// k_msleep(500);
+
 	}
 
 	RETURN_FROM_MAIN(0);
