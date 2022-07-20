@@ -1,13 +1,26 @@
+/ {
+	chosen {
+		zephyr,console = &uart1;
+	};
+};
+
 &ls_adsp_csk6_pinctrl{
-        pinctrl_uart2_rx_default: uart2_rx_default {
-			pinctrls = < &pinmuxb 7 3 >;
+        pinctrl_uart1_rx_default: uart1_rx_default {
+			pinctrls = < &pinmuxa 5 3 >;
 		};
 
-		pinctrl_uart2_tx_default: uart2_tx_default {
-			pinctrls = < &pinmuxa 18 3 >;
+		pinctrl_uart1_tx_default: uart1_tx_default {
+			pinctrls = < &pinmuxa 4 3 >;
 		};
 };
 
 &uart2 {
+	status = "disabled";
+};
+
+&uart1 {
+	pinctrl-0 = <&pinctrl_uart1_rx_default &pinctrl_uart1_tx_default>; 
+	pinctrl-names = "default";
 	current-speed = <921600>;
+	status = "okay";
 };
