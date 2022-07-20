@@ -65,6 +65,7 @@ struct _lisa_vcapture_context_t {
 	vcapture_t *vcapture;
 
 	uint8_t use_ocr;
+	uint32_t use_ocr_debug;
 	vcapture_ocr_t ocr;
 };
 
@@ -308,6 +309,11 @@ lisa_vcapture_handler_t *lisa_vcapture_create(const lisa_vcapture_params_t *cons
 	if (ctx->use_ocr) {
 		k_sem_init(&ctx->ocr.compelete_sem, 0, 1);
 		vcap_ocr_notify_event_register(ctx->vcapture, _vcapture_alg_ocr_event_notify, ctx);
+	}
+
+	ctx->use_ocr_debug = 0;
+	if(ctx->use_ocr_debug){
+		vcap_debug_set(ctx->vcapture, &ctx->use_ocr_debug);
 	}
 
 	_vcapture_set_status(ctx, VCAPTURE_STATUS_INIT);
