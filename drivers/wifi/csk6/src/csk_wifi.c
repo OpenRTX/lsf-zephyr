@@ -180,6 +180,17 @@ static csk_wifi_encryption_mode_t wifi_get_csk_encryption_mode(wifi_auth_mode_t 
     return ret;
 }
 
+static wifi_mode_t wifi_get_drv_wifi_mode(csk_wifi_mode_t mode)
+{
+    if (mode == CSK_WIFI_MODE_STA) {
+        return WIFI_MODE_STA;
+    } else if (mode == CSK_WIFI_MODE_AP) {
+        return WIFI_MODE_AP;
+    } else {
+        return WIFI_MODE_MAX;
+    }
+}
+
 static inline int wifi_send_event(const struct device *dev, csk_wifi_event_t event, void *event_data, uint32_t data_len, k_timeout_t timeouts)
 {
     csk_wifi_ctrl_msg_t msg = {
@@ -289,7 +300,12 @@ static void wifi_virtual_netif_init(const struct device *dev)
     const struct csk_wifi_config *config = dev->config;
     struct csk_wifi_data *data = dev->data;
     char mac_addr_strs[MAC_STRING_LEN] = {'\0'};
-    wifi_get_mac(config->mode, mac_addr_strs);
+    wifi_mode_t esp_wifi_mode = wifi_get_drv_wifi_mode(config->mode);
+    if (esp_wifi_mode != WIFI_MODE_STA || esp_wifi_mode != WIFI_MODE_AP) {
+        LOG_ERR("wifi mode err, %d", config->mode);
+        return;
+    }
+    wifi_get_mac(esp_wifi_mode, mac_addr_strs);
     convert_str_to_bytes(data->mac_addr, mac_addr_strs);
     if (config->mode == CSK_WIFI_MODE_STA) {
         data->virtual_netif = network_open(STA_INTERFACE, csk_wifi_receive_pkt, data);
@@ -330,7 +346,7 @@ static csk_wifi_result_t wifi_sta_get_connected_info(const struct device *dev)
     csk_wifi_result_t ret = CSK_WIFI_SUCCESS;
 
     esp_hosted_control_config_t connected_info = {0};
-    memset(&connected_info.station.ssid, '\0', sizeof(connected_info.station.ssid));
+    memset(connected_info.station.ssid, '\0', sizeof(connected_info.station.ssid));
     int get_ret = wifi_get_ap_config(&connected_info);
     if (get_ret != 0) {
         ret = CSK_WIFI_ERR_STA_FAILED;
