@@ -60,7 +60,7 @@ manifest:
       path: modules/lib/xr819s
     - name: lvgl8
       remote: listenai
-      revision: 2386f165ce42fcfd0acad3ade300074f28c4d41b
+      revision: fb8eb390698622da858b8e203cbfa34325bb3806
       path: modules/lib/gui/lvgl8
       groups:
         - lvgl8
