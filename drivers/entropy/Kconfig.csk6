@@ -1,0 +1,12 @@
+# csk6 entropy generator driver configuration
+
+# Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+config ENTROPY_CSK6_RNG
+	bool "CSK6 entropy number generator driver"
+	depends on HAS_CSK6
+	select ENTROPY_HAS_DRIVER
+	default y
+	help
+	  This option enables the entropy number generator for CSK6 SoCs.
