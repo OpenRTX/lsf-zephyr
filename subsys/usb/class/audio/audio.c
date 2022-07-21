@@ -164,14 +164,6 @@ static struct usb_ep_cfg_data dev##_usb_audio_ep_data_##i[] = {		  \
 			     (CH_CNT(dev##_HP, i) + 1)}			   \
 		}
 
-/**
- * Helper function for getting channel number directly from the
- * feature unit descriptor.
- */
-static uint8_t get_num_of_channels(const struct feature_unit_descriptor *fu)
-{
-	return (fu->bLength - FU_FIXED_ELEMS_SIZE)/sizeof(uint16_t);
-}
 
 /**
  * Helper function for getting supported controls directly from
@@ -217,23 +209,13 @@ static void fix_fu_descriptors(struct usb_if_descriptor *iface)
 						header->bLength +
 						INPUT_TERMINAL_DESC_SIZE);
 
-	/* start from 1 as elem 0 is filled when descriptor is declared */
-	for (int i = 1; i < get_num_of_channels(fu); i++) {
-		(void)memcpy(&fu->bmaControls[i],
-			     &fu->bmaControls[0],
-			     sizeof(uint16_t));
-	}
 
 	if (header->bInCollection == 2) {
 		fu = (struct feature_unit_descriptor *)((uint8_t *)fu +
 			fu->bLength +
 			INPUT_TERMINAL_DESC_SIZE +
 			OUTPUT_TERMINAL_DESC_SIZE);
-		for (int i = 1; i < get_num_of_channels(fu); i++) {
-			(void)memcpy(&fu->bmaControls[i],
-				     &fu->bmaControls[0],
-				     sizeof(uint16_t));
-		}
+
 	}
 }
 
@@ -544,6 +526,77 @@ static int handle_fu_mute_req(struct usb_audio_dev_data *audio_dev_data,
 }
 
 /**
+ * @brief Handler for feature unit volume control requests.
+ *
+ * This function handles feature unit volume control request.
+ *
+ * @param audio_dev_data USB audio device data.
+ * @param setup          Information about the executed request.
+ * @param len		 Size of the buffer.
+ * @param data		 Buffer containing the request result.
+ * @param evt		 Feature Unit Event info.
+ * @param device	 Device part that has been addressed. Applicable for
+ *			 bidirectional device.
+ *
+ * @return 0 if successful, negative errno otherwise.
+ */
+
+static int handle_fu_volume_req(struct usb_audio_dev_data *audio_dev_data,
+			      struct usb_setup_packet *setup,
+			      int32_t *len, uint8_t **data,
+			      struct usb_audio_fu_evt *evt,
+			      uint8_t device)
+{
+	LOG_INF("handle_fu_volume_req, setup->wValue: %d ", setup->wValue);
+	LOG_INF("handle_fu_volume_req, setup->bRequest: 0x%02X ", setup->bRequest);
+	LOG_INF("handle_fu_volume_req, direction: %d ", setup->RequestType.direction);
+	uint8_t ch = (setup->wValue) & 0xFF;
+	uint8_t ch_cnt = audio_dev_data->ch_cnt[device];
+	LOG_INF("ch: %d, ch_cnt: %d, device: %d, POS(VOLUME, ch, ch_cnt): %d", ch, ch_cnt, device, POS(VOLUME, ch, ch_cnt));
+	uint8_t *controls = audio_dev_data->controls[device];
+	uint8_t *control_val = &controls[POS(VOLUME, ch, ch_cnt)];
+	uint16_t temp_val = 0;
+
+	if (usb_reqtype_is_to_device(setup)) {
+		/* Check if *len has valid value */
+		if (*len != LEN(1, VOLUME)) {
+			LOG_ERR("*len: %d, LEN(1, VOLUME): %d", *len, LEN(1, VOLUME));
+			return -EINVAL;
+		}
+
+		if (setup->bRequest == USB_AUDIO_SET_CUR) {
+			evt->val = control_val;
+			evt->val_len = *len;
+			memcpy(control_val, *data, *len);
+			return 0;
+		}
+	} else {
+		if (setup->bRequest == USB_AUDIO_GET_CUR) {
+			*len = LEN(ch_cnt, VOLUME);
+			memcpy(*data, control_val, *len);
+			return 0;
+		} else if (setup->bRequest == USB_AUDIO_GET_MIN) {
+			*len = LEN(ch_cnt, VOLUME);
+			temp_val = CONFIG_USB_DEVICE_AUDIO_MIN_VOLUME;
+			memcpy(*data, &temp_val, *len);
+			return 0;
+		} else if (setup->bRequest == USB_AUDIO_GET_MAX) {
+			*len = LEN(ch_cnt, VOLUME);
+			temp_val = CONFIG_USB_DEVICE_AUDIO_MAX_VOLUME;
+			memcpy(*data, &temp_val, *len);
+			return 0;
+		} else if (setup->bRequest == USB_AUDIO_GET_RES) {
+			*len = LEN(ch_cnt, VOLUME);
+			temp_val = CONFIG_USB_DEVICE_AUDIO_RES_VOLUME;
+			memcpy(*data, &temp_val, *len);
+			return 0;
+		} 
+	}
+
+	return -EINVAL;
+}
+
+/**
  * @brief Handler for feature unit requests.
  *
  * This function handles feature unit specific requests.
@@ -590,6 +643,10 @@ static int handle_feature_unit_req(struct usb_audio_dev_data *audio_dev_data,
 	switch (cs) {
 	case USB_AUDIO_FU_MUTE_CONTROL:
 		ret = handle_fu_mute_req(audio_dev_data, pSetup,
+					 len, data, &evt, device);
+		break;
+	case USB_AUDIO_FU_VOLUME_CONTROL:
+		ret = handle_fu_volume_req(audio_dev_data, pSetup,
 					 len, data, &evt, device);
 		break;
 	default:

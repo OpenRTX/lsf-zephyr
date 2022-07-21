@@ -20,11 +20,12 @@
 		mic-feature-mute;
 		mic-channel-l;
 		mic-channel-r;
-		mic-device-type = <DESKTOP_MIC>;
+		mic-device-type = <MICROPHONE>;
 
 		hp-feature-mute;
 		hp-channel-l;
 		hp-channel-r;
+		hp-feature-volume;
 		hp-device-type = <SPEAKER>;
 	};
 };

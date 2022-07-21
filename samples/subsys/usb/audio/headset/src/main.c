@@ -47,6 +47,10 @@ static void feature_update(const struct device *dev,
 		evt->cs, evt->channel);
 	switch (evt->cs) {
 	case USB_AUDIO_FU_MUTE_CONTROL:
+		break;
+	case USB_AUDIO_FU_VOLUME_CONTROL:
+		LOG_INF("[%s] volume: %d, val_len: %d", __FUNCTION__, *((int16_t *)(evt->val)), evt->val_len);
+		break;
 	default:
 		break;
 	}
