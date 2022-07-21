@@ -17,4 +17,17 @@ module = USB_AUDIO
 module-str = USB Audio
 source "subsys/logging/Kconfig.template.log_config"
 
+
+config USB_DEVICE_AUDIO_MIN_VOLUME
+	int "USB Audio Device Min Volume"
+	default 0
+
+config USB_DEVICE_AUDIO_MAX_VOLUME
+	int "USB Audio Device Max Volume"
+	default 32767
+
+config USB_DEVICE_AUDIO_RES_VOLUME
+	int "USB Audio Device Max Volume"
+	default 1
+
 endif #USB_DEVICE_AUDIO
