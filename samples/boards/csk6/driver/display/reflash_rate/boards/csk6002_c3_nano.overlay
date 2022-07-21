@@ -1,0 +1,38 @@
+#include <dt-bindings/display/ili9xxx.h>
+
+&csk6002_c3_nano_pinctrl{
+                pinctrl_spi0_sclk_default: spi0_sclk_default {
+                        pinctrls = < &pinmuxa 7 6 >;
+                };
+                pinctrl_spi0_mosi_default: spi0_mosi_default {
+                        pinctrls = < &pinmuxa 6 6 >;
+                };
+                pinctrl_spi0_miso_default: spi0_miso_default {
+                        pinctrls = < &pinmuxa 5 6 >;
+                };
+                pinctrl_spi0_cs_default: spi0_cs_default {
+                        pinctrls = < &pinmuxa 4 6 >;
+                }; 
+};
+
+&spi0 {
+    status = "okay";
+    pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>; 
+    pinctrl-names = "default";
+
+    ili9488@0 {
+        compatible = "ilitek,ili9488";
+        label = "DISPLAY";
+        spi-max-frequency = <10000000>;
+        reg = <0>;
+        cmd-data-gpios = <&gpioa 8 1>; 
+        reset-gpios = <&gpioa 9 1>; 
+        pixel-format = <ILI9XXX_PIXEL_FORMAT_RGB888>;
+        rotation = <0>;
+        frmctr1 = [a0 11];
+        pwctrl1 = [17 15];
+        pwctrl2 = [41];
+        pgamctrl = [00 03 09 08 16 0a 3f 78 4c 09 0a 08 16 1a 0f];
+        ngamctrl = [00 16 19 03 0f 05 32 45 46 04 0e 0d 35 37 0f];
+    };
+};
