@@ -33,61 +33,34 @@ K_SEM_DEFINE(g_spi_fake_sem, 0, 1);
 static int32_t csk_spi_trans_hal_2(void *hal_dev, uint8_t *datas, uint32_t len)
 {
 	int32_t r;
-	uint32_t l = 0;
-	uint32_t n;
 	uint8_t temp;
+	uint8_t buf[4] = { 0 };
 
 	IOMuxManager_PinConfigure(1, 7, 14);
 	IOMuxManager_PinConfigure(1, 8, 14);
 
-	if (len <= 4) {
-		l = ROUND_UP(len, 4);
-		memset(g_buffer, 0, l);
+	memcpy(buf + 4 - len, datas, len);
 
-		memcpy(g_buffer + l - len, datas, len);
+	temp = buf[0];
+	buf[0] = buf[3];
+	buf[3] = temp;
+	temp = buf[1];
+	buf[1] = buf[2];
+	buf[2] = temp;
 
-		for (n = 0; n < l;) {
-			temp = g_buffer[n + 0];
-			g_buffer[n + 0] = g_buffer[n + 3];
-			g_buffer[n + 3] = temp;
+	uint32_t ctrl = CSK_I2S_MODE_MASTER | CSK_I2S_TDM_CHS(0) | CSK_I2S_TXCH_STEREO_SRC_MONO |
+			CSK_I2S_DATA_FORMAT_32BIT | CSK_I2S_PROTO_LEFT;
 
-			temp = g_buffer[n + 1];
-			g_buffer[n + 1] = g_buffer[n + 2];
-			g_buffer[n + 2] = temp;
+	r = I2S_Control(hal_dev, ctrl, 16000);
 
-			n += 4;
-		}
-
-		// for (n = 720 * 20; n < l;) {
-		// 	temp = g_buffer[n + 0];
-		// 	g_buffer[n + 0] = g_buffer[n + 3];
-		// 	g_buffer[n + 3] = temp;
-
-		// 	temp = g_buffer[n + 1];
-		// 	g_buffer[n + 1] = g_buffer[n + 2];
-		// 	g_buffer[n + 2] = temp;
-
-		// 	n += 4;
-		// }
-
-		uint32_t ctrl = CSK_I2S_MODE_MASTER | CSK_I2S_TDM_CHS(0) |
-				CSK_I2S_TXCH_STEREO_SRC_MONO | CSK_I2S_DATA_FORMAT_32BIT;
-
-		ctrl |= (CSK_I2S_PROTO_LEFT);
-		r = I2S_Control(hal_dev, ctrl, 16000);
-
-		if (r != 0) {
-			printk("SPI Fake driver init error, %s:%d.\n", __FILE__, __LINE__);
-			return -1;
-		}
+	if (r != 0) {
+		printk("SPI Fake driver init error, %s:%d.\n", __FILE__, __LINE__);
+		return -1;
 	}
 	I2S_DEV *i2s = (I2S_DEV *)hal_dev;
 	i2s->reg->REG_I2S_CFG0.bit.LRCK_POL = 1;
-	i2s->reg->REG_I2S_CFG0.bit.BCKOUT_GATE = 1;
-	i2s->reg->REG_I2S_CFG0.bit.EN_FORCE_ON = 0;
-	i2s->reg->REG_I2S_CFG0.bit.BCK_FORCE_ON = 0;
 
-	r = I2S_Send(hal_dev, g_buffer, 1, CH_BMP_STEREO, I2S_TX_FLAG_START_NOW);
+	r = I2S_Send(hal_dev, buf, 1, CH_BMP_STEREO, I2S_TX_FLAG_START_NOW);
 	int k = arch_irq_lock();
 	k_busy_wait(2);
 	GPIO_PinWrite(GPIOA(), 1 << 9, 0);
@@ -107,55 +80,49 @@ static int32_t csk_spi_trans_hal_2(void *hal_dev, uint8_t *datas, uint32_t len)
 		return r;
 	}
 
-	r = k_sem_take(&g_spi_fake_sem, K_MSEC(5000));
-	if (r != 0) {
-		printk("k_sem_take error,r:%d\n", r);
-		return r;
-	}
 	return 0;
 }
 
 static int32_t csk_spi_trans_hal(void *hal_dev, uint8_t *datas, uint32_t len)
 {
 	int32_t r;
-
 	uint32_t n;
 	uint8_t temp;
 	uint32_t l;
+	I2S_DEV *i2s = (I2S_DEV *)hal_dev;
+	uint8_t *buf = NULL;
 
-	printk("csk_spi_trans_hal, len:%d\n", len);
 	if (len <= 4) {
 		return csk_spi_trans_hal_2(hal_dev, datas, len);
 	}
 
-	I2S_DEV *i2s = (I2S_DEV *)hal_dev;
-	l = ROUND_UP(len, 8);
-	memset(g_buffer, 0, l);
-	memcpy(g_buffer, datas, len);
+	if (len % 8 != 0) {
+		l = ROUND_UP(len, 8);
+		buf = k_malloc(l);
+		if (buf == NULL) {
+			printk("malloc buffer faild.\n");
+			return -1;
+		}
+		memcpy(buf, datas, len);
+		memset(buf + len, 0, l - len);
+	} else {
+		l = len;
+		buf = datas;
+	}
 
 	for (n = 0; n < l;) {
-		temp = g_buffer[n + 0];
-		g_buffer[n + 0] = g_buffer[n + 3];
-		g_buffer[n + 3] = temp;
+		temp = buf[n + 0];
+		buf[n + 0] = buf[n + 3];
+		buf[n + 3] = temp;
 
-		temp = g_buffer[n + 1];
-		g_buffer[n + 1] = g_buffer[n + 2];
-		g_buffer[n + 2] = temp;
-
+		temp = buf[n + 1];
+		buf[n + 1] = buf[n + 2];
+		buf[n + 2] = temp;
 		n += 4;
-	}
-	IOMuxManager_PinConfigure(1, 7, 14);
-	IOMuxManager_PinConfigure(1, 8, 14);
-	r = I2S_Control(hal_dev, CSK_I2S_TXCH_STEREO_SRC_STEREO, 0);
-
-	if (r != 0) {
-		printk("I2S Control return error,r:%d\n", r);
-		return r;
 	}
 
 	uint32_t ctrl = CSK_I2S_MODE_MASTER | CSK_I2S_TDM_CHS(4) | CSK_I2S_TXCH_STEREO_SRC_STEREO |
 			CSK_I2S_DATA_FORMAT_32BIT;
-
 	ctrl |= (CSK_I2S_PROTO_PCMMODE_B << CSK_I2S_PROTO_Pos);
 	r = I2S_Control(hal_dev, ctrl, 16000);
 	if (r != 0) {
@@ -164,55 +131,25 @@ static int32_t csk_spi_trans_hal(void *hal_dev, uint8_t *datas, uint32_t len)
 	}
 	i2s->reg->REG_I2S_CFG1.bit.SLOTNUM = 180;
 
-	if (0) {
-		for (n = 0; n < 16; n++) {
-			IOMuxManager_PinConfigure(1, 7, 14);
-			IOMuxManager_PinConfigure(1, 8, 14);
-			r = I2S_Send(hal_dev, g_buffer, 180 * 20, CH_BMP_STEREO,
-				     I2S_TX_FLAG_START_NOW);
+	IOMuxManager_PinConfigure(1, 7, 14);
+	IOMuxManager_PinConfigure(1, 8, 14);
+	r = I2S_Send(hal_dev, buf, l / 4, CH_BMP_STEREO, I2S_TX_FLAG_START_NOW);
+	k_usleep(l / 2);
+	GPIO_PinWrite(GPIOA(), 1 << 9, 0);
+	IOMuxManager_PinConfigure(1, 8, 0);
+	IOMuxManager_PinConfigure(1, 7, 0);
+	GPIO_SetDir(GPIOB(), 1 << 7, 1);
+	GPIO_PinWrite(GPIOB(), 1 << 7, 1);
+	GPIO_SetDir(GPIOB(), 1 << 8, 1);
+	GPIO_PinWrite(GPIOB(), 1 << 8, 0);
 
-			int k = arch_irq_lock();
-			k_busy_wait(180 * 20 * 4 / 2);
-			GPIO_PinWrite(GPIOA(), 1 << 9, 0);
-
-			IOMuxManager_PinConfigure(1, 8, 0);
-			IOMuxManager_PinConfigure(1, 7, 0);
-
-			GPIO_SetDir(GPIOB(), 1 << 7, 1);
-			GPIO_PinWrite(GPIOB(), 1 << 7, 1);
-
-			GPIO_SetDir(GPIOB(), 1 << 8, 1);
-			GPIO_PinWrite(GPIOB(), 1 << 8, 0);
-			arch_irq_unlock(k);
-		}
-	} else {
-		IOMuxManager_PinConfigure(1, 7, 14);
-		IOMuxManager_PinConfigure(1, 8, 14);
-		r = I2S_Send(hal_dev, g_buffer, l / 4, CH_BMP_STEREO, I2S_TX_FLAG_START_NOW);
-
-		// int k = arch_irq_lock();
-		// k_busy_wait(l / 2);
-		k_usleep(l / 2);
-		GPIO_PinWrite(GPIOA(), 1 << 9, 0);
-		IOMuxManager_PinConfigure(1, 8, 0);
-		IOMuxManager_PinConfigure(1, 7, 0);
-
-		GPIO_SetDir(GPIOB(), 1 << 7, 1);
-		GPIO_PinWrite(GPIOB(), 1 << 7, 1);
-
-		GPIO_SetDir(GPIOB(), 1 << 8, 1);
-		GPIO_PinWrite(GPIOB(), 1 << 8, 0);
-		// I2S_Abort_Channels(hal_dev, 0, CH_BMP_STEREO, 0);
-		// arch_irq_unlock(k);
-	}
 	if (r != 0) {
 		printk("I2S_Send return error,r:%d\n", r);
 		return r;
 	}
-	r = k_sem_take(&g_spi_fake_sem, K_MSEC(5000));
-	if (r != 0) {
-		printk("k_sem_take error,r:%d\n", r);
-		return r;
+
+	if (len % 8 != 0) {
+		k_free(buf);
 	}
 
 	return r;
