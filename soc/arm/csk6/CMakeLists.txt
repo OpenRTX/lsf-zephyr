@@ -26,4 +26,13 @@ if(NOT CONFIG_BOOTLOADER_MCUBOOT)
       ${KERNEL_BIN_NAME}
     )
   endif()
+
+  if(CONFIG_BUILD_OUTPUT_BIN AND CONFIG_BUILD_OUTPUT_UF2)
+    set_property(GLOBAL APPEND PROPERTY extra_post_build_commands COMMAND
+      ${PYTHON_EXECUTABLE}
+      ${SOC_DIR}/arm/csk6/patch_uf2.py
+      ${KERNEL_UF2_NAME}
+      ${KERNEL_BIN_NAME}
+    )
+  endif()
 endif()
