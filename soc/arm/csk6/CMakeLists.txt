@@ -14,7 +14,7 @@ if(NOT CONFIG_BOOTLOADER_MCUBOOT)
   if(CONFIG_BUILD_OUTPUT_BIN)
     set_property(GLOBAL APPEND PROPERTY extra_post_build_commands COMMAND
       ${PYTHON_EXECUTABLE}
-      ${SOC_DIR}/arm/csk6/add_header.py
+      ${SOC_DIR}/arm/csk6/patch_bin.py
       ${KERNEL_BIN_NAME}
     )
   endif()
