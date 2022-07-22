@@ -212,7 +212,6 @@ properties:
     required: false
     description: |
       Enable Volume feature.
-      Currently not supported.
   hp-feature-tone-control:
     type: boolean
     required: false
