@@ -11,6 +11,14 @@ zephyr_linker_sources(SECTIONS csk6_private.ld)
 zephyr_linker_sources(SECTIONS csk6_psram.ld)
 
 if(NOT CONFIG_BOOTLOADER_MCUBOOT)
+  if(CONFIG_BUILD_OUTPUT_HEX)
+    set_property(GLOBAL APPEND PROPERTY extra_post_build_commands COMMAND
+      ${PYTHON_EXECUTABLE}
+      ${SOC_DIR}/arm/csk6/patch_hex.py
+      ${KERNEL_HEX_NAME}
+    )
+  endif()
+
   if(CONFIG_BUILD_OUTPUT_BIN)
     set_property(GLOBAL APPEND PROPERTY extra_post_build_commands COMMAND
       ${PYTHON_EXECUTABLE}
