@@ -151,16 +151,29 @@ void  offline_recognize_thread(void *arg)
 		// lisa_translate_destroy(trans_handler);
 
 		atts_config_t tts_config = {
-			.role 		= ivTTS_ROLE_XIAOYAN,
+			.role 		= ivTTS_ROLE_CATHERINE,		/* default english role */
 			.language	= ivTTS_LANGUAGE_AUTO,
 			.speed		= ivTTS_SPEED_NORMAL,
 			.volume		= ivTTS_VOLUME_NORMAL,
 		};
 
-		if(trans_data[0] > 127){
+		int ch_cnt = 0;
+		int en_cnt = 0;
+		for(int i = 0; i < strlen(trans_data);){
+			if(trans_data[i] > 127){
+				ch_cnt++;
+				i += 3; /* UTF-8 encode size is 3 bytes for chinese */
+			}else{
+				en_cnt++;
+				i++;	/* UTF-8 encode size is 1 bytes for english */
+			}
+		}
+
+		LISA_LOGI(TAG, "[ch]: %d, [en]:%d", ch_cnt, en_cnt);
+
+		/* chinese role */
+		if(ch_cnt > 0){
 			tts_config.role = ivTTS_ROLE_XIAOYAN;
-		}else{
-			tts_config.role = ivTTS_ROLE_CATHERINE;
 		}
 
 		lisa_tts_play(tts_handler, trans_data, &tts_config);
