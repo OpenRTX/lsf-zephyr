@@ -9,3 +9,13 @@ zephyr_sources_ifdef(CONFIG_CPU_HAS_CUSTOM_FIXED_SOC_MPU_REGIONS mpu_regions.c)
 zephyr_sources_ifdef(CONFIG_CACHE_MANAGEMENT cache.c)
 zephyr_linker_sources(SECTIONS csk6_private.ld)
 zephyr_linker_sources(SECTIONS csk6_psram.ld)
+
+if(NOT CONFIG_BOOTLOADER_MCUBOOT)
+  if(CONFIG_BUILD_OUTPUT_BIN)
+    set_property(GLOBAL APPEND PROPERTY extra_post_build_commands COMMAND
+      ${PYTHON_EXECUTABLE}
+      ${SOC_DIR}/arm/csk6/add_header.py
+      ${KERNEL_BIN_NAME}
+    )
+  endif()
+endif()
