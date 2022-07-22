@@ -7,39 +7,34 @@
 import os
 import sys
 
-def get_vec_hdr_sum(target_bytes, start_pos):
-    vector_sum = 0
-    header_sum = 0
-    for byte_pos in range(len(target_bytes)):
-        if byte_pos < start_pos:
-            vector_sum += target_bytes[byte_pos]
-        else:
-            header_sum += target_bytes[byte_pos]
+IMAGE_START = 192
+IMAGE_SIZE_OFFSET = IMAGE_START + 4
+IMAGE_HDR_CHK_OFFSET = IMAGE_START + 60
 
-    vector_sum += header_sum + (header_sum & 0xff) + (header_sum >> 8)
+def get_vec_hdr_sum(header):
+    header_sum = 0
+    for pos in range(IMAGE_START, IMAGE_HDR_CHK_OFFSET):
+        header_sum += header[pos]
+
+    vector_sum = header_sum
+    for pos in range(IMAGE_HDR_CHK_OFFSET):
+        vector_sum += header[pos]
+    vector_sum += (header_sum) & 0xff
+    vector_sum += (header_sum >> 8) & 0xff
+
     return vector_sum, header_sum
 
 def verify_and_writeback_bin(filename):
-    image_start_pos = 192
-    img_str_to_hdr_chesum_offset = 60
-    img_str_to_vec_chesum_offset = 62
-    image_size_pos = image_start_pos + 4
-    image_header_checksum_pos = image_start_pos + img_str_to_hdr_chesum_offset
+    with open(filename, 'rb+') as bin_file:
+        image_size = os.path.getsize(filename)
+        bin_file.seek(IMAGE_SIZE_OFFSET, 0)
+        bin_file.write(image_size.to_bytes(4, 'little'))
 
-    bin_file = open(filename, 'rb+')
-    bin_file_size = os.path.getsize(filename)
-
-    bin_file.seek(image_size_pos, 0)
-    bin_file.write(bin_file_size.to_bytes(4, 'little'))  # write image size
-
-    bin_file.seek(0, 0)
-    target_bytes = bin_file.read(image_header_checksum_pos)
-    vector_sum, header_sum = get_vec_hdr_sum(
-        target_bytes, image_start_pos)
-    # write header checksum
-    bin_file.write(header_sum.to_bytes(2, 'little'))
-    bin_file.write(vector_sum.to_bytes(2, 'little'))
-    bin_file.close()
+        bin_file.seek(0, 0)
+        header = bin_file.read(IMAGE_HDR_CHK_OFFSET)
+        vector_sum, header_sum = get_vec_hdr_sum(header)
+        bin_file.write(header_sum.to_bytes(2, 'little'))
+        bin_file.write(vector_sum.to_bytes(2, 'little'))
 
 def main():
     verify_and_writeback_bin(sys.argv[1])
