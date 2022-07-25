@@ -1,0 +1,43 @@
+&ls_adsp_csk6_pinctrl {
+        pinctrl_uart2_tx_default: uart2_tx_default {
+                pinctrls = <&pinmuxb 0x4 0x3>;
+        };
+};
+
+&spi1 {
+        status = "disabled";
+};
+
+&spi_fake {
+        status = "okay";
+        display: ili9341@0 {
+                compatible = "ilitek,ili9341";
+                status = "okay";
+                label = "ILI9341";
+                reg = <0>;
+                
+                display-inversion;
+                rotation = <90>;
+                pixel-format = <1>;
+                reset-gpios = <&gpioa 8 1>;
+                cmd-data-gpios = <&gpioa 9 1>;
+                spi-max-frequency = <25000000>;
+                pwctrla = [ 39 2c 00 34 02  ];
+                pwctrlb = [ 00 c1 30  ];
+                timctrla = [ 85 00 78  ];
+                timctrlb = [ 00 00  ];
+                pwseqctrl = [ 64 03 12 81  ];
+                pwctrl1 = [ 1d  ];
+                pwctrl2 = [ 12  ];
+                vmctrl1 = [ 33 3f  ];
+                vmctrl2 = [ 92  ];
+                frmctr1 = [ 00 12  ];
+                disctrl = [ 08 82 27  ];
+                enable3g = [ 02  ];
+                gamset = [ 01  ];
+                pumpratioctrl = [ 10  ];
+                pgamctrl = [ 0f 22 1c 1b 08 0f 48 b8 34 05 0c 09 0f 07 00  ];
+                ngamctrl = [ 00 23 24 07 10 07 38 47 4b 0A 13 06 30 38 0f  ];
+                etmod = [ 06  ];
+        };
+};

@@ -376,7 +376,7 @@ void main(void)
 	buf_desc.buf_size = buf_size;
 	buf_desc.pitch = capabilities.x_resolution;
 	buf_desc.width = capabilities.x_resolution;
-	buf_desc.height = 320;
+	buf_desc.height = 1;
 	display_blanking_off(display_dev);
 
 	uint32_t i;
@@ -385,12 +385,14 @@ void main(void)
 	}
 	i = 0;
 	while (1) {
-		uint32_t tick = k_uptime_get_32();
+		// uint32_t tick = k_uptime_get_32();
 		fill_color(0xff << (8 * i), buf, buf_size);
-		display_write(display_dev, 0, 0, &buf_desc, buf);
+		for (int idx = 0; idx <= 320; idx++) {
+			display_write(display_dev, 0, idx, &buf_desc, buf);
+		}
 		i++;
 		i %= 3;
-		printk("FPS:%d\n", 1000 / (k_uptime_get_32() - tick));
+		// printk("FPS:%d\n", 1000 / (k_uptime_get_32() - tick));
 	}
 
 	RETURN_FROM_MAIN(0);
