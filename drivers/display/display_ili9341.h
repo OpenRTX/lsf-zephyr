@@ -48,7 +48,7 @@
 #define ILI9341_ETMOD_LEN 1U
 
 /** X resolution (pixels). */
-#define ILI9341_X_RES 240U
+#define ILI9341_X_RES 120U
 /** Y resolution (pixels). */
 #define ILI9341_Y_RES 320U
 

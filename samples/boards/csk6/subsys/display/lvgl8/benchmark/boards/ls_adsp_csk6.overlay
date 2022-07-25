@@ -17,7 +17,7 @@
                 reg = <0>;
                 
                 display-inversion;
-                rotation = <90>;
+                rotation = <0>;
                 pixel-format = <1>;
                 reset-gpios = <&gpioa 8 1>;
                 cmd-data-gpios = <&gpioa 9 1>;
