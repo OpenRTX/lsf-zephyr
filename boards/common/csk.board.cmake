@@ -2,3 +2,4 @@
 
 board_set_flasher_ifnset(csk)
 board_finalize_runner_args(csk)
+board_finalize_runner_args(csk "--dt-flash=y")
