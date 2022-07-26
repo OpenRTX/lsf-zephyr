@@ -24,7 +24,7 @@ class CskBinaryRunner(ZephyrBinaryRunner):
 
     @classmethod
     def capabilities(cls):
-        return RunnerCaps(commands={'flash'})
+        return RunnerCaps(commands={'flash'}, flash_addr=True)
 
     @classmethod
     def do_add_parser(cls, parser):
@@ -34,11 +34,18 @@ class CskBinaryRunner(ZephyrBinaryRunner):
                             help='serial baud rate')
         parser.add_argument('--chip', default='6',
                             help='family of chip')
+        parser.add_argument('--addr',
+                            help='override address to flash')
 
     @classmethod
     def do_create(cls, cfg, args):
         build_conf = BuildConfiguration(cfg.build_dir)
-        flash_addr = cls.get_flash_address(args, build_conf)
+        if args.addr:
+            flash_addr = int(args.addr, 0)
+        elif args.dt_flash and build_conf.getboolean('CONFIG_HAS_FLASH_LOAD_OFFSET'):
+            flash_addr = build_conf['CONFIG_FLASH_LOAD_OFFSET']
+        else:
+            flash_addr = 0
 
         return CskBinaryRunner(
             cfg, chip=args.chip, port=args.port,  baud=args.baud,
