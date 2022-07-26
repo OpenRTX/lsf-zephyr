@@ -1,5 +1,5 @@
 sample:
-  name: Blinky Sample
+  name: gpio_led Sample
 tests:
   sample.basic.blinky:
     tags: LED gpio

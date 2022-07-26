@@ -27,12 +27,14 @@ void main(void)
     dev = device_get_binding(LED0);
     if (dev == NULL)
     {
+        printk("LED0 device not found \n");
         return;
     }
 
     ret = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE);
     if (ret < 0)
     {
+        printk("gpio config error \n");
         return;
     }
 

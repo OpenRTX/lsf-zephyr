@@ -1,24 +1,24 @@
-.. _blinky-sample:
+.. _gpio_led-sample:
 
-Blinky
+GPIO_LED
 ######
 
 Overview
 ********
 
-Blinky is a simple application which blinks an LED forever using the :ref:`GPIO
+GPIO_LED is a simple application which blinks an LED forever using the :ref:`GPIO
 API <gpio_api>`. The source code shows how to configure GPIO pins as outputs,
 then turn them on and off.
 
 See :ref:`pwm-blinky-sample` for a sample which uses the PWM API to blink an
 LED.
 
-.. _blinky-sample-requirements:
+.. _gpio_led-sample-requirements:
 
 Requirements
 ************
 
-You will see this error if you try to build Blinky for an unsupported board:
+You will see this error if you try to build gpio_led for an unsupported board:
 
 .. code-block:: none
 
@@ -36,9 +36,9 @@ Building and Running
 Build and flash Blinky as follows, changing ``reel_board`` for your board:
 
 .. zephyr-app-commands::
-   :zephyr-app: samples/basic/blinky
+   :zephyr-app: samples/boards/csk6/gpio_led
    :board: reel_board
    :goals: build flash
    :compact:
 
-After flashing, the LED starts to blink. Blinky does not print to the console.
+After flashing, the LED starts to blink. gpio_led does not print to the console.
