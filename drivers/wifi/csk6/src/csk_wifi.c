@@ -301,7 +301,7 @@ static void wifi_virtual_netif_init(const struct device *dev)
     struct csk_wifi_data *data = dev->data;
     char mac_addr_strs[MAC_STRING_LEN] = {'\0'};
     wifi_mode_t esp_wifi_mode = wifi_get_drv_wifi_mode(config->mode);
-    if (esp_wifi_mode != WIFI_MODE_STA || esp_wifi_mode != WIFI_MODE_AP) {
+    if ((esp_wifi_mode != WIFI_MODE_STA) && (esp_wifi_mode != WIFI_MODE_AP)) {
         LOG_ERR("wifi mode err, %d", config->mode);
         return;
     }
