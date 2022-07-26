@@ -17,6 +17,12 @@ manifest:
       path: modules/hal/libmetal
       groups:
         - hal
+    - name: cmsis
+      url: https://cloud.listenai.com/zephyr-mirror/cmsis
+      revision: b0612c97c1401feeb4160add6462c3627fe90fc7
+      path: modules/hal/cmsis
+      groups:
+        - hal
     - name: sof
       submodules: true
       remote: listenai
@@ -69,6 +75,9 @@ manifest:
     import:
       file: west.yml
       name-blocklist:
-        - libmetal
         - sof
         - mcuboot
+        - nrf_hw_models
+        - loramac-node
+      path-blocklist:
+        - modules/hal/*
