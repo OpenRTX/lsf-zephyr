@@ -22,6 +22,7 @@
                 zephyr,sram = &sram0;
                 zephyr,itcm = &itcm0;
                 zephyr,flash = &flash0;
+                zephyr,code-partition = &code_partition;
                 zephyr,flash_controller = &flash;
                 zephyr,entropy = &trng;
                 /* other chosen settings  for your hardware */
@@ -151,16 +152,16 @@
                 compatible = "fixed-partitions";
                 #address-cells = <1>;
                 #size-cells = <1>;
-
-                /* wifi_nvs_storage: 20Kb */
-                wifi_nvs_storage: partition@6F0000 {
-                	label = "wifi_nvs_storage";
-                	reg = <0x6F0000 0x10000>;
+                code_partition: partition@0 {
+               		label = "code_partition";
+               		reg = <0x0 0x300000>;
+                };
+                storage_partition: partition@300000 {
+                	label = "storage";
+                	reg = <0x300000 0x400000>;
                	};
-
-               	/* storage: 6.625MB for storage */
-               	storage_partition: partition@700000 {
-               		label = "storage";
+               	wifi_nvs_storage: partition@700000 {
+               		label = "wifi_nvs_storage";
                		reg = <0x700000 0x100000>;
                 };
 
