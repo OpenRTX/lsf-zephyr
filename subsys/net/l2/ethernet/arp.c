@@ -303,8 +303,10 @@ static inline struct net_pkt *arp_prepare(struct net_if *iface,
 	memcpy(hdr->src_hwaddr.addr, net_pkt_lladdr_src(pkt)->addr,
 	       sizeof(struct net_eth_addr));
 
-	if (!entry || net_pkt_ipv4_auto(pkt)) {
+	if (net_pkt_ipv4_auto(pkt)) {
 		my_addr = current_ip;
+	} else if (!entry) {
+		my_addr = &NET_IPV4_HDR(pending)->src;
 	} else {
 		my_addr = if_get_addr(entry->iface, current_ip);
 	}
@@ -361,14 +363,22 @@ struct net_pkt *net_arp_prepare(struct net_pkt *pkt,
 		entry = arp_entry_find_pending(net_pkt_iface(pkt), addr);
 		if (!entry) {
 			/* No pending, let's try to get a new entry */
+			printk("----------------------------  No pending, let's try to get a new entry\n");
+			entry = arp_entry_get_free();
+			if (!entry) {
+				printk("----------------------------  Then let's take one from table?\n");
+				/* Then let's take one from table? */
+				entry = arp_entry_get_last_from_table();
+			}
+		} else {
+			printk("--------------------There is a pending already\n");
+			/* There is a pending already */
+			// entry = NULL;
 			entry = arp_entry_get_free();
 			if (!entry) {
 				/* Then let's take one from table? */
 				entry = arp_entry_get_last_from_table();
 			}
-		} else {
-			/* There is a pending already */
-			entry = NULL;
 		}
 
 		req = arp_prepare(net_pkt_iface(pkt), addr, entry, pkt,
@@ -430,6 +440,7 @@ static void arp_update(struct net_if *iface,
 	struct arp_entry *entry;
 	struct net_pkt *pkt;
 
+__loop:
 	NET_DBG("src %s", log_strdup(net_sprint_ipv4_addr(src)));
 
 	entry = arp_entry_get_pending(iface, src);
@@ -487,6 +498,7 @@ static void arp_update(struct net_if *iface,
 	sys_slist_prepend(&arp_table, &entry->node);
 
 	net_if_queue_tx(iface, pkt);
+	goto __loop;
 }
 
 static inline struct net_pkt *arp_prepare_reply(struct net_if *iface,
