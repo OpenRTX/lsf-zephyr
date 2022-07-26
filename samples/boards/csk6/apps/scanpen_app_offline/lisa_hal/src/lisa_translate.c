@@ -17,8 +17,9 @@ typedef enum {
 	/* not init*/
 	TRANSLATE_STATUS_NONE,
 	/* init status*/
-	TRANSLATE_STATUS_INIT
+	TRANSLATE_STATUS_INIT,
 	/* start status*/
+	TRANSLATE_STATUS_PLAYING,
 } translate_status_e;
 
 struct _lisa_translate_context_t {
@@ -124,21 +125,51 @@ int8_t lisa_translate_exec(lisa_translate_handler_t *handler, const char *text, 
 
 	lisa_translate_context_t *ctx = handler->ctx;
 	if (_translate_get_status(ctx) != TRANSLATE_STATUS_INIT) {
-		LISA_LOGE(TAG, "[%s %d]translate not init", __FUNCTION__, __LINE__);
+		LISA_LOGE(TAG, "[%s %d]translate not init, %d", __FUNCTION__, __LINE__, _translate_get_status(ctx));
 		return -1;
 	}
 
+	_translate_set_status(ctx, TRANSLATE_STATUS_PLAYING);
 	ret = translate_exec(ctx->translate, text, buffer, size, timoutms);
 	if (ret < 0) {
 		LISA_LOGE(TAG, "translate %s failed,iret %d.", text, ret);
 		return -1;
 	}
+	_translate_set_status(ctx, TRANSLATE_STATUS_INIT);
 
 	LISA_LOGD(TAG, "translate success\n");
 	LISA_LOGD(TAG, "[src]: %s\n", text);
 	LISA_LOGD(TAG, "[dest]: %s\n", buffer);
 
 	return 0;
+}
+
+int8_t lisa_translate_stop(lisa_translate_handler_t *handler)
+{
+	int ret = 0;
+
+	if (handler == NULL) {
+		LISA_LOGE(TAG, "[%s %d]lisa translate handler hasn't been created!\n", __FUNCTION__,
+				__LINE__);
+		return -1;
+	}
+	LISA_LOGD(TAG, "Stop translate\n");
+
+	lisa_translate_context_t *ctx = handler->ctx;
+	if (_translate_get_status(ctx) == TRANSLATE_STATUS_NONE || _translate_get_status(ctx) == TRANSLATE_STATUS_INIT) {
+		LISA_LOGE(TAG, "[%s %d]translate not init or already done\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+
+	ret = translate_stop(ctx->translate);
+	if (ret < 0) {
+		LISA_LOGE(TAG, "translate stop failed,iret %d.", ret);
+		return -1;
+	}
+
+	LISA_LOGD(TAG, "translate stop success\n");
+
+	return 0;	
 }
 
 /**
@@ -170,6 +201,7 @@ int8_t lisa_translate_destroy(lisa_translate_handler_t *handler)
 	lisa_mem_free(handler);
 
 	g_translate_handler = NULL;
+	_translate_set_status(ctx, TRANSLATE_STATUS_NONE);
 
 	return 0;
 }
