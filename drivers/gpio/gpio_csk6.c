@@ -48,10 +48,11 @@ static void csk_gpio_isr(const struct device *dev)
     uint32_t int_status;
 
     int_status = gpio_reg->REG_INTRSTATUS.all;
-    // clear gpio interrupt status
     gpio_reg->REG_INTRSTATUS.all = int_status;
 
-	gpio_fire_callbacks(&data->callbacks, dev, int_status);
+    int_status &= gpio_reg->REG_INTREN.all;
+
+    gpio_fire_callbacks(&data->callbacks, dev, int_status);
 }
 
 static int csk_gpio_a_pinmux_set(gpio_pin_t pin)
