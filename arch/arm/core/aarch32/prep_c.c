@@ -177,7 +177,7 @@ extern FUNC_NORETURN void z_cstart(void);
 void z_arm_prep_c(void)
 {
 	relocate_vector_table();
-#if defined(CONFIG_CPU_HAS_FPU)
+#if (defined(CONFIG_CPU_HAS_FPU) && (!defined(CONFIG_SOC_CSK6)))
 	z_arm_floating_point_init();
 #endif
 	z_bss_zero();
