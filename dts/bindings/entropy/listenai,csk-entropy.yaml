@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: CSK entropy node
+
+compatible: "listenai,csk-entropy"
+
+include: base.yaml
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true

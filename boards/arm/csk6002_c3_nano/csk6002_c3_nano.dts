@@ -23,6 +23,7 @@
                 zephyr,itcm = &itcm0;
                 zephyr,flash = &flash0;
                 zephyr,code-partition = &slot0_partition;
+                zephyr,entropy = &trng;
                 /* other chosen settings  for your hardware */
         };
 

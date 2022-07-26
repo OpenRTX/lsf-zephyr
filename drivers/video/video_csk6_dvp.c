@@ -81,16 +81,16 @@ static void dvp_framedata_proc(void)
 
 	vbuf = k_fifo_get(&data->fifo_in, K_NO_WAIT);
 	if(vbuf){
-		dvp_dev->Instance->Y_ADDR0  = (uint32_t)DVP_PSRAM_ADDR_WRAP(vbuf->buffer);
-		dvp_dev->Instance->Y_ADDR1 =  (uint32_t)DVP_PSRAM_ADDR_WRAP(vbuf->buffer + data->fmt.width * 8);
-		vbuf->bytesused = data->fmt.pitch * data->fmt.height;
-		set_current_vbuf(dev, vbuf);
-	}else{
-		LOG_ERR("not enough fifo_in \r\n");
 		DVP_Stop(dvp_dev);
+		csk6_dvp_start(dev, vbuf);
+		set_current_vbuf(dev, vbuf);
+		k_fifo_put(&data->fifo_out, temp_vbuf);
+	}else{
+		DVP_Stop(dvp_dev);
+		csk6_dvp_start(dev, temp_vbuf);
+		set_current_vbuf(dev, temp_vbuf);		
+		LOG_DBG("not enough fifo_in \r\n");
 	}
-
-	k_fifo_put(&data->fifo_out, temp_vbuf);
 
 }
 
@@ -103,8 +103,10 @@ static void dvp_callback(uint32_t event, uint32_t param)
 			break;
 		case CSK_DVP_STATUS_JLB0_FULL:
 		case CSK_DVP_STATUS_JLB1_FULL:
+			break;
 		case CSK_DVP_STATUS_FIFO_OVF:
 		case CSK_DVP_STATUS_AHB_ERR:
+			LOG_WRN("dvp err interrupt %d\r\n", event);
 			break;
 		default:
 			break;

@@ -287,6 +287,22 @@
 			status = "disabled";
 			label = "DVPI";			
 		};
+		
+		crypto: crypto@44300000{
+			compatible = "listenai,csk-crypto";
+			reg = <0x44300000 0x100000>;
+			interrupts = <3 0>;
+			status = "disabled";
+			label = "CRYPTO";
+		};
+
+		trng: trng@45c00000{
+			compatible = "listenai,csk-entropy";
+			reg = <0x45c00000 0x100000>;
+			interrupts = <20 0>;
+			status = "disabled";
+			label = "ENTROPY";			
+		};
 
 	};
 };

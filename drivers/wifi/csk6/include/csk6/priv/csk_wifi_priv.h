@@ -131,17 +131,10 @@ struct csk_wifi_data {
     struct net_if *netif;
     uint8_t mac_addr[6];
     union {
-#if CONFIG_ESP_HOSTED
-        esp_hosted_sta_config_t sta_config;
-        esp_hosted_softap_config_t ap_config;
-#else
         csk_wifi_sta_config_t sta_config;
         csk_wifi_softap_config_t ap_config;
-#endif
     };
-#ifdef CONFIG_ESP_HOSTED
-   hosted_event_callback_t hosted_event_cb;
-#else
+#ifdef CONFIG_CSK_WIFI_XR819S
     bool sta_is_connected;
     csk_wifi_result_t err;
 #endif
@@ -149,6 +142,7 @@ struct csk_wifi_data {
 
 typedef enum {
     CSK_WIFI_MODE_STA,
+    CSK_WIFI_MODE_AP,
     CSK_WIFI_MODE_MAX,
 } csk_wifi_mode_t;
 
@@ -165,6 +159,11 @@ typedef enum {
 } wifi_cmd_t;
 
 typedef struct {
+    wifi_cmd_t cmd;
+    bool async_mode;
+} wifi_req_t;
+
+typedef struct {
     int result;
     void *arg;
 } wifi_ret_msg_t;
@@ -174,18 +173,18 @@ typedef struct {
     int count;
 } wifi_scan_list_t;
 
-#if CONFIG_ESP_HOSTED
-const struct device * wifi_get_dev(wifi_mode_t mode);
-#endif
+extern const char *WIFI_STA_SM_STRINGS[];
+
+const struct device * wifi_obj_get_dev(csk_wifi_mode_t mode);
+#ifdef CONFIG_XR819S
+int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts, bool async_mode);
+#else 
 int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts);
+#endif
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout);
 
 void wifi_dispatch_callbacks(csk_wifi_event_t events, void *event_data, uint32_t event_data_len);
-#if CONFIG_ESP_HOSTED
-wifi_auth_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
-#else
-extern const char *WIFI_STA_SM_STRINGS[];
-const struct device * wifi_obj_get_dev(csk_wifi_mode_t mode);
+#ifdef CONFIG_CSK_WIFI_XR819S
 wifi_sta_state_machine_t wifi_obj_get_sm(void);
 csk_wifi_encryption_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
 const char *wlan_sm_str(wifi_sta_state_machine_t state);

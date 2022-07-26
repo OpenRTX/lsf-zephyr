@@ -1,14 +1,7 @@
 #include "csk6/priv/csk_wifi_priv.h"
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(csk6_wifi, CONFIG_WIFI_LOG_LEVEL);
-
-#define CSK_WIFI_CHECK(cond, ret_val) ({                                      \
-    if (!(cond)) {                                                            \
-        LOG_ERR("%s(%d): Check failed", __FUNCTION__, __LINE__);              \
-        return (ret_val);                                                     \
-    }                                                                         \
-})
+LOG_MODULE_REGISTER(csk_wifi, CONFIG_WIFI_LOG_LEVEL);
 
 K_MUTEX_DEFINE(wifi_api_mutex);
 
@@ -34,12 +27,36 @@ int csk_wifi_add_callback(csk_wifi_event_cb_t *wifi_event_cb)
 
 int csk_wifi_init()
 {
+    int ret = 0;
+
+    sys_slist_init(&wifi_callback_list);
+    wifi_ret_msg_t ret_msg;
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    ret = wifi_send_command(NULL, WIFI_CMD_INIT, K_NO_WAIT);
+    if (ret != 0)   goto __exit;
+    ret = wifi_take_result(&ret_msg, K_FOREVER);
+    if (ret != 0)   goto __exit;
+    ret = ret_msg.result;
+    k_mutex_unlock(&wifi_api_mutex);
     return 0;
+
+__exit:
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+int csk_wifi_deinit(void)
+{
+    return -ENOTSUP;
 }
 
 int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, k_timeout_t timeout)
 {
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
+    *result = CSK_WIFI_ERR_SCAN_FAILED;
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
 
     int ret = 0;
     wifi_ret_msg_t ret_msg;
@@ -72,16 +89,18 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
                    sta_config->encryption_mode < CSK_WIFI_AUTH_MAX,
                    -EINVAL);
 
+    *result = CSK_WIFI_ERR_STA_FAILED;
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
+
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    const struct device *dev = wifi_get_dev(WIFI_MODE_STA);
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
     struct csk_wifi_data *data = dev->data;
 
-    memcpy(data->sta_config.ssid, sta_config->ssid, sizeof(data->sta_config.ssid));
-    memcpy(data->sta_config.pwd, sta_config->pwd, sizeof(data->sta_config.pwd));
-    memcpy(data->sta_config.bssid, sta_config->bssid, sizeof(data->sta_config.bssid));
-    data->sta_config.encryption_mode = wifi_get_encryption_mode(sta_config->encryption_mode);
+    memcpy(&data->sta_config, sta_config, sizeof(csk_wifi_sta_config_t));
 
     ret = wifi_send_command(dev, WIFI_CMD_STA_CONNECT, K_NO_WAIT);
     if (ret != 0)   goto __exit;
@@ -92,11 +111,8 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
         ret = -EIO;
         goto __exit;
     }
-    memcpy(sta_config->ssid, data->sta_config.ssid, sizeof(sta_config->ssid));
-    memcpy(sta_config->bssid, data->sta_config.bssid, sizeof(sta_config->bssid));
-    sta_config->rssi = data->sta_config.rssi;
-    sta_config->channel = data->sta_config.channel;
-    sta_config->encryption_mode = wifi_get_encryption_mode(data->sta_config.encryption_mode);
+
+    memcpy(sta_config, &data->sta_config, sizeof(csk_wifi_sta_config_t));
     k_mutex_unlock(&wifi_api_mutex);
     return 0;
 
@@ -109,10 +125,15 @@ int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
 {
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
 
+    *result = CSK_WIFI_ERR_STA_FAILED;
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
+
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    const struct device *dev = wifi_get_dev(WIFI_MODE_STA);
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
     ret = wifi_send_command(dev, WIFI_CMD_STA_DISCONNECT, K_NO_WAIT);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);
@@ -147,16 +168,10 @@ int csk_wifi_ap_start(const csk_wifi_softap_config_t *ap_config, csk_wifi_result
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    const struct device *dev = wifi_get_dev(WIFI_MODE_AP);
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_AP);
     struct csk_wifi_data *data = dev->data;
 
-    memcpy(data->ap_config.ssid, ap_config->ssid, sizeof(data->ap_config.ssid));
-    memcpy(data->ap_config.pwd, ap_config->pwd, sizeof(data->ap_config.pwd));
-    data->ap_config.encryption_mode = wifi_get_encryption_mode(ap_config->encryption_mode);
-    data->ap_config.bandwidth = (ap_config->bandwidth == CSK_WIFI_BW_HT20) ? WIFI_BW_HT20 : WIFI_BW_HT40;
-    data->ap_config.channel = ap_config->channel;
-    data->ap_config.max_connections = ap_config->max_connections;
-    data->ap_config.ssid_hidden = ap_config->ssid_hidden;
+    memcpy(&data->ap_config, ap_config, sizeof(csk_wifi_softap_config_t));
 
     ret = wifi_send_command(dev, WIFI_CMD_AP_START, K_NO_WAIT);
     if (ret != 0)   goto __exit;
@@ -182,7 +197,7 @@ int csk_wifi_ap_stop(csk_wifi_result_t *result, k_timeout_t timeout)
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    const struct device *dev = wifi_get_dev(WIFI_MODE_AP);
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_AP);
     ret = wifi_send_command(dev, WIFI_CMD_AP_STOP, K_NO_WAIT);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);

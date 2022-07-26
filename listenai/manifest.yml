@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: 730538dcbb60915a0d12e5aa5a72d7ea10a80b24
+      revision: d5cc8162fd4a9aa952cf30f9d6e413a646c88830
       path: modules/hal/listenai
       groups:
         - hal
@@ -15,6 +15,12 @@ manifest:
       remote: listenai
       revision: 05bdf74c271cceba33385cb8b6793448b25ab4ec
       path: modules/hal/libmetal
+      groups:
+        - hal
+    - name: cmsis
+      url: https://cloud.listenai.com/zephyr-mirror/cmsis
+      revision: b0612c97c1401feeb4160add6462c3627fe90fc7
+      path: modules/hal/cmsis
       groups:
         - hal
     - name: sof
@@ -28,7 +34,7 @@ manifest:
       path: modules/lib/protobuf-c
     - name: esp-hosted
       remote: listenai
-      revision: 27e26f38ce1dc0f8f5433ff3581911a8b77275ab
+      revision: 5cf06497eec037164059e4b2deee80672ba5d4fc
       path: modules/lib/esp-hosted
     - name: mcuboot
       remote: listenai
@@ -52,21 +58,26 @@ manifest:
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
-      revision: db7d01b19b920253aee9de2833ded127f13bb541
+      revision: 4966ffab03ab3f9ffb0a39f74b75637cd14a1b42
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
-      revision: 580b394bdc0fc7cdb7dae864f2b311b47d3b4847
+      revision: e1ed7b55c1aff7445238ba2a0a623848b9aa6553
       path: modules/lib/xr819s
     - name: lvgl8
       remote: listenai
-      revision: 2386f165ce42fcfd0acad3ade300074f28c4d41b
+      revision: fb8eb390698622da858b8e203cbfa34325bb3806
       path: modules/lib/gui/lvgl8
+      groups:
+        - lvgl8
 
   self:
     import:
       file: west.yml
       name-blocklist:
-        - libmetal
         - sof
         - mcuboot
+        - nrf_hw_models
+        - loramac-node
+      path-blocklist:
+        - modules/hal/*

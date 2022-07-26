@@ -52,6 +52,8 @@ void main(void)
     if (video == NULL) {
         LOG_ERR("Video device %s not found, "
             "fallback to software generator.", VIDEO_DEV);
+
+		return;
     } 
 
 	printk("- Device name: %s\n", VIDEO_DEV);
@@ -117,8 +119,13 @@ void main(void)
 			return;
 		}
 
+		//必需有刷新操作，除非保证video_buffer_alloc()申请的内存是nocache_region
 		SCB_InvalidateDCache_by_Addr((void *)vbuf->buffer, vbuf->bytesused);
+		
+#if USE_SERIAL_PROTOCOL
 		memcpy(image_buf, vbuf->buffer, IMAGE_SIZE);
+		frame_send(image_buf, fmt.width, fmt.height, 0);
+#endif
 
 		LOG_INF("\rGot frame %u! size: %u; timestamp %u ms fps %d\n",
 		       frame++, vbuf->bytesused, vbuf->timestamp, calculate_fps(vbuf));
@@ -128,24 +135,6 @@ void main(void)
 			LOG_ERR("Unable to requeue video buf");
 			return;
 		}
-
-#if USE_SERIAL_PROTOCOL
-		//uart传输图像数据至上位机，由于速率过慢，所以这里关闭video
-		video_stream_stop(video);
-		frame_send(image_buf, fmt.width, fmt.height, 0);
-
-		while (!video_dequeue(video, VIDEO_EP_OUT, &vbuf, K_NO_WAIT)) {
-			err = video_enqueue(video, VIDEO_EP_OUT, vbuf);
-			if (err) {
-				break;
-			}
-		}
-		
-		if (video_stream_start(video)) {
-			LOG_ERR("Unable to start capture (interface)");
-			return;
-		}		
-#endif
 
 	}
 }

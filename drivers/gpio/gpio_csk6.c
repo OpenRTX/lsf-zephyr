@@ -48,17 +48,18 @@ static void csk_gpio_isr(const struct device *dev)
     uint32_t int_status;
 
     int_status = gpio_reg->REG_INTRSTATUS.all;
-    // clear gpio interrupt status
     gpio_reg->REG_INTRSTATUS.all = int_status;
 
-	gpio_fire_callbacks(&data->callbacks, dev, int_status);
+    int_status &= gpio_reg->REG_INTREN.all;
+
+    gpio_fire_callbacks(&data->callbacks, dev, int_status);
 }
 
 static int csk_gpio_a_pinmux_set(gpio_pin_t pin)
 {
     uint32_t pin_func = CSK_IOMUX_FUNC_DEFAULT;
 
-    if((pin <=2) || ((pin >= 10) && (pin <= 14)))
+    if((pin < 2) || ((pin >= 10) && (pin <= 14)))
     {
         pin_func = CSK_IOMUX_FUNC_ALTER1;
     }
@@ -83,7 +84,7 @@ static int csk_gpio_pinmux_set(const struct device *dev, gpio_pin_t pin)
     return 0;
 }
 
-static int csk_gpio_pull_set(const struct device *dev, gpio_pin_t pin, gpio_flags_t flags)
+static int csk_gpio_pull_set(const struct device *dev, uint8_t pin_num, uint8_t pin_mode)
 {
     const struct csk_gpio_config *config = dev->config;
     uint8_t pad;
@@ -95,13 +96,8 @@ static int csk_gpio_pull_set(const struct device *dev, gpio_pin_t pin, gpio_flag
     } else {
         return -EINVAL;
     }
-    
 
-    if(GPIO_PULL_UP == flags){
-        IOMuxManager_ModeConfigure(pad, pin, HAL_IOMUX_PULLUP_MODE);
-    }else if(GPIO_PULL_DOWN == flags){
-        IOMuxManager_ModeConfigure(pad, pin, HAL_IOMUX_PULLDOWN_MODE);
-    }
+    IOMuxManager_ModeConfigure(pad, pin_num, pin_mode);
 
     return 0;
 }
@@ -111,10 +107,16 @@ static int csk_gpio_configure(const struct device *dev, gpio_pin_t pin, gpio_fla
     const struct csk_gpio_config *config = dev->config;
     gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
 
-    /* Not support GPIO_INPUT|GPIO_OUTPUT mode. */
-    if (((flags & GPIO_INPUT) != 0) && ((flags & GPIO_OUTPUT) != 0)) {
-        return -ENOTSUP;
-    }
+	uint32_t io_flags;
+
+	/* Does not support disconnected pin, and
+	 * not supporting both input/output at same time.
+	 */
+	io_flags = flags & (GPIO_INPUT | GPIO_OUTPUT);
+	if ((io_flags == GPIO_DISCONNECTED)
+	    || (io_flags == (GPIO_INPUT | GPIO_OUTPUT))) {
+		return -ENOTSUP;
+	}
 
     csk_gpio_pinmux_set(dev, pin);
 
@@ -125,12 +127,13 @@ static int csk_gpio_configure(const struct device *dev, gpio_pin_t pin, gpio_fla
             GPIO_Control(driver_context, CSK_GPIO_DEBOUNCE_ENABLE, 1UL << pin);
         }
         GPIO_SetDir(driver_context, 1UL << pin, CSK_GPIO_DIR_INPUT);
+        csk_gpio_pull_set(dev, pin, HAL_IOMUX_NONE_MODE);
     }
 
     if (flags & GPIO_PULL_UP) {
-        csk_gpio_pull_set(dev, pin, GPIO_PULL_UP);
+        csk_gpio_pull_set(dev, pin, HAL_IOMUX_PULLUP_MODE);
     } else if (flags & GPIO_PULL_DOWN) {
-        csk_gpio_pull_set(dev, pin, GPIO_PULL_DOWN);
+        csk_gpio_pull_set(dev, pin, HAL_IOMUX_PULLDOWN_MODE);
     }
 
     if (flags & GPIO_OUTPUT_INIT_HIGH) {
@@ -194,14 +197,8 @@ static int csk_gpio_pin_interrupt_configure(const struct device *dev,
     uint32_t key;
     const struct csk_gpio_config *config = dev->config;
     gpio_driver_ctx_t driver_context = csk_gpio_get_driver_ctx(config->driver_num);
-    GPIO_RegDef *gpio_reg = ((GPIO_RESOURCES *)driver_context)->reg;
+    
     key = irq_lock();
-
-    if (gpio_reg->REG_CHANNELDIR.all & (1UL << pin)) {
-        //gpio interrupt could not works in output mode
-        irq_unlock(key);
-        return -ENOTSUP;
-    }
 
     uint32_t isr_conf_mask = CSK_GPIO_INTR_ENABLE;
     if (mode == GPIO_INT_MODE_EDGE) {
@@ -218,6 +215,8 @@ static int csk_gpio_pin_interrupt_configure(const struct device *dev,
         } else if (trig == GPIO_INT_TRIG_HIGH) {
             isr_conf_mask |= CSK_GPIO_SET_INTR_HIGH_LEVEL;
         }
+    }else if (mode == GPIO_INT_MODE_DISABLED) {
+        isr_conf_mask = CSK_GPIO_INTR_DISABLE;
     }
     GPIO_Control(driver_context, isr_conf_mask, 1UL << pin);
     irq_unlock(key);
