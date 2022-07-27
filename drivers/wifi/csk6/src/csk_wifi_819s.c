@@ -597,7 +597,7 @@ static int wifi_sta_get_connected_info(const struct device *dev)
         CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
         memcpy(data->sta_config.pwd, config.u.psk, CSK_WIFI_PWD_LEN);
     } else {
-        memcpy(data->sta_config.pwd, "\0", CSK_WIFI_PWD_LEN);
+        memset(data->sta_config.pwd, '\0', CSK_WIFI_PWD_LEN);
     }
 
     data->sta_config.pwd[CSK_WIFI_PWD_LEN - 1] = '\0';
