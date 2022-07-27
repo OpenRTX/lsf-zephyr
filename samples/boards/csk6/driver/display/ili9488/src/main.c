@@ -260,6 +260,7 @@ void main(void)
 	x = 0;
 	y = capabilities.y_resolution - rect_h;
 
+	LOG_INF("init success");
 	while (1) {
 		fill_buffer_fnc(BOTTOM_LEFT, grey_count, buf, buf_size);
 		display_write(display_dev, x, y, &buf_desc, buf);
