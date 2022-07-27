@@ -4,11 +4,11 @@ menu "Example Configuration"
 
     config TEST_VALID_WIFI_SSID
         string "Valid WiFi SSID"
-        default "Xiaomi_2.4G"
+        default "xiaowei-yyds"
 
     config TEST_VALID_WIFI_PASSWORD
         string "Valid WiFi Password"
-        default "a123456789"
+        default "xiaowei-yyds"
 
     config TEST_INVALID_WIFI_SSID
         string "Invalid WiFi SSID"
