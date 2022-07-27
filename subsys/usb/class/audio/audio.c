@@ -547,15 +547,12 @@ static int handle_fu_volume_req(struct usb_audio_dev_data *audio_dev_data,
 			      struct usb_audio_fu_evt *evt,
 			      uint8_t device)
 {
-	LOG_INF("handle_fu_volume_req, setup->wValue: %d ", setup->wValue);
-	LOG_INF("handle_fu_volume_req, setup->bRequest: 0x%02X ", setup->bRequest);
-	LOG_INF("handle_fu_volume_req, direction: %d ", setup->RequestType.direction);
 	uint8_t ch = (setup->wValue) & 0xFF;
 	uint8_t ch_cnt = audio_dev_data->ch_cnt[device];
-	LOG_INF("ch: %d, ch_cnt: %d, device: %d, POS(VOLUME, ch, ch_cnt): %d", ch, ch_cnt, device, POS(VOLUME, ch, ch_cnt));
 	uint8_t *controls = audio_dev_data->controls[device];
 	uint8_t *control_val = &controls[POS(VOLUME, ch, ch_cnt)];
-	uint16_t temp_val = 0;
+	uint16_t temp_vol = 0;
+	uint16_t temp_res = 0;
 
 	if (usb_reqtype_is_to_device(setup)) {
 		/* Check if *len has valid value */
@@ -576,21 +573,21 @@ static int handle_fu_volume_req(struct usb_audio_dev_data *audio_dev_data,
 			memcpy(*data, control_val, *len);
 			return 0;
 		} else if (setup->bRequest == USB_AUDIO_GET_MIN) {
-			*len = LEN(ch_cnt, VOLUME);
-			temp_val = CONFIG_USB_DEVICE_AUDIO_MIN_VOLUME;
-			memcpy(*data, &temp_val, *len);
+			*len = sizeof(temp_vol);
+			temp_vol = CONFIG_USB_DEVICE_AUDIO_MIN_VOLUME;
+			memcpy(*data, &temp_vol, *len);
 			return 0;
 		} else if (setup->bRequest == USB_AUDIO_GET_MAX) {
-			*len = LEN(ch_cnt, VOLUME);
-			temp_val = CONFIG_USB_DEVICE_AUDIO_MAX_VOLUME;
-			memcpy(*data, &temp_val, *len);
+			*len = sizeof(temp_vol);
+			temp_vol = CONFIG_USB_DEVICE_AUDIO_MAX_VOLUME;
+			memcpy(*data, &temp_vol, *len);
 			return 0;
 		} else if (setup->bRequest == USB_AUDIO_GET_RES) {
-			*len = LEN(ch_cnt, VOLUME);
-			temp_val = CONFIG_USB_DEVICE_AUDIO_RES_VOLUME;
-			memcpy(*data, &temp_val, *len);
+			*len = sizeof(temp_res);
+			temp_res = CONFIG_USB_DEVICE_AUDIO_RES_VOLUME;
+			memcpy(*data, &temp_res, *len);
 			return 0;
-		} 
+		}
 	}
 
 	return -EINVAL;
