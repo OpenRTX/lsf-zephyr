@@ -21,6 +21,11 @@ choice
 		bool "XR819S"
 		select XR819S
 		select GPIO
+		select NVS
+		select FLASH
+		select FLASH_PAGE_LAYOUT
+		select FLASH_MAP
+		select MPU_ALLOW_FLASH_WRITE
 endchoice
 
 config CSK_WIFI_STATION
