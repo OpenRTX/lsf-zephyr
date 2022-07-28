@@ -188,8 +188,6 @@ ENTRY(CONFIG_KERNEL_ENTRY)
 PROVIDE(_memmap_reset_vector = RESET_VECTOR);
 PROVIDE(_memmap_vecbase_reset = XCHAL_VECBASE_RESET_PADDR_IRAM);
 
-_heap_sentry = 0x64000000;
-
 /* Various memory-map dependent cache attribute settings: */
 _memmap_cacheattr_wb_base = 0x00004200;
 _memmap_cacheattr_wt_base = 0x00001200;
@@ -704,9 +702,9 @@ SECTIONS
     msg_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     mutex.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     init.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    /* timer.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
     device.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    stack.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    /* stack.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
     fatal.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     mem_slab.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     condvar.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
@@ -714,8 +712,8 @@ SECTIONS
     kheap.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     sem.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     banner.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
-    system_work_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
+    /* idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+    /* system_work_q.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
     errno.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     main_weak.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
 #endif
@@ -1042,6 +1040,7 @@ SECTIONS
   PROVIDE(end = ALIGN (8));
 
   __stack = SDRAM1_BASE + SDRAM1_SIZE;
+  _heap_sentry = __stack - 1024;
   .comment  0 :  { *(.comment) }
   .debug  0 :  { *(.debug) }
   .line  0 :  { *(.line) }
