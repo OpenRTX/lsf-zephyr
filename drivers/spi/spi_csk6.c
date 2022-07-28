@@ -167,7 +167,9 @@ static int transceive(const struct device *dev,
 	if (ret) {
 		goto out;
 	}
-	spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, 1);
+	uint8_t dw = SPI_WORD_SIZE_GET(spi_cfg->operation) / 8;
+	printk("Spi data width:%dbyte.\n", dw);
+	spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, dw);
     spi_context_cs_control(&data->ctx, true);
 	csk_spi_hal_transceive(dev);
 	ret = spi_context_wait_for_completion(&data->ctx);
@@ -207,16 +209,18 @@ static void csk_spi_isr_callback(uint32_t event, uint32_t usr_param)
 {
 	const struct device *dev = (const struct device *)usr_param;
 	struct csk_spi_data *data = dev->data;
+	const struct spi_config *config = data->ctx.config;
 
+	uint8_t dw = SPI_WORD_SIZE_GET(config->operation) / 8;
 	if (event & CSK_SPI_EVENT_TRANSFER_COMPLETE) {
-		spi_context_update_tx(&data->ctx, 1, data->current_transfer_len);
-		spi_context_update_rx(&data->ctx, 1, data->current_transfer_len);
+		spi_context_update_tx(&data->ctx, dw, data->current_transfer_len);
+		spi_context_update_rx(&data->ctx, dw, data->current_transfer_len);
 		csk_spi_hal_transceive(dev);
 	}
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
     else if (event & CSK_SPI_EVENT_DMA_COMPLETE){
-		spi_context_update_tx(&data->ctx, 1, data->current_transfer_len);
-		spi_context_update_rx(&data->ctx, 1, data->current_transfer_len);
+		spi_context_update_tx(&data->ctx, dw, data->current_transfer_len);
+		spi_context_update_rx(&data->ctx, dw, data->current_transfer_len);
 		csk_spi_hal_transceive(dev);		
 	}
 #endif /* end of CONFIG_SOC_LS_ADSP_CSK6 */
