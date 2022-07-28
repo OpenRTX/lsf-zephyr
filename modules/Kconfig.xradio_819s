@@ -64,6 +64,11 @@ config XR_GPIO_WORKQ_STACK
 	int "GPIO Workq Stack Size"
 	default 2048
 
+config XR_SDD_FILE
+	string "Path to XR819S SDD File"
+	help
+	  XR819s SDD file
+
 endmenu  #Threads Configuration
 
 endif # XR819S
