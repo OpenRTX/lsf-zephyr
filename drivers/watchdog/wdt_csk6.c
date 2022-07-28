@@ -85,7 +85,7 @@ static int wdt_csk6_install_timeout(const struct device *dev, const struct wdt_t
 {
 	wdt_csk6_data_t *data = WDT_CSK_DATA(dev);
 	uint32_t aon_wdt_val = 0;
-	uint32_t aon_wdt_max_val = HAL_AON_WDT_LOAD_VALUE_MASK;
+	uint32_t aon_wdt_max_val = 0xFFFFFF;
 
 	if (cfg == NULL) {
 		return -1;
