@@ -1,8 +1,0 @@
-if BOARD_CSK6012_9S_SCANPEN
-
-config BOARD
-   default "csk6012_9s_scanpen"
-
-
-
-endif # BOARD_CSK6012_9S_SCANPEN
