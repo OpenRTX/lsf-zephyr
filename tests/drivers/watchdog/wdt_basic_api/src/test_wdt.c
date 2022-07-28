@@ -154,12 +154,23 @@ volatile DATATYPE m_testcase_index __attribute__((section(NOINIT_SECTION)));
  */
 volatile DATATYPE m_testvalue __attribute__((section(NOINIT_SECTION)));
 
+
+static void clear_dcache(void)
+{
+	SCB_CleanDCache_by_Addr(&m_state, sizeof(m_state));
+	SCB_CleanDCache_by_Addr(&m_testcase_index, sizeof(m_testcase_index));
+	SCB_CleanDCache_by_Addr(&m_testvalue, sizeof(m_testvalue));
+}
+
+
 #if TEST_WDT_CALLBACK_1
 static void wdt_int_cb0(const struct device *wdt_dev, int channel_id)
 {
 	ARG_UNUSED(wdt_dev);
 	ARG_UNUSED(channel_id);
 	m_testvalue += WDT_TEST_CB0_TEST_VALUE;
+
+	clear_dcache();
 }
 #endif
 
@@ -169,6 +180,8 @@ static void wdt_int_cb1(const struct device *wdt_dev, int channel_id)
 	ARG_UNUSED(wdt_dev);
 	ARG_UNUSED(channel_id);
 	m_testvalue += WDT_TEST_CB1_TEST_VALUE;
+
+	clear_dcache();
 }
 #endif
 
@@ -207,6 +220,8 @@ static int test_wdt_no_callback(void)
 	TC_PRINT("Waiting to restart MCU\n");
 	m_testvalue = 0U;
 	m_state = WDT_TEST_STATE_CHECK_RESET;
+	
+	clear_dcache();
 	while (1) {
 		k_yield();
 	}
@@ -261,6 +276,8 @@ static int test_wdt_callback_1(void)
 	TC_PRINT("Waiting to restart MCU\n");
 	m_testvalue = 0U;
 	m_state = WDT_TEST_STATE_CHECK_RESET;
+
+	clear_dcache();
 	while (1) {
 		k_yield();
 	}
