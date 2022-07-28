@@ -359,6 +359,10 @@ int wifi_sm_connected_handler(const struct device *dev, wlan_event_t current_eve
         LOG_INF("STA_SM[%s]: async disconnected", wifi_sta_sm_str);
         wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
         wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
+    } else if (current_event == WLAN_EVENT_CONNECTED ||
+                current_event == WLAN_EVENT_REKEY_COMPLETE) {
+        LOG_INF("STA_SM[%s]: async connected, rekey event trigger, {%s}",
+                    wifi_sta_sm_str, wlan_event_str);
     } else {
         LOG_ERR("STA_SM[%s]: err event [%s]", wifi_sta_sm_str, wlan_event_str);
     }
@@ -400,6 +404,34 @@ int wifi_sm_on_scan_handler(const struct device *dev, wlan_event_t current_event
         wifi_obj_set_sm(WIFI_SM_STA_SCAN_DONE);
         wlan_event_give(&current_event);
     }
+    return 0;
+}
+
+int wifi_sm_scandone_handler(const struct device *dev, wlan_event_t current_event)
+{
+    wifi_sta_state_machine_t primary_state = wifi_obj_get_sm();
+
+    if (primary_state != WIFI_SM_STA_SCAN_DONE) {
+        return -ENXIO;
+    }
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+
+    if (current_event == WLAN_EVENT_CONNECTED ||
+        current_event == WLAN_EVENT_REKEY_COMPLETE) {
+        LOG_INF("STA_SM[%s]: Rekey event trigger, {%s}", wifi_sta_sm_str, wlan_event_str);
+        if (current_event == WLAN_EVENT_CONNECTED) {
+            wifi_obj_set_sm(WIFI_SM_STA_CONNECTED);
+        }
+    } else if (current_event == WLAN_EVENT_DISCONNECTED) {
+        LOG_INF("STA_SM[%s]: async disconnected", wifi_sta_sm_str);
+        wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
+        wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
+    } else {
+        LOG_ERR("STA_SM[%s]: err event [%s]", wifi_sta_sm_str, wlan_event_str);
+    }
+
     return 0;
 }
 
@@ -486,6 +518,9 @@ void wifi_sta_sm_handler(wlan_event_t current_event)
     ret = wifi_sm_connected_handler(dev, current_event);
     if (ret == 0) return;
     ret = wifi_sm_disconnected_handler(dev, current_event);
+    if (ret == 0) return;
+
+    ret = wifi_sm_scandone_handler(dev, current_event);
     if (ret == 0) return;
 
     const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
