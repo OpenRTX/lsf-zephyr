@@ -7,6 +7,7 @@
 #include "hal/Driver_AON_WDT.h"
 #include "hal/aon_timer.h"
 
+#include "kernel.h"
 #include <drivers/watchdog.h>
 
 #define WDT_CLK 32768
@@ -37,10 +38,16 @@ static void wdt_csk6_signal_event(void *p)
 			data->cb(dev, 0);
 		}
 	}
+	// /* Make sure the operation in upper callback all finish, Don't delete it */
+	// for (int i = 0; i < 10000; i++) {
+	// 	__NOP();
+	// }
 }
 
 static void wdt_csk6_irq_handler(void *param)
 {
+	printk("%s, %d\n", __FUNCTION__, __LINE__);
+
 	extern void AON_TIMER_WDT_SHARE_Handler(void);
 
 	AON_TIMER_WDT_SHARE_Handler();
@@ -77,12 +84,20 @@ static int wdt_csk6_disable(const struct device *dev)
 static int wdt_csk6_install_timeout(const struct device *dev, const struct wdt_timeout_cfg *cfg)
 {
 	wdt_csk6_data_t *data = WDT_CSK_DATA(dev);
+	uint32_t aon_wdt_val = 0;
+	uint32_t aon_wdt_max_val = HAL_AON_WDT_LOAD_VALUE_MASK;
 
 	if (cfg == NULL) {
 		return -1;
 	}
 
-	AON_WDT_Control(data->wdt, HAL_AON_WDT_TIME_CFG, cfg->window.max / 1000 * WDT_CLK);
+	aon_wdt_val = cfg->window.max / 1000 * WDT_CLK;
+
+	if ((aon_wdt_val == 0U) || (aon_wdt_val > aon_wdt_max_val)) {
+		return -EINVAL;
+	}
+
+	AON_WDT_Control(data->wdt, HAL_AON_WDT_TIME_CFG, aon_wdt_val);
 	AON_WDT_Control(data->wdt, HAL_AON_WDT_INTERRUPT_EN, 1);
 	AON_WDT_Control(data->wdt, HAL_AON_WDT_RESET_PMU_CTRL, reset_pmu_ctrl);
 
