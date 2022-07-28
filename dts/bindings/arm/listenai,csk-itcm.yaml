@@ -3,6 +3,7 @@
 description: CSKITCM (Instruction Tightly Coupled Memory)
 
 compatible: "listenai,csk-itcm"
+compatible: "listenai,csk-dtcm"
 
 include: base.yaml
 

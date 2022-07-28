@@ -57,6 +57,7 @@
  * @}
  */
 
+#include "kernel.h"
 #include <drivers/watchdog.h>
 #include <zephyr.h>
 #include <ztest.h>
@@ -133,11 +134,11 @@ static struct wdt_timeout_cfg m_cfg_wdt1;
 #define DATATYPE uint32_t
 #endif
 
-#if DT_NODE_HAS_STATUS(DT_CHOSEN(zephyr_dtcm), okay)
+// #if DT_NODE_HAS_STATUS(DT_CHOSEN(zephyr_dtcm), okay)
+// #define NOINIT_SECTION ".dtcm_noinit.test_wdt"
+// #else
 #define NOINIT_SECTION ".dtcm_noinit.test_wdt"
-#else
-#define NOINIT_SECTION ".noinit.test_wdt"
-#endif
+// #endif
 
 /* m_state indicates state of particular test. Used to check whether testcase
  * should go to reset state or check other values after reset.
@@ -177,6 +178,8 @@ static int test_wdt_no_callback(void)
 	int err;
 	const struct device *wdt = device_get_binding(WDT_DEV_NAME);
 
+	TC_PRINT("########## test_wdt_no_callback ##########\n");
+	TC_PRINT("line: %d, m_state: %d\n", __LINE__, m_state);
 	if (!wdt) {
 		TC_PRINT("Cannot get WDT device\n");
 		return TC_FAIL;
@@ -194,10 +197,10 @@ static int test_wdt_no_callback(void)
 	m_cfg_wdt0.callback = NULL;
 	m_cfg_wdt0.flags = WDT_FLAG_RESET_SOC;
 	m_cfg_wdt0.window.max = WDT_TEST_MAX_WINDOW;
-	err = wdt_install_timeout(wdt, &m_cfg_wdt0);
-	if (err < 0) {
-		TC_PRINT("Watchdog install error\n");
-	}
+	// err = wdt_install_timeout(wdt, &m_cfg_wdt0);
+	// if (err < 0) {
+	// 	TC_PRINT("Watchdog install error\n");
+	// }
 
 	err = wdt_setup(wdt, WDT_OPT_PAUSE_HALTED_BY_DBG);
 	if (err < 0) {
@@ -207,6 +210,10 @@ static int test_wdt_no_callback(void)
 	TC_PRINT("Waiting to restart MCU\n");
 	m_testvalue = 0U;
 	m_state = WDT_TEST_STATE_CHECK_RESET;
+	TC_PRINT("line: %d, m_state: %d\n", __LINE__, m_state);
+	k_sleep(K_MSEC(100));
+	
+	NVIC_SystemReset();
 	while (1) {
 		k_yield();
 	}
