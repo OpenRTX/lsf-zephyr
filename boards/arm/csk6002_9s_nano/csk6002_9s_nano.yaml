@@ -9,6 +9,7 @@ toolchain:
 supported:
   - gpio
   - uart
+  - watchdog
   - ipm
   - wifi
   - csk_wifi
