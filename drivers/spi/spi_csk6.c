@@ -112,19 +112,21 @@ static int csk_spi_configure(const struct device *dev, const struct spi_config *
 	spi_dma_en_mask |= CSK_SPI_RXIO_DMA;
 #endif
 
-	SPI_Control(data->driver_context, spi_op_mode | spi_sample_mode | spi_word_size_mask |
+	int r = SPI_Control(data->driver_context, spi_op_mode | spi_sample_mode | spi_word_size_mask |
                 spi_bits_order | spi_dma_en_mask, spi_cfg->frequency);
 
 	data->ctx.config = spi_cfg;
     spi_context_cs_configure(&data->ctx);
-    return 0;
+
+    return r;
 }
 
-static void csk_spi_hal_transceive(const struct device *dev)
+static int32_t csk_spi_hal_transceive(const struct device *dev)
 {
 	struct csk_spi_data *data = dev->data;
 	struct spi_context *ctx = &data->ctx;
 	size_t chunk_len = spi_context_max_continuous_chunk(ctx);
+	int32_t r;
 
 	if (chunk_len == 0) {
         spi_context_cs_control(&data->ctx, false);
@@ -142,15 +144,26 @@ static void csk_spi_hal_transceive(const struct device *dev)
     uint32_t key = irq_lock();
     data->current_transfer_len = real_trans_size;
 	if (ctx->tx_buf != NULL && ctx->rx_buf != NULL) {
-		SPI_Transfer(data->driver_context, ctx->tx_buf, ctx->rx_buf, real_trans_size);
+		r = SPI_Transfer(data->driver_context, ctx->tx_buf, ctx->rx_buf, real_trans_size);
+		if (r != 0) {
+			LOG_ERR("SPI_Transfer failed. r:%d", r);
+		}
 	} else if (ctx->tx_buf != NULL) {
-		SPI_Send(data->driver_context, ctx->tx_buf, real_trans_size);
+		r = SPI_Send(data->driver_context, ctx->tx_buf, real_trans_size);
+		if (r != 0) {
+			LOG_ERR("SPI_Send failed. r:%d", r);
+		}
 	} else if (ctx->rx_buf != NULL) {
-		SPI_Receive(data->driver_context, ctx->rx_buf, real_trans_size);
+		r = SPI_Receive(data->driver_context, ctx->rx_buf, real_trans_size);
+		if (r != 0) {
+			LOG_ERR("SPI_Receive failed. r:%d", r);
+		}
 	} else {
         /* should not go into here */
 	}
 	irq_unlock(key);
+
+	return r;
 }
 
 static int transceive(const struct device *dev,

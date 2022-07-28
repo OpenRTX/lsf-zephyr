@@ -249,6 +249,10 @@ void spi_context_buffers_setup(struct spi_context *ctx,
 		ctx->tx_count = tx_bufs->count;
 		ctx->tx_buf = (const uint8_t *)ctx->current_tx->buf;
 		ctx->tx_len = ctx->current_tx->len / dfs;
+		if (ctx->current_tx->len % dfs != 0) {
+			LOG_ERR("tx buffer len(%d) is not match data width(%d byte).",
+				ctx->current_tx->len, dfs);
+		}
 	} else {
 		ctx->current_tx = NULL;
 		ctx->tx_count = 0;
@@ -261,6 +265,10 @@ void spi_context_buffers_setup(struct spi_context *ctx,
 		ctx->rx_count = rx_bufs->count;
 		ctx->rx_buf = (uint8_t *)ctx->current_rx->buf;
 		ctx->rx_len = ctx->current_rx->len / dfs;
+		if (ctx->current_rx->len % dfs != 0) {
+			LOG_ERR("rx buffer len(%d) is not match data width(%d byte).",
+				ctx->current_rx->len, dfs);
+		}
 	} else {
 		ctx->current_rx = NULL;
 		ctx->rx_count = 0;
@@ -300,6 +308,10 @@ void spi_context_update_tx(struct spi_context *ctx, uint8_t dfs, uint32_t len)
 			ctx->current_tx++;
 			ctx->tx_buf = (const uint8_t *)ctx->current_tx->buf;
 			ctx->tx_len = ctx->current_tx->len / dfs;
+			if (ctx->current_tx->len % dfs != 0) {
+				LOG_ERR("tx buffer len(%d) is not match data width(%d byte).",
+					ctx->current_tx->len, dfs);
+			}
 		} else {
 			ctx->tx_buf = NULL;
 		}
@@ -348,6 +360,10 @@ void spi_context_update_rx(struct spi_context *ctx, uint8_t dfs, uint32_t len)
 			ctx->current_rx++;
 			ctx->rx_buf = (uint8_t *)ctx->current_rx->buf;
 			ctx->rx_len = ctx->current_rx->len / dfs;
+			if (ctx->current_rx->len % dfs != 0) {
+				LOG_ERR("rx buffer len(%d) is not match data width(%d byte).",
+					ctx->current_rx->len, dfs);
+			}
 		} else {
 			ctx->rx_buf = NULL;
 		}
