@@ -8,6 +8,7 @@ toolchain:
   - xtools
 supported:
   - gpio
+  - watchdog
   - uart
   - ipm
   - dma
