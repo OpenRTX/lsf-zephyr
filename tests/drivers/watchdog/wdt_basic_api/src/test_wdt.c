@@ -135,6 +135,8 @@ static struct wdt_timeout_cfg m_cfg_wdt1;
 
 #if DT_NODE_HAS_STATUS(DT_CHOSEN(zephyr_dtcm), okay)
 #define NOINIT_SECTION ".dtcm_noinit.test_wdt"
+#elif defined (CONFIG_SOC_CSK6)
+#define NOINIT_SECTION ".nocache.test_wdt"
 #else
 #define NOINIT_SECTION ".noinit.test_wdt"
 #endif
