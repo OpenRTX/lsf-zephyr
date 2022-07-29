@@ -14,6 +14,7 @@
                 pwm-led0 = &green_pwm_led;
                 i2c-0 = &i2c0;
                 i2c-1 = &i2c1;
+                watchdog0 = &wdt;
         };
 
         chosen {
