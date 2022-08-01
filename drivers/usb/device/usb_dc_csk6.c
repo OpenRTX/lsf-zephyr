@@ -860,6 +860,16 @@ int usb_dc_ep_disable(const uint8_t ep)
 {
 	uint8_t ep_idx = USB_EP_GET_IDX(ep);
 
+	if (USB_EP_DIR_IS_OUT(ep)) {
+        if (usb_venus_ctrl.out_ep_ctrl[ep_idx].ep_ena == 0) {
+            return 0;
+        }
+	} else {
+        if (usb_venus_ctrl.in_ep_ctrl[ep_idx].ep_ena == 0) {
+            return 0;
+        } 
+	}
+
 	if (!usb_venus_ctrl.attached || !usb_venus_ep_is_valid(ep)) {
 		LOG_ERR("Not attached / Invalid endpoint: EP 0x%x", ep);
 		return -EINVAL;
@@ -1376,8 +1386,8 @@ static inline void usb_venus_int_oep_handler(uint32_t intsr)
 			ep_int_status = CSK_USBC->RXCSRL;
 			usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len = CSK_USBC->RXCOUNT;
 
-			LOG_DBG("USB OUT EP%u interrupt status: 0x%x data_length: 0x%x", ep_idx,
-				ep_int_status, usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len);
+            LOG_DBG("USB OUT EP%u interrupt status: 0x%x data_length: %d, time: %d", ep_idx,
+                ep_int_status, usb_venus_ctrl.out_ep_ctrl[ep_idx].data_len, k_uptime_get_32());
 
 			if (usb_venus_ctrl.out_ep_ctrl[ep_idx].dma_info.enable) {
 				ep_cb = usb_venus_dma_oep_remainpkt_handler;

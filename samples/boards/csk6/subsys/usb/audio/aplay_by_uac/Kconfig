@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+
+DT_CHOSEN_Z_IPC_SHM := zephyr,ipc_shm
+
+#SOF IPC MEMORY CONFIG
+config SOF_IPC_SHM_BASE_ADDRESS
+	default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_IPC_SHM))"
+
+config SOF_IPC_SHM_SIZE
+	default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_IPC_SHM))"
+	help
+	  This option specifies size of the memory region to be used
+	  for the SOF IPC shared memory
+
+source "Kconfig.zephyr"

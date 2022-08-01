@@ -102,14 +102,14 @@ static struct usb_ep_cfg_data dev##_usb_audio_ep_data_##i[] = {		      \
  * @param [in] i	Instance of device of current type (dev)
  * @param [in] id	Param for counting logic entities
  */
-#define DEFINE_AUDIO_DESCRIPTOR_BIDIR(dev, i, id)			  \
+#define DEFINE_AUDIO_DESCRIPTOR_BIDIR(dev, i, id, in_type, out_type)			  \
 USBD_CLASS_DESCR_DEFINE(primary, audio)					  \
 struct dev##_descriptor_##i dev##_desc_##i = {				  \
 	USB_AUDIO_IAD(3)						  \
 	.std_ac_interface = INIT_STD_IF(USB_AUDIO_AUDIOCONTROL, 0, 0, 0), \
 	.cs_ac_interface = INIT_CS_AC_IF_BIDIR(dev, i, 2),		  \
 	.input_terminal_0 = INIT_IN_TERMINAL(dev##_MIC, i, id,		  \
-						USB_AUDIO_IO_HEADSET),	  \
+						in_type),	  \
 	.feature_unit_0 = INIT_FEATURE_UNIT(dev##_MIC, i, id+1, id),	  \
 	.output_terminal_0 = INIT_OUT_TERMINAL(id+2, id+1,		  \
 					USB_AUDIO_USB_STREAMING),	  \
@@ -117,7 +117,7 @@ struct dev##_descriptor_##i dev##_desc_##i = {				  \
 					USB_AUDIO_USB_STREAMING),	  \
 	.feature_unit_1 = INIT_FEATURE_UNIT(dev##_HP, i, id+4, id+3),	  \
 	.output_terminal_1 = INIT_OUT_TERMINAL(id+5, id+4,		  \
-						USB_AUDIO_IO_HEADSET),	  \
+						out_type),	  \
 	.as_interface_alt_0_0 = INIT_STD_IF(USB_AUDIO_AUDIOSTREAMING,	  \
 						1, 0, 0),		  \
 	.as_interface_alt_0_1 = INIT_STD_IF(USB_AUDIO_AUDIOSTREAMING,	  \
@@ -164,14 +164,6 @@ static struct usb_ep_cfg_data dev##_usb_audio_ep_data_##i[] = {		  \
 			     (CH_CNT(dev##_HP, i) + 1)}			   \
 		}
 
-/**
- * Helper function for getting channel number directly from the
- * feature unit descriptor.
- */
-static uint8_t get_num_of_channels(const struct feature_unit_descriptor *fu)
-{
-	return (fu->bLength - FU_FIXED_ELEMS_SIZE)/sizeof(uint16_t);
-}
 
 /**
  * Helper function for getting supported controls directly from
@@ -217,23 +209,13 @@ static void fix_fu_descriptors(struct usb_if_descriptor *iface)
 						header->bLength +
 						INPUT_TERMINAL_DESC_SIZE);
 
-	/* start from 1 as elem 0 is filled when descriptor is declared */
-	for (int i = 1; i < get_num_of_channels(fu); i++) {
-		(void)memcpy(&fu->bmaControls[i],
-			     &fu->bmaControls[0],
-			     sizeof(uint16_t));
-	}
 
 	if (header->bInCollection == 2) {
 		fu = (struct feature_unit_descriptor *)((uint8_t *)fu +
 			fu->bLength +
 			INPUT_TERMINAL_DESC_SIZE +
 			OUTPUT_TERMINAL_DESC_SIZE);
-		for (int i = 1; i < get_num_of_channels(fu); i++) {
-			(void)memcpy(&fu->bmaControls[i],
-				     &fu->bmaControls[0],
-				     sizeof(uint16_t));
-		}
+
 	}
 }
 
@@ -544,6 +526,74 @@ static int handle_fu_mute_req(struct usb_audio_dev_data *audio_dev_data,
 }
 
 /**
+ * @brief Handler for feature unit volume control requests.
+ *
+ * This function handles feature unit volume control request.
+ *
+ * @param audio_dev_data USB audio device data.
+ * @param setup          Information about the executed request.
+ * @param len		 Size of the buffer.
+ * @param data		 Buffer containing the request result.
+ * @param evt		 Feature Unit Event info.
+ * @param device	 Device part that has been addressed. Applicable for
+ *			 bidirectional device.
+ *
+ * @return 0 if successful, negative errno otherwise.
+ */
+
+static int handle_fu_volume_req(struct usb_audio_dev_data *audio_dev_data,
+			      struct usb_setup_packet *setup,
+			      int32_t *len, uint8_t **data,
+			      struct usb_audio_fu_evt *evt,
+			      uint8_t device)
+{
+	uint8_t ch = (setup->wValue) & 0xFF;
+	uint8_t ch_cnt = audio_dev_data->ch_cnt[device];
+	uint8_t *controls = audio_dev_data->controls[device];
+	uint8_t *control_val = &controls[POS(VOLUME, ch, ch_cnt)];
+	uint16_t temp_vol = 0;
+	uint16_t temp_res = 0;
+
+	if (usb_reqtype_is_to_device(setup)) {
+		/* Check if *len has valid value */
+		if (*len != LEN(1, VOLUME)) {
+			LOG_ERR("*len: %d, LEN(1, VOLUME): %d", *len, LEN(1, VOLUME));
+			return -EINVAL;
+		}
+
+		if (setup->bRequest == USB_AUDIO_SET_CUR) {
+			evt->val = control_val;
+			evt->val_len = *len;
+			memcpy(control_val, *data, *len);
+			return 0;
+		}
+	} else {
+		if (setup->bRequest == USB_AUDIO_GET_CUR) {
+			*len = LEN(ch_cnt, VOLUME);
+			memcpy(*data, control_val, *len);
+			return 0;
+		} else if (setup->bRequest == USB_AUDIO_GET_MIN) {
+			*len = sizeof(temp_vol);
+			temp_vol = CONFIG_USB_DEVICE_AUDIO_MIN_VOLUME;
+			memcpy(*data, &temp_vol, *len);
+			return 0;
+		} else if (setup->bRequest == USB_AUDIO_GET_MAX) {
+			*len = sizeof(temp_vol);
+			temp_vol = CONFIG_USB_DEVICE_AUDIO_MAX_VOLUME;
+			memcpy(*data, &temp_vol, *len);
+			return 0;
+		} else if (setup->bRequest == USB_AUDIO_GET_RES) {
+			*len = sizeof(temp_res);
+			temp_res = CONFIG_USB_DEVICE_AUDIO_RES_VOLUME;
+			memcpy(*data, &temp_res, *len);
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+/**
  * @brief Handler for feature unit requests.
  *
  * This function handles feature unit specific requests.
@@ -590,6 +640,10 @@ static int handle_feature_unit_req(struct usb_audio_dev_data *audio_dev_data,
 	switch (cs) {
 	case USB_AUDIO_FU_MUTE_CONTROL:
 		ret = handle_fu_mute_req(audio_dev_data, pSetup,
+					 len, data, &evt, device);
+		break;
+	case USB_AUDIO_FU_VOLUME_CONTROL:
+		ret = handle_fu_volume_req(audio_dev_data, pSetup,
 					 len, data, &evt, device);
 		break;
 	default:
@@ -939,6 +993,13 @@ void usb_audio_register(const struct device *dev,
 			    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,		  \
 			    DUMMY_API)
 
+#define HEADSET_MIC_DEVICE_IN_TYPE(i) \
+	DT_PROP(DT_INST(i, COMPAT_HS), mic_##device_type)
+
+#define HEADSET_HP_DEVICE_OUT_TYPE(i) \
+	DT_PROP(DT_INST(i, COMPAT_HS), hp_##device_type)
+
+
 #define DEFINE_BUF_POOL(name, size) \
 	NET_BUF_POOL_FIXED_DEFINE(name, 5, size, net_buf_destroy)
 
@@ -966,7 +1027,7 @@ void usb_audio_register(const struct device *dev,
 	DEFINE_AUDIO_DEV_DATA_BIDIR(dev, i, &audio_data_pool_hs_##i, \
 				    EP_SIZE(dev##_MIC, i)); \
 	DECLARE_DESCRIPTOR_BIDIR(dev, i, 2); \
-	DEFINE_AUDIO_DESCRIPTOR_BIDIR(dev, i, dev##_ID(i)); \
+	DEFINE_AUDIO_DESCRIPTOR_BIDIR(dev, i, dev##_ID(i), HEADSET_MIC_DEVICE_IN_TYPE(i), HEADSET_HP_DEVICE_OUT_TYPE(i)); \
 	DEFINE_AUDIO_DEVICE(dev, i);)
 
 UTIL_LISTIFY(HEADPHONES_DEVICE_COUNT, HEADPHONES_DEVICE, HP)
