@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
+#include <zephyr/zephyr.h>
 
 #include <nrfx_gpiote.h>
 #include <helpers/nrfx_gppi.h>
@@ -14,7 +14,7 @@
 #include <nrfx_ppi.h>
 #endif
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(nrfx_sample, LOG_LEVEL_INF);
 
 #define INPUT_PIN	DT_GPIO_PIN(DT_ALIAS(sw0), gpios)
@@ -100,10 +100,8 @@ void main(void)
 	 * the button is pressed, the LED pin will be toggled.
 	 */
 	nrfx_gppi_channel_endpoints_setup(channel,
-		nrf_gpiote_event_address_get(NRF_GPIOTE,
-			nrfx_gpiote_in_event_get(INPUT_PIN)),
-		nrf_gpiote_task_address_get(NRF_GPIOTE,
-			nrfx_gpiote_in_event_get(OUTPUT_PIN)));
+		nrfx_gpiote_in_event_addr_get(INPUT_PIN),
+		nrfx_gpiote_out_task_addr_get(OUTPUT_PIN));
 
 	/* Enable (D)PPI channel. */
 #if defined(DPPI_PRESENT)

@@ -9,16 +9,16 @@
  * @brief System/hardware module for STM32H7 CM7 processor
  */
 
-#include <kernel.h>
-#include <device.h>
-#include <init.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/init.h>
 #include <soc.h>
 #include <stm32_ll_bus.h>
 #include <stm32_ll_pwr.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_system.h>
-#include <arch/cpu.h>
-#include <arch/arm/aarch32/cortex_m/cmsis.h>
+#include <zephyr/arch/cpu.h>
+#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
 #include "stm32_hsem.h"
 
 #if defined(CONFIG_STM32H7_DUAL_CORE)
@@ -62,12 +62,12 @@ static int stm32h7_init(const struct device *arg)
 
 	SCB_EnableICache();
 
-#ifndef CONFIG_NOCACHE_MEMORY
-	if (!(SCB->CCR & SCB_CCR_DC_Msk)) {
-		SCB_EnableDCache();
+	if (IS_ENABLED(CONFIG_DCACHE)) {
+		if (!(SCB->CCR & SCB_CCR_DC_Msk)) {
+			SCB_EnableDCache();
+		}
 	}
 
-#endif /* CONFIG_NOCACHE_MEMORY */
 	/* Install default handler that simply resets the CPU
 	 * if configured in the kernel, NOP otherwise
 	 */
@@ -80,13 +80,47 @@ static int stm32h7_init(const struct device *arg)
 	SystemCoreClock = 64000000;
 
 	/* Power Configuration */
-#ifdef SMPS
+#if !defined(SMPS) && \
+		(defined(CONFIG_POWER_SUPPLY_DIRECT_SMPS) || \
+		defined(CONFIG_POWER_SUPPLY_SMPS_1V8_SUPPLIES_LDO) || \
+		defined(CONFIG_POWER_SUPPLY_SMPS_2V5_SUPPLIES_LDO) || \
+		defined(CONFIG_POWER_SUPPLY_SMPS_1V8_SUPPLIES_EXT_AND_LDO) || \
+		defined(CONFIG_POWER_SUPPLY_SMPS_2V5_SUPPLIES_EXT_AND_LDO) || \
+		defined(CONFIG_POWER_SUPPLY_SMPS_1V8_SUPPLIES_EXT) || \
+		defined(CONFIG_POWER_SUPPLY_SMPS_2V5_SUPPLIES_EXT))
+#error Unsupported configuration: Selected SoC do not support SMPS
+#endif
+#if defined(CONFIG_POWER_SUPPLY_DIRECT_SMPS)
 	LL_PWR_ConfigSupply(LL_PWR_DIRECT_SMPS_SUPPLY);
+#elif defined(CONFIG_POWER_SUPPLY_SMPS_1V8_SUPPLIES_LDO)
+	LL_PWR_ConfigSupply(LL_PWR_SMPS_1V8_SUPPLIES_LDO);
+#elif defined(CONFIG_POWER_SUPPLY_SMPS_2V5_SUPPLIES_LDO)
+	LL_PWR_ConfigSupply(LL_PWR_SMPS_2V5_SUPPLIES_LDO);
+#elif defined(CONFIG_POWER_SUPPLY_SMPS_1V8_SUPPLIES_EXT_AND_LDO)
+	LL_PWR_ConfigSupply(LL_PWR_SMPS_1V8_SUPPLIES_EXT_AND_LDO);
+#elif defined(CONFIG_POWER_SUPPLY_SMPS_2V5_SUPPLIES_EXT_AND_LDO)
+	LL_PWR_ConfigSupply(LL_PWR_SMPS_2V5_SUPPLIES_EXT_AND_LDO);
+#elif defined(CONFIG_POWER_SUPPLY_SMPS_1V8_SUPPLIES_EXT)
+	LL_PWR_ConfigSupply(LL_PWR_SMPS_1V8_SUPPLIES_EXT);
+#elif defined(CONFIG_POWER_SUPPLY_SMPS_2V5_SUPPLIES_EXT)
+	LL_PWR_ConfigSupply(LL_PWR_SMPS_2V5_SUPPLIES_EXT);
+#elif defined(CONFIG_POWER_SUPPLY_EXTERNAL_SOURCE)
+	LL_PWR_ConfigSupply(LL_PWR_EXTERNAL_SOURCE_SUPPLY);
 #else
 	LL_PWR_ConfigSupply(LL_PWR_LDO_SUPPLY);
 #endif
 	LL_PWR_SetRegulVoltageScaling(LL_PWR_REGU_VOLTAGE_SCALE1);
 	while (LL_PWR_IsActiveFlag_VOS() == 0) {
+	}
+
+	/* Errata ES0392 Rev 8:
+	 * 2.2.9: Reading from AXI SRAM may lead to data read corruption
+	 * Workaround: Set the READ_ISS_OVERRIDE bit in the AXI_TARG7_FN_MOD
+	 * register.
+	 * Applicable only to RevY (REV_ID 0x1003)
+	 */
+	if (LL_DBGMCU_GetRevisionID() == 0x1003) {
+		MODIFY_REG(GPV->AXI_TARG7_FN_MOD, 0x1, 0x1);
 	}
 
 	return 0;

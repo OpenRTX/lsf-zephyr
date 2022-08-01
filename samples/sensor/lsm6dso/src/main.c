@@ -5,9 +5,9 @@
  */
 
 #include <stdio.h>
-#include <zephyr.h>
-#include <device.h>
-#include <drivers/sensor.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
 
 #define LSM6DSO DT_INST(0, st_lsm6dso)
 
@@ -79,7 +79,7 @@ static int set_sampling_freq(const struct device *dev)
 
 #ifdef CONFIG_LSM6DSO_TRIGGER
 static void trigger_handler(const struct device *dev,
-			    struct sensor_trigger *trig)
+			    const struct sensor_trigger *trig)
 {
 	fetch_and_display(dev);
 }

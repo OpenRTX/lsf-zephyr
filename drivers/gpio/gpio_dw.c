@@ -8,28 +8,30 @@
 
 #include <errno.h>
 
-#include <kernel.h>
-#include <drivers/gpio.h>
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/dt-bindings/gpio/snps-designware-gpio.h>
 #include "gpio_dw.h"
 #include "gpio_utils.h"
 
+#include <zephyr/pm/device.h>
 #include <soc.h>
-#include <sys/sys_io.h>
-#include <init.h>
-#include <sys/util.h>
-#include <sys/__assert.h>
-#include <drivers/clock_control.h>
+#include <zephyr/sys/sys_io.h>
+#include <zephyr/init.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/sys/__assert.h>
+#include <zephyr/drivers/clock_control.h>
 
 #ifdef CONFIG_SHARED_IRQ
-#include <shared_irq.h>
+#include <zephyr/shared_irq.h>
 #endif
 
 #ifdef CONFIG_IOAPIC
-#include <drivers/interrupt_controller/ioapic.h>
+#include <zephyr/drivers/interrupt_controller/ioapic.h>
 #endif
 
 #ifdef CONFIG_PM_DEVICE
-#include <pm/device.h>
+#include <zephyr/pm/device.h>
 #endif
 
 static int gpio_dw_port_set_bits_raw(const struct device *port, uint32_t mask);
@@ -300,7 +302,7 @@ static inline void dw_pin_config(const struct device *port,
 	 * interrupts according to datasheet.
 	 */
 	if (dw_interrupt_support(config) && (dir_port == SWPORTA_DDR)) {
-		need_debounce = (flags & GPIO_INT_DEBOUNCE);
+		need_debounce = (flags & DW_GPIO_DEBOUNCE);
 		dw_set_bit(base_addr, PORTA_DEBOUNCE, pin, need_debounce);
 	}
 }
@@ -429,8 +431,8 @@ static inline int gpio_dw_manage_callback(const struct device *port,
 * Implements the driver control management functionality
 * the *context may include IN data or/and OUT data
 */
-static int gpio_dw_device_ctrl(const struct device *dev,
-			       enum pm_device_action action)
+static int gpio_dw_device_pm_action(const struct device *dev,
+				    enum pm_device_action action)
 {
 	switch (action) {
 	case PM_DEVICE_ACTION_SUSPEND:
@@ -509,7 +511,7 @@ static int gpio_dw_initialize(const struct device *port)
 	return 0;
 }
 
-/* Bindings to the plaform */
+/* Bindings to the platform */
 #ifdef CONFIG_GPIO_DW_0
 static void gpio_config_0_irq(const struct device *port);
 
@@ -534,9 +536,11 @@ static struct gpio_dw_runtime gpio_0_runtime = {
 	.base_addr = DT_INST_REG_ADDR(0),
 };
 
+PM_DEVICE_DT_INST_DEFINE(0, gpio_dw_device_pm_action);
+
 DEVICE_DT_INST_DEFINE(0,
-	      gpio_dw_initialize, gpio_dw_device_ctrl, &gpio_0_runtime,
-	      &gpio_config_0, POST_KERNEL, CONFIG_GPIO_DW_INIT_PRIORITY,
+	      gpio_dw_initialize, PM_DEVICE_DT_INST_GET(0), &gpio_0_runtime,
+	      &gpio_config_0, PRE_KERNEL_1, CONFIG_GPIO_INIT_PRIORITY,
 	      &api_funcs);
 
 #if DT_INST_IRQ_HAS_CELL(0, flags)
@@ -596,9 +600,11 @@ static struct gpio_dw_runtime gpio_1_runtime = {
 	.base_addr = DT_INST_REG_ADDR(1),
 };
 
+PM_DEVICE_DT_INST_DEFINE(1, gpio_dw_device_pm_action);
+
 DEVICE_DT_INST_DEFINE(1,
-	      gpio_dw_initialize, gpio_dw_device_ctrl, &gpio_1_runtime,
-	      &gpio_dw_config_1, POST_KERNEL, CONFIG_GPIO_DW_INIT_PRIORITY,
+	      gpio_dw_initialize, PM_DEVICE_DT_INST_GET(1), &gpio_1_runtime,
+	      &gpio_dw_config_1, PRE_KERNEL_1, CONFIG_GPIO_INIT_PRIORITY,
 	      &api_funcs);
 
 #if DT_INST_IRQ_HAS_CELL(1, flags)
@@ -657,9 +663,11 @@ static struct gpio_dw_runtime gpio_2_runtime = {
 	.base_addr = DT_INST_REG_ADDR(2),
 };
 
+PM_DEVICE_DT_INST_DEFINE(2, gpio_dw_device_pm_action);
+
 DEVICE_DT_INST_DEFINE(2,
-	      gpio_dw_initialize, gpio_dw_device_ctrl, &gpio_2_runtime,
-	      &gpio_dw_config_2, POST_KERNEL, CONFIG_GPIO_DW_INIT_PRIORITY,
+	      gpio_dw_initialize, PM_DEVICE_DT_INST_GET(2), &gpio_2_runtime,
+	      &gpio_dw_config_2, PRE_KERNEL_1, CONFIG_GPIO_INIT_PRIORITY,
 	      &api_funcs);
 
 #if DT_INST_IRQ_HAS_CELL(2, flags)
@@ -718,9 +726,11 @@ static struct gpio_dw_runtime gpio_3_runtime = {
 	.base_addr = DT_INST_REG_ADDR(3),
 };
 
+PM_DEVICE_DT_INST_DEFINE(3, gpio_dw_device_pm_action);
+
 DEVICE_DT_INST_DEFINE(3,
-	      gpio_dw_initialize, gpio_dw_device_ctrl, &gpio_3_runtime,
-	      &gpio_dw_config_3, POST_KERNEL, CONFIG_GPIO_DW_INIT_PRIORITY,
+	      gpio_dw_initialize, PM_DEVICE_DT_INST_GET(3), &gpio_3_runtime,
+	      &gpio_dw_config_3, PRE_KERNEL_1, CONFIG_GPIO_INIT_PRIORITY,
 	      &api_funcs);
 
 #if DT_INST_IRQ_HAS_CELL(3, flags)

@@ -57,13 +57,13 @@ import math
 import os
 import struct
 import json
-from distutils.version import LooseVersion
+from packaging import version
 
 import elftools
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 
-if LooseVersion(elftools.__version__) < LooseVersion('0.24'):
+if version.parse(elftools.__version__) < version.parse('0.24'):
     sys.exit("pyelftools is out of date, need version 0.24 or later")
 
 from collections import OrderedDict
@@ -107,7 +107,11 @@ kobjects = OrderedDict([
     ("sys_mutex", (None, True, False)),
     ("k_futex", (None, True, False)),
     ("k_condvar", (None, False, True)),
-    ("k_event", ("CONFIG_EVENTS", False, True))
+    ("k_event", ("CONFIG_EVENTS", False, True)),
+    ("ztest_suite_node", ("CONFIG_ZTEST", True, False)),
+    ("ztest_suite_stats", ("CONFIG_ZTEST", True, False)),
+    ("ztest_unit_test", ("CONFIG_ZTEST_NEW_API", True, False)),
+    ("ztest_test_rule", ("CONFIG_ZTEST_NEW_API", True, False))
 ])
 
 def kobject_to_enum(kobj):
@@ -119,7 +123,7 @@ def kobject_to_enum(kobj):
     return "K_OBJ_%s" % name.upper()
 
 subsystems = [
-    # Editing the list is deprecated, add the __subsystem sentinal to your driver
+    # Editing the list is deprecated, add the __subsystem sentinel to your driver
     # api declaration instead. e.x.
     #
     # __subsystem struct my_driver_api {
@@ -453,7 +457,7 @@ def analyze_die_array(die):
             continue
 
     if not elements:
-        if type_offset in type_env.keys():
+        if type_offset in type_env:
             mt = type_env[type_offset]
             if mt.has_kobject():
                 if isinstance(mt, KobjectType) and mt.name == STACK_TYPE:
@@ -466,7 +470,7 @@ def analyze_die_array(die):
 def analyze_typedef(die):
     type_offset = die_get_type_offset(die)
 
-    if type_offset not in type_env.keys():
+    if type_offset not in type_env:
         return
 
     type_env[die.offset] = type_env[type_offset]
@@ -589,8 +593,7 @@ def find_kobjects(elf, syms):
             continue
 
         loc = die.attributes["DW_AT_location"]
-        if loc.form != "DW_FORM_exprloc" and \
-           loc.form != "DW_FORM_block1":
+        if loc.form not in ("DW_FORM_exprloc", "DW_FORM_block1"):
             debug_die(die, "kernel object '%s' unexpected location format" %
                       name)
             continue
@@ -716,9 +719,9 @@ header = """%compare-lengths
 %global-table
 %struct-type
 %{
-#include <kernel.h>
-#include <toolchain.h>
-#include <syscall_handler.h>
+#include <zephyr/kernel.h>
+#include <zephyr/toolchain.h>
+#include <zephyr/syscall_handler.h>
 #include <string.h>
 %}
 struct z_object;
@@ -869,6 +872,7 @@ def write_gperf_table(fp, syms, objs, little_endian, static_begin, static_end):
 
     # Generate the array of already mapped thread indexes
     fp.write('\n')
+    fp.write('Z_GENERIC_DOT_SECTION(data)\n')
     fp.write('uint8_t _thread_idx_map[%d] = {' % (thread_max_bytes))
 
     for i in range(0, thread_max_bytes):

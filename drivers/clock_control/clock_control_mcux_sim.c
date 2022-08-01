@@ -7,12 +7,12 @@
 #define DT_DRV_COMPAT nxp_kinetis_sim
 #include <errno.h>
 #include <soc.h>
-#include <drivers/clock_control.h>
-#include <dt-bindings/clock/kinetis_sim.h>
+#include <zephyr/drivers/clock_control.h>
+#include <zephyr/dt-bindings/clock/kinetis_sim.h>
 #include <fsl_clock.h>
 
 #define LOG_LEVEL CONFIG_CLOCK_CONTROL_LOG_LEVEL
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(clock_control);
 
 static int mcux_sim_on(const struct device *dev,
@@ -103,5 +103,5 @@ DEVICE_DT_DEFINE(NXP_KINETIS_SIM_NODE,
 		    &mcux_sim_init,
 		    NULL,
 		    NULL, NULL,
-		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+		    PRE_KERNEL_1, CONFIG_CLOCK_CONTROL_INIT_PRIORITY,
 		    &mcux_sim_driver_api);

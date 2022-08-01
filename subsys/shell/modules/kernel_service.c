@@ -5,15 +5,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <sys/printk.h>
-#include <shell/shell.h>
-#include <init.h>
-#include <sys/reboot.h>
-#include <debug/stack.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/shell/shell.h>
+#include <zephyr/init.h>
+#include <zephyr/sys/reboot.h>
+#include <zephyr/debug/stack.h>
 #include <string.h>
-#include <device.h>
-#include <drivers/timer/system_timer.h>
-#include <kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/timer/system_timer.h>
+#include <zephyr/kernel.h>
+#include <kernel_internal.h>
 
 static int cmd_kernel_version(const struct shell *shell,
 			      size_t argc, char **argv)
@@ -61,6 +62,7 @@ static void shell_tdata_dump(const struct k_thread *cthread, void *user_data)
 	size_t size = thread->stack_info.size;
 	const char *tname;
 	int ret;
+	char state_str[32];
 
 #ifdef CONFIG_THREAD_RUNTIME_STATS
 	k_thread_runtime_stats_t rt_stats_thread;
@@ -73,12 +75,14 @@ static void shell_tdata_dump(const struct k_thread *cthread, void *user_data)
 		      (thread == k_current_get()) ? "*" : " ",
 		      thread,
 		      tname ? tname : "NA");
-	shell_print(shell, "\toptions: 0x%x, priority: %d timeout: %d",
+	/* Cannot use lld as it's less portable. */
+	shell_print(shell, "\toptions: 0x%x, priority: %d timeout: %" PRId64,
 		      thread->base.user_options,
 		      thread->base.prio,
-		      thread->base.timeout.dticks);
-	shell_print(shell, "\tstate: %s, entry: %p", k_thread_state_str(thread),
-		    thread->entry);
+		      (int64_t)thread->base.timeout.dticks);
+	shell_print(shell, "\tstate: %s, entry: %p",
+		    k_thread_state_str(thread, state_str, sizeof(state_str)),
+		    thread->entry.pEntry);
 
 #ifdef CONFIG_THREAD_RUNTIME_STATS
 	ret = 0;
@@ -102,17 +106,24 @@ static void shell_tdata_dump(const struct k_thread *cthread, void *user_data)
 		 * so it won't increase RAM/ROM usage too much on 32-bit
 		 * targets.
 		 */
-#ifdef CONFIG_64BIT
-		shell_print(shell, "\tTotal execution cycles: %llu (%u %%)",
-			    rt_stats_thread.execution_cycles,
-			    pcnt);
-#else
-		shell_print(shell, "\tTotal execution cycles: %lu (%u %%)",
+		shell_print(shell, "\tTotal execution cycles: %u (%u %%)",
 			    (uint32_t)rt_stats_thread.execution_cycles,
 			    pcnt);
+#ifdef CONFIG_SCHED_THREAD_USAGE_ANALYSIS
+		shell_print(shell, "\tCurrent execution cycles: %u",
+			    (uint32_t)rt_stats_thread.current_cycles);
+		shell_print(shell, "\tPeak execution cycles: %u",
+			    (uint32_t)rt_stats_thread.peak_cycles);
+		shell_print(shell, "\tAverage execution cycles: %u",
+			    (uint32_t)rt_stats_thread.average_cycles);
 #endif
 	} else {
 		shell_print(shell, "\tTotal execution cycles: ? (? %%)");
+#ifdef CONFIG_SCHED_THREAD_USAGE_ANALYSIS
+		shell_print(shell, "\tCurrent execution cycles: ?");
+		shell_print(shell, "\tPeak execution cycles: ?");
+		shell_print(shell, "\tAverage execution cycles: ?");
+#endif
 	}
 #endif
 
@@ -167,7 +178,7 @@ static void shell_stack_dump(const struct k_thread *thread, void *user_data)
 	pcnt = ((size - unused) * 100U) / size;
 
 	shell_print((const struct shell *)user_data,
-		"%p %-10s (real size %u):\tunused %u\tusage %u / %u (%u %%)",
+		"%p %-10s (real size %zu):\tunused %zu\tusage %zu / %zu (%u %%)",
 		      thread,
 		      tname ? tname : "NA",
 		      size, unused, size - unused, size, pcnt);
@@ -179,9 +190,6 @@ extern K_KERNEL_STACK_ARRAY_DEFINE(z_interrupt_stacks, CONFIG_MP_NUM_CPUS,
 static int cmd_kernel_stacks(const struct shell *shell,
 			     size_t argc, char **argv)
 {
-	uint8_t *buf;
-	size_t size, unused;
-
 	ARG_UNUSED(argc);
 	ARG_UNUSED(argv);
 	k_thread_foreach(shell_stack_dump, (void *)shell);
@@ -191,17 +199,13 @@ static int cmd_kernel_stacks(const struct shell *shell,
 	 * stack buffers.
 	 */
 	for (int i = 0; i < CONFIG_MP_NUM_CPUS; i++) {
-		buf = Z_KERNEL_STACK_BUFFER(z_interrupt_stacks[i]);
-		size = K_KERNEL_STACK_SIZEOF(z_interrupt_stacks[i]);
+		size_t unused;
+		const uint8_t *buf = Z_KERNEL_STACK_BUFFER(z_interrupt_stacks[i]);
+		size_t size = K_KERNEL_STACK_SIZEOF(z_interrupt_stacks[i]);
+		int err = z_stack_space_get(buf, size, &unused);
 
-		unused = 0;
-		for (size_t i = 0; i < size; i++) {
-			if (buf[i] == 0xAAU) {
-				unused++;
-			} else {
-				break;
-			}
-		}
+		(void)err;
+		__ASSERT_NO_MSG(err == 0);
 
 		shell_print(shell,
 			"%p IRQ %02d     (real size %zu):\tunused %zu\tusage %zu / %zu (%zu %%)",

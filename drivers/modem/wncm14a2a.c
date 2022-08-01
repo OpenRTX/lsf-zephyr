@@ -8,7 +8,7 @@
 
 #define LOG_DOMAIN modem_wncm14a2a
 #define LOG_LEVEL CONFIG_MODEM_LOG_LEVEL
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(LOG_DOMAIN);
 
 #include <zephyr/types.h>
@@ -16,16 +16,16 @@ LOG_MODULE_REGISTER(LOG_DOMAIN);
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
-#include <zephyr.h>
-#include <drivers/gpio.h>
-#include <device.h>
-#include <init.h>
-#include <random/rand32.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/device.h>
+#include <zephyr/init.h>
+#include <zephyr/random/rand32.h>
 
-#include <net/net_context.h>
-#include <net/net_if.h>
-#include <net/net_offload.h>
-#include <net/net_pkt.h>
+#include <zephyr/net/net_context.h>
+#include <zephyr/net/net_if.h>
+#include <zephyr/net/net_offload.h>
+#include <zephyr/net/net_pkt.h>
 #if defined(CONFIG_NET_IPV6)
 #include "ipv6.h"
 #endif
@@ -204,6 +204,7 @@ struct wncm14a2a_iface_ctx {
 	char mdm_model[MDM_MODEL_LENGTH];
 	char mdm_revision[MDM_REVISION_LENGTH];
 	char mdm_imei[MDM_IMEI_LENGTH];
+	int mdm_rssi;
 
 	/* modem state */
 	int ev_csps;
@@ -663,8 +664,8 @@ static void on_cmd_atcmdinfo_rssi(struct net_buf **buf, uint16_t len)
 	}
 
 	if (i > 0) {
-		ictx.mdm_ctx.data_rssi = atoi(value);
-		LOG_INF("RSSI: %d", ictx.mdm_ctx.data_rssi);
+		ictx.mdm_rssi = atoi(value);
+		LOG_INF("RSSI: %d", ictx.mdm_rssi);
 	} else {
 		LOG_WRN("Bad format found for RSSI");
 	}
@@ -1250,7 +1251,7 @@ static int modem_pin_init(void)
 			 pinconfig[SHLD_3V3_1V8_SIG_TRANS_ENA].pin,
 			 SHLD_3V3_1V8_SIG_TRANS_DISABLED);
 
-	/* While the level translator is disabled and ouptut pins
+	/* While the level translator is disabled and output pins
 	 * are tristated, make sure the inputs are in the same state
 	 * as the WNC Module pins so that when the level translator is
 	 * enabled, there are no differences.
@@ -1398,15 +1399,15 @@ restart:
 	counter = 0;
 	/* wait for RSSI > -1000 and != 0 */
 	while (counter++ < 15 &&
-	       (ictx.mdm_ctx.data_rssi <= -1000 ||
-		ictx.mdm_ctx.data_rssi == 0)) {
+	       (ictx.mdm_rssi <= -1000 ||
+		ictx.mdm_rssi == 0)) {
 		/* stop RSSI delay work */
 		k_work_cancel_delayable(&ictx.rssi_query_work);
 		wncm14a2a_rssi_query_work(NULL);
 		k_sleep(K_SECONDS(2));
 	}
 
-	if (ictx.mdm_ctx.data_rssi <= -1000 || ictx.mdm_ctx.data_rssi == 0) {
+	if (ictx.mdm_rssi <= -1000 || ictx.mdm_rssi == 0) {
 		retry_count++;
 		if (retry_count > 3) {
 			LOG_ERR("Failed network init.  Too many attempts!");
@@ -1486,6 +1487,7 @@ static int wncm14a2a_init(const struct device *dev)
 #ifdef CONFIG_MODEM_SIM_NUMBERS
 	ictx.mdm_ctx.data_imei = ictx.mdm_imei;
 #endif
+	ictx.mdm_ctx.data_rssi = &ictx.mdm_rssi;
 
 	ret = mdm_receiver_register(&ictx.mdm_ctx, MDM_UART_DEV,
 				    mdm_recv_buf, sizeof(mdm_recv_buf));

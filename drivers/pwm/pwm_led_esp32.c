@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT espressif_esp32_gpio
+#define DT_DRV_COMPAT espressif_esp32_ledc
 
 /* Include esp-idf headers first to avoid redefining BIT() macro */
 #include <esp_intr_alloc.h>
@@ -12,12 +12,13 @@
 #include <esp32/rom/gpio.h>
 #include <soc/gpio_sig_map.h>
 #include <soc/ledc_reg.h>
+#include <zephyr/drivers/gpio/gpio_esp32.h>
 
 #include <soc.h>
 #include <errno.h>
-#include <drivers/pwm.h>
-#include <kernel.h>
-#include <drivers/gpio.h>
+#include <zephyr/drivers/pwm.h>
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/gpio.h>
 #include <string.h>
 
 #define PWM_ESP32_HSCH_HPOINT(i) (LEDC_HSCH0_HPOINT_REG + (0x14 * i))
@@ -89,23 +90,6 @@ static inline void clear_mask32(uint32_t v, uint32_t mem_addr)
 {
 	sys_write32(sys_read32(mem_addr) & ~v, mem_addr);
 }
-
-static const char *esp32_get_gpio_for_pin(int pin)
-{
-	if (pin < 32) {
-#if defined(CONFIG_GPIO_ESP32_0)
-		return DT_INST_LABEL(0);
-#else
-		return NULL;
-#endif /* CONFIG_GPIO_ESP32_0 */
-	}
-
-#if defined(CONFIG_GPIO_ESP32_1)
-	return DT_INST_LABEL(1);
-#else
-	return NULL;
-#endif /* CONFIG_GPIO_ESP32_1 */
-}
 /* end Remove after PR 5113 */
 
 static uint8_t pwm_led_esp32_get_gpio_config(uint8_t pin,
@@ -158,7 +142,6 @@ static void pwm_led_esp32_duty_config(int speed_mode,
 	volatile uint32_t hpoint_addr;
 	volatile uint32_t duty_addr;
 	volatile uint32_t conf1_addr;
-	volatile uint32_t conf1_val;
 
 	if (speed_mode == PWM_LED_ESP32_HIGH_SPEED) {
 		hpoint_addr = PWM_ESP32_HSCH_HPOINT(channel);
@@ -225,7 +208,7 @@ static int pwm_led_esp32_channel_set(int pin, bool speed_mode, int channel,
 	pwm_led_esp32_bind_channel_timer(speed_mode, channel, timer);
 
 	/* Set pin */
-	device_name = esp32_get_gpio_for_pin(pin);
+	device_name = gpio_esp32_get_gpio_for_pin(pin);
 	if (!device_name) {
 		return -EINVAL;
 	}
@@ -245,7 +228,7 @@ static int pwm_led_esp32_channel_set(int pin, bool speed_mode, int channel,
 	} else {
 		sig_out_idx = LEDC_LS_SIG_OUT0_IDX + channel;
 	}
-	esp32_rom_gpio_matrix_out(pin, sig_out_idx, 0, 0);
+	esp_rom_gpio_matrix_out(pin, sig_out_idx, 0, 0);
 
 	return 0;
 }
@@ -311,12 +294,12 @@ static int pwm_led_esp32_timer_set(int speed_mode, int timer,
 }
 
 /* period_cycles is not used, set frequency on menuconfig instead. */
-static int pwm_led_esp32_pin_set_cycles(const struct device *dev,
-					uint32_t pwm, uint32_t period_cycles,
-					uint32_t pulse_cycles, pwm_flags_t flags)
+static int pwm_led_esp32_set_cycles(const struct device *dev, uint32_t channel,
+				    uint32_t period_cycles,
+				    uint32_t pulse_cycles, pwm_flags_t flags)
 {
 	int speed_mode;
-	int channel;
+	int configured_channel;
 	int timer;
 	int ret;
 	const struct pwm_led_esp32_config * const config =
@@ -329,18 +312,18 @@ static int pwm_led_esp32_pin_set_cycles(const struct device *dev,
 		return -ENOTSUP;
 	}
 
-	channel = pwm_led_esp32_get_gpio_config(pwm, config->ch_cfg);
-	if (channel < 0) {
+	configured_channel = pwm_led_esp32_get_gpio_config(channel, config->ch_cfg);
+	if (configured_channel < 0) {
 		return -EINVAL;
 	}
-	speed_mode = channel < 8 ? PWM_LED_ESP32_HIGH_SPEED :
+	speed_mode = configured_channel < 8 ? PWM_LED_ESP32_HIGH_SPEED :
 				   PWM_LED_ESP32_LOW_SPEED;
 
-	timer = config->ch_cfg[channel].timer;
+	timer = config->ch_cfg[configured_channel].timer;
 	/* Now we know which speed_mode and timer is set, then we will convert
 	 * the channel number from (0 - 15) to (0 - 7).
 	 */
-	channel %= 8;
+	configured_channel %= 8;
 
 	/* Enable peripheral */
 	set_mask32(DPORT_LEDC_CLK_EN, DPORT_PERIP_CLK_EN_REG);
@@ -355,35 +338,34 @@ static int pwm_led_esp32_pin_set_cycles(const struct device *dev,
 	}
 
 	/* Set channel */
-	ret = pwm_led_esp32_channel_set(pwm, speed_mode, channel, 0, timer);
+	ret = pwm_led_esp32_channel_set(channel, speed_mode, configured_channel, 0, timer);
 	if (ret < 0) {
 		return ret;
 	}
-	pwm_led_esp32_duty_set(speed_mode, channel, pulse_cycles);
-	pwm_led_esp32_update_duty(speed_mode, channel);
+	pwm_led_esp32_duty_set(speed_mode, configured_channel, pulse_cycles);
+	pwm_led_esp32_update_duty(speed_mode, configured_channel);
 
 	return ret;
 }
 
 static int pwm_led_esp32_get_cycles_per_sec(const struct device *dev,
-					    uint32_t pwm,
-					    uint64_t *cycles)
+					    uint32_t channel, uint64_t *cycles)
 {
 	const struct pwm_led_esp32_config *config;
-	int channel;
+	int configured_channel;
 	int timer;
 	int speed_mode;
 
 	config = (const struct pwm_led_esp32_config *) dev->config;
 
-	channel = pwm_led_esp32_get_gpio_config(pwm, config->ch_cfg);
-	if (channel < 0) {
+	configured_channel = pwm_led_esp32_get_gpio_config(channel, config->ch_cfg);
+	if (configured_channel < 0) {
 		return -EINVAL;
 	}
-	speed_mode = channel < 8 ? PWM_LED_ESP32_HIGH_SPEED :
+	speed_mode = configured_channel < 8 ? PWM_LED_ESP32_HIGH_SPEED :
 				   PWM_LED_ESP32_LOW_SPEED;
 
-	timer = config->ch_cfg[channel].timer;
+	timer = config->ch_cfg[configured_channel].timer;
 
 	*cycles = config->timer_cfg[speed_mode][timer].freq;
 
@@ -391,7 +373,7 @@ static int pwm_led_esp32_get_cycles_per_sec(const struct device *dev,
 }
 
 static const struct pwm_driver_api pwm_led_esp32_api = {
-	.pin_set = pwm_led_esp32_pin_set_cycles,
+	.set_cycles = pwm_led_esp32_set_cycles,
 	.get_cycles_per_sec = pwm_led_esp32_get_cycles_per_sec,
 };
 
@@ -401,10 +383,8 @@ int pwm_led_esp32_init(const struct device *dev)
 }
 
 /* Initialization for PWM_LED_ESP32 */
-#include <device.h>
-#include <init.h>
-
-DEVICE_DECLARE(pwm_led_esp32_0);
+#include <zephyr/device.h>
+#include <zephyr/init.h>
 
 #define CH_HS_TIMER(i) ((CONFIG_PWM_LED_ESP32_HS_CH ## i ## _TIMER) & 0x2)
 #define CH_HS_GPIO(i) ((CONFIG_PWM_LED_ESP32_HS_CH ## i ## _GPIO) & 0xfff)
@@ -519,7 +499,13 @@ const static struct pwm_led_esp32_config pwm_led_esp32_config = {
 	},
 };
 
-DEVICE_DEFINE(pwm_led_esp32_0, CONFIG_PWM_LED_ESP32_DEV_NAME_0,
-		pwm_led_esp32_init, NULL, NULL,
-		&pwm_led_esp32_config, POST_KERNEL,
-		CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &pwm_led_esp32_api);
+DEVICE_DT_DEFINE(
+	DT_NODELABEL(ledc0),
+	&pwm_led_esp32_init,
+	NULL,
+	NULL,
+	&pwm_led_esp32_config,
+	POST_KERNEL,
+	CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+	&pwm_led_esp32_api
+);

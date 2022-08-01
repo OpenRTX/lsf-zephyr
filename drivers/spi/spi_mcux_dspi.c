@@ -8,16 +8,17 @@
 #define DT_DRV_COMPAT	nxp_kinetis_dspi
 
 #include <errno.h>
-#include <drivers/spi.h>
-#include <drivers/clock_control.h>
+#include <zephyr/drivers/spi.h>
+#include <zephyr/drivers/clock_control.h>
 #include <fsl_dspi.h>
+#include <zephyr/drivers/pinctrl.h>
 #ifdef CONFIG_DSPI_MCUX_EDMA
-#include <drivers/dma.h>
+#include <zephyr/drivers/dma.h>
 #include <fsl_edma.h>
 #endif
 
 #define LOG_LEVEL CONFIG_SPI_LOG_LEVEL
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(spi_mcux_dspi);
 
 #include "spi_context.h"
@@ -47,6 +48,7 @@ struct spi_mcux_config {
 	bool enable_rxfifo_overwrite;
 	bool enable_modified_timing_format;
 	bool is_dma_chn_shared;
+	const struct pinctrl_dev_config *pincfg;
 };
 
 struct spi_mcux_data {
@@ -472,10 +474,10 @@ static int configure_dma(const struct device *dev)
 static void dma_callback(const struct device *dma_dev, void *callback_arg,
 			 uint32_t channel, int error_code)
 {
-	const struct device *dev = (struct device *)callback_arg;
+	const struct device *dev = (const struct device *)callback_arg;
 	const struct spi_mcux_config *config = dev->config;
 	SPI_Type *base = config->base;
-	struct spi_mcux_data *data = (struct spi_mcux_data *)dev->data;
+	struct spi_mcux_data *data = dev->data;
 
 	LOG_DBG("=dma call back @channel %d=", channel);
 
@@ -575,9 +577,14 @@ static int spi_mcux_configure(const struct device *dev,
 		return 0;
 	}
 
+	if (spi_cfg->operation & SPI_HALF_DUPLEX) {
+		LOG_ERR("Half-duplex not supported");
+		return -ENOTSUP;
+	}
+
 	DSPI_MasterGetDefaultConfig(&master_config);
 
-	master_config.whichPcs = spi_cfg->slave;
+	master_config.whichPcs = 1U << spi_cfg->slave;
 	master_config.whichCtar = config->which_ctar;
 	master_config.pcsActiveHighOrLow =
 		(spi_cfg->operation & SPI_CS_ACTIVE_HIGH) ?
@@ -641,7 +648,7 @@ static int spi_mcux_configure(const struct device *dev,
 	/* record frame_size setting for DMA */
 	data->frame_size = word_size;
 	/* keep the pcs settings */
-	data->which_pcs = spi_cfg->slave;
+	data->which_pcs = 1U << spi_cfg->slave;
 #ifdef CONFIG_MCUX_DSPI_EDMA_SHUFFLE_DATA
 	mcux_init_inner_buffer_with_cmd(dev, 0);
 #endif
@@ -654,7 +661,6 @@ static int spi_mcux_configure(const struct device *dev,
 #endif
 
 	data->ctx.config = spi_cfg;
-	spi_context_cs_configure(&data->ctx);
 
 	return 0;
 }
@@ -746,7 +752,10 @@ static int spi_mcux_release(const struct device *dev,
 
 static int spi_mcux_init(const struct device *dev)
 {
+	int err;
 	struct spi_mcux_data *data = dev->data;
+	const struct spi_mcux_config *config = dev->config;
+
 #ifdef CONFIG_DSPI_MCUX_EDMA
 	enum dma_channel_filter spi_filter = DMA_CHANNEL_NORMAL;
 	const struct device *dma_dev;
@@ -758,11 +767,20 @@ static int spi_mcux_init(const struct device *dev)
 	data->tx_dma_config.dma_channel =
 	  dma_request_channel(dma_dev, (void *)&spi_filter);
 #else
-	const struct spi_mcux_config *config = dev->config;
-
 	config->irq_config_func(dev);
 #endif
+	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
+	if (err != 0) {
+		return err;
+	}
+
 	data->dev = dev;
+
+	err = spi_context_cs_configure_all(&data->ctx);
+	if (err < 0) {
+		return err;
+	}
+
 	spi_context_unlock_unconditionally(&data->ctx);
 
 	return 0;
@@ -850,12 +868,14 @@ static const struct spi_driver_api spi_mcux_driver_api = {
 #endif
 
 #define SPI_MCUX_DSPI_DEVICE(id)					\
+	PINCTRL_DT_INST_DEFINE(id);					\
 	static void spi_mcux_config_func_##id(const struct device *dev);\
 	TX_BUFFER(id);							\
 	RX_BUFFER(id);							\
 	static struct spi_mcux_data spi_mcux_data_##id = {		\
 		SPI_CONTEXT_INIT_LOCK(spi_mcux_data_##id, ctx),		\
 		SPI_CONTEXT_INIT_SYNC(spi_mcux_data_##id, ctx),		\
+		SPI_CONTEXT_CS_GPIOS_INITIALIZE(DT_DRV_INST(id), ctx)	\
 		TX_DMA_CONFIG(id) RX_DMA_CONFIG(id)			\
 	};								\
 	static const struct spi_mcux_config spi_mcux_config_##id = {	\
@@ -882,6 +902,7 @@ static const struct spi_driver_api spi_mcux_driver_api = {
 		    DT_INST_PROP(id, modified_timing_format),		\
 		.is_dma_chn_shared =					\
 		    DT_INST_PROP(id, nxp_rx_tx_chn_share),		\
+		.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(id),		\
 	};								\
 	DEVICE_DT_INST_DEFINE(id,					\
 			    &spi_mcux_init,				\

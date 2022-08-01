@@ -5,23 +5,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
+#include <zephyr/zephyr.h>
 #include <errno.h>
-#include <sys/atomic.h>
-#include <sys/util.h>
-#include <sys/byteorder.h>
+#include <zephyr/sys/atomic.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/sys/byteorder.h>
 
-#include <tinycrypt/constants.h>
-#include <tinycrypt/ecc.h>
-#include <tinycrypt/ecc_dh.h>
+#include <zephyr/net/buf.h>
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/conn.h>
+#include <zephyr/bluetooth/mesh.h>
+#include <zephyr/bluetooth/uuid.h>
 
-#include <net/buf.h>
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/conn.h>
-#include <bluetooth/mesh.h>
-#include <bluetooth/uuid.h>
-
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_PROV)
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_PROV_DEVICE)
 #define LOG_MODULE_NAME bt_mesh_prov_device
 #include "common/log.h"
 
@@ -37,6 +33,7 @@
 #include "access.h"
 #include "foundation.h"
 #include "proxy.h"
+#include "pb_gatt_srv.h"
 #include "prov.h"
 #include "settings.h"
 
@@ -91,7 +88,7 @@ static void prov_invite(const uint8_t *data)
 	/* Number of Elements supported */
 	net_buf_simple_add_u8(&buf, bt_mesh_elem_count());
 
-	/* Supported algorithms - FIPS P-256 Eliptic Curve */
+	/* Supported algorithms - FIPS P-256 Elliptic Curve */
 	net_buf_simple_add_be16(&buf, BIT(PROV_ALG_P256));
 
 	/* Public Key Type */
@@ -150,8 +147,11 @@ static void prov_start(const uint8_t *data)
 	memcpy(bt_mesh_prov_link.conf_inputs.start, data, PDU_LEN_START);
 
 	bt_mesh_prov_link.expect = PROV_PUB_KEY;
+	bt_mesh_prov_link.oob_method = data[2];
+	bt_mesh_prov_link.oob_action = data[3];
+	bt_mesh_prov_link.oob_size = data[4];
 
-	if (bt_mesh_prov_auth(data[2], data[3], data[4]) < 0) {
+	if (bt_mesh_prov_auth(false, data[2], data[3], data[4]) < 0) {
 		BT_ERR("Invalid authentication method: 0x%02x; "
 		       "action: 0x%02x; size: 0x%02x", data[2], data[3],
 		       data[4]);
@@ -261,14 +261,14 @@ static void send_pub_key(void)
 		return;
 	}
 
-	BT_DBG("Local Public Key: %s", bt_hex(key, BT_PUB_KEY_LEN));
-
 	bt_mesh_prov_buf_init(&buf, PROV_PUB_KEY);
 
 	/* Swap X and Y halves independently to big-endian */
 	sys_memcpy_swap(net_buf_simple_add(&buf, BT_PUB_KEY_COORD_LEN), key, BT_PUB_KEY_COORD_LEN);
 	sys_memcpy_swap(net_buf_simple_add(&buf, BT_PUB_KEY_COORD_LEN), &key[BT_PUB_KEY_COORD_LEN],
 			BT_PUB_KEY_COORD_LEN);
+
+	BT_DBG("Local Public Key: %s", bt_hex(buf.data + 1, BT_PUB_KEY_LEN));
 
 	/* PublicKeyDevice */
 	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, &buf.data[1], PDU_LEN_PUB_KEY);
@@ -317,18 +317,14 @@ static void prov_dh_key_gen(void)
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PROV_OOB_PUBLIC_KEY) &&
 	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
-		if (uECC_valid_public_key(remote_pk, &curve_secp256r1)) {
-			BT_ERR("Public key is not valid");
-		} else if (uECC_shared_secret(remote_pk, bt_mesh_prov->private_key_be,
-					      bt_mesh_prov_link.dhkey,
-					      &curve_secp256r1) != TC_CRYPTO_SUCCESS) {
-			BT_ERR("DHKey generation failed");
-		} else {
-			dh_key_gen_complete();
+
+		if (bt_mesh_dhkey_gen(remote_pk, bt_mesh_prov->private_key_be,
+				bt_mesh_prov_link.dhkey)) {
+			prov_fail(PROV_ERR_UNEXP_ERR);
 			return;
 		}
 
-		prov_fail(PROV_ERR_UNEXP_ERR);
+		dh_key_gen_complete();
 		return;
 	}
 
@@ -634,6 +630,10 @@ int bt_mesh_prov_disable(bt_mesh_prov_bearer_t bearers)
 		return -EALREADY;
 	}
 
+	if (bt_mesh_prov_active()) {
+		return -EBUSY;
+	}
+
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV) &&
 	    (bearers & BT_MESH_PROV_ADV)) {
 		bt_mesh_beacon_disable();
@@ -642,7 +642,7 @@ int bt_mesh_prov_disable(bt_mesh_prov_bearer_t bearers)
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT) &&
 	    (bearers & BT_MESH_PROV_GATT)) {
-		bt_mesh_proxy_prov_disable(true);
+		(void)bt_mesh_pb_gatt_srv_disable();
 	}
 
 	return 0;
