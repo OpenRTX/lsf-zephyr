@@ -118,7 +118,12 @@ static int csk_spi_configure(const struct device *dev, const struct spi_config *
 	data->ctx.config = spi_cfg;
     spi_context_cs_configure(&data->ctx);
 
-    return r;
+	if (r != 0) {
+		LOG_ERR("SPI_Control failed. r:%d.", r);
+		return -EIO;
+	}
+
+    return 0;
 }
 
 static int32_t csk_spi_hal_transceive(const struct device *dev)
@@ -163,7 +168,7 @@ static int32_t csk_spi_hal_transceive(const struct device *dev)
 	}
 	irq_unlock(key);
 
-	return r;
+	return r != 0 ? -EIO : 0;
 }
 
 static int transceive(const struct device *dev,
@@ -174,13 +179,49 @@ static int transceive(const struct device *dev,
 		      struct k_poll_signal *signal)
 {
 	struct csk_spi_data *data = dev->data;
+	uint8_t dw = SPI_WORD_SIZE_GET(spi_cfg->operation);
+
+	if (dw != 8 && dw != 16 && dw != 32) {
+		LOG_ERR("Unsupported data width(%d bit).", dw);
+		return -ENOTSUP;
+	}
+
+	if (spi_cfg->operation & (SPI_LINES_DUAL | SPI_LINES_QUAD | SPI_LINES_OCTAL)) {
+		LOG_ERR("Unsupported line config.");
+		return -ENOTSUP;
+	}
+
+	dw /= 8;
+
+	if (tx_bufs != NULL) {
+		size_t c = tx_bufs->count;
+		struct spi_buf *buf = tx_bufs->buffers;
+		while (buf++ && c--) {
+			if (buf->len % dw != 0) {
+				LOG_ERR("tx buffer len(%d) is not match data width(%d byte)",
+					buf->len, dw);
+				return -EINVAL;
+			}
+		}
+	}
+
+	if (rx_bufs != NULL) {
+		size_t c = rx_bufs->count;
+		struct spi_buf *buf = rx_bufs->buffers;
+		while (buf++ && c--) {
+			if (buf->len % dw != 0) {
+				LOG_ERR("rx buffer len(%d) is not match data width(%d byte)",
+					buf->len, dw);
+				return -EINVAL;
+			}
+		}
+	}
 
 	spi_context_lock(&data->ctx, asynchronous, signal, spi_cfg);
 	int ret = csk_spi_configure(dev, spi_cfg);
 	if (ret) {
 		goto out;
 	}
-	uint8_t dw = SPI_WORD_SIZE_GET(spi_cfg->operation) / 8;
 	spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, dw);
     spi_context_cs_control(&data->ctx, true);
 	csk_spi_hal_transceive(dev);
