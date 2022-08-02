@@ -45,7 +45,7 @@
 		compatible = "zephyr,memory-region";
 		reg = <0x30000000 DT_SIZE_M(8)>;
 		label = "psram0";
-		zephyr,memory-region = "PSRAMAP";
+		zephyr,memory-region = "PSRAM0";
 	};
 
 	soc {
