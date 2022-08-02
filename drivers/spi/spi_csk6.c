@@ -116,7 +116,7 @@ static int csk_spi_configure(const struct device *dev, const struct spi_config *
                 spi_bits_order | spi_dma_en_mask, spi_cfg->frequency);
 
 	data->ctx.config = spi_cfg;
-    spi_context_cs_configure(&data->ctx);
+
     return 0;
 }
 
@@ -250,19 +250,24 @@ static int spi_csk_init(const struct device *dev)
 
 	/* Get device handle */
 	data->driver_context = spi_csk_get_ctx(dev);
-             
-	/* Fixme: rework the SPI_Initialize(), let the user parameter become void* type */  
-	SPI_Initialize(data->driver_context, csk_spi_isr_callback, (uint32_t)dev);                    
-	SPI_PowerControl(data->driver_context, CSK_POWER_FULL);                                        
 
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);   
+	/* Fixme: rework the SPI_Initialize(), let the user parameter become void* type */
+	SPI_Initialize(data->driver_context, csk_spi_isr_callback, (uint32_t)dev);
+	SPI_PowerControl(data->driver_context, CSK_POWER_FULL);
+
+	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
 
 	/* IRQ_CONNECT and irq_enable */
 	config->irq_config_func(dev);
 
-	spi_context_unlock_unconditionally(&data->ctx);		
+	int err = spi_context_cs_configure_all(&data->ctx);
+	if (err < 0) {
+		return err;
+	}
 
-	return 0;	
+	spi_context_unlock_unconditionally(&data->ctx);
+
+	return 0;
 }
 
 #define SPI_DEVICE_INIT(n)                                                 	\
@@ -290,6 +295,7 @@ static int spi_csk_init(const struct device *dev)
 	static struct csk_spi_data csk_spi_data_##n = {	     					\
 		SPI_CONTEXT_INIT_LOCK(csk_spi_data_##n, ctx),		 					\
 		SPI_CONTEXT_INIT_SYNC(csk_spi_data_##n, ctx),		 					\
+		SPI_CONTEXT_CS_GPIOS_INITIALIZE(DT_DRV_INST(n), ctx)					\
 	};																			\
 																				\
 	DEVICE_DT_INST_DEFINE(n, &spi_csk_init, NULL,                    		\
