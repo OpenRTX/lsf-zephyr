@@ -3900,7 +3900,7 @@ class TestPlan(DisablePyTestCollectionMixin):
             fails += 1
             el = ET.SubElement(eleTestcase, 'failure', type="failure", message=f"{reason}")
             if log:
-                el.text = log
+                el.text = ""
         elif status == "error":
             errors += 1
             el = ET.SubElement(eleTestcase, 'error', type="failure", message=f"{reason}")

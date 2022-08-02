@@ -5,7 +5,7 @@
 #include <device.h>
 #include <zephyr.h>
 #include <string.h>
-#include <crypto/cipher.h>
+#include <crypto/crypto.h>
 
 
 #include <logging/log.h>
