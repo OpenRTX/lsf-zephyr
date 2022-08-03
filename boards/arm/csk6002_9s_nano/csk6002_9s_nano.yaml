@@ -13,5 +13,6 @@ supported:
   - wifi
   - csk_wifi
   - usb_device
+  - spi
 ram: 320
 flash: 8000
