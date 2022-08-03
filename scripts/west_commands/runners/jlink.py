@@ -233,7 +233,7 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
                        # only USB connections supported
                        # add IP connection support
                       ['-select',
-                      ('ip' + f'={self.ip}') if self.ip else ('usb' + (f'={self.did}' if self.did else '')),
+                      ('ip' + f'={self.ip}') if self.ip else ('usb' + (f'={self.dev_id}' if self.dev_id else '')),
                        '-port', str(self.gdb_port),
                        '-if', self.iface,
                        '-speed', self.speed,
@@ -332,7 +332,7 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
                     # only USB connections supported
                     # add IP connections support
                    (['-IP', f'{self.ip}'] if self.ip else []) +
-                   (['-USB', f'{self.did}'] if self.did else []) +
+                   (['-USB', f'{self.dev_id}'] if self.dev_id else []) +
                    (['-nogui', '1'] if self.supports_nogui else []) +
                    ['-if', self.iface,
                     '-speed', self.speed,
