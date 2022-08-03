@@ -12,13 +12,10 @@
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
 #include "hal/reg/dma_venus.h"
+#define DMA_CSK6_RAM_FUNC 
+#define ARCH_ISR_DIRECT_DECLARE(name) int name(void)
 #else
 #include "hal/dma.h"
-#endif
-
-#ifdef CONFIG_SOC_LS_ADSP_CSK6
-#define DMA_CSK6_RAM_FUNC 
-#else
 #define DMA_CSK6_RAM_FUNC __attribute__ ((section (".itcm"))) 
 #endif /* end of CONFIG_SOC_LS_ADSP_CSK6 */
 
@@ -231,9 +228,14 @@ static int csk_dma_init(const struct device *dev)
 	if (data->channels_info == NULL) {
 		return -ENOMEM;
 	}
-    
+
+#ifdef CONFIG_SOC_LS_ADSP_CSK6
+    IRQ_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
+            dma_direct_irq_handler, DEVICE_DT_INST_GET(0), 0);
+#else
     IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
                 dma_direct_irq_handler, Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
+#endif
 	irq_enable(DT_INST_IRQN(0));
     return 0;
 }

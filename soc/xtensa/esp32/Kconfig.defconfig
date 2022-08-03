@@ -55,4 +55,3 @@ config GDBSTUB_BUF_SZ
 endif
 
 endif
-endif
