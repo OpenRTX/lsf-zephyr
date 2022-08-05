@@ -55,7 +55,7 @@ static struct nvs_fs fs;
 #define SLEEP_TIME      100
 /* maximum reboot counts, make high enough to trigger sector change (buffer */
 /* rotation). */
-#define MAX_REBOOT 400
+#define MAX_REBOOT 800
 
 #define ADDRESS_ID 1
 #define KEY_ID 2
@@ -201,7 +201,7 @@ void main(void)
 				 * the reboot counter
 				 * Check the counter history in flash
 				 */
-				printk("Reboot counter history: ");
+				printk("Reboot counter history: \n");
 				while (1) {
 					rc = nvs_read_hist(
 						&fs, RBT_CNT_ID,
@@ -215,17 +215,15 @@ void main(void)
 					cnt_his++;
 				}
 				if (cnt_his == 0) {
-					printk("\n Error, no Reboot counter");
+					printk("\nError, no Reboot counter \n");
 				} else {
-					printk("\nOldest reboot counter: %d",
+					printk("\nOldest reboot counter: %d \n",
 					       reboot_counter_his);
 				}
-				printk("\nRebooting in ");
 			}
-			printk("...%d", cnt);
+			printk("waiting for reboot ...%d \n", cnt);
 			cnt--;
 			if (cnt == 0) {
-				printk("\n");
 				reboot_counter++;
 				(void)nvs_write(
 					&fs, RBT_CNT_ID, &reboot_counter,
