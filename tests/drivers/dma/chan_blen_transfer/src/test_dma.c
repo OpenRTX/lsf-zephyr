@@ -31,8 +31,8 @@ static const char TX_DATA[] = "It is harder to be kind than to be wise........";
 static __aligned(32) char rx_data[RX_BUFF_SIZE] __used
 	__attribute__((__section__(".nocache.dma")));
 #else
-static const char tx_data[] = "It is harder to be kind than to be wise........";
-static char rx_data[RX_BUFF_SIZE] = { 0 };
+static const char tx_data[] __aligned(1) = "It is harder to be kind than to be wise........";
+static char rx_data[RX_BUFF_SIZE] __aligned(1) = { 0 };
 #endif
 
 static void test_done(const struct device *dma_dev, void *arg,
@@ -92,7 +92,9 @@ static int test_task(uint32_t chan_id, uint32_t blen)
 		return TC_FAIL;
 	}
 	k_sleep(K_MSEC(2000));
-	TC_PRINT("%s\n", rx_data);
+	// SCB_InvalidateDCache_by_Addr(rx_data, RX_BUFF_SIZE);
+	// SCB_InvalidateDCache();
+	TC_PRINT("len:%d, %s\n", strlen(tx_data), rx_data);
 	if (strcmp(tx_data, rx_data) != 0)
 		return TC_FAIL;
 	return TC_PASS;
@@ -106,7 +108,7 @@ void test_dma_m2m_chan0_burst8(void)
 
 void test_dma_m2m_chan1_burst8(void)
 {
-	zassert_true((test_task(CONFIG_DMA_TRANSFER_CHANNEL_NR_1, 8) == TC_PASS), NULL);
+	zassert_true((test_task(CONFIG_DMA_TRANSFER_CHANNEL_NR_0, 8) == TC_PASS), NULL);
 }
 
 void test_dma_m2m_chan0_burst16(void)

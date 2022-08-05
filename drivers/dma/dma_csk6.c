@@ -55,11 +55,24 @@ struct csk_dma_data {
 static int csk_dma_configure(const struct device *dev, uint32_t channel, struct dma_config *config)
 {
 	struct csk_dma_data *data = dev->data;
+    struct csk_dma_config *cfg = (struct csk_dma_config *)dev->config;
 	uint8_t real_channel = channel;
 	uint32_t _DMA_CH_CTLx_CFG_MASK;
 	uint32_t _DMA_CH_CFGxL_CFG_MASK;
 	uint32_t _DMA_CH_CFGxH_CFG_MASK;
 	if (dev == NULL || config == NULL) {
+		return -EINVAL;
+	}
+
+	if (channel >= cfg->dma_channels_num) {
+		LOG_ERR("Invalid channel %d, max supported channel num is %d.\n", channel,
+			cfg->dma_channels_num > 0 ? cfg->dma_channels_num - 1 : 0);
+		return -EINVAL;
+	}
+
+	if (config->block_count < 1 || config->head_block == NULL) {
+		LOG_ERR("Head block is null or block count is zero.head_block:%p, block_count:%d",
+			config->head_block, config->block_count);
 		return -EINVAL;
 	}
 
@@ -97,6 +110,10 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
     ch_info->dma_ch_cfgxl_cfg_mask = _DMA_CH_CFGxL_CFG_MASK;
     ch_info->dma_ch_cfgxh_cfg_mask = _DMA_CH_CFGxH_CFG_MASK;
     ch_info->channel_direction = config->channel_direction;
+    
+    ch_info->dst_addr = config->head_block->dest_address;
+    ch_info->src_addr = config->head_block->source_address;
+    ch_info->transfer_size = config->head_block->block_size;
 
 	if (config->dma_callback) {
         ch_info->cb_info.callback = config->dma_callback;
@@ -145,7 +162,8 @@ static int csk_dma_start(const struct device *dev, uint32_t channel)
     } else if (ch_info->channel_direction == PERIPHERAL_TO_PERIPHERAL) {
         LOG_ERR("DMA does not support peripheral to peripheral direction now");
         return -ENOTSUP;
-    } else {
+    } else 
+    {
         int ret = dma_channel_configure(channel,
                                         ch_info->src_addr, ch_info->dst_addr,
                                         ch_info->transfer_size,
@@ -207,12 +225,14 @@ csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
         ret = 0;
         ch_info->busy = false;
     }
+    printk("%s,%d\n", __FILE__, __LINE__);
     ch_info->cb_info.callback(dev, ch_info->cb_info.user_data, channel, ret);
 }
 
 ISR_DIRECT_DECLARE(dma_direct_irq_handler)
 {
     extern void dma_irq_handler(void);
+    printk("%s,%d\n", __FILE__, __LINE__);
     dma_irq_handler();
 
     return 1;
