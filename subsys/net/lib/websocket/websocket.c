@@ -845,6 +845,11 @@ int websocket_recv_msg(int ws_sock, uint8_t *buf, size_t buf_len,
 		ctx->tmp_buf_pos -= header_len;
 
 		if (ctx->tmp_buf_pos == 0) {
+			if ((ctx->message_type & WEBSOCKET_FLAG_PONG) ||
+				(ctx->message_type & WEBSOCKET_FLAG_PING)) {
+				ctx->header_received = false;
+				return 0;
+			}
 			/* No data after the header, let the caller call
 			 * this function again to get the payload.
 			 */
