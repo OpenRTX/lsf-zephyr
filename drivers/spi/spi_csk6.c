@@ -1,10 +1,6 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifdef CONFIG_SOC_CSK6
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-#endif
 
 #define DT_DRV_COMPAT listenai_csk_spi
 
@@ -305,7 +301,3 @@ static int spi_csk_init(const struct device *dev)
 			    &csk_spi_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(SPI_DEVICE_INIT)
-
-#ifdef CONFIG_SOC_CSK6
-#pragma GCC pop_options
-#endif
