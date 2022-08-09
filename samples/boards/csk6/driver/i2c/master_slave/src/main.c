@@ -42,42 +42,48 @@ struct k_thread slave_thread_data;
 uint8_t data0[256] = { 0 };
 uint8_t data1[256] = { 0 };
 
-void i2c_master_init(void)
+int i2c_master_init(void)
 {
 	i2c0_dev = device_get_binding(I2C0_DEV_NAME);
 	if (i2c0_dev == NULL) {
 		printk("I2C0: Device is not found.\n");
+		return -ENODEV;
 	}
 
 	if (!device_is_ready(i2c0_dev)) {
 		printk("I2C0: Device is not ready.\n");
-		return;
+		return -ENODEV;
 	}
 
 	/* i2c master configure */
 	if (i2c_configure(i2c0_dev, i2c0_cfg)) {
 		printk("I2C0 config failed\n");
-		return;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
-void i2c_slave_init(void)
+int i2c_slave_init(void)
 {
 	i2c1_dev = device_get_binding(I2C1_DEV_NAME);
 	if (i2c1_dev == NULL) {
 		printk("I2C1: Device is not found.\n");
+		return -ENODEV;
 	}
 
 	if (!device_is_ready(i2c1_dev)) {
 		printk("I2C1: Device is not ready.\n");
-		return;
+		return -ENODEV;
 	}
 
 	/* i2c slave configure */
 	if (i2c_configure(i2c1_dev, i2c1_cfg)) {
 		printk("I2C1 config failed\n");
-		return;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 void i2c_master_thread(void *v1, void *v2, void *v3)
@@ -135,11 +141,19 @@ void i2c_slave_thread(void *v1, void *v2, void *v3)
 
 void main(void)
 {
+	int ret = 0;
 	printk("I2C START TEST\n");
 
 	/* i2c master and slave initialize */
-	i2c_master_init();
-	i2c_slave_init();
+	ret = i2c_master_init();
+	if(ret != 0) {
+		return;
+	}
+
+	ret = i2c_slave_init();
+	if(ret != 0) {
+		return;
+	}
 
 	/* create master and slave thread */
 	int pri = k_thread_priority_get(k_current_get());
