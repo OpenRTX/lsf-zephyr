@@ -32,7 +32,7 @@ static __aligned(32) char rx_data[RX_BUFF_SIZE] __used
 	__attribute__((__section__(".nocache.dma")));
 #else
 static const char tx_data[] = "It is harder to be kind than to be wise........";
-static char rx_data[RX_BUFF_SIZE] = { 0 };
+static char rx_data[RX_BUFF_SIZE] __aligned(4) = { 0 };
 #endif
 
 static void test_done(const struct device *dma_dev, void *arg,

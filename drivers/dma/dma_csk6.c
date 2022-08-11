@@ -101,6 +101,12 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
     ch_info->dma_ch_cfgxh_cfg_mask = _DMA_CH_CFGxH_CFG_MASK;
     ch_info->channel_direction = config->channel_direction;
 
+    if (config->head_block != NULL) {
+        ch_info->dst_addr = config->head_block->dest_address;
+        ch_info->src_addr = config->head_block->source_address;
+        ch_info->transfer_size = config->head_block->block_size;
+    }
+
 	if (config->dma_callback) {
         ch_info->cb_info.callback = config->dma_callback;
         ch_info->cb_info.user_data = config->user_data;
