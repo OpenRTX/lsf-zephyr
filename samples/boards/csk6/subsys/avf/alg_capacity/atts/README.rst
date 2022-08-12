@@ -5,8 +5,8 @@ Overview
 ********
 
 brun info:
-./resource/tts_data.bin  -> 0x18400000
-./resource/zephyr.bin    -> 0x18580000
+./resource/zephyr.bin     -> 0x18400000
+./resource/tts_data.bin   -> 0x18580000
 
 Hardware info:
 GIPOA04  ->  Power amplifier enable
