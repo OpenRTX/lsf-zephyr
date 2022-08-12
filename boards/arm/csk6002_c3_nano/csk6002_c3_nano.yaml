@@ -11,5 +11,6 @@ supported:
   - uart
   - ipm
   - dma
+  - counter
 ram: 320
 flash: 8000
