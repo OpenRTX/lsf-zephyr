@@ -156,9 +156,9 @@
                 #size-cells = <1>;
 
                 /* wifi driver private storage: 8Kb */
-                wifi_driver_storage: partition@6ef000 {
+                wifi_driver_storage: partition@6ee000 {
                 	label = "wifi_driver_storage";
-                	reg = <0x6ef000 0x2000>;
+                	reg = <0x6ee000 0x2000>;
                	};
 
                 /* wifi_nvs_storage: 20Kb */
