@@ -12,5 +12,6 @@ supported:
   - ipm
   - dma
   - counter
+  - pwm
 ram: 320
 flash: 8000
