@@ -30,7 +30,7 @@
         leds {
                 compatible = "gpio-leds";
                 board_led_2: board_led_2 {
-                        gpios = <&gpioa 5 0>;
+                        gpios = <&gpiob 6 0>;
                         label = "User BOARD_LED_2";
                 };
         };
@@ -115,7 +115,7 @@
 };
 
 &spi1 {
-		pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
+	pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
         pinctrl-names = "default";
         status = "okay";
 };
