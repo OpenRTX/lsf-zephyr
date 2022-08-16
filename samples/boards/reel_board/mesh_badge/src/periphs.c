@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <drivers/gpio.h>
-#include <drivers/sensor.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/sensor.h>
 #include "board.h"
 #include "mesh.h"
 
-#include <bluetooth/mesh.h>
+#include <zephyr/bluetooth/mesh.h>
 
 struct device_info {
 	const struct device *dev;
@@ -104,7 +104,7 @@ static void motion_timeout(struct k_work *work)
 }
 
 static void motion_handler(const struct device *dev,
-			   struct sensor_trigger *trig)
+			   const struct sensor_trigger *trig)
 {
 	int err;
 

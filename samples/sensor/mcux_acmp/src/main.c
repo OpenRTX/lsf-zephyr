@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <device.h>
-#include <drivers/sensor.h>
-#include <drivers/sensor/mcux_acmp.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/sensor/mcux_acmp.h>
+#include <zephyr/zephyr.h>
 
 #include <stdio.h>
 
@@ -64,7 +64,7 @@ static void acmp_input_handler(bool above_threshold)
 }
 
 static void acmp_trigger_handler(const struct device *dev,
-				 struct sensor_trigger *trigger)
+				 const struct sensor_trigger *trigger)
 {
 	ARG_UNUSED(dev);
 

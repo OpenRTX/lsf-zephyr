@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <shell/shell.h>
-#include <logging/log_ctrl.h>
-#include <logging/log.h>
+#include <zephyr/shell/shell.h>
+#include <zephyr/logging/log_ctrl.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/logging/log_internal.h>
 #include <string.h>
 
 typedef int (*log_backend_cmd_t)(const struct shell *shell,
@@ -92,7 +93,7 @@ static int log_status(const struct shell *shell,
 		      const struct log_backend *backend,
 		      size_t argc, char **argv)
 {
-	uint32_t modules_cnt = log_sources_count();
+	uint32_t modules_cnt = z_log_sources_count();
 	uint32_t dynamic_lvl;
 	uint32_t compiled_lvl;
 
@@ -140,7 +141,7 @@ static int cmd_log_backend_status(const struct shell *shell,
 
 static int module_id_get(const char *name)
 {
-	uint32_t modules_cnt = log_sources_count();
+	uint32_t modules_cnt = z_log_sources_count();
 	const char *tmp_name;
 	uint32_t i;
 
@@ -161,7 +162,7 @@ static void filters_set(const struct shell *shell,
 	int i;
 	int id;
 	bool all = argc ? false : true;
-	int cnt = all ? log_sources_count() : argc;
+	int cnt = all ? z_log_sources_count() : argc;
 
 	if (!backend->cb->active) {
 		shell_warn(shell, "Backend not active.");
@@ -365,8 +366,8 @@ static int cmd_log_strdup_utilization(const struct shell *shell,
 				      size_t argc, char **argv)
 {
 
-	/* Defines needed when string duplication is disabled (LOG_IMMEDIATE is
-	 * on). In that case, this function is not compiled in.
+	/* Defines needed when string duplication is disabled (LOG2 or immediate
+	 * mode). In that case, this function is not compiled in.
 	 */
 	#ifndef CONFIG_LOG_STRDUP_BUF_COUNT
 	#define CONFIG_LOG_STRDUP_BUF_COUNT 0
@@ -403,25 +404,27 @@ static int cmd_log_strdup_utilization(const struct shell *shell,
 	return 0;
 }
 
-static int cmd_log_memory_slabs(const struct shell *sh, size_t argc, char **argv)
+static int cmd_log_mem(const struct shell *sh, size_t argc, char **argv)
 {
-	uint32_t slabs_free;
+	uint32_t size;
 	uint32_t used;
 	uint32_t max;
+	int err;
 
-	slabs_free = log_msg_mem_get_free();
-	used = log_msg_mem_get_used();
-
-	shell_print(sh, "Blocks used:\t%d", used);
-	shell_print(sh, "Blocks free:\t%d", slabs_free);
-	if (IS_ENABLED(CONFIG_MEM_SLAB_TRACE_MAX_UTILIZATION)) {
-		max = log_msg_mem_get_max_used();
-		shell_print(sh, "Blocks max:\t%d", max);
-	} else {
-		shell_print(
-			sh,
-			"Enable CONFIG_MEM_SLAB_TRACE_MAX_UTILIZATION to get max memory utilization");
+	err = log_mem_get_usage(&size, &used);
+	if (err < 0) {
+		shell_error(sh, "Failed to get usage (mode does not support it?)");
 	}
+
+	shell_print(sh, "Log message buffer utilization report:");
+	shell_print(sh, "\tCapacity: %u bytes", size);
+	shell_print(sh, "\tCurrently in use: %u bytes", used);
+	err = log_mem_get_max_usage(&max);
+	if (err < 0) {
+		shell_print(sh, "Enable CONFIG_LOG_MEM_UTILIZATION to get maximum usage");
+	}
+
+	shell_print(sh, "\tMaximum usage: %u bytes", max);
 
 	return 0;
 }
@@ -478,7 +481,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 			   "Get utilization of string duplicates pool", cmd_log_strdup_utilization,
 			   1, 0),
 	SHELL_COND_CMD(CONFIG_LOG_MODE_DEFERRED, mem, NULL, "Logger memory usage",
-		       cmd_log_memory_slabs),
+		       cmd_log_mem),
 	SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(log, &sub_log_stat, "Commands for controlling logger",

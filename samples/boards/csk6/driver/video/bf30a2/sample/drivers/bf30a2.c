@@ -59,12 +59,6 @@ LOG_MODULE_REGISTER(bf30a2);
 	(BF30A2_FRAME_START_PACKET_LEN + BF30A2_DATA_PACKET_LEN * BF30A2_FRAME_HEIGHT +            \
 	 BF30A2_LINE_START_PACKET_LEN + BF30A2_FRAME_END_PACKET_LEN)
 
-struct pwm_dt_spec {
-	const struct device *pwm;
-	const int pin;
-	const int flag;
-};
-
 struct bf30a2_chip_data {
 	const struct gpio_dt_spec xclk_gpios;
 	const struct gpio_dt_spec pd_gpios;

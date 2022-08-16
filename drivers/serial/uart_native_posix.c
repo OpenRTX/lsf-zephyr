@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <poll.h>
 
-#include <drivers/uart.h>
+#include <zephyr/drivers/uart.h>
 #include "cmdline.h" /* native_posix command line options header */
 #include "soc.h"
 
@@ -310,7 +310,7 @@ static int np_uart_stdin_poll_in(const struct device *dev,
 	if (disconnected || feof(stdin)) {
 		/*
 		 * The stdinput is fed from a file which finished or the user
-		 * pressed Crtl+D
+		 * pressed Ctrl+D
 		 */
 		disconnected = true;
 		return -1;
@@ -367,14 +367,14 @@ static int np_uart_tty_poll_in(const struct device *dev,
 DEVICE_DT_INST_DEFINE(0,
 	    &np_uart_0_init, NULL,
 	    (void *)&native_uart_status_0, NULL,
-	    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+	    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
 	    &np_uart_driver_api_0);
 
 #if defined(CONFIG_UART_NATIVE_POSIX_PORT_1_ENABLE)
 DEVICE_DT_INST_DEFINE(1,
 	    &np_uart_1_init, NULL,
 	    (void *)&native_uart_status_1, NULL,
-	    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+	    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
 	    &np_uart_driver_api_1);
 #endif /* CONFIG_UART_NATIVE_POSIX_PORT_1_ENABLE */
 

@@ -38,7 +38,7 @@
         pwmleds {
 		compatible = "pwm-leds";
 		green_pwm_led: green_pwm_led {
-			pwms = <&pwm5 5 PWM_POLARITY_NORMAL>;
+			pwms = <&pwm5 5 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
 			label = "User BOARD_LED_2 - PWM0";
 		};
 
@@ -191,9 +191,10 @@
 
         /*psram for ap core slot: 1MB */
         psram_ap: psram_ap@30600000 {
-                compatible = "listenai,csk6-psram-partition";
+                compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
                 reg = <0x30600000 0x100000>;
                 status = "okay";
+                zephyr,memory-region = "PSRAMAP";
         };
 
         /*psram for ap share with cp slot: 512KB */

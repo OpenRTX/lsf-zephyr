@@ -30,6 +30,7 @@ static void dump_entropy(const char *entropy_buf, uint32_t len)
 void main(void)
 {
 	const struct device *dev;
+	int ret = 0;
 
 	dev = device_get_binding(DT_CHOSEN_ZEPHYR_ENTROPY_LABEL);
 	if (!dev) {
@@ -39,7 +40,11 @@ void main(void)
 
 	printk("start get entropy sample \r\n");
 
-	entropy_get_entropy(dev, entropy_buf, ENTROPY_LEN_MAX);
+	ret = entropy_get_entropy(dev, entropy_buf, ENTROPY_LEN_MAX);
+	if(ret != 0){
+		printk("error: get entropy failed %d\r\n", ret);
+		return;
+	}
 
 	dump_entropy(entropy_buf, ENTROPY_LEN_MAX);
 

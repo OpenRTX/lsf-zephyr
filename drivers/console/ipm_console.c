@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <kernel.h>
-#include <device.h>
-#include <init.h>
-#include <drivers/ipm.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/init.h>
+#include <zephyr/drivers/ipm.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(ipm_console, CONFIG_IPM_LOG_LEVEL);
 
 const struct device *ipm_dev;
@@ -88,4 +88,4 @@ static int ipm_console_init(const struct device *dev)
 }
 
 /* Need to be initialized after IPM */
-SYS_INIT(ipm_console_init, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
+SYS_INIT(ipm_console_init, POST_KERNEL, CONFIG_CONSOLE_INIT_PRIORITY);

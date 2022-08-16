@@ -3,24 +3,24 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Emulator for the Boche BMI160 accelerometer / gyro. This supports basic
+ * Emulator for the Bosch BMI160 accelerometer / gyro. This supports basic
  * init and reading of canned samples. It supports both I2C and SPI buses.
  */
 
 #define DT_DRV_COMPAT bosch_bmi160
 
 #define LOG_LEVEL CONFIG_SPI_LOG_LEVEL
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(bosch_bmi160);
 
-#include <sys/byteorder.h>
+#include <zephyr/sys/byteorder.h>
 #include <bmi160.h>
-#include <device.h>
-#include <drivers/emul.h>
-#include <drivers/i2c.h>
-#include <drivers/i2c_emul.h>
-#include <drivers/spi.h>
-#include <drivers/spi_emul.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/emul.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/drivers/i2c_emul.h>
+#include <zephyr/drivers/spi.h>
+#include <zephyr/drivers/spi_emul.h>
 
 /** Run-time data used by the emulator */
 struct bmi160_emul_data {
@@ -32,8 +32,6 @@ struct bmi160_emul_data {
 	};
 	/** BMI160 device being emulated */
 	const struct device *dev;
-	/** Configuration information */
-	const struct bmi160_emul_cfg *cfg;
 	uint8_t pmu_status;
 	/** Current register to read (address) */
 	uint32_t cur_reg;
@@ -43,8 +41,6 @@ struct bmi160_emul_data {
 struct bmi160_emul_cfg {
 	/** Label of the SPI bus this emulator connects to */
 	const char *bus_label;
-	/** Pointer to run-time data */
-	struct bmi160_emul_data *data;
 	/** Chip registers */
 	uint8_t *reg;
 	union {
@@ -62,7 +58,7 @@ static void sample_read(struct bmi160_emul_data *data, union bmi160_sample *buf)
 {
 	/*
 	 * Use hard-coded scales to get values just above 0, 1, 2 and
-	 * 3, 4, 5. Values are stored in little endianess.
+	 * 3, 4, 5. Values are stored in little endianness.
 	 * gyr[x] = 0x0b01  // 3 * 1000000 / BMI160_GYR_SCALE(2000) + 1
 	 * gyr[y] = 0x0eac  // 4 * 1000000 / BMI160_GYR_SCALE(2000) + 1
 	 * gyr[z] = 0x1257  // 5 * 1000000 / BMI160_GYR_SCALE(2000) + 1
@@ -77,9 +73,10 @@ static void sample_read(struct bmi160_emul_data *data, union bmi160_sample *buf)
 	memcpy(buf->raw, raw_data, ARRAY_SIZE(raw_data));
 }
 
-static void reg_write(const struct bmi160_emul_cfg *cfg, int regn, int val)
+static void reg_write(const struct emul *emulator, int regn, int val)
 {
-	struct bmi160_emul_data *data = cfg->data;
+	struct bmi160_emul_data *data = emulator->data;
+	const struct bmi160_emul_cfg *cfg = emulator->cfg;
 
 	LOG_INF("write %x = %x", regn, val);
 	cfg->reg[regn] = val;
@@ -136,9 +133,10 @@ static void reg_write(const struct bmi160_emul_cfg *cfg, int regn, int val)
 	}
 }
 
-static int reg_read(const struct bmi160_emul_cfg *cfg, int regn)
+static int reg_read(const struct emul *emulator, int regn)
 {
-	struct bmi160_emul_data *data = cfg->data;
+	struct bmi160_emul_data *data = emulator->data;
+	const struct bmi160_emul_cfg *cfg = emulator->cfg;
 	int val;
 
 	LOG_INF("read %x =", regn);
@@ -185,13 +183,11 @@ static int bmi160_emul_io_spi(struct spi_emul *emul,
 			      const struct spi_buf_set *rx_bufs)
 {
 	struct bmi160_emul_data *data;
-	const struct bmi160_emul_cfg *cfg;
 	const struct spi_buf *tx, *txd, *rxd;
 	unsigned int regn, val;
 	int count;
 
 	data = CONTAINER_OF(emul, struct bmi160_emul_data, emul_spi);
-	cfg = data->cfg;
 
 	__ASSERT_NO_MSG(tx_bufs || rx_bufs);
 	__ASSERT_NO_MSG(!tx_bufs || !rx_bufs ||
@@ -214,11 +210,11 @@ static int bmi160_emul_io_spi(struct spi_emul *emul,
 			case 1:
 				if (regn & BMI160_REG_READ) {
 					regn &= BMI160_REG_MASK;
-					val = reg_read(cfg, regn);
+					val = reg_read(emul->parent, regn);
 					*(uint8_t *)rxd->buf = val;
 				} else {
 					val = *(uint8_t *)txd->buf;
-					reg_write(cfg, regn, val);
+					reg_write(emul->parent, regn, val);
 				}
 				break;
 			case BMI160_SAMPLE_SIZE:
@@ -252,11 +248,9 @@ static int bmi160_emul_transfer_i2c(struct i2c_emul *emul, struct i2c_msg *msgs,
 				    int num_msgs, int addr)
 {
 	struct bmi160_emul_data *data;
-	const struct bmi160_emul_cfg *cfg;
 	unsigned int val;
 
 	data = CONTAINER_OF(emul, struct bmi160_emul_data, emul_i2c);
-	cfg = data->cfg;
 
 	__ASSERT_NO_MSG(msgs && num_msgs);
 
@@ -278,7 +272,7 @@ static int bmi160_emul_transfer_i2c(struct i2c_emul *emul, struct i2c_msg *msgs,
 		if (msgs->flags & I2C_MSG_READ) {
 			switch (msgs->len) {
 			case 1:
-				val = reg_read(cfg, data->cur_reg);
+				val = reg_read(emul->parent, data->cur_reg);
 				msgs->buf[0] = val;
 				break;
 			case BMI160_SAMPLE_SIZE:
@@ -292,7 +286,7 @@ static int bmi160_emul_transfer_i2c(struct i2c_emul *emul, struct i2c_msg *msgs,
 			if (msgs->len != 1) {
 				LOG_ERR("Unexpected msg1 length %d", msgs->len);
 			}
-			reg_write(cfg, data->cur_reg, msgs->buf[0]);
+			reg_write(emul->parent, data->cur_reg, msgs->buf[0]);
 		}
 		break;
 	default:
@@ -322,11 +316,10 @@ static void emul_bosch_bmi160_init(const struct emul *emul,
 				   const struct device *parent)
 {
 	const struct bmi160_emul_cfg *cfg = emul->cfg;
-	struct bmi160_emul_data *data = cfg->data;
+	struct bmi160_emul_data *data = emul->data;
 	uint8_t *reg = cfg->reg;
 
 	data->dev = parent;
-	data->cfg = cfg;
 	data->pmu_status = 0;
 
 	reg[BMI160_REG_CHIPID] = BMI160_CHIP_ID;
@@ -347,11 +340,12 @@ static int emul_bosch_bmi160_init_spi(const struct emul *emul,
 				      const struct device *parent)
 {
 	const struct bmi160_emul_cfg *cfg = emul->cfg;
-	struct bmi160_emul_data *data = cfg->data;
+	struct bmi160_emul_data *data = emul->data;
 
 	emul_bosch_bmi160_init(emul, parent);
 	data->emul_spi.api = &bmi160_emul_api_spi;
 	data->emul_spi.chipsel = cfg->chipsel;
+	data->emul_spi.parent = emul;
 
 	int rc = spi_emul_register(parent, emul->dev_label, &data->emul_spi);
 
@@ -374,11 +368,12 @@ static int emul_bosch_bmi160_init_i2c(const struct emul *emul,
 				      const struct device *parent)
 {
 	const struct bmi160_emul_cfg *cfg = emul->cfg;
-	struct bmi160_emul_data *data = cfg->data;
+	struct bmi160_emul_data *data = emul->data;
 
 	emul_bosch_bmi160_init(emul, parent);
 	data->emul_i2c.api = &bmi160_emul_api_i2c;
 	data->emul_i2c.addr = cfg->addr;
+	data->emul_i2c.parent = emul;
 
 	int rc = i2c_emul_register(parent, emul->dev_label, &data->emul_i2c);
 
@@ -392,14 +387,13 @@ static int emul_bosch_bmi160_init_i2c(const struct emul *emul,
 
 #define BMI160_EMUL_DEFINE(n, type) \
 	EMUL_DEFINE(emul_bosch_bmi160_init_##type, DT_DRV_INST(n), \
-		&bmi160_emul_cfg_##n)
+		&bmi160_emul_cfg_##n, &bmi160_emul_data_##n)
 
 /* Instantiation macros used when a device is on a SPI bus */
 #define BMI160_EMUL_SPI(n) \
 	BMI160_EMUL_DATA(n) \
 	static const struct bmi160_emul_cfg bmi160_emul_cfg_##n = { \
 		.bus_label = DT_INST_BUS_LABEL(n), \
-		.data = &bmi160_emul_data_##n, \
 		.reg = bmi160_emul_reg_##n, \
 		.chipsel = DT_INST_REG_ADDR(n) \
 	}; \
@@ -409,7 +403,6 @@ static int emul_bosch_bmi160_init_i2c(const struct emul *emul,
 	BMI160_EMUL_DATA(n) \
 	static const struct bmi160_emul_cfg bmi160_emul_cfg_##n = { \
 		.bus_label = DT_INST_BUS_LABEL(n), \
-		.data = &bmi160_emul_data_##n, \
 		.reg = bmi160_emul_reg_##n, \
 		.addr = DT_INST_REG_ADDR(n) \
 	}; \

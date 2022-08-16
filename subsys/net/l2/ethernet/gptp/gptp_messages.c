@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(net_gptp, CONFIG_NET_GPTP_LOG_LEVEL);
 
-#include <net/net_if.h>
+#include <zephyr/net/net_if.h>
 
 #include "gptp_messages.h"
 #include "gptp_data_set.h"
@@ -169,7 +169,7 @@ static struct net_pkt *setup_gptp_frame(struct net_if *iface,
 	}
 
 	net_buf_add(pkt->buffer, sizeof(struct gptp_hdr) + extra_header);
-	net_pkt_set_gptp(pkt, true);
+	net_pkt_set_ptp(pkt, true);
 
 	net_pkt_lladdr_src(pkt)->addr = net_if_get_link_addr(iface)->addr;
 	net_pkt_lladdr_src(pkt)->len = net_if_get_link_addr(iface)->len;

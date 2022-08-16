@@ -33,32 +33,36 @@ const struct device *spi_master = NULL;
 const struct device *spi_slave = NULL;
 
 #if MASTER_MODE
-void spi_master_init(void)
+int spi_master_init(void)
 {
 	spi_master = DEVICE_DT_GET(DT_NODELABEL(spi1));
 	if (spi_master == NULL) {
 		printk("spi_master: Device is not found.\n");
-		return;
+		return -ENODEV;
 	}
 
 	if (!device_is_ready(spi_master)) {
 		printk("spi_master: Device is not ready.\n");
-		return;
+		return -ENODEV;
 	}
+
+	return 0;
 }
 #else
-void spi_slave_init(void)
+int spi_slave_init(void)
 {
 	spi_slave = DEVICE_DT_GET(DT_NODELABEL(spi1));
 	if (spi_slave == NULL) {
 		printk("spi_slave: Device is not found.\n");
-		return;
+		return -ENODEV;
 	}
 
 	if (!device_is_ready(spi_slave)) {
 		printk("spi_slave: Device is not ready.\n");
-		return;
+		return -ENODEV;
 	}
+
+	return 0;
 }
 #endif
 
@@ -135,13 +139,19 @@ void slave_thread(void *v1, void *v2, void *v3)
 
 void main(void)
 {
+	int ret = 0;
+
 	printk("SPI test start \n");
 
 #if MASTER_MODE
-	spi_master_init();
+	ret = spi_master_init();
 #else
-	spi_slave_init();
+	ret = spi_slave_init();
 #endif
+	if(ret != 0){
+		return;
+	}
+
 	/* create master or slave thread */
 	int pri = k_thread_priority_get(k_current_get());
 

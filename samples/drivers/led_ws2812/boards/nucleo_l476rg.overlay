@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <dt-bindings/led/led.h>
+#include <zephyr/dt-bindings/led/led.h>
 
 &arduino_spi {
 	led_strip: ws2812@0 {
@@ -14,6 +14,7 @@
 		/* SPI */
 		reg = <0>; /* ignored, but necessary for SPI bindings */
 		spi-max-frequency = <4000000>;
+		frame-format = <32768>; /* SPI_FRAME_FORMAT_TI */
 
 		/* WS2812 */
 		chain-length = <16>; /* arbitrary; change at will */
