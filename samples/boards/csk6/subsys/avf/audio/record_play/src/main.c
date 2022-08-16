@@ -118,7 +118,7 @@ void main(void)
 
     /*step5: waiting to revice 5S audio data */
     printk("record start\n");
-    k_sleep(5000);
+    k_msleep(5000);
 
     /*step6: stop acapture*/
     acap_stop(acapture);

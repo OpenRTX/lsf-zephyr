@@ -34,34 +34,14 @@ The sample can be built as follows:
 Sample Output
 ***********************************************
 
-*** Booting Zephyr OS build 1aac66ee60b1  ***
+*** Booting Zephyr OS build v1.0.4-alpha.1  ***
 Create acapture success
 Register data event callback success.
 Set audio fmt<16000 1 16> to acapture success
 Trigger capture start success.
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-Get audio data length 4096 
-acapture run compelete and exit
+record start
+Create aplay success
+Set audio fmt to aplay success
+Trigger play start success.
+play drain finsh with timestamp 10640 ms
+audio play complete. 
