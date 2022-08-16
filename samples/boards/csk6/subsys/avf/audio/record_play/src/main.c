@@ -14,10 +14,6 @@
 #include <devicetree.h>
 #include <device.h>
 
-#define LED0 DT_GPIO_LABEL(DT_NODELABEL(board_led_2_label), gpios)
-#define PIN DT_GPIO_PIN(DT_NODELABEL(board_led_2_label), gpios)
-#define SLEEP_TIME_MS 50
-
 #define ACAPTURE_DATA_EVENT_THRES (1024)
 #define ACAPTURE_DATA_TOTAL_LENGTH (1024 * 100)
 #define ACAPTURE_MSGQ_NUMBER (50)
@@ -67,20 +63,6 @@ static void acapture_data_process(void *priv, acapture_event_msg_t msg)
 
 void main(void)
 {
-    const struct device *dev;
-    int ret;
-    dev = device_get_binding(LED0);
-    if (dev == NULL)
-    {
-        return;
-    }
-
-    ret = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE);
-    if (ret < 0)
-    {
-        return;
-    }
-
     /* start record */
     acapture_t *acapture = NULL;
     amedia_fmt_t fmt = {
@@ -136,18 +118,7 @@ void main(void)
 
     /*step5: waiting to revice 5S audio data */
     printk("record start\n");
-    int i = 0;
-    bool led_is_on = true;
-    while (i < 100)
-    {
-        i++;
-        gpio_pin_set(dev, PIN, (int)led_is_on);
-        led_is_on = !led_is_on;
-        k_msleep(SLEEP_TIME_MS);
-    }
-    led_is_on = true;
-    gpio_pin_set(dev, PIN, (int)led_is_on);
-    printk("record complete\n");
+    k_sleep(5000);
 
     /*step6: stop acapture*/
     acap_stop(acapture);
@@ -179,9 +150,6 @@ void main(void)
         return;
     }
     printk("Set audio fmt to aplay success\n");
-
-    /* led on */
-    gpio_pin_set(dev, PIN, (int)!led_is_on);
 
     /*step3: start play*/
     if (0 != (iret = aplay_start(aplay)))
@@ -222,7 +190,5 @@ void main(void)
         printk("aplay_destroy failed.\n");
         return;
     }
-    /* led off */
-    gpio_pin_set(dev, PIN, (int)led_is_on);
     printk("audio play complete. \n");
 }
