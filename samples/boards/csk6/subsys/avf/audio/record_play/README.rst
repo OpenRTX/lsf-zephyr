@@ -4,12 +4,22 @@ acapture Sample Application
 Overview
 ********
 
-This sample shows how to use the API interface provided by acapture to record audio. 
+This sample shows how to use the API interface provided by acapture to record audio.
+And also shows how to use the API interface provided by Aplay to play audio. 
+
 In this sample project, includes the firmware and topology file resources required 
 for DSP operation (only supporrt PCM 16bits 16000 format).Developers can replace files 
 according to project requirements.
 Hardware info:
 MIC0_N/MIC0_P  ->   Audio input
+
+includes the firmware and topology file resources required 
+for DSP operation (only supporrt PCM 16bits 48000 format).Developers can replace files 
+according to project requirements.
+Hardware info:
+GIPOA04  ->  Power amplifier enable
+LINE_LN  ->  Audio output
+LINE_LP  ->  Audio output
 
 
 Building
