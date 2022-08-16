@@ -44,7 +44,7 @@ static void acapture_data_process(void *priv, acapture_event_msg_t msg)
         msgq_data.pdata = k_malloc(sizeof(char) * avail);
         if (msgq_data.pdata == NULL)
         {
-            prink("[%s %d]k_malloc FAILED!", __FUNCTION__, __LINE__);
+            printk("[%s %d]k_malloc FAILED!", __FUNCTION__, __LINE__);
             return;
         }
         readlen = acap_get_datai(handle, msgq_data.pdata, avail);
@@ -55,7 +55,7 @@ static void acapture_data_process(void *priv, acapture_event_msg_t msg)
             if (ret)
             {
                 k_free(msgq_data.pdata);
-                prink("[%s %d]msgq message dropped", __FUNCTION__, __LINE__);
+                printk("[%s %d]msgq message dropped", __FUNCTION__, __LINE__);
             }
         }
         else

@@ -4,19 +4,16 @@ acapture Sample Application
 Overview
 ********
 
-This sample shows how to use the API interface provided by acapture to record audio.
-And also shows how to use the API interface provided by Aplay to play audio. 
+This sample demonstrates how to use acapture & aplay(provided by AVF Framework) to 
+startup a audio recoder and audio player. DSP firmware and SOF topology file will 
+be invoked in byte-array format by generate_inc_file_for_target() camke function 
+which provided by Zephyr Build System.
 
 In this sample project, includes the firmware and topology file resources required 
-for DSP operation (only supporrt PCM 16bits 16000 format).Developers can replace files 
+for DSP operation (supporrt PCM 16bits 16000 format).Developers can replace files 
 according to project requirements.
 Hardware info:
 MIC0_N/MIC0_P  ->   Audio input
-
-includes the firmware and topology file resources required 
-for DSP operation (only supporrt PCM 16bits 48000 format).Developers can replace files 
-according to project requirements.
-Hardware info:
 GIPOA04  ->  Power amplifier enable
 LINE_LN  ->  Audio output
 LINE_LP  ->  Audio output
