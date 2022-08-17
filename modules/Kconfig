@@ -38,7 +38,6 @@ source "modules/Kconfig.mcuboot_bootutil"
 source "modules/Kconfig.protobuf_c"
 source "modules/Kconfig.wifi_manager"
 source "modules/Kconfig.xradio_819s"
-source "modules/Kconfig.lvgl8"
 
 comment "Unavailable modules, please install those via the project manifest."
 
