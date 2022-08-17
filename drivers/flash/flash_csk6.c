@@ -19,6 +19,9 @@
 #include <hal/venus_ap.h>
 #include <hal/spiflash.h>
 
+#include <logging/log.h>
+LOG_MODULE_REGISTER(flash_csk6, CONFIG_FLASH_LOG_LEVEL);
+
 
 #if (CONFIG_CSK6_FLASH_STALL_SECOND_CORE)
 #define FLASH_OPT_ENTER() \
@@ -127,6 +130,11 @@ static int flash_csk6_erase(const struct device *dev, off_t start, size_t len)
 	int iret;
 
 	if (start > FLASH_CHIP_SZ || start + len > FLASH_CHIP_SZ) {
+		return -EINVAL;
+	}
+
+	if ((start % FLASH_ERASE_BLK_SZ != 0) || (len % FLASH_ERASE_BLK_SZ != 0)) {
+		LOG_ERR(" address and length must be aligned with %d bytes", FLASH_ERASE_BLK_SZ);
 		return -EINVAL;
 	}
 
