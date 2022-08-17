@@ -1,0 +1,8 @@
+if BOARD_CSK6012_C3_NANO
+
+config BOARD
+   default "csk6012_c3_nano"
+
+
+
+endif # BOARD_CSK6012_C3_NANO
