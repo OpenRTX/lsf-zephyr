@@ -64,19 +64,19 @@
                 };
                 
                 pinctrl_spi1_sclk_default: spi1_sclk_default{
-					pinctrls = <&pinmuxa 20 7>;
+			pinctrls = <&pinmuxa 20 7>;
                 };
                 
                 pinctrl_spi1_mosi_default: spi1_mosi_default{
-					pinctrls = <&pinmuxa 19 7>;
+			pinctrls = <&pinmuxa 19 7>;
                 };
 
                 pinctrl_spi1_miso_default: spi1_miso_default{
-					pinctrls = <&pinmuxa 18 7>;
+			pinctrls = <&pinmuxa 18 7>;
                 };    
 
                 pinctrl_spi1_cs_default: spi1_cs_default{
-					pinctrls = <&pinmuxa 17 7>;
+			pinctrls = <&pinmuxa 17 7>;
                 };
                 
                 /* ADC alternate function */
@@ -97,6 +97,7 @@
                 };
 
                 pinctrl_pwm2_default: pwm2_default{
+                        pinctrls = <&pinmuxb 6 11>;
                 };
 
                 pinctrl_pwm3_default: pwm3_default{
