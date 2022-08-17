@@ -8,7 +8,7 @@
     leds {
             compatible = "gpio-leds";
             board_led_2_label: board_led_2_nodeid {
-                    gpios = <&gpioa 5 0>;
+                    gpios = <&gpiob 6 0>;
                     label = "User BOARD_LED_2";
             };
     };

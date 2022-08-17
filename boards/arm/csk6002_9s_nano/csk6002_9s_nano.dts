@@ -3,13 +3,14 @@
 /dts-v1/;
 #include <csk/csk6.dtsi>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/gpio/gpio.h>
 #include "csk6002_9s_nano_pinctrl.dtsi"
 
 / {
         model = "csk6002 9s nano";
         compatible = "csk,csk6002_9s_nano";
         aliases {
-                led0 = &board_led_2;
+                led0 = &green_led;
                 sw0 = &user_button_0;
                 pwm-led0 = &green_pwm_led;
                 i2c-0 = &i2c0;
@@ -31,15 +32,16 @@
 
         leds {
                 compatible = "gpio-leds";
-                board_led_2: board_led_2 {
-                        gpios = <&gpioa 5 0>;
-                        label = "User BOARD_LED_2";
+                green_led: led1 {
+                        gpios = <&gpioa 5 GPIO_ACTIVE_LOW>;
+                        label = "User LED1";
                 };
         };
 
         pwmleds {
 		compatible = "pwm-leds";
 		green_pwm_led: green_pwm_led {
+                         /* PWM LED will conflict with User LED1 since using the same gpio pin */
                         pwms = <&pwm5 5 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
 			label = "User BOARD_LED_2 - PWM0";
 		};
@@ -125,10 +127,6 @@
 
 &i2c1 {
         status = "disabled";
-};
-
-&board_led_2 {
-        status = "okay";
 };
 
 &mailbox0 {
