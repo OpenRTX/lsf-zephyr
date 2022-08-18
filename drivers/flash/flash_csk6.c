@@ -20,21 +20,23 @@
 #include <hal/spiflash.h>
 
 
-#if (CSK6_FLASH_STALL_SECOND_CORE)
+#if (CONFIG_CSK6_FLASH_STALL_SECOND_CORE)
 #define FLASH_OPT_ENTER() \
-	int flash_irq_key = irq_lock();\
+	uint32_t primask = __get_PRIMASK();\
+	__set_PRIMASK(1);\
 	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x1;
 
 #define FLASH_OPT_EXIT() \
 	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x0;\
-	irq_unlock(flash_irq_key);
+	__set_PRIMASK(primask);
 #else
 
 #define FLASH_OPT_ENTER() \
-	int flash_irq_key = irq_lock();
+	uint32_t primask = __get_PRIMASK();\
+	__set_PRIMASK(1);
 
 #define FLASH_OPT_EXIT() \
-	irq_unlock(flash_irq_key);
+	__set_PRIMASK(primask);
 
 #endif
 
@@ -166,10 +168,9 @@ static const struct flash_parameters *flash_csk6_get_parameters(const struct dev
 
 static int flash_csk6_init(const struct device *dev)
 {
-	unsigned int key;
-	key = irq_lock();
+	FLASH_OPT_ENTER();
 	sflash_init((void *)dev->config);
-	irq_unlock(key);
+	FLASH_OPT_EXIT();
 	return 0;
 }
 

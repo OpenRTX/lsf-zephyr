@@ -3,4 +3,11 @@ if BOARD_CSK6002_9S_NANO
 config BOARD
    default "csk6002_9s_nano"
 
+if WIFI
+
+config XR_SDD_FILE
+   default "sdd_xr819s_xtal_48.bin"
+
+endif # WIFI
+
 endif # BOARD_CSK6002_9S_NANO

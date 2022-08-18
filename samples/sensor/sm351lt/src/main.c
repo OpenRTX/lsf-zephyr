@@ -6,10 +6,10 @@
  */
 
 #include <stdio.h>
-#include <zephyr.h>
-#include <device.h>
-#include <drivers/gpio.h>
-#include <drivers/sensor.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/sensor.h>
 
 static void fetch_and_display(const struct device *sensor)
 {
@@ -33,7 +33,7 @@ static void fetch_and_display(const struct device *sensor)
 
 #ifdef CONFIG_SM351LT_TRIGGER
 static void trigger_handler(const struct device *dev,
-			    struct sensor_trigger *trig)
+			    const struct sensor_trigger *trig)
 {
 	fetch_and_display(dev);
 }

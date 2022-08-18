@@ -2,4 +2,9 @@ tests:
   sample.board.csk6.driver.spi_master:
     platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_9s_nano
     tags: csk6
-    build_only: true
+    harness: console
+    timeout: 10
+    harness_config:
+      type: one_line
+      regex:
+        - "spi master sending data ..."

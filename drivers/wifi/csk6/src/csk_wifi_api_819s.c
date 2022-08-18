@@ -274,7 +274,6 @@ __exit:
 
 int csk_wifi_sta_get_status()
 {
-    int ret = 0;
     int ret_status = CSK_WIFI_STATUS_STA_UNKNOWN;
     wifi_sta_state_machine_t sta_state = WIFI_SM_ON_STARTUP;
     sta_state = wifi_obj_get_sm();

@@ -17,13 +17,13 @@ the same during later stages of linking.
 import sys
 import argparse
 import os
-from distutils.version import LooseVersion
+from packaging import version
 
 import elftools
 from elftools.elf.elffile import ELFFile
 
 
-if LooseVersion(elftools.__version__) < LooseVersion('0.24'):
+if version.parse(elftools.__version__) < version.parse('0.24'):
     sys.exit("pyelftools is out of date, need version 0.24 or later")
 
 
@@ -85,7 +85,7 @@ def generate_linker_headers(obj):
             continue
 
         name = one_sect.name
-        if name in sections.keys():
+        if name in sections:
             # Need section alignment and size
             sections[name]['align'] = one_sect['sh_addralign']
             sections[name]['size'] = one_sect['sh_size']
@@ -115,7 +115,7 @@ def parse_args():
     parser.add_argument("--outdir", required=True,
                         help="Output directory (<build_dir>/include/generated)")
     parser.add_argument("--datapct", required=True,
-                        help="Multipler to the size of reserved space for DATA region")
+                        help="Multiplier to the size of reserved space for DATA region")
     parser.add_argument("--rodata", required=True,
                         help="Extra bytes to reserve for RODATA region")
     parser.add_argument("-v", "--verbose", action="store_true",

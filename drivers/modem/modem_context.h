@@ -14,11 +14,11 @@
 #ifndef ZEPHYR_INCLUDE_DRIVERS_MODEM_MODEM_CONTEXT_H_
 #define ZEPHYR_INCLUDE_DRIVERS_MODEM_MODEM_CONTEXT_H_
 
-#include <kernel.h>
-#include <net/buf.h>
-#include <net/net_ip.h>
-#include <sys/ring_buffer.h>
-#include <drivers/gpio.h>
+#include <zephyr/kernel.h>
+#include <zephyr/net/buf.h>
+#include <zephyr/net/net_ip.h>
+#include <zephyr/sys/ring_buffer.h>
+#include <zephyr/drivers/gpio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,7 +71,7 @@ struct modem_context {
 	int   data_lac;
 	int   data_cellid;
 #endif
-	int   data_rssi;
+	int   *data_rssi;
 	bool  is_automatic_oper;
 	/* pin config */
 	struct modem_pin *pins;
@@ -91,10 +91,12 @@ struct modem_context {
  * @brief  IP address to string
  *
  * @param  addr: sockaddr to be converted
+ * @param  buf:  Buffer to store IP in string form
+ * @param  buf_size:  buffer size
  *
- * @retval Buffer with IP in string form
+ * @retval 0 if ok, < 0 if error.
  */
-char *modem_context_sprint_ip_addr(const struct sockaddr *addr);
+int modem_context_sprint_ip_addr(const struct sockaddr *addr, char *buf, size_t buf_size);
 
 /**
  * @brief  Get port from IP address

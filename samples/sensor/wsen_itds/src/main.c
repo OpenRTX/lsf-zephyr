@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
+#include <zephyr/zephyr.h>
 
-#include <sys/printk.h>
-#include <sys_clock.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/sys_clock.h>
 #include <stdio.h>
 
-#include <device.h>
-#include <drivers/sensor.h>
-#include <drivers/i2c.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/i2c.h>
 
 #define MAX_TEST_TIME	5000
 #define SLEEPTIME	300
@@ -67,7 +67,7 @@ static void test_polling_mode(const struct device *itds)
 
 #if defined(CONFIG_ITDS_TRIGGER)
 static void trigger_handler(const struct device *itds,
-			    struct sensor_trigger *trigger)
+			    const struct sensor_trigger *trigger)
 {
 	switch (trigger->type) {
 	case SENSOR_TRIG_DATA_READY:

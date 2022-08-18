@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <device.h>
-#include <drivers/sensor.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
 #include <stdio.h>
 
 static const char *now_str(void)
@@ -72,7 +72,7 @@ static int process_mpu6050(const struct device *dev)
 static struct sensor_trigger trigger;
 
 static void handle_mpu6050_drdy(const struct device *dev,
-				struct sensor_trigger *trig)
+				const struct sensor_trigger *trig)
 {
 	int rc = process_mpu6050(dev);
 

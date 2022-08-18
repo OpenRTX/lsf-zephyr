@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <sys/util.h>
-#include <drivers/gpio.h>
-#include <modbus/modbus.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/modbus/modbus.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mbs_sample, LOG_LEVEL_INF);
 
 static uint16_t holding_reg[8];
@@ -109,7 +109,6 @@ const static struct modbus_iface_param server_param = {
 
 static int init_modbus_server(void)
 {
-	const uint32_t mb_rtu_br = 19200;
 	const char iface_name[] = {DT_PROP(DT_INST(0, zephyr_modbus_serial), label)};
 	int iface;
 

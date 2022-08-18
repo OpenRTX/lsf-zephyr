@@ -121,7 +121,7 @@ static int pwm_csk_pin_set(const struct device *dev, uint32_t pwm,
 
 
 static const struct pwm_driver_api pwm_csk_driver_api = {
-	.pin_set = pwm_csk_pin_set,
+	.set_cycles = pwm_csk_pin_set,
 	.get_cycles_per_sec = pwm_csk_get_cycles_per_sec,
 };
 

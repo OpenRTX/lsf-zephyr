@@ -57,8 +57,9 @@ struct csk6_pinctrl_cfg {
  * @return an array of csk6 alt items.
  */
 #define CSK6_DT_ALT_ITEMS_LIST(inst) {			\
-	UTIL_LISTIFY(DT_INST_NUM_PINCTRLS_BY_IDX(inst, 0),	\
+	LISTIFY(DT_INST_NUM_PINCTRLS_BY_IDX(inst, 0),	\
 		     CSK6_DT_ALT_ITEMS_FUNC,			\
+			 (),		 	        \
 		     inst)					\
 	}
 

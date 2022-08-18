@@ -9,10 +9,10 @@
  * @brief Sample app for Audio class
  */
 
-#include <zephyr.h>
-#include <logging/log.h>
-#include <usb/usb_device.h>
-#include <usb/class/usb_audio.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/usb/class/usb_audio.h>
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -47,6 +47,10 @@ static void feature_update(const struct device *dev,
 		evt->cs, evt->channel);
 	switch (evt->cs) {
 	case USB_AUDIO_FU_MUTE_CONTROL:
+		break;
+	case USB_AUDIO_FU_VOLUME_CONTROL:
+		LOG_INF("[%s] volume: %d, val_len: %d", __FUNCTION__, *((int16_t *)(evt->val)), evt->val_len);
+		break;
 	default:
 		break;
 	}

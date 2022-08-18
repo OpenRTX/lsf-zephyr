@@ -35,6 +35,9 @@ LOG_MODULE_REGISTER(csk6_adc, LOG_LEVEL_WRN);
 /* ADC internal reference voltage (Unit:mV) */
 #define CSK6_ADC_VREF_VOL 3300
 
+/* ADC internal reference resolution */
+#define CSK6_ADC_RES	(11)
+
 struct adc_csk6_data {
     /* driver handle */
     void *handle; 
@@ -77,6 +80,11 @@ static int adc_csk6_start_read(const struct device *dev,
 				  const struct adc_sequence *sequence)
 {
 	struct adc_csk6_data *data = DEV_DATA(dev);
+
+	if (sequence->resolution != CSK6_ADC_RES) {
+		LOG_ERR("ADC resolution must be %d \n", CSK6_ADC_RES);
+		return -EINVAL;
+	}
 
 	adc_context_start_read(&data->ctx, sequence);
 

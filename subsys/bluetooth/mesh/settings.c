@@ -4,17 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
+#include <zephyr/zephyr.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/util.h>
+#include <zephyr/sys/util.h>
 
-#include <settings/settings.h>
+#include <zephyr/settings/settings.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_SETTINGS)
 #define LOG_MODULE_NAME bt_mesh_settings
 #include "common/log.h"
 
+#include "host/hci_core.h"
 #include "mesh.h"
 #include "subnet.h"
 #include "app_keys.h"
@@ -26,6 +27,7 @@
 #include "heartbeat.h"
 #include "access.h"
 #include "proxy.h"
+#include "pb_gatt_srv.h"
 #include "settings.h"
 #include "cfg.h"
 
@@ -55,13 +57,23 @@ int bt_mesh_settings_set(settings_read_cb read_cb, void *cb_arg,
 
 static int mesh_commit(void)
 {
+	if (!atomic_test_bit(bt_dev.flags, BT_DEV_ENABLE)) {
+		/* The Bluetooth mesh settings loader calls bt_mesh_start() immediately
+		 * after loading the settings. This is not intended to work before
+		 * bt_enable(). The doc on @ref bt_enable requires the "bt/" settings
+		 * tree to be loaded after @ref bt_enable is completed, so this handler
+		 * will be called again later.
+		 */
+		return 0;
+	}
+
 	if (!bt_mesh_subnet_next(NULL)) {
 		/* Nothing to do since we're not yet provisioned */
 		return 0;
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
-		bt_mesh_proxy_prov_disable(true);
+		(void)bt_mesh_pb_gatt_srv_disable();
 	}
 
 	bt_mesh_net_settings_commit();

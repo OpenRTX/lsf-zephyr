@@ -21,6 +21,8 @@
     pinctrl-names = "default";
 
     ili9488@0 {
+        height = <480>;
+        width = <320>;
         compatible = "ilitek,ili9488";
         label = "DISPLAY";
         spi-max-frequency = <10000000>;

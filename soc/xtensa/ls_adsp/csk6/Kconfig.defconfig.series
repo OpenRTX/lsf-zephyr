@@ -3,10 +3,10 @@
 
 if SOC_SERIES_LS_CSK6
 
-# This series does not have MISC0.
-# Since EXCSAVE7 is unused by Zephyr, use it instead.
-config XTENSA_KERNEL_CPU_PTR_SR
-	default "EXCSAVE2"
+
+config KERNEL_BIN_NAME
+	string
+	default "zephyr_csk6_dsp"
 
 config SOC_SERIES
 	string
@@ -27,7 +27,7 @@ config XTENSA_TIMER
 	default y
 
 config SYS_CLOCK_HW_CYCLES_PER_SEC
-	default 400000000 if XTENSA_TIMER
+	default 300000000 if XTENSA_TIMER
 
 config SYS_CLOCK_TICKS_PER_SEC
 	default 50000

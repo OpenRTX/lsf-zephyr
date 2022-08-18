@@ -5,14 +5,14 @@
  */
 #include <string.h>
 #include <xtensa-asm2.h>
-#include <kernel.h>
+#include <zephyr/kernel.h>
 #include <ksched.h>
-#include <kernel_structs.h>
+#include <zephyr/kernel_structs.h>
 #include <kernel_internal.h>
 #include <kswap.h>
 #include <_soc_inthandlers.h>
-#include <toolchain.h>
-#include <logging/log.h>
+#include <zephyr/toolchain.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
@@ -20,6 +20,14 @@ void *xtensa_init_stack(struct k_thread *thread, int *stack_top,
 			void (*entry)(void *, void *, void *),
 			void *arg1, void *arg2, void *arg3)
 {
+	/* Not-a-cpu ID Ensures that the first time this is run, the
+	 * stack will be invalidated.  That covers the edge case of
+	 * restarting a thread on a stack that had previously been run
+	 * on one CPU, but then initialized on this one, and
+	 * potentially run THERE and not HERE.
+	 */
+	thread->arch.last_cpu = -1;
+
 	/* We cheat and shave 16 bytes off, the top four words are the
 	 * A0-A3 spill area for the caller of the entry function,
 	 * which doesn't exist.  It will never be touched, so we
@@ -136,6 +144,19 @@ static inline unsigned int get_bits(int offset, int num_bits, unsigned int val)
 	return val & mask;
 }
 
+static ALWAYS_INLINE void usage_stop(void)
+{
+#ifdef CONFIG_SCHED_THREAD_USAGE
+	z_sched_usage_stop();
+#endif
+}
+
+static inline void *return_to(void *interrupted)
+{
+	return _current_cpu->nested <= 1 ?
+		z_get_next_switch_handle(interrupted) : interrupted;
+}
+
 /* The wrapper code lives here instead of in the python script that
  * generates _xtensa_handle_one_int*().  Seems cleaner, still kind of
  * ugly.
@@ -147,6 +168,7 @@ static inline unsigned int get_bits(int offset, int num_bits, unsigned int val)
 __unused void *xtensa_int##l##_c(void *interrupted_stack)	\
 {							   \
 	uint32_t irqs, intenable, m;			   \
+	usage_stop();					   \
 	__asm__ volatile("rsr.interrupt %0" : "=r"(irqs)); \
 	__asm__ volatile("rsr.intenable %0" : "=r"(intenable)); \
 	irqs &= intenable;					\
@@ -154,15 +176,32 @@ __unused void *xtensa_int##l##_c(void *interrupted_stack)	\
 		irqs ^= m;					\
 		__asm__ volatile("wsr.intclear %0" : : "r"(m)); \
 	}							\
-	return z_get_next_switch_handle(interrupted_stack);		\
+	return return_to(interrupted_stack);		\
 }
 
+#if XCHAL_NMILEVEL >= 2
 DEF_INT_C_HANDLER(2)
+#endif
+
+#if XCHAL_NMILEVEL >= 3
 DEF_INT_C_HANDLER(3)
+#endif
+
+#if XCHAL_NMILEVEL >= 4
 DEF_INT_C_HANDLER(4)
+#endif
+
+#if XCHAL_NMILEVEL >= 5
 DEF_INT_C_HANDLER(5)
+#endif
+
+#if XCHAL_NMILEVEL >= 6
 DEF_INT_C_HANDLER(6)
+#endif
+
+#if XCHAL_NMILEVEL >= 7
 DEF_INT_C_HANDLER(7)
+#endif
 
 static inline DEF_INT_C_HANDLER(1)
 
@@ -221,8 +260,19 @@ void *xtensa_excint1_c(int *interrupted_stack)
 				     (void *)interrupted_stack);
 	}
 
-	return z_get_next_switch_handle(interrupted_stack);
+	return return_to(interrupted_stack);
 }
+
+#if defined(CONFIG_GDBSTUB)
+void *xtensa_debugint_c(int *interrupted_stack)
+{
+	extern void z_gdb_isr(z_arch_esf_t *esf);
+
+	z_gdb_isr((void *)interrupted_stack);
+
+	return return_to(interrupted_stack);
+}
+#endif
 
 int z_xtensa_irq_is_enabled(unsigned int irq)
 {

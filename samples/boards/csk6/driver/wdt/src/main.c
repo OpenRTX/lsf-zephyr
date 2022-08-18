@@ -13,7 +13,7 @@
 #define WDT_FEED_TRIES 1
 
 #ifndef WDT_MAX_WINDOW
-#define WDT_MAX_WINDOW 2000
+#define WDT_MAX_WINDOW 10000
 #endif
 
 #define WDT_ALLOW_CALLBACK 1
