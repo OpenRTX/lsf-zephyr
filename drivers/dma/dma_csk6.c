@@ -130,6 +130,32 @@ static int csk_dma_reload(const struct device *dev, uint32_t channel, uint32_t s
     return 0;
 }
 
+static bool csk_dma_addr_is_right_access(void *addr, uint32_t size)
+{
+	if (addr == NULL) {
+		return false;
+	}
+
+	/* D-Cache is disabled? */
+	if (!(SCB->CCR & SCB_CCR_DC_Msk)) {
+		return true;
+	}
+
+#if CONFIG_NOCACHE_MEMORY
+	extern char _nocache_ram_start[];
+	extern char _nocache_ram_end[];
+	extern char _nocache_ram_size[];
+
+	/* no-cache seg? */
+	if (((uint32_t)_nocache_ram_start <= (uint32_t)addr) &&
+	    (((uint32_t)addr + size) <= (uint32_t)_nocache_ram_end)) {
+		return true;
+	}
+#endif
+
+	return !((uint32_t)addr & (__SCB_DCACHE_LINE_SIZE - 1U));
+}
+
 static int csk_dma_start(const struct device *dev, uint32_t channel)
 {
     uint8_t real_channel = channel;
@@ -151,6 +177,12 @@ static int csk_dma_start(const struct device *dev, uint32_t channel)
 
     struct channel_info *ch_info = &data->channels_info[channel];
     if (ch_info->channel_direction == MEMORY_TO_MEMORY) {
+        if (!csk_dma_addr_is_right_access((void *)ch_info->dst_addr, ch_info->transfer_size)) {
+			LOG_ERR("The destination address(0x%x) must be aligned in the nocache segment or on a 32-byte address!",
+				ch_info->dst_addr);
+			return -EINVAL;
+		}
+
         int ret = dma_memcpy(channel, ch_info->src_addr, ch_info->dst_addr, ch_info->transfer_size);
         if (ret != 0) {
             return -EIO;
