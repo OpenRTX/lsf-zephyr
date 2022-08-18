@@ -208,9 +208,7 @@ static const struct dma_driver_api csk_dma_driver_api = {
     .get_status = csk_dma_get_status,
 };
 
-DMA_CSK6_RAM_FUNC
- static void
-csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
+DMA_CSK6_RAM_FUNC static void csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
 {
     int ret = 1;
     struct device* dev = (struct device*)arg;
@@ -235,13 +233,10 @@ ISR_DIRECT_DECLARE(dma_direct_irq_handler)
 
 static int csk_dma_init(const struct device *dev)
 {
-	struct csk_dma_data *data = dev->data;
-    const struct csk_dma_config *config = dev->config;
 	int ret = dma_initialize();
     if (ret != 0) {
         return -EIO; /* unknown exception */
     }
-
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
     IRQ_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
