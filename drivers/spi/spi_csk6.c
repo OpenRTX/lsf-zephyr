@@ -193,17 +193,22 @@ static int transceive(const struct device *dev,
 
 	dw /= 8;
 
+#if CONFIG_ASSERT == 1 || defined(CONFIG_SPI_LOG_LEVEL_DBG)
 	if (tx_bufs != NULL) {
 		size_t c = tx_bufs->count;
 		struct spi_buf *buf = tx_bufs->buffers;
-		printk("buf:%p\n", buf);
 		while (buf && c) {
-			printk("buf:%p\n", buf);
+#if CONFIG_ASSERT == 1
+			__ASSERT(buf->len % dw == 0,
+				 "tx buffer len(%d) is not match data width(%d byte)", buf->len,
+				 dw);
+#else
 			if (buf->len % dw != 0) {
 				LOG_ERR("tx buffer len(%d) is not match data width(%d byte)",
 					buf->len, dw);
 				return -EINVAL;
 			}
+#endif
 			buf++;
 			c--;
 		}
@@ -213,15 +218,22 @@ static int transceive(const struct device *dev,
 		size_t c = rx_bufs->count;
 		struct spi_buf *buf = rx_bufs->buffers;
 		while (buf && c) {
+#if CONFIG_ASSERT == 1
+			__ASSERT(buf->len % dw == 0,
+				 "rx buffer len(%d) is not match data width(%d byte)", buf->len,
+				 dw);
+#else
 			if (buf->len % dw != 0) {
 				LOG_ERR("rx buffer len(%d) is not match data width(%d byte)",
 					buf->len, dw);
 				return -EINVAL;
 			}
+#endif
 			buf++;
 			c--;
 		}
 	}
+#endif
 
 	spi_context_lock(&data->ctx, asynchronous, signal, spi_cfg);
 	int ret = csk_spi_configure(dev, spi_cfg);
