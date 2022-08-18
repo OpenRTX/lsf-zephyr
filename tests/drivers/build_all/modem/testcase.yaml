@@ -30,6 +30,7 @@ tests:
   drivers.modem.esp_at.build:
     extra_args: CONF_FILE=modem_esp_at.conf
     platform_exclude: ip_k66f
+    platform_allow: esp32 esp8266
     filter: CONFIG_SERIAL
     min_ram: 36
   drivers.modem.esp_at.async.build:
