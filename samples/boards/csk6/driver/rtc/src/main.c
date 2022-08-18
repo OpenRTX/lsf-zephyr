@@ -19,6 +19,10 @@ static void sec_counter_callback(const struct device *dev,
 				 uint32_t ticks,
 				 void *ud)
 {
+
+
+
+	
 	printk("Counter alarm callback at %u ms, id %d, ticks %u, ud %p\n",
 	       k_uptime_get_32(), id, ticks, ud);
 }
