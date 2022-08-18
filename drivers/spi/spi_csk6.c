@@ -136,7 +136,7 @@ static int32_t csk_spi_hal_transceive(const struct device *dev)
 	if (chunk_len == 0) {
         spi_context_cs_control(&data->ctx, false);
 		spi_context_complete(ctx, 0);
-		return;
+		return 0;
 	}
 
 	/* Resize the transaction item num since spi driver limitation */
@@ -196,24 +196,30 @@ static int transceive(const struct device *dev,
 	if (tx_bufs != NULL) {
 		size_t c = tx_bufs->count;
 		struct spi_buf *buf = tx_bufs->buffers;
-		while (buf++ && c--) {
+		printk("buf:%p\n", buf);
+		while (buf && c) {
+			printk("buf:%p\n", buf);
 			if (buf->len % dw != 0) {
 				LOG_ERR("tx buffer len(%d) is not match data width(%d byte)",
 					buf->len, dw);
 				return -EINVAL;
 			}
+			buf++;
+			c--;
 		}
 	}
 
 	if (rx_bufs != NULL) {
 		size_t c = rx_bufs->count;
 		struct spi_buf *buf = rx_bufs->buffers;
-		while (buf++ && c--) {
+		while (buf && c) {
 			if (buf->len % dw != 0) {
 				LOG_ERR("rx buffer len(%d) is not match data width(%d byte)",
 					buf->len, dw);
 				return -EINVAL;
 			}
+			buf++;
+			c--;
 		}
 	}
 
