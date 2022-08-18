@@ -13,7 +13,7 @@
 #define RTC_STACK_SIZE 4096
 struct k_thread rtc_thread_data;
 K_THREAD_STACK_DEFINE(rtc_stack_area, RTC_STACK_SIZE);
-
+dsfasdfsadfasdfasdfsadfsadf
 static void sec_counter_callback(const struct device *dev,
 				 uint8_t id,
 				 uint32_t ticks,
