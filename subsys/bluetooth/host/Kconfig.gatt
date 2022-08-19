@@ -27,6 +27,7 @@ config BT_ATT_PREPARE_COUNT
 config BT_EATT
 	bool "Enhanced ATT Bearers support [EXPERIMENTAL]"
 	depends on BT_L2CAP_ECRED
+	select EXPERIMENTAL
 	help
 	  This option enables support for Enhanced ATT bearers support. When
 	  enabled additional L2CAP channels can be connected as bearers enabling
@@ -41,6 +42,14 @@ config BT_EATT_MAX
 
 	help
 	  Number of Enhanced ATT bearers available.
+
+
+config BT_EATT_AUTO_CONNECT
+	bool "Automatically connect EATT bearers when a link is established"
+	default y
+	help
+	  The device will try to connect BT_EATT_MAX enhanced ATT bearers when a
+	  connection to a peer is established.
 
 config BT_EATT_SEC_LEVEL
 	int "Enhanced ATT bearer security level"
@@ -139,6 +148,13 @@ config BT_GATT_AUTO_DISCOVER_CCC
 	help
 	  This option enables support for GATT to initiate discovery for CCC
 	  handles if the CCC handle is unknown by the application.
+
+config BT_GATT_AUTO_UPDATE_MTU
+	bool "Automatically send ATT MTU exchange request on connect"
+	depends on BT_GATT_CLIENT
+	help
+	  This option if enabled allows automatically sending request for ATT
+	  MTU exchange.
 
 config BT_GAP_AUTO_UPDATE_CONN_PARAMS
 	bool "Automatic Update of Connection Parameters"

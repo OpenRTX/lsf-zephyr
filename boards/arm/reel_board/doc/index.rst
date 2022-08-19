@@ -146,7 +146,7 @@ hardware features:
 |           |            | HDC1010 polling      |
 +-----------+------------+----------------------+
 
-Other hardware features are not supported by the Zephyr kernel.
+Other hardware features have not been enabled yet for this board.
 
 Connections and IOs
 ===================
@@ -328,7 +328,7 @@ Power supply testpoint
 | TP13  | testpoint             | testpoint boost converter input voltage   |
 +-------+-----------------------+-------------------------------------------+
 
-Build-in Debug Adapter
+Built-in Debug Adapter
 ======================
 
 The debug adapter is based on the DAPLink interface firmware and
@@ -569,4 +569,4 @@ References
    https://www.phytec.de/reelboard/
 
 .. _DAPLink reel board Firmware:
-   https://github.com/jfischer-phytec-iot/DAPLink/tree/reel-board
+   https://github.com/PHYTEC-Messtechnik-GmbH/DAPLink/tree/reel-board

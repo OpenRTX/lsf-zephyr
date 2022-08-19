@@ -16,10 +16,16 @@ module-str = gpio
 source "subsys/logging/Kconfig.template.log_config"
 
 config GPIO_SHELL
-	bool "Enable GPIO Shell"
+	bool "GPIO Shell"
 	depends on SHELL
 	help
 	  Enable GPIO Shell for testing.
+
+config GPIO_INIT_PRIORITY
+	int "GPIO init priority"
+	default KERNEL_INIT_PRIORITY_DEFAULT
+	help
+	  GPIO driver device initialization priority.
 
 source "drivers/gpio/Kconfig.b91"
 
@@ -28,6 +34,8 @@ source "drivers/gpio/Kconfig.dw"
 source "drivers/gpio/Kconfig.pca95xx"
 
 source "drivers/gpio/Kconfig.mcp23s17"
+
+source "drivers/gpio/Kconfig.mcp23xxx"
 
 source "drivers/gpio/Kconfig.mcux"
 
@@ -69,6 +77,8 @@ source "drivers/gpio/Kconfig.xec"
 
 source "drivers/gpio/Kconfig.stellaris"
 
+source "drivers/gpio/Kconfig.rpi_pico"
+
 source "drivers/gpio/Kconfig.rv32m1"
 
 source "drivers/gpio/Kconfig.lmp90xxx"
@@ -104,5 +114,15 @@ source "drivers/gpio/Kconfig.pca953x"
 source "drivers/gpio/Kconfig.fxl6408"
 
 source "drivers/gpio/Kconfig.andes_atcgpio100"
+
+source "drivers/gpio/Kconfig.neorv32"
+
+source "drivers/gpio/Kconfig.nct38xx"
+
+source "drivers/gpio/Kconfig.test"
+
+source "drivers/gpio/Kconfig.gd32"
+
+source "drivers/gpio/Kconfig.xlnx_ps"
 
 endif # GPIO

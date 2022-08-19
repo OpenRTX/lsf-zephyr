@@ -25,14 +25,19 @@ static void kb_callback(const struct device *dev, uint32_t row, uint32_t col,
 void main(void)
 {
 	const struct device *kscan_dev = device_get_binding(KSCAN_DEVICE);
-
-	printk("csk6 keysense sample application\n");
+	int ret = 0;
 
 	if (!device_is_ready(kscan_dev)) {
-		printk("kscan device  not ready");
+		printk("kscan device  not ready \n");
 		return;
 	}
 
-	kscan_config(kscan_dev, kb_callback);
+	ret = kscan_config(kscan_dev, kb_callback);
+	if(ret != 0){
+		printk("kscan config error \n");
+		return;		
+	}
+
+	printk("csk6 keysense sample application start\n");
 
 }

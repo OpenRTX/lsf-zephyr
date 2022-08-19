@@ -29,14 +29,16 @@
 	};
 
 	sram0: memory@80000 {
-		compatible = "mmio-sram";
+		compatible = "zephyr,memory-region";
 		reg = <0x00080000 (320*1024)>;
+		zephyr,memory-region = "SRAM0";
 	};
 
     itcm0: code@10000 {
-        compatible = "listenai,csk-itcm";
+        compatible = "zephyr,memory-region";
         reg = <0x00010000 (16*1024)>;
         label = "itcm CODE";
+		zephyr,memory-region = "ITCM";
     };
 
 	psram0: psram@30000000 {
@@ -167,56 +169,56 @@
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_0";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm1 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_1";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm2 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_2";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm3 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_3";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm4 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_4";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm5 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_5";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm6 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_6";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm7 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_7";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 		};
 

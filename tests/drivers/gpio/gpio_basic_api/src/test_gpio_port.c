@@ -435,7 +435,7 @@ static int check_input_levels(void)
 /* Delay after pull input config to allow signal to settle.  The value
  * selected is conservative (higher than may be necessary).
  */
-#define PULL_DELAY_US 100U
+#define PULL_DELAY_US 200U
 
 /* Verify that pull-up and pull-down work for a disconnected input. */
 static int check_pulls(void)

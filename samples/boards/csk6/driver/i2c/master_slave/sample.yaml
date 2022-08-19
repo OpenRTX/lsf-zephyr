@@ -1,5 +1,11 @@
 tests:
   sample.board.csk6.driver.i2c.master_slave:
     platform_allow: csk6002_c3_nano csk6002_9s_nano
-    build_only: true
     tags: csk6
+    timeout: 10
+    harness: console
+    harness_config:
+      type: one_line
+      ordered: true
+      regex:
+        - "i2c thread creaeted"

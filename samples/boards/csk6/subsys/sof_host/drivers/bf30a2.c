@@ -59,12 +59,6 @@ LOG_MODULE_REGISTER(bf30a2);
 	(BF30A2_FRAME_START_PACKET_LEN + BF30A2_DATA_PACKET_LEN * BF30A2_FRAME_HEIGHT +            \
 	 BF30A2_LINE_START_PACKET_LEN + BF30A2_FRAME_END_PACKET_LEN)
 
-struct pwm_dt_spec {
-	const struct device *pwm;
-	const int pin;
-	const int flag;
-};
-
 struct bf30a2_chip_data {
 	const struct gpio_dt_spec xclk_gpios;
 	const struct gpio_dt_spec pd_gpios;
@@ -305,8 +299,8 @@ static int bf30a2_chip_xclk_init(const struct device *dev)
 	/* period unit: nanoseconds, data->chip_data.xclk_freq unit: Khz */
 	uint32_t period = 1000000 / data->chip_data.xclk_freq;
 
-	if (pwm_pin_set_nsec(data->chip_data.pwm_bus.pwm, data->chip_data.pwm_bus.pin, period,
-			     period / 2, data->chip_data.pwm_bus.flag)) {
+	if (pwm_pin_set_nsec(data->chip_data.pwm_bus.pwm, data->chip_data.ch.channel, period,
+			     period / 2, data->chip_data.pwm_bus.flags)) {
 		LOG_ERR("PWM device config error!");
 		return -1;
 	}

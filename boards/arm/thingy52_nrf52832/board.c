@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <init.h>
-#include <drivers/gpio.h>
-#include <sys/printk.h>
+#include <zephyr/init.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/printk.h>
 
 #define VDD_PWR_CTRL_GPIO_PIN 30
 #define CCS_VDD_PWR_CTRL_GPIO_PIN 10
@@ -42,8 +42,8 @@ static int pwr_ctrl_init(const struct device *dev)
  * constraints.
  */
 
-#if CONFIG_BOARD_VDD_PWR_CTRL_INIT_PRIORITY <= CONFIG_GPIO_NRF_INIT_PRIORITY
-#error GPIO_NRF_INIT_PRIORITY must be lower than \
+#if CONFIG_BOARD_VDD_PWR_CTRL_INIT_PRIORITY <= CONFIG_GPIO_INIT_PRIORITY
+#error GPIO_INIT_PRIORITY must be lower than \
 	BOARD_VDD_PWR_CTRL_INIT_PRIORITY
 #endif
 
