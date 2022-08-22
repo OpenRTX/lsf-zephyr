@@ -38,7 +38,7 @@ manifest:
       path: modules/lib/esp-hosted
     - name: mcuboot
       remote: listenai
-      revision: 216a8d4eca4c305ea0e7abfbba1f985360b25b5b
+      revision: 800a13229206735951848c69de25094d23725471
       path: bootloader/mcuboot
     - name: sof_host
       remote: listenai
