@@ -8,17 +8,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(net_conn, CONFIG_NET_CONN_LOG_LEVEL);
 
 #include <errno.h>
-#include <sys/util.h>
+#include <zephyr/sys/util.h>
 
-#include <net/net_core.h>
-#include <net/net_pkt.h>
-#include <net/udp.h>
-#include <net/ethernet.h>
-#include <net/socket_can.h>
+#include <zephyr/net/net_core.h>
+#include <zephyr/net/net_pkt.h>
+#include <zephyr/net/udp.h>
+#include <zephyr/net/ethernet.h>
+#include <zephyr/net/socket_can.h>
 
 #include "net_private.h"
 #include "icmpv6.h"
@@ -420,18 +420,18 @@ static bool conn_addr_cmp(struct net_pkt *pkt,
 	if (IS_ENABLED(CONFIG_NET_IPV6) &&
 	    net_pkt_family(pkt) == AF_INET6 &&
 	    addr->sa_family == AF_INET6) {
-		struct in6_addr *addr6;
+		uint8_t *addr6;
 
 		if (is_remote) {
-			addr6 = &ip_hdr->ipv6->src;
+			addr6 = ip_hdr->ipv6->src;
 		} else {
-			addr6 = &ip_hdr->ipv6->dst;
+			addr6 = ip_hdr->ipv6->dst;
 		}
 
 		if (!net_ipv6_is_addr_unspecified(
 			    &net_sin6(addr)->sin6_addr)) {
-			if (!net_ipv6_addr_cmp(&net_sin6(addr)->sin6_addr,
-					       addr6)) {
+			if (!net_ipv6_addr_cmp_raw((uint8_t *)&net_sin6(addr)->sin6_addr,
+						   addr6)) {
 				return false;
 			}
 		}
@@ -440,17 +440,17 @@ static bool conn_addr_cmp(struct net_pkt *pkt,
 	} else if (IS_ENABLED(CONFIG_NET_IPV4) &&
 		   net_pkt_family(pkt) == AF_INET &&
 		   addr->sa_family == AF_INET) {
-		struct in_addr *addr4;
+		uint8_t *addr4;
 
 		if (is_remote) {
-			addr4 = &ip_hdr->ipv4->src;
+			addr4 = ip_hdr->ipv4->src;
 		} else {
-			addr4 = &ip_hdr->ipv4->dst;
+			addr4 = ip_hdr->ipv4->dst;
 		}
 
 		if (net_sin(addr)->sin_addr.s_addr) {
-			if (!net_ipv4_addr_cmp(&net_sin(addr)->sin_addr,
-					       addr4)) {
+			if (!net_ipv4_addr_cmp_raw((uint8_t *)&net_sin(addr)->sin_addr,
+						   addr4)) {
 				return false;
 			}
 		}
@@ -494,16 +494,16 @@ static bool conn_are_end_points_valid(struct net_pkt *pkt,
 	}
 
 	if (IS_ENABLED(CONFIG_NET_IPV4) && net_pkt_family(pkt) == AF_INET) {
-		if (net_ipv4_addr_cmp(&ip_hdr->ipv4->src,
-				      &ip_hdr->ipv4->dst) ||
-		    net_ipv4_is_my_addr(&ip_hdr->ipv4->src)) {
+		if (net_ipv4_addr_cmp_raw(ip_hdr->ipv4->src,
+					  ip_hdr->ipv4->dst) ||
+		    net_ipv4_is_my_addr((struct in_addr *)ip_hdr->ipv4->src)) {
 			my_src_addr = true;
 		}
 	} else if (IS_ENABLED(CONFIG_NET_IPV6) &&
 		   net_pkt_family(pkt) == AF_INET6) {
-		if (net_ipv6_addr_cmp(&ip_hdr->ipv6->src,
-				      &ip_hdr->ipv6->dst) ||
-		    net_ipv6_is_my_addr(&ip_hdr->ipv6->src)) {
+		if (net_ipv6_addr_cmp_raw(ip_hdr->ipv6->src,
+					  ip_hdr->ipv6->dst) ||
+		    net_ipv6_is_my_addr((struct in6_addr *)ip_hdr->ipv6->src)) {
 			my_src_addr = true;
 		}
 	}
@@ -514,6 +514,15 @@ static bool conn_are_end_points_valid(struct net_pkt *pkt,
 static enum net_verdict conn_raw_socket(struct net_pkt *pkt,
 					struct net_conn *conn, uint8_t proto)
 {
+	if (proto == ETH_P_ALL) {
+		enum net_sock_type type = net_context_get_type(conn->context);
+
+		if ((type == SOCK_DGRAM && !net_pkt_is_l2_processed(pkt)) ||
+		    (type == SOCK_RAW && net_pkt_is_l2_processed(pkt))) {
+			goto out;
+		}
+	}
+
 	if (conn->flags & NET_CONN_LOCAL_ADDR_SET) {
 		struct net_if *pkt_iface = net_pkt_iface(pkt);
 		struct sockaddr_ll *local;
@@ -547,6 +556,7 @@ static enum net_verdict conn_raw_socket(struct net_pkt *pkt,
 		return NET_OK;
 	}
 
+out:
 	return NET_CONTINUE;
 }
 
@@ -602,7 +612,7 @@ enum net_verdict net_conn_input(struct net_pkt *pkt,
 		return NET_DROP;
 	}
 
-	/* TODO: Make core part of networing subsystem less dependent on
+	/* TODO: Make core part of networking subsystem less dependent on
 	 * UDP, TCP, IPv4 or IPv6. So that we can add new features with
 	 * less cross-module changes.
 	 */
@@ -614,15 +624,15 @@ enum net_verdict net_conn_input(struct net_pkt *pkt,
 	 * need to deliver the packet to multiple recipients.
 	 */
 	if (IS_ENABLED(CONFIG_NET_IPV4) && net_pkt_family(pkt) == AF_INET) {
-		if (net_ipv4_is_addr_mcast(&ip_hdr->ipv4->dst)) {
+		if (net_ipv4_is_addr_mcast((struct in_addr *)ip_hdr->ipv4->dst)) {
 			is_mcast_pkt = true;
-		} else if (net_if_ipv4_is_addr_bcast(pkt_iface,
-						     &ip_hdr->ipv4->dst)) {
+		} else if (net_if_ipv4_is_addr_bcast(
+				pkt_iface, (struct in_addr *)ip_hdr->ipv4->dst)) {
 			is_bcast_pkt = true;
 		}
 	} else if (IS_ENABLED(CONFIG_NET_IPV6) &&
 					   net_pkt_family(pkt) == AF_INET6) {
-		if (net_ipv6_is_addr_mcast(&ip_hdr->ipv6->dst)) {
+		if (net_ipv6_is_addr_mcast((struct in6_addr *)ip_hdr->ipv6->dst)) {
 			is_mcast_pkt = true;
 		}
 	}

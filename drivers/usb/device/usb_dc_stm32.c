@@ -20,15 +20,15 @@
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_system.h>
 #include <string.h>
-#include <usb/usb_device.h>
-#include <drivers/clock_control/stm32_clock_control.h>
-#include <sys/util.h>
-#include <drivers/gpio.h>
-#include <pinmux/pinmux_stm32.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/pinctrl.h>
 #include "stm32_hsem.h"
 
 #define LOG_LEVEL CONFIG_USB_DRIVER_LOG_LEVEL
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(usb_dc_stm32);
 
 #if DT_HAS_COMPAT_STATUS_OKAY(st_stm32_otgfs) && DT_HAS_COMPAT_STATUS_OKAY(st_stm32_otghs)
@@ -44,8 +44,9 @@ LOG_MODULE_REGISTER(usb_dc_stm32);
 #elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32_usb)
 #define DT_DRV_COMPAT st_stm32_usb
 #define USB_IRQ_NAME  usb
-#if DT_INST_NODE_HAS_PROP(0, enable_pin_remap)
+#if DT_INST_PROP(0, enable_pin_remap)
 #define USB_ENABLE_PIN_REMAP	DT_INST_PROP(0, enable_pin_remap)
+#warning "Property deprecated in favor of property 'remap-pa11-pa12' from 'st-stm32-pinctrl'"
 #endif
 #endif
 
@@ -59,9 +60,10 @@ LOG_MODULE_REGISTER(usb_dc_stm32);
 #if DT_INST_NODE_HAS_PROP(0, maximum_speed)
 #define USB_MAXIMUM_SPEED	DT_INST_PROP(0, maximum_speed)
 #endif
-static const struct soc_gpio_pinctrl usb_pinctrl[] =
-						ST_STM32_DT_INST_PINCTRL(0, 0);
 
+PINCTRL_DT_INST_DEFINE(0);
+static const struct pinctrl_dev_config *usb_pcfg =
+					PINCTRL_DT_INST_DEV_CONFIG_GET(0);
 
 #define USB_OTG_HS_EMB_PHY (DT_HAS_COMPAT_STATUS_OKAY(st_stm32_usbphyc) && \
 			    DT_HAS_COMPAT_STATUS_OKAY(st_stm32_otghs))
@@ -201,12 +203,14 @@ static int usb_dc_stm32_clock_enable(void)
 	 */
 #if defined(RCC_HSI48_SUPPORT) || \
 	defined(CONFIG_SOC_SERIES_STM32WBX) || \
-	defined(CONFIG_SOC_SERIES_STM32H7X)
+	defined(CONFIG_SOC_SERIES_STM32H7X) || \
+	defined(CONFIG_SOC_SERIES_STM32L5X) || \
+	defined(CONFIG_SOC_SERIES_STM32U5X)
 
 	/*
 	 * In STM32L0 series, HSI48 requires VREFINT and its buffer
 	 * with 48 MHz RC to be enabled.
-	 * See ENREF_HSI48 in referenc maual RM0367 section10.2.3:
+	 * See ENREF_HSI48 in reference manual RM0367 section10.2.3:
 	 * "Reference control and status register (SYSCFG_CFGR3)"
 	 */
 #ifdef CONFIG_SOC_SERIES_STM32L0X
@@ -227,6 +231,11 @@ static int usb_dc_stm32_clock_enable(void)
 	}
 
 	LL_RCC_SetUSBClockSource(LL_RCC_USB_CLKSOURCE_HSI48);
+
+#ifdef CONFIG_SOC_SERIES_STM32U5X
+	/* VDDUSB independent USB supply (PWR clock is on) */
+	LL_PWR_EnableVDDUSB();
+#endif /* CONFIG_SOC_SERIES_STM32U5X */
 
 #if !defined(CONFIG_SOC_SERIES_STM32WBX)
 	/* Specially for STM32WB, don't unlock the HSEM to prevent M0 core
@@ -404,9 +413,7 @@ static int usb_dc_stm32_init(void)
 #endif
 
 	LOG_DBG("Pinctrl signals configuration");
-	status = stm32_dt_pinctrl_configure(usb_pinctrl,
-				     ARRAY_SIZE(usb_pinctrl),
-				     (uint32_t)usb_dc_stm32_state.pcd.Instance);
+	status = pinctrl_apply_state(usb_pcfg, PINCTRL_STATE_DEFAULT);
 	if (status < 0) {
 		LOG_ERR("USB pinctrl setup failed (%d)", status);
 		return status;
@@ -858,7 +865,7 @@ int usb_dc_ep_read_wait(uint8_t ep, uint8_t *data, uint32_t max_data_len,
 		return -EINVAL;
 	}
 
-	/* When both buffer and max data to read are zero, just ingore reading
+	/* When both buffer and max data to read are zero, just ignore reading
 	 * and return available data in buffer. Otherwise, return data
 	 * previously stored in the buffer.
 	 */
@@ -1092,7 +1099,7 @@ void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
 	}
 }
 
-#if (defined(USB) || defined(USB_DRD_FS)) && defined(CONFIG_USB_DC_STM32_DISCONN_ENABLE)
+#if (defined(USB) || defined(USB_DRD_FS)) && DT_INST_NODE_HAS_PROP(0, disconnect_gpios)
 void HAL_PCDEx_SetConnectionState(PCD_HandleTypeDef *hpcd, uint8_t state)
 {
 	const struct device *usb_disconnect;
@@ -1105,4 +1112,4 @@ void HAL_PCDEx_SetConnectionState(PCD_HandleTypeDef *hpcd, uint8_t state)
 			   DT_GPIO_FLAGS(DT_INST(0, st_stm32_usb), disconnect_gpios) |
 			   (state ? GPIO_OUTPUT_ACTIVE : GPIO_OUTPUT_INACTIVE));
 }
-#endif /* USB && CONFIG_USB_DC_STM32_DISCONN_ENABLE */
+#endif /* USB && DT_INST_NODE_HAS_PROP(0, disconnect_gpios) */

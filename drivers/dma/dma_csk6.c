@@ -10,15 +10,14 @@
 #include <drivers/dma.h>
 #include <logging/log.h>
 
-#ifdef CONFIG_SOC_LS_ADSP_CSK6
-#include "hal/reg/dma_venus.h"
-#else
-#include "hal/dma.h"
-#endif
+#define DMA_CHANNEL_NUM_MAX   DT_INST_PROP(0, dma_channels)
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
+#include "hal/reg/dma_venus.h"
 #define DMA_CSK6_RAM_FUNC 
+#define ARCH_ISR_DIRECT_DECLARE(name) int name(void)
 #else
+#include "hal/dma.h"
 #define DMA_CSK6_RAM_FUNC __attribute__ ((section (".itcm"))) 
 #endif /* end of CONFIG_SOC_LS_ADSP_CSK6 */
 
@@ -28,7 +27,6 @@ static void
 csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg);
 
 struct csk_dma_config {
-	uint8_t dma_channels_num;
 };
 
 struct csk_dma_callback {
@@ -49,7 +47,7 @@ struct channel_info {
 };
 
 struct csk_dma_data {
-    struct channel_info *channels_info;
+    struct channel_info channels_info[DMA_CHANNEL_NUM_MAX];
 };
 
 static int csk_dma_configure(const struct device *dev, uint32_t channel, struct dma_config *config)
@@ -62,6 +60,11 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	if (dev == NULL || config == NULL) {
 		return -EINVAL;
 	}
+
+    if (channel >= DMA_CHANNEL_NUM_MAX) {
+        LOG_ERR("Invalid channel num.");
+        return -EINVAL;
+    }
 
 	uint32_t direct_mask = 0;
 	uint32_t gatter_scatter_mask = 0;
@@ -98,6 +101,12 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
     ch_info->dma_ch_cfgxh_cfg_mask = _DMA_CH_CFGxH_CFG_MASK;
     ch_info->channel_direction = config->channel_direction;
 
+    if (config->head_block != NULL) {
+        ch_info->dst_addr = config->head_block->dest_address;
+        ch_info->src_addr = config->head_block->source_address;
+        ch_info->transfer_size = config->head_block->block_size;
+    }
+
 	if (config->dma_callback) {
         ch_info->cb_info.callback = config->dma_callback;
         ch_info->cb_info.user_data = config->user_data;
@@ -108,7 +117,9 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 static int csk_dma_reload(const struct device *dev, uint32_t channel, uint32_t src, uint32_t dst, size_t size)
 {
 	struct csk_dma_data *data = dev->data;
-    if (channel == -1) {
+
+    if (channel >= DMA_CHANNEL_NUM_MAX) {
+        LOG_ERR("Invalid channel num.");
         return -EINVAL;
     }
 
@@ -123,7 +134,9 @@ static int csk_dma_start(const struct device *dev, uint32_t channel)
 {
     uint8_t real_channel = channel;
     struct csk_dma_data *data = dev->data;
-    if (channel == -1) {
+
+    if (channel >= DMA_CHANNEL_NUM_MAX) {
+        LOG_ERR("Invalid channel num.");
         return -EINVAL;
     }
 
@@ -169,7 +182,9 @@ static int csk_dma_stop(const struct device *dev, uint32_t channel)
 static int csk_dma_get_status(const struct device *dev, uint32_t channel, struct dma_status *status)
 {
     struct csk_dma_data *data = dev->data;
-    if (channel == -1) {
+
+    if (channel >= DMA_CHANNEL_NUM_MAX) {
+        LOG_ERR("Invalid channel num.");
         return -EINVAL;
     }
 
@@ -227,19 +242,19 @@ static int csk_dma_init(const struct device *dev)
         return -EIO; /* unknown exception */
     }
 
-	data->channels_info = k_calloc(config->dma_channels_num, sizeof(struct channel_info));
-	if (data->channels_info == NULL) {
-		return -ENOMEM;
-	}
-    
+
+#ifdef CONFIG_SOC_LS_ADSP_CSK6
+    IRQ_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
+            dma_direct_irq_handler, DEVICE_DT_INST_GET(0), 0);
+#else
     IRQ_DIRECT_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
                 dma_direct_irq_handler, Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
+#endif
 	irq_enable(DT_INST_IRQN(0));
     return 0;
 }
 
 static struct csk_dma_config csk_dma_0_config = {
-    .dma_channels_num = DT_INST_PROP(0, dma_channels),
 };
 
 static struct csk_dma_data csk_dma_0_data;

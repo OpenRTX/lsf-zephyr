@@ -11,15 +11,16 @@
  * @brief driver for APDS9960 ALS/RGB/gesture/proximity sensor
  */
 
-#include <device.h>
-#include <drivers/sensor.h>
-#include <drivers/i2c.h>
-#include <sys/__assert.h>
-#include <sys/byteorder.h>
-#include <init.h>
-#include <kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/pm/device.h>
+#include <zephyr/sys/__assert.h>
+#include <zephyr/sys/byteorder.h>
+#include <zephyr/init.h>
+#include <zephyr/kernel.h>
 #include <string.h>
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 
 #include "apds9960.h"
 
@@ -408,8 +409,8 @@ static int apds9960_init_interrupt(const struct device *dev)
 }
 
 #ifdef CONFIG_PM_DEVICE
-static int apds9960_device_ctrl(const struct device *dev,
-				enum pm_device_action action)
+static int apds9960_pm_action(const struct device *dev,
+			      enum pm_device_action action)
 {
 	const struct apds9960_config *config = dev->config;
 	struct apds9960_data *data = dev->data;
@@ -534,6 +535,8 @@ static const struct apds9960_config apds9960_config = {
 
 static struct apds9960_data apds9960_data;
 
+PM_DEVICE_DT_INST_DEFINE(0, apds9960_pm_action);
+
 DEVICE_DT_INST_DEFINE(0, apds9960_init,
-	      apds9960_device_ctrl, &apds9960_data, &apds9960_config,
+	      PM_DEVICE_DT_INST_GET(0), &apds9960_data, &apds9960_config,
 	      POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &apds9960_driver_api);

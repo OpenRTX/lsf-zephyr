@@ -34,7 +34,7 @@ manifest:
       path: modules/lib/protobuf-c
     - name: esp-hosted
       remote: listenai
-      revision: d325b5a7ba5c7bc7a57a7dcf511a6b1310eda969
+      revision: 10f79d63c300ea3f20c464da58b5c58f8d57c2db
       path: modules/lib/esp-hosted
     - name: mcuboot
       remote: listenai
@@ -54,22 +54,22 @@ manifest:
       path: modules/lib/listenai/zport_sal
     - name: zport_esp
       remote: listenai
-      revision: 5dd893c2554a79f4c40d28f60d6aef7871cca4a3
+      revision: 60e258e642acb303c1f210c0e8ab6e52845e0383
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
-      revision: 4966ffab03ab3f9ffb0a39f74b75637cd14a1b42
+      revision: 0a6a4b441e2f6ceb5bbc1b3a8fcc25249faadb77
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
-      revision: 00990c91cb985de6da1aaefffa0a91ed7894fffa
+      revision: 442489f13929ae905c006a872273d5891c99e4e5
       path: modules/lib/xr819s
-    - name: lvgl8
-      remote: listenai
-      revision: fb8eb390698622da858b8e203cbfa34325bb3806
-      path: modules/lib/gui/lvgl8
-      groups:
-        - lvgl8
+    # - name: lvgl8
+    #   remote: listenai
+    #   revision: fb8eb390698622da858b8e203cbfa34325bb3806
+    #   path: modules/lib/gui/lvgl8
+    #   groups:
+    #     - lvgl8
 
   self:
     import:

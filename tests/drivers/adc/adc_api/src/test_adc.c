@@ -6,8 +6,8 @@
  */
 
 
-#include <drivers/adc.h>
-#include <zephyr.h>
+#include <zephyr/drivers/adc.h>
+#include <zephyr/zephyr.h>
 #include <ztest.h>
 
 #if defined(CONFIG_SHIELD_MIKROE_ADC_CLICK)
@@ -51,6 +51,7 @@
 	defined(CONFIG_BOARD_BT510) || \
 	defined(CONFIG_BOARD_PINNACLE_100_DVK) || \
 	defined(CONFIG_BOARD_ARDUINO_NANO_33_BLE) || \
+	defined(CONFIG_BOARD_ARDUINO_NANO_33_BLE_SENSE) || \
 	defined(CONFIG_BOARD_UBX_BMD300EVAL_NRF52832) || \
 	defined(CONFIG_BOARD_UBX_BMD330EVAL_NRF52810) || \
 	defined(CONFIG_BOARD_UBX_BMD340EVAL_NRF52840) || \
@@ -61,7 +62,9 @@
 	defined(CONFIG_BOARD_UBX_EVKNINAB1_NRF52832) || \
 	defined(CONFIG_BOARD_UBX_EVKNINAB3_NRF52840) || \
 	defined(CONFIG_BOARD_UBX_EVKNINAB4_NRF52833) || \
-	defined(CONFIG_BOARD_BT6X0)
+	defined(CONFIG_BOARD_WE_PROTEUS2EV_NRF52832) || \
+	defined(CONFIG_BOARD_WE_PROTEUS3EV_NRF52840) || \
+	defined(CONFIG_BOARD_BT610)
 
 #include <hal/nrf_saadc.h>
 #define ADC_DEVICE_NAME		DT_LABEL(DT_INST(0, nordic_nrf_saadc))
@@ -179,6 +182,7 @@
 	defined(CONFIG_BOARD_NUCLEO_G071RB) || \
 	defined(CONFIG_BOARD_NUCLEO_L073RZ) || \
 	defined(CONFIG_BOARD_NUCLEO_WB55RG) || \
+	defined(CONFIG_BOARD_NUCLEO_WL55JC) || \
 	defined(CONFIG_BOARD_NUCLEO_L152RE) || \
 	defined(CONFIG_BOARD_OLIMEX_STM32_H103) || \
 	defined(CONFIG_BOARD_96B_AEROCORE2) || \
@@ -208,6 +212,7 @@
 
 #elif defined(CONFIG_BOARD_NUCLEO_L476RG) || \
 	defined(CONFIG_BOARD_BLACKPILL_F411CE) || \
+	defined(CONFIG_BOARD_STM32F401_MINI) || \
 	defined(CONFIG_BOARD_BLACKPILL_F401CE) || \
 	defined(CONFIG_BOARD_NUCLEO_L4R5ZI) || \
 	defined(CONFIG_BOARD_MIKROE_CLICKER_2)
@@ -226,8 +231,17 @@
 #define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
 #define ADC_1ST_CHANNEL_ID	5
 
+#elif defined(CONFIG_BOARD_B_U585I_IOT02A)
+#define ADC_DEVICE_NAME         DT_LABEL(DT_INST(0, st_stm32_adc))
+#define ADC_RESOLUTION		12
+#define ADC_GAIN		ADC_GAIN_1
+#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID	15
+
 #elif defined(CONFIG_BOARD_NUCLEO_H743ZI) || \
-	defined(CONFIG_BOARD_NUCLEO_H753ZI)
+	defined(CONFIG_BOARD_NUCLEO_H753ZI) || \
+	defined(CONFIG_BOARD_NUCLEO_H7A3ZI_Q)
 #define ADC_DEVICE_NAME         DT_LABEL(DT_INST(0, st_stm32_adc))
 #define ADC_RESOLUTION		16
 #define ADC_GAIN		ADC_GAIN_1
@@ -253,6 +267,15 @@
 #define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
 #define ADC_1ST_CHANNEL_ID	4
 #define ADC_2ND_CHANNEL_ID	5
+
+#elif defined(CONFIG_BOARD_MEC172XEVB_ASSY6906)
+#define ADC_DEVICE_NAME         DT_LABEL(DT_INST(0, microchip_xec_adc_v2))
+#define ADC_RESOLUTION          12
+#define ADC_GAIN                ADC_GAIN_1
+#define ADC_REFERENCE           ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME    ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID      4
+#define ADC_2ND_CHANNEL_ID      5
 
 #elif defined(CONFIG_BOARD_LPCXPRESSO55S69_CPU0) || \
 	defined(CONFIG_BOARD_LPCXPRESSO55S28) || \
@@ -288,12 +311,28 @@
 
 #elif defined(CONFIG_BOARD_IT8XXX2_EVB)
 #define ADC_DEVICE_NAME	DT_LABEL(DT_INST(0, ite_it8xxx2_adc))
-#define ADC_RESOLUTION	3
+#define ADC_RESOLUTION	10
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
 #define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
 #define ADC_1ST_CHANNEL_ID	0
 #define ADC_2ND_CHANNEL_ID	1
+
+#elif defined(CONFIG_BOARD_MIMXRT1050_EVK) || \
+	defined(CONFIG_BOARD_MIMXRT1050_EVK_QSPI) || \
+	defined(CONFIG_BOARD_MIMXRT1064_EVK) || \
+	defined(CONFIG_BOARD_MIMXRT1060_EVK) || \
+	defined(CONFIG_BOARD_MIMXRT1024_EVK) || \
+	defined(CONFIG_BOARD_MIMXRT1010_EVK) || \
+	defined(CONFIG_BOARD_MIMXRT1015_EVK) || \
+	defined(CONFIG_BOARD_MIMXRT1020_EVK)
+#define ADC_DEVICE_NAME		DT_LABEL(DT_INST(0, nxp_mcux_12b1msps_sar))
+#define ADC_RESOLUTION		12
+#define ADC_GAIN		ADC_GAIN_1
+#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID	0
+#define ADC_2ND_CHANNEL_ID  1
 
 #elif defined(CONFIG_BOARD_NATIVE_POSIX)
 #define ADC_DEVICE_NAME		DT_LABEL(DT_INST(0, zephyr_adc_emul))
@@ -304,12 +343,23 @@
 #define ADC_1ST_CHANNEL_ID	0
 #define ADC_2ND_CHANNEL_ID	1
 
+#elif defined(CONFIG_BOARD_CSK6002_9S_NANO)
+
+#define ADC_DEVICE_NAME		DT_LABEL(DT_INST(0, listenai_csk_adc))
+#define ADC_RESOLUTION		11
+#define ADC_GAIN		ADC_GAIN_1
+#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID	5
+#define ADC_2ND_CHANNEL_ID	6
+
+
 #else
 #error "Unsupported board."
 #endif
 
 /* Invalid value that is not supposed to be written by the driver. It is used
- * to mark the sample buffer entries as empty. If needed, it can be overriden
+ * to mark the sample buffer entries as empty. If needed, it can be overridden
  * for a particular board by providing a specific definition above.
  */
 #if !defined(INVALID_ADC_VALUE)

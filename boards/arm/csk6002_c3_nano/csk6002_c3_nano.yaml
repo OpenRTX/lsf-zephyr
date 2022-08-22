@@ -8,7 +8,11 @@ toolchain:
   - xtools
 supported:
   - gpio
+  - watchdog
   - uart
   - ipm
+  - dma
+  - counter
+  - pwm
 ram: 320
 flash: 8000

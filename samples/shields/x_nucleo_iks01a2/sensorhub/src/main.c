@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <device.h>
-#include <drivers/sensor.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
 #include <stdio.h>
-#include <sys/util.h>
+#include <zephyr/sys/util.h>
 
 #ifdef CONFIG_LSM6DSL_TRIGGER
 static int lsm6dsl_trig_cnt;
 
 static void lsm6dsl_trigger_handler(const struct device *dev,
-				     struct sensor_trigger *trig)
+				    const struct sensor_trigger *trig)
 {
 	sensor_sample_fetch_chan(dev, SENSOR_CHAN_ALL);
 	lsm6dsl_trig_cnt++;

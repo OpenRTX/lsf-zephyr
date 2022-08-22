@@ -5,11 +5,13 @@
  *
  */
 
-#include <kernel.h>
-#include <device.h>
-#include <init.h>
+#include <zephyr/arch/riscv/csr.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/init.h>
 #include <soc.h>
-#include <dt-bindings/interrupt-controller/ite-intc.h>
+#include "soc_espi.h"
+#include <zephyr/dt-bindings/interrupt-controller/ite-intc.h>
 
 #ifdef CONFIG_SOC_IT8XXX2_PLL_FLASH_48M
 #define __intc_ram_code __attribute__((section(".__ram_code")))
@@ -49,11 +51,53 @@ static const struct pll_config_t pll_configuration[] = {
 	 .div_usbpd = 5}
 };
 
+uint32_t chip_get_pll_freq(void)
+{
+	uint32_t pllfreq;
+
+	switch (IT8XXX2_ECPM_PLLFREQR & 0x0F) {
+	case 0:
+		pllfreq = MHZ(8);
+		break;
+	case 1:
+		pllfreq = MHZ(16);
+		break;
+	case 2:
+		pllfreq = MHZ(24);
+		break;
+	case 3:
+		pllfreq = MHZ(32);
+		break;
+	case 4:
+		pllfreq = MHZ(48);
+		break;
+	case 5:
+		pllfreq = MHZ(64);
+		break;
+	case 6:
+		pllfreq = MHZ(72);
+		break;
+	case 7:
+		pllfreq = MHZ(96);
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	return pllfreq;
+}
+
 void __intc_ram_code chip_pll_ctrl(enum chip_pll_mode mode)
 {
+	volatile uint8_t _pll_ctrl __unused;
+
 	IT8XXX2_ECPM_PLLCTRL = mode;
-	/* for deep doze / sleep mode */
-	IT8XXX2_ECPM_PLLCTRL = mode;
+	/*
+	 * for deep doze / sleep mode
+	 * This load operation will ensure PLL setting is taken into
+	 * control register before wait for interrupt instruction.
+	 */
+	_pll_ctrl = IT8XXX2_ECPM_PLLCTRL;
 }
 
 void __intc_ram_code chip_run_pll_sequence(const struct pll_config_t *pll)
@@ -98,18 +142,16 @@ static void chip_configure_pll(const struct pll_config_t *pll)
 		((IT8XXX2_ECPM_SCDCR3 & 0xf) != pll->div_ec)) {
 #ifdef CONFIG_ESPI
 		/*
-		 * TODO: implement me
 		 * We have to disable eSPI pad before changing
 		 * PLL sequence or sequence will fail if CS# pin is low.
 		 */
+		espi_it8xxx2_enable_pad_ctrl(ESPI_IT8XXX2_SOC_DEV, false);
 #endif
 		/* Run change PLL sequence */
 		chip_run_pll_sequence(pll);
 #ifdef CONFIG_ESPI
-		/*
-		 * TODO: implement me
-		 * Enable eSPI pad after changing PLL sequence
-		 */
+		/* Enable eSPI pad after changing PLL sequence */
+		espi_it8xxx2_enable_pad_ctrl(ESPI_IT8XXX2_SOC_DEV, true);
 #endif
 	}
 }
@@ -129,8 +171,61 @@ static int chip_change_pll(const struct device *dev)
 
 	return 0;
 }
-SYS_INIT(chip_change_pll, POST_KERNEL, 0);
+SYS_INIT(chip_change_pll, PRE_KERNEL_1, CONFIG_IT8XXX2_PLL_SEQUENCE_PRIORITY);
+BUILD_ASSERT(CONFIG_FLASH_INIT_PRIORITY < CONFIG_IT8XXX2_PLL_SEQUENCE_PRIORITY,
+	"CONFIG_FLASH_INIT_PRIORITY must be less than CONFIG_IT8XXX2_PLL_SEQUENCE_PRIORITY");
 #endif /* CONFIG_SOC_IT8XXX2_PLL_FLASH_48M */
+
+/* The routine must be called with interrupts locked */
+void riscv_idle(enum chip_pll_mode mode, unsigned int key)
+{
+	/*
+	 * The routine is called with interrupts locked (in kernel/idle()).
+	 * But on kernel/context test_kernel_cpu_idle test, the routine will be
+	 * called without interrupts locked. Hence we disable M-mode external
+	 * interrupt here to protect the below content.
+	 */
+	csr_clear(mie, MIP_MEIP);
+	sys_trace_idle();
+	/* Chip doze after wfi instruction */
+	chip_pll_ctrl(mode);
+
+	do {
+		/* Wait for interrupt */
+		__asm__ volatile ("wfi");
+		/*
+		 * Sometimes wfi instruction may fail due to CPU's MTIP@mip
+		 * register is non-zero.
+		 * If the ite_intc_no_irq() is true at this point,
+		 * it means that EC waked-up by the above issue not an
+		 * interrupt. Hence we loop running wfi instruction here until
+		 * wfi success.
+		 */
+	} while (ite_intc_no_irq());
+
+	/*
+	 * Enable M-mode external interrupt
+	 * An interrupt can not be fired yet until we enable global interrupt
+	 */
+	csr_set(mie, MIP_MEIP);
+	/* Restore global interrupt lockout state */
+	irq_unlock(key);
+}
+
+void arch_cpu_idle(void)
+{
+	riscv_idle(CHIP_PLL_DOZE, MSTATUS_IEN);
+}
+
+void arch_cpu_atomic_idle(unsigned int key)
+{
+	riscv_idle(CHIP_PLL_DOZE, key);
+}
+
+void soc_interrupt_init(void)
+{
+	ite_intc_init();
+}
 
 static int ite_it8xxx2_init(const struct device *arg)
 {

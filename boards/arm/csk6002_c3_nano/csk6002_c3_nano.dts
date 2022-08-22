@@ -14,6 +14,7 @@
                 pwm-led0 = &green_pwm_led;
                 i2c-0 = &i2c0;
                 i2c-1 = &i2c1;
+                watchdog0 = &wdt;
         };
 
         chosen {
@@ -21,6 +22,7 @@
                 zephyr,shell-uart = &uart0;
                 zephyr,sram = &sram0;
                 zephyr,itcm = &itcm0;
+                zephyr,dtcm = &dtcm0;
                 zephyr,flash = &flash0;
                 zephyr,code-partition = &slot0_partition;
                 zephyr,entropy = &trng;
@@ -38,7 +40,7 @@
         pwmleds {
 		compatible = "pwm-leds";
 		green_pwm_led: green_pwm_led {
-			pwms = <&pwm5 5 PWM_POLARITY_NORMAL>;
+			pwms = <&pwm5 5 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
 			label = "User BOARD_LED_2 - PWM0";
 		};
 
@@ -207,11 +209,12 @@
                 status = "okay";
         };
 
-        /* psram for ap core slot: 1MB */
+        /*psram for ap core slot: 1MB */
         psram_ap: psram_ap@30600000 {
-                compatible = "listenai,csk6-psram-partition";
+                compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
                 reg = <0x30600000 0x100000>;
                 status = "okay";
+                zephyr,memory-region = "PSRAMAP";
         };
 
         /* psram for ap share with cp slot:: 512KB */

@@ -4,18 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
+#include <zephyr/zephyr.h>
 #include <stddef.h>
 #include <ztest.h>
 
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/hci.h>
-#include <sys/byteorder.h>
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/hci.h>
+#include <zephyr/sys/byteorder.h>
 #include <host/hci_core.h>
 
 #include "util/util.h"
 #include "util/memq.h"
 #include "util/mem.h"
+#include "util/dbuf.h"
 
 #include "pdu.h"
 
@@ -23,6 +24,7 @@
 #include "lll/lll_adv_types.h"
 #include "lll_adv.h"
 #include "lll/lll_adv_pdu.h"
+#include "lll/lll_adv_internal.h"
 #include "lll_adv_sync.h"
 #include "lll/lll_df_types.h"
 
@@ -56,15 +58,13 @@ void test_add_number_of_cte_to_sigle_pdu_chain(void)
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
 		      err);
 
 	/* Validate result */
 	common_validate_chain_with_cte(adv, TEST_CTE_COUNT, TEST_PER_ADV_SINGLE_PDU);
 
-	/* Teardown */
-	common_release_per_adv_chain(adv);
-	common_release_adv_set(adv);
+	common_teardown(adv);
 }
 
 void test_add_cte_for_each_pdu_in_chain(void)
@@ -84,15 +84,13 @@ void test_add_cte_for_each_pdu_in_chain(void)
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
 		      err);
 
 	/* Validate result */
 	common_validate_chain_with_cte(adv, TEST_CTE_COUNT, TEST_CTE_COUNT);
 
-	/* Teardown */
-	common_release_per_adv_chain(adv);
-	common_release_adv_set(adv);
+	common_teardown(adv);
 }
 
 void test_add_cte_for_not_all_pdu_in_chain(void)
@@ -112,15 +110,50 @@ void test_add_cte_for_not_all_pdu_in_chain(void)
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
 		      err);
 
 	/* Validate result */
 	common_validate_chain_with_cte(adv, TEST_CTE_COUNT, TEST_PER_ADV_CHAIN_LENGTH);
 
-	/* Teardown */
-	common_release_per_adv_chain(adv);
-	common_release_adv_set(adv);
+	common_teardown(adv);
+}
+
+void test_add_cte_to_not_all_pdus_in_chain_enqueued_to_lll(void)
+{
+	struct pdu_adv *pdu_prev, *pdu_new;
+	struct ll_adv_set *adv;
+	uint8_t handle;
+	uint8_t upd;
+	int err;
+
+	/* Setup for test */
+	adv = common_create_adv_set(TEST_ADV_SET_HANDLE);
+	/* Use the same number for PDUs in a chain as for CTE request */
+	common_prepare_df_cfg(adv, TEST_CTE_COUNT);
+	common_create_per_adv_chain(adv, TEST_PER_ADV_CHAIN_LENGTH);
+	common_validate_per_adv_chain(adv, TEST_PER_ADV_CHAIN_LENGTH);
+
+	/* Swap PDU double buffer and get new latest PDU data */
+	pdu_new = lll_adv_sync_data_latest_get(adv->lll.sync, NULL, &upd);
+	zassert_not_equal(pdu_new, NULL,
+			  "Unexpected value of new PDU pointer after PDU double buffer swap");
+
+	pdu_prev = lll_adv_sync_data_peek(adv->lll.sync, NULL);
+	zassert_equal(pdu_prev, pdu_new,
+		      "Unexpected value of previous PDU pointer after PDU double buffer swap");
+
+	handle = ull_adv_handle_get(adv);
+
+	err = ll_df_set_cl_cte_tx_enable(handle, true);
+	zassert_equal(err, 0,
+		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
+		      err);
+
+	/* Validate result */
+	common_validate_chain_with_cte(adv, TEST_CTE_COUNT, TEST_PER_ADV_CHAIN_LENGTH);
+
+	common_teardown(adv);
 }
 
 void test_add_cte_for_single_pdu_chain(void)
@@ -140,15 +173,13 @@ void test_add_cte_for_single_pdu_chain(void)
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
 		      err);
 
 	/* Validate result */
 	common_validate_chain_with_cte(adv, TEST_CTE_SINGLE, TEST_PER_ADV_SINGLE_PDU);
 
-	/* Teardown */
-	common_release_per_adv_chain(adv);
-	common_release_adv_set(adv);
+	common_teardown(adv);
 }
 
 void run_add_cte_to_per_adv_chain_tests(void)
@@ -157,6 +188,7 @@ void run_add_cte_to_per_adv_chain_tests(void)
 			 ztest_unit_test(test_add_number_of_cte_to_sigle_pdu_chain),
 			 ztest_unit_test(test_add_cte_for_each_pdu_in_chain),
 			 ztest_unit_test(test_add_cte_for_not_all_pdu_in_chain),
+			 ztest_unit_test(test_add_cte_to_not_all_pdus_in_chain_enqueued_to_lll),
 			 ztest_unit_test(test_add_cte_for_single_pdu_chain));
 	ztest_run_test_suite(test_add_cte_to_per_adv_chain);
 }

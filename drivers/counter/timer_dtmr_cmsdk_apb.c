@@ -6,12 +6,12 @@
 
 #define DT_DRV_COMPAT arm_cmsdk_dtimer
 
-#include <drivers/counter.h>
-#include <device.h>
+#include <zephyr/drivers/counter.h>
+#include <zephyr/device.h>
 #include <errno.h>
-#include <init.h>
+#include <zephyr/init.h>
 #include <soc.h>
-#include <drivers/clock_control/arm_clock_control.h>
+#include <zephyr/drivers/clock_control/arm_clock_control.h>
 
 #include "dualtimer_cmsdk_apb.h"
 
@@ -196,7 +196,7 @@ static int dtmr_cmsdk_apb_init(const struct device *dev)
 			    NULL,			\
 			    &dtmr_cmsdk_apb_dev_data_##inst,		\
 			    &dtmr_cmsdk_apb_cfg_##inst, POST_KERNEL,	\
-			    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,		\
+			    CONFIG_COUNTER_INIT_PRIORITY,		\
 			    &dtmr_cmsdk_apb_api);			\
 									\
 	static void dtimer_cmsdk_apb_config_##inst(const struct device *dev) \

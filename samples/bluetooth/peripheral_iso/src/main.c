@@ -8,14 +8,14 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/printk.h>
-#include <sys/byteorder.h>
-#include <zephyr.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/sys/byteorder.h>
+#include <zephyr/zephyr.h>
 
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/hci.h>
-#include <bluetooth/conn.h>
-#include <bluetooth/iso.h>
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/hci.h>
+#include <zephyr/bluetooth/conn.h>
+#include <zephyr/bluetooth/iso.h>
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -125,9 +125,10 @@ static struct bt_iso_chan iso_chan = {
 	.qos = &iso_qos,
 };
 
-static int iso_accept(struct bt_conn *acl, struct bt_iso_chan **chan)
+static int iso_accept(const struct bt_iso_accept_info *info,
+		      struct bt_iso_chan **chan)
 {
-	printk("Incoming request from %p\n", (void *)acl);
+	printk("Incoming request from %p\n", (void *)info->acl);
 
 	if (iso_chan.iso) {
 		printk("No channels available\n");

@@ -3,12 +3,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <kernel.h>
-#include <logging/log.h>
-#include <logging/log_msg.h>
-#include <logging/log_ctrl.h>
-#include <logging/log_core.h>
-#include <sys/__assert.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/logging/log_msg.h>
+#include <zephyr/logging/log_ctrl.h>
+#include <zephyr/logging/log_internal.h>
+#include <zephyr/sys/__assert.h>
 #include <string.h>
 
 BUILD_ASSERT((sizeof(struct log_msg_ids) == sizeof(uint16_t)),
@@ -134,7 +134,7 @@ static void msg_free(struct log_msg *msg)
 					}
 				}
 				if (smask & BIT(i)) {
-					log_free(buf);
+					z_log_free(buf);
 				}
 			}
 		}
@@ -147,7 +147,7 @@ static void msg_free(struct log_msg *msg)
 		const char *str = log_msg_str_get(msg);
 
 		if (log_is_strdup(str)) {
-			log_free((void *)(str));
+			z_log_free((void *)(str));
 		}
 	} else {
 		/* Message does not contain any arguments that might be a transient
@@ -172,13 +172,13 @@ union log_msg_chunk *log_msg_no_space_handle(void)
 	if (IS_ENABLED(CONFIG_LOG_MODE_OVERFLOW)) {
 		do {
 			more = log_process(true);
-			z_log_dropped();
+			z_log_dropped(true);
 			err = k_mem_slab_alloc(&log_msg_pool,
 					       (void **)&msg,
 					       K_NO_WAIT);
 		} while ((err != 0) && more);
 	} else {
-		z_log_dropped();
+		z_log_dropped(false);
 	}
 	return msg;
 
@@ -497,4 +497,9 @@ uint32_t log_msg_mem_get_used(void)
 uint32_t log_msg_mem_get_max_used(void)
 {
 	return k_mem_slab_max_used_get(&log_msg_pool);
+}
+
+size_t log_msg_get_slab_size(void)
+{
+	return MSG_SIZE;
 }

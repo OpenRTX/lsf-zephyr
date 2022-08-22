@@ -8,20 +8,20 @@
 
 #define DT_DRV_COMPAT worldsemi_ws2812_spi
 
-#include <drivers/led_strip.h>
+#include <zephyr/drivers/led_strip.h>
 
 #include <string.h>
 
 #define LOG_LEVEL CONFIG_LED_STRIP_LOG_LEVEL
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(ws2812_spi);
 
-#include <zephyr.h>
-#include <device.h>
-#include <drivers/spi.h>
-#include <sys/math_extras.h>
-#include <sys/util.h>
-#include <dt-bindings/led/led.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/spi.h>
+#include <zephyr/sys/math_extras.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/dt-bindings/led/led.h>
 
 /* spi-one-frame and spi-zero-frame in DT are for 8-bit frames. */
 #define SPI_FRAME_BITS 8
@@ -34,7 +34,7 @@ LOG_MODULE_REGISTER(ws2812_spi);
  *   isn't an EEPROM)
  */
 #define SPI_OPER (SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | \
-		  SPI_WORD_SET(SPI_FRAME_BITS) | SPI_LINES_SINGLE)
+		  SPI_WORD_SET(SPI_FRAME_BITS))
 
 struct ws2812_spi_cfg {
 	struct spi_dt_spec bus;

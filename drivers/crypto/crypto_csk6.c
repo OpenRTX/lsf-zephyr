@@ -9,7 +9,7 @@
 #include <kernel.h>
 #include <device.h>
 #include <sys/__assert.h>
-#include <crypto/cipher.h>
+#include "crypto/crypto.h"
 
 #include "Driver_CRYPTO.h"
 #include "crypto.h"
@@ -236,7 +236,7 @@ static int crypto_csk6_query_caps(const struct device *dev)
 	return CSK6_CRYP_SUPPORT;
 }
 
-static int crtpto_csk6_async_callback_set(const struct device *dev,crypto_completion_cb cb)
+static int crtpto_csk6_async_callback_set(const struct device *dev, cipher_completion_cb cb)
 {
 	return -EINVAL;
 }
@@ -261,9 +261,9 @@ static int crypto_csk6_init(const struct device *dev)
 }
 
 static struct crypto_driver_api crypto_enc_funcs = {
-	.begin_session = crypto_csk6_session_setup,
-	.free_session = crypto_csk6_session_free,
-	.crypto_async_callback_set = crtpto_csk6_async_callback_set,
+	.cipher_begin_session = crypto_csk6_session_setup,
+	.cipher_free_session = crypto_csk6_session_free,
+	.cipher_async_callback_set = crtpto_csk6_async_callback_set,
 	.query_hw_caps = crypto_csk6_query_caps,
 };
 
