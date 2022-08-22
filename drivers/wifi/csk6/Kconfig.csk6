@@ -46,7 +46,7 @@ if XR819S
 
 config MAX_SCAN_APS_NUM
 	int "WiFi Maximum Scan AP's Number"
-	default 10
+	default 40
 
 config WLAN_API_TIMEOUT
 	int "WiFi Driver api timeout(s)"
