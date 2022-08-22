@@ -16,6 +16,7 @@ config SOC_CSK6
 	select ARCH_HAS_NOCACHE_MEMORY_SUPPORT
 	select BUILD_OUTPUT_HEX
 	select PLATFORM_SPECIFIC_INIT
+	select PINCTRL
 
 config HAS_CSK6
 	bool

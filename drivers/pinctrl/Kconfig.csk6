@@ -1,0 +1,9 @@
+# Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+config PINCTRL_CSK6
+	bool "Pin controller driver for CSK6 MCUs"
+	default y
+	depends on HAS_CSK6
+	help
+	  Enable pin controller driver for CSK series MCUs

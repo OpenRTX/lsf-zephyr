@@ -163,6 +163,5 @@
 
                 pinctrl_dvp_d11_default: dvp_d11_default{
                 };
-
         };
 };
