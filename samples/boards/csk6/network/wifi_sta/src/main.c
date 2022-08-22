@@ -43,7 +43,17 @@ static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32
 
 void main(void)
 {
+    int ret;
     csk_wifi_init();
+    uint8_t mac_addr[6] = {0};
+    ret = csk_wifi_get_mac(CSK_WIFI_MODE_STA, mac_addr);
+    if (ret != 0) {
+        printk("wifi get mac failed, ret: %d\n", ret);
+        return;
+    }
+    printk("wifi station mac addr: %x:%x:%x:%x:%x:%x\n", 
+            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3],
+            mac_addr[4], mac_addr[5]);
     wifi_event_cb.handler = &wifi_event_handler;
     wifi_event_cb.events = CSK_WIFI_EVT_STA_CONNECTED | CSK_WIFI_EVT_STA_DISCONNECTED;
     wifi_event_cb.arg = NULL;
@@ -59,7 +69,7 @@ void main(void)
     csk_wifi_result_t wifi_result;
     do {
         printk("connecting to wifi: %s ...\n", sta_config.ssid);
-        int ret = csk_wifi_sta_connect(&sta_config, &wifi_result, K_FOREVER);
+        ret = csk_wifi_sta_connect(&sta_config, &wifi_result, K_FOREVER);
         if (ret == 0) {
             break;
         } else {
