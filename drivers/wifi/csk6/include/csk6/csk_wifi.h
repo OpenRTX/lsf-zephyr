@@ -13,7 +13,6 @@ extern "C" {
 #define CSK_WIFI_PWD_LEN        64
 
 #define CSK_WIFI_STATUS_STA_CONNECTED       0
-#define CSK_WIFI_STATUS_STA_CONNECTING      1
 #define CSK_WIFI_STATUS_STA_DISCONNECTED    2
 #define CSK_WIFI_STATUS_STA_UNKNOWN         3
 
@@ -259,7 +258,7 @@ int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout);
  * 
  * @return the WiFi station status. For example, CSK_WIFI_STATUS_STA_CONNECTED
  */
-int csk_wifi_sta_get_status();
+int csk_wifi_sta_get_status(void);
 
 #endif
 
