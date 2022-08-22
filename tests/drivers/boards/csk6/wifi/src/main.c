@@ -71,6 +71,16 @@ void test_csk_wifi_setup(void)
 	csk_wifi_add_callback(&wifi_event_cb);
 }
 
+void test_csk_wifi_get_mac(void)
+{
+	uint8_t mac_addr[6] = {0};
+	int ret = csk_wifi_get_mac(CSK_WIFI_MODE_STA, mac_addr);
+	zassert_equal(ret, 0, "csk_wifi_get_mac failed, %d", ret);
+	LOG_INF("wifi station mac addr: %x:%x:%x:%x:%x:%x",
+			mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3],
+			mac_addr[4], mac_addr[5]);
+}
+
 void test_csk_wifi_scan(void)
 {
 	int ap_num = 0;
@@ -176,6 +186,7 @@ void test_main(void)
 {
 	ztest_test_suite(csk_wifi_test,
 			 ztest_unit_test(test_csk_wifi_setup),
+			 ztest_unit_test(test_csk_wifi_get_mac),
 			 ztest_unit_test(test_wifi_timeout_para),
 			 ztest_unit_test(test_csk_wifi_scan),
 			 ztest_unit_test(test_csk_wifi_connect_with_correct_ssid_but_wrong_pwd),

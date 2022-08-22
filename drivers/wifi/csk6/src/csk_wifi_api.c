@@ -153,6 +153,20 @@ __exit:
 
 #endif
 
+int csk_wifi_get_mac(csk_wifi_mode_t mode, uint8_t *mac_addr)
+{
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    if (current_sm == WIFI_SM_ON_STARTUP) {
+        return -EAGAIN;
+    }
+    CSK_WIFI_CHECK(mac_addr != NULL, -EINVAL);
+    CSK_WIFI_CHECK((mode >= CSK_WIFI_MODE_STA) && (mode < CSK_WIFI_MODE_MAX), -EINVAL);
+    const struct device *dev = wifi_obj_get_dev(mode);
+    struct csk_wifi_data *data = dev->data;
+    memcpy(mac_addr, data->mac_addr, sizeof(data->mac_addr));
+    return 0;
+}
+
 #ifdef CONFIG_CSK_WIFI_SOFTAP
 
 int csk_wifi_ap_start(const csk_wifi_softap_config_t *ap_config, csk_wifi_result_t *result, k_timeout_t timeout)

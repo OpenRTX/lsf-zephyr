@@ -20,6 +20,15 @@ extern "C" {
 /* TODO: Add WIFI state machine transition diagram */
 
 /**
+ * @brief CSK WiFi mode
+ */
+typedef enum {
+    CSK_WIFI_MODE_STA,              /* WiFi Station */
+    CSK_WIFI_MODE_AP,               /* WiFi SoftAP */
+    CSK_WIFI_MODE_MAX,
+} csk_wifi_mode_t;
+
+/**
  * @brief CSK WiFi encryption mode
  */
 typedef enum {
@@ -253,6 +262,17 @@ int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout);
 int csk_wifi_sta_get_status();
 
 #endif
+
+/**
+ * @brief Get WiFi MAC address
+ * 
+ * @param mode[in] WiFi mode 
+ * @param mac_addr[out] WiFi device MAC address
+ * @return 0 if successful, negative errno code on failure.
+ * @retval -EAGAIN(11) invalid state
+ * @retval -EINVAL(22) invalid wifi mode or mac_addr is null
+ */
+int csk_wifi_get_mac(csk_wifi_mode_t mode, uint8_t *mac_addr);
 
 #ifdef CONFIG_CSK_WIFI_SOFTAP
 /**
