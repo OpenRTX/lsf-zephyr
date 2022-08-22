@@ -13,11 +13,10 @@
 
 #define DT_DRV_COMPAT listenai_csk_uart
 
-#include <soc_dt.h>
 #include <drivers/uart.h>
-#include <drivers/pinmux.h>
 #include "hal/Driver_UART.h"
 #include "hal/uart.h"
+#include <zephyr/drivers/pinctrl.h>
 
 #define DEV_CFG(dev) ((const struct csk_uart_config *const)(dev)->config)
 #define DEV_DATA(dev) ((struct csk_uart_data *)(dev)->data)
@@ -32,9 +31,8 @@ struct csk_uart_data {
 struct csk_uart_config {
 	volatile uint32_t reg_addr;
 	volatile uint32_t baud_rate;
-    /* UART alternate configuration */
-    const struct csk6_pinctrl_cfg *pinctrl_list;
-    uint8_t pinctrl_list_size;
+	const struct pinctrl_dev_config *pcfg;
+    
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);
 #endif
@@ -262,9 +260,13 @@ static int csk_uart_init(const struct device *dev)
 {
 	unsigned int old_level;
 	unsigned int baud_rate;
+	const struct csk_uart_config *config = DEV_CFG(dev);
 	/* disable interrupts */
 	old_level = irq_lock();
-	const struct csk_uart_config *config = DEV_CFG(dev);
+
+	/* Set the pin to UART alternate function. */
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
+
 	void *uart_driver_ctx = get_uart_ctx((DW_UART_RegDef *)config->reg_addr);
 	baud_rate = config->baud_rate;
 	UART_Initialize(uart_driver_ctx, NULL, NULL);
@@ -283,9 +285,6 @@ static int csk_uart_init(const struct device *dev)
 
 	/* restore interrupt state */
 	irq_unlock(old_level);
-
-	/* Configure RX and TX pin via the pinmux driver */
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
 
 	return 0;
 }
@@ -324,25 +323,17 @@ static const struct uart_driver_api csk_uart_driver_api = {
 #define CSK_UART_IRQ_CFG_FUNC_CONF(index)
 #endif
 
-#define UART_CSK_INIT(index)                                                                       \
-	CSK_UART_IRQ_HANDLER(index)                                                                \
+#define UART_CSK_INIT(index)                                                                   \
+    PINCTRL_DT_INST_DEFINE(index);                                                             \
 	static struct csk_uart_data csk_uart_data_##index = {};                                    \
-                                                                                                   \
-																				\
-	static const struct csk6_pinctrl_cfg                                        \
-        uart_alts_##index[DT_INST_NUM_PINCTRLS_BY_IDX(index, 0)] =              \
-            CSK6_DT_ALT_ITEMS_LIST(index);                                      \
-																				\
 	static const struct csk_uart_config csk_uart_cfg_##index = {                               \
-		.reg_addr = DT_INST_REG_ADDR(index),                                               \
-		.baud_rate = DT_INST_PROP(index, current_speed),                                   \
-		.pinctrl_list = uart_alts_##index,                                       		   \
-        .pinctrl_list_size = ARRAY_SIZE(uart_alts_##index),                                \
-		CSK_UART_IRQ_CFG_FUNC_CONF(index)                                                  \
+		.reg_addr = DT_INST_REG_ADDR(index),                                                   \
+		.baud_rate = DT_INST_PROP(index, current_speed),                                       \
+		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(index),				                           \
+		CSK_UART_IRQ_CFG_FUNC_CONF(index)                                                      \
 	};                                                                                         \
-                                                                                                   \
 	DEVICE_DT_INST_DEFINE(index, &csk_uart_init, NULL, &csk_uart_data_##index,                 \
-			      &csk_uart_cfg_##index, PRE_KERNEL_1,                                 \
+			      &csk_uart_cfg_##index, PRE_KERNEL_1,                                         \
 			      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &csk_uart_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(UART_CSK_INIT)
