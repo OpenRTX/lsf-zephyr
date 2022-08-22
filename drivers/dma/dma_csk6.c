@@ -235,8 +235,6 @@ ISR_DIRECT_DECLARE(dma_direct_irq_handler)
 
 static int csk_dma_init(const struct device *dev)
 {
-	struct csk_dma_data *data = dev->data;
-    const struct csk_dma_config *config = dev->config;
 	int ret = dma_initialize();
     if (ret != 0) {
         return -EIO; /* unknown exception */
