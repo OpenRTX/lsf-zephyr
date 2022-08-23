@@ -151,6 +151,30 @@ __exit:
     return ret;
 }
 
+int csk_wifi_sta_get_status()
+{
+    int ret_status = CSK_WIFI_STATUS_STA_UNKNOWN;
+    wifi_sta_state_machine_t sta_state = WIFI_SM_ON_STARTUP;
+    sta_state = wifi_obj_get_sm();
+    LOG_INF("wifi_obj_get_sm: %d", sta_state);
+    switch (sta_state) {
+        case WIFI_SM_STA_CONNECTED:
+        ret_status = CSK_WIFI_STATUS_STA_CONNECTED;
+        break;
+        case WIFI_SM_STA_ON_CONNECT_SCAN:
+        ret_status = CSK_WIFI_STATUS_STA_CONNECTING;
+
+        case WIFI_SM_STA_DISCONNECTED:
+        ret_status = CSK_WIFI_STATUS_STA_DISCONNECTED;
+        break;
+
+        default:
+        break;
+    }
+
+    return ret_status;
+}
+
 #endif
 
 int csk_wifi_get_mac(csk_wifi_mode_t mode, uint8_t *mac_addr)
