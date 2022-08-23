@@ -75,6 +75,7 @@ static int i2c_csk_configure(const struct device *dev, uint32_t dev_config)
 	struct i2c_csk_data *data = DEV_DATA(dev);
 	void *I2C_Handler = DEV_HANDLER(dev);
 	uint32_t arg = 0;
+	int32_t r;
 
 	if (!(I2C_MODE_MASTER & dev_config)) { /* slave mode */
 
@@ -86,10 +87,10 @@ static int i2c_csk_configure(const struct device *dev, uint32_t dev_config)
 		/* use default slave address, user also can define slave adderss use dev_config*/
 		arg |= I2C_SLAVE_ADDR;
 
-		I2C_Control(I2C_Handler, CSK_I2C_OWN_ADDRESS, arg);
+		r = I2C_Control(I2C_Handler, CSK_I2C_OWN_ADDRESS, arg);
 
 		/* interrupt mode */
-		I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0); /* 0: interrupt 1: DMA */
+		r = I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0); /* 0: interrupt 1: DMA */
 
 		/* slave mode */
 		LOG_DBG("slave mode");
@@ -110,24 +111,28 @@ static int i2c_csk_configure(const struct device *dev, uint32_t dev_config)
 		case I2C_SPEED_FAST_PLUS:
 			arg = CSK_I2C_BUS_SPEED_FAST_PLUS;
 			break;
-		case I2C_SPEED_HIGH:
-			arg = CSK_I2C_BUS_SPEED_HIGH;
-			break;
+		case I2C_SPEED_HIGH: /* High speed is not supported. */
+			return -ENOTSUP;
 		case I2C_SPEED_ULTRA:
 			return -ENOTSUP; /* 5 MHz not support */
 		default:
 			return -EINVAL;
 		}
-		I2C_Control(I2C_Handler, CSK_I2C_BUS_SPEED, arg);
+		r = I2C_Control(I2C_Handler, CSK_I2C_BUS_SPEED, arg);
 
 		/* interrupt mode */
-		I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0); /* 0: interrupt 1: DMA */
+		r |= I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0); /* 0: interrupt 1: DMA */
 
 		/* Clear bus */
-		I2C_Control(I2C_Handler, CSK_I2C_BUS_CLEAR, 0);
+		r |= I2C_Control(I2C_Handler, CSK_I2C_BUS_CLEAR, 0);
 
 		/* master mode */
 		data->mode = true;
+	}
+
+	if (r != 0) {
+		LOG_ERR("I2C_Control failed. r:%d", r);
+		return -EIO;
 	}
 
 	return 0;
