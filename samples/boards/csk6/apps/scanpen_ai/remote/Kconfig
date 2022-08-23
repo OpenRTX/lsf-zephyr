@@ -1,0 +1,10 @@
+
+config CAPABILITY_TRANS
+	bool "capability translation"
+	default y
+	help
+	  capability translation
+
+
+
+source "Kconfig.zephyr"
