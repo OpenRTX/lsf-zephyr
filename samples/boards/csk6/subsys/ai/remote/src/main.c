@@ -53,7 +53,8 @@ void main(void)
 {
 	int ret;
 	sys_init();
-	LOG_INF("SOF on22222 %s", CONFIG_BOARD);
+	// printf("SOF on22222 %s", CONFIG_BOARD);
+	char *heap = (char *)malloc(512);
 	start_app();
 	/* sof_main is actually SOF initialization */
 	// ret = sof_main(0, NULL);
