@@ -351,7 +351,7 @@ int CSK_GESTURE_TEST_CONSTANCE(IPLT_INST hIPLTTInst)
 	return 0;
 }
 
-int CSK_EFFECTIVE(IPLT_INST ifr_inst)
+__attribute__ ((section (".iram.text"))) int CSK_EFFECTIVE(IPLT_INST ifr_inst)
 {
 	int i, j, fi = 0;
 	float *feature = NULL;
@@ -487,7 +487,7 @@ int CSK_EFFECTIVE(IPLT_INST ifr_inst)
 		{
 			// float time_cost = (ticks_total_head_detect * 1.0 / loop_num_head_detect / (1000 * 1000.f)/300)*1000;
 			// int time_cost_int = (int)time_cost;
-			LOG_INF("HEAD: total_clks_cost=%lld ms,average_clk_cost=%lld\r\n ms" ,
+			LOG_INF("HEAD: total_clks_cost=%lld ms,average_clk_cost=%lld ms\r\n" ,
 					ticks_total_head_detect,(ticks_total_head_detect/loop_num_head_detect));
 			// LOG_INF("HEAD: average_time:%d(ms)\r\n", ticks_once_head_detect);
 			ticks_total_head_detect = 0;

@@ -5,13 +5,12 @@
 #include <drivers/dma.h>
 #include <opi_psram_cpy.h>
 #include "hal/reg/dma_venus.h"
+#include <zephyr.h>
 
-// #define ZEPHYR
 #define USE_DMA_COPY
 
-
+#ifdef USE_DMA_COPY
 static uint32_t volatile DMAEvent;
-
 
 static void DMA_DrvEvent(uint32_t event_info, uint32_t xfer_bytes, uint32_t usr_param)
 {
@@ -20,8 +19,9 @@ static void DMA_DrvEvent(uint32_t event_info, uint32_t xfer_bytes, uint32_t usr_
     DMAEvent = event_info & 0xFF;
 }
 
+#endif
 
-
+#ifdef CONFIG_DMA
 K_SEM_DEFINE(dma_sem, 0, 1);
 
 void dma_callback(const struct device *dev, void *user_data, uint32_t channel, int status)
@@ -30,10 +30,11 @@ void dma_callback(const struct device *dev, void *user_data, uint32_t channel, i
         k_sem_give(&dma_sem);
     }
 }
+#endif
 
 void dma_init()
 {
-#ifdef ZEPHYR
+#ifdef CONFIG_DMA
     const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
     struct dma_config dma_cfg = {
         .channel_direction = MEMORY_TO_MEMORY,
@@ -42,6 +43,9 @@ void dma_init()
     };
 	dma_config(dma, 1, &dma_cfg);
 #else
+	extern void dma_irq_handler(void);
+	IRQ_CONNECT(3, 1, dma_irq_handler, NULL, 0);                                                                                                          
+	irq_enable(3);
 	dma_initialize();
 #endif
 }
@@ -50,7 +54,7 @@ void dma_wait_complete(int chn)
 {
 #ifdef USE_DMA_COPY
 
-#ifdef ZEPHYR
+#ifdef CONFIG_DMA
 	k_sem_take(&dma_sem, K_FOREVER);
 #else
 	// Block
@@ -84,7 +88,7 @@ void dma_cpy_async(int chn, void *dst, void *src, int32_t size)
 		dst = (void *)((uint32_t)dst & (uint32_t)0x480FFFFF);
 	}
 
-#ifdef ZEPHYR
+#ifdef CONFIG_DMA
 	const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
 	dma_reload(dma, 1, (uint32_t)src, (uint32_t)dst, size);
 	dma_start(dma, 1);

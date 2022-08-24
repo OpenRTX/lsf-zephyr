@@ -48,19 +48,17 @@ void sys_init(void)
 	LOG_INF("luna_val: %d", luna_val);
 }
 
-static void
-csk_dma_irq_handler(const struct device *dev)
-{
-    dma_irq_handler();
-}
+// static void
+// csk_dma_irq_handler(const struct device *dev)
+// {
+//     dma_irq_handler();
+// }
 
 
 void main(void)
 {
-	int ret;
+	// int ret;
 
-	IRQ_CONNECT(3, 1, csk_dma_irq_handler, NULL, 0);                                                                                                          
-	irq_enable(3);
 
 	GPIO_SetDir(GPIOA(), (1 << 5), 1);
 	GPIO_SetDir(GPIOA(), (1 << 4), 1);
