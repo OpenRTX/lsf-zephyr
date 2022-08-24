@@ -151,6 +151,24 @@ __exit:
     return ret;
 }
 
+int csk_wifi_sta_get_status(void)
+{
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
+    int ret_status = CSK_WIFI_STATUS_STA_UNKNOWN;
+    struct csk_wifi_data *data = dev->data;
+
+    if (data->sta_is_connected == true)
+    {
+        ret_status = CSK_WIFI_STATUS_STA_CONNECTED;
+    }else{
+        ret_status = CSK_WIFI_STATUS_STA_DISCONNECTED;
+    }
+    k_mutex_unlock(&wifi_api_mutex);
+
+    return ret_status;
+}
+
 #endif
 
 int csk_wifi_get_mac(csk_wifi_mode_t mode, uint8_t *mac_addr)

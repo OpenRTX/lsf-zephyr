@@ -134,8 +134,8 @@ struct csk_wifi_data {
         csk_wifi_sta_config_t sta_config;
         csk_wifi_softap_config_t ap_config;
     };
-#ifdef CONFIG_CSK_WIFI_XR819S
     bool sta_is_connected;
+#ifdef CONFIG_CSK_WIFI_XR819S
     csk_wifi_result_t err;
 #endif
 };
