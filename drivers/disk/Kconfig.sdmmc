@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 DT_COMPAT_ST_STM32_SDMMC := st,stm32-sdmmc
+DT_COMPAT_CSK6_SDMMC := listenai,csk-sdmmc
 DT_COMPAT_ZEPHYR_MMC := zephyr,sdmmc-disk
 
 config DISK_DRIVER_SDMMC
@@ -51,6 +52,13 @@ config SDMMC_STM32_HWFC
 	help
 	  Enable SDMMC Hardware Flow Control to avoid FIFO underrun (TX mode) and
 	  overrun (RX mode) errors.
+
+config SDMMC_CSK6
+	bool "CSK6 SDMMC driver"
+	depends on HAS_CSK6
+	default $(dt_compat_enabled,$(DT_COMPAT_CSK6_SDMMC))
+	help
+	  File system on sdmmc accessed through csk6 sdmmc.
 
 module = SDMMC
 module-str = sdmmc
