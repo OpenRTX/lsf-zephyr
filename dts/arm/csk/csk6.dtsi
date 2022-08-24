@@ -312,6 +312,14 @@
 			label = "ENTROPY";			
 		};
 
+		sdmmc:sdmmc@42000000{
+			compatible = "listenai,csk-sdmmc";
+			reg = <0x42000000 DT_SIZE_M(16)>;
+			interrupts = <2 0>;
+			status = "disabled";
+			label = "SDMCC";
+        };
+
 	};
 };
 

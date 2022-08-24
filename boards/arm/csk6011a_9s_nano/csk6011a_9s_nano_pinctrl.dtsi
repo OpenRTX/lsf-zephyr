@@ -163,5 +163,25 @@
                 pinctrl_dvp_d11_default: dvp_d11_default{
                 };
 
+                /* SDIO alternate function */
+                pinctrl_sdio_cmd_default: sdio_cmd_default{
+                };
+                
+                pinctrl_sdio_clk_default: sdio_clk_default{
+                };
+
+                pinctrl_sdio_dat0_default: sdio_dat0_default{
+                };
+
+                pinctrl_sdio_dat1_default: sdio_dat1_default{
+                };
+
+                pinctrl_sdio_dat2_default: sdio_dat2_default{
+                };
+
+                pinctrl_sdio_dat3_default: sdio_dat3_default{
+                        
+                };
+
         };
 };
