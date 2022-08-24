@@ -168,6 +168,7 @@ int csk_wifi_sta_get_status(void)
 
     return ret_status;
 }
+
 #endif
 
 #ifdef CONFIG_CSK_WIFI_SOFTAP
