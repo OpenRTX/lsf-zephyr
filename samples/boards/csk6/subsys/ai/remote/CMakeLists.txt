@@ -49,14 +49,6 @@ target_sources(app PRIVATE
     src/pilot_app.c
   )
 
-# message(STATUS "Compiling ${CMAKE_CURRENT_SOURCE_DIR}")
-# set_target_properties(app PROPERTIES 
-#     IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libpilot.a
-#     IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libluna.a
-#     IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libopi_cpy.a
-#     IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libthinker.a
-#   )
-
 
 set(LIB_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
@@ -67,7 +59,7 @@ target_link_libraries(app PUBLIC -Wl,--start-group
 						 -lgloss 
 						 -lminrt 
 						 ${LIB_DIR}/libopi_cpy.a 
-             ${LIB_DIR}/libhifi_dsp.a 
+             			 ${LIB_DIR}/libhifi_dsp.a 
 						 ${LIB_DIR}/libluna.a 
 						 ${LIB_DIR}/libthinker.a 
 						 ${LIB_DIR}/libpilot.a 
