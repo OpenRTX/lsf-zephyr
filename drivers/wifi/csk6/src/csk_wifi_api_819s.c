@@ -282,7 +282,7 @@ int csk_wifi_sta_get_status(void)
     ret = wlan_sta_state(&wlan_state);
     if (ret == 0) {
         if (wlan_state == WLAN_STA_STATE_DISCONNECTED) {
-        ret_status = CSK_WIFI_STATUS_STA_DISCONNECTED;
+            ret_status = CSK_WIFI_STATUS_STA_DISCONNECTED;
         } else if (wlan_state == WLAN_STA_STATE_CONNECTED) {
             ret_status = CSK_WIFI_STATUS_STA_CONNECTED;
         } else {
