@@ -1,0 +1,44 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&csk6002_9s_nano_pinctrl{
+    /* SDIO alternate function */
+    pinctrl_sdio_cmd_default: sdio_cmd_default{
+        pinctrls = <&pinmuxb 1 13>;
+    };
+    
+    pinctrl_sdio_clk_default: sdio_clk_default{
+        pinctrls = <&pinmuxb 2 13>;
+    };
+
+    pinctrl_sdio_dat0_default: sdio_dat0_default{
+        pinctrls = <&pinmuxb 0 13>;
+    };
+
+    pinctrl_sdio_dat1_default: sdio_dat1_default{
+        pinctrls = <&pinmuxb 5 13>;
+    };
+
+    pinctrl_sdio_dat2_default: sdio_dat2_default{
+        pinctrls = <&pinmuxb 4 13>;
+    };
+
+    pinctrl_sdio_dat3_default: sdio_dat3_default{
+        pinctrls = <&pinmuxb 3 13>;
+    };
+};
+
+&sdmmc {
+    status = "okay";
+    pinctrl-0 = <
+        &pinctrl_sdio_cmd_default 
+        &pinctrl_sdio_clk_default
+        &pinctrl_sdio_dat0_default
+        &pinctrl_sdio_dat1_default
+        &pinctrl_sdio_dat2_default
+        &pinctrl_sdio_dat3_default
+    >; 
+    pinctrl-names = "default";
+
+};
