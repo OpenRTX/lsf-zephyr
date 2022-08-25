@@ -1,4 +1,10 @@
 tests:
-  sample.board.csk6.subsys.avf.audio.aplay:
+  sample.board.csk6.subsys.avf.audio.acapture:
     platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_9s_nano
     tags: csk6
+    timeout: 20
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+      - "acapture run compelete and exit(.*)"

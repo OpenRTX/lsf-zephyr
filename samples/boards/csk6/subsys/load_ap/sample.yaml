@@ -1,6 +1,8 @@
 sample:
   name: Load_ap Sample
 tests:
-  sample.board.csk6.driver.load_ap:
+  sample.board.csk6.subsys.load_ap:
     platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_9s_nano
     tags: csk6
+    build_only: true
+    # TODO: AP CP 独立烧录，CP 和 AP公用串口。
