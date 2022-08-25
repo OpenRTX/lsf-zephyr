@@ -329,6 +329,7 @@ static csk_wifi_result_t wifi_sta_connect(const struct device *dev)
     int conn_ret = wifi_set_ap_config(esp_wifi_config);
     if (conn_ret == SUCCESS) {
         wifi_obj_set_sm(WIFI_SM_STA_CONNECTED);
+        data->sta_is_connected = true;
         //do nothing
     } else if (conn_ret == INVALID_PASSWORD) {
         ret = CSK_WIFI_ERR_INVALID_PASSWORD;
@@ -361,9 +362,11 @@ static csk_wifi_result_t wifi_sta_disconnect(const struct device *dev)
 {
     wifi_obj_set_sm(WIFI_SM_STA_ON_DISCONNECT);
     csk_wifi_result_t ret = CSK_WIFI_SUCCESS;
+    struct csk_wifi_data *data = dev->data;
     int disconn_ret = wifi_disconnect_ap();
     if (disconn_ret == SUCCESS) {
         wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
+        data->sta_is_connected = false;
         //do nothing
     } else {
         ret = CSK_WIFI_ERR_STA_FAILED;
