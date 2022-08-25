@@ -860,6 +860,11 @@ int usb_dc_ep_disable(const uint8_t ep)
 {
 	uint8_t ep_idx = USB_EP_GET_IDX(ep);
 
+	if (ep_idx >= NUM_OF_EP_MAX) {
+		LOG_ERR("Wrong endpoint index/address");
+		return -EINVAL;
+	}
+
 	if (USB_EP_DIR_IS_OUT(ep)) {
         if (usb_venus_ctrl.out_ep_ctrl[ep_idx].ep_ena == 0) {
             return 0;
