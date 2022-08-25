@@ -1,0 +1,16 @@
+
+ /delete-node/ &storage_partition;
+
+
+ &flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		
+		storage_partition: partition@760000 {
+			label = "image-1";
+			reg = <0x760000 0x00a0000>;
+		};
+	};
+};
