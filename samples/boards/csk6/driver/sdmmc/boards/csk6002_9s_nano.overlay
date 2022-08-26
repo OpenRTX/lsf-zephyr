@@ -5,27 +5,27 @@
 &csk6002_9s_nano_pinctrl{
     /* SDIO alternate function */
     pinctrl_sdio_cmd_default: sdio_cmd_default{
-        pinctrls = <&pinmuxb 1 13>;
+        pinctrls = <&pinmuxa 4 13>;
     };
     
     pinctrl_sdio_clk_default: sdio_clk_default{
-        pinctrls = <&pinmuxb 2 13>;
+        pinctrls = <&pinmuxa 9 13>;
     };
 
     pinctrl_sdio_dat0_default: sdio_dat0_default{
-        pinctrls = <&pinmuxb 0 13>;
+        pinctrls = <&pinmuxa 5 13>;
     };
 
     pinctrl_sdio_dat1_default: sdio_dat1_default{
-        pinctrls = <&pinmuxb 5 13>;
+        pinctrls = <&pinmuxa 6 13>;
     };
 
     pinctrl_sdio_dat2_default: sdio_dat2_default{
-        pinctrls = <&pinmuxb 4 13>;
+        pinctrls = <&pinmuxa 7 13>;
     };
 
     pinctrl_sdio_dat3_default: sdio_dat3_default{
-        pinctrls = <&pinmuxb 3 13>;
+        pinctrls = <&pinmuxa 8 13>;
     };
 };
 
