@@ -162,6 +162,8 @@ static int disk_csk6_sdmmc_init(const struct device *dev)
 
 	PINCTRL_CONFIG_PINS(cfg->pinctrl_list, cfg->pinctrl_list_size);
 
+	cfg->irq_config_func(dev);
+
 	err = csk6_sdmmc_bus_probe(dev);
 	if (err < 0) {
 		return err;
