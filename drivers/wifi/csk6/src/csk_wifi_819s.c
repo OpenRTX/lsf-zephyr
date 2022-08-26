@@ -118,6 +118,11 @@ int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout)
     return ret;
 }
 
+int wlan_event_clear(void)
+{
+    k_msgq_purge(&xrwlan_msgq); /* clean the message queue */
+}
+
 int wlan_event_give(wlan_event_t *event)
 {
     if (!k_msgq_num_free_get(&xrwlan_msgq)) {
@@ -664,6 +669,9 @@ static int wifi_scan_list(const struct device *dev, int *ap_count, csk_wifi_scan
     int ret = 0;
     wlan_event_t event;
     wlan_sta_scan_results_t scan_results;
+
+    /* clear old events */
+    wlan_event_clear();
 
     /**
      * -2 pending scan schedule -reject new request

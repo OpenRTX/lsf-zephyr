@@ -192,6 +192,7 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
         ret = wifi_take_result(&ret_msg, timeout);
         if (ret != 0)   goto __exit;
     } else {
+        *result = CSK_WIFI_SUCCESS;
         goto __exit;
     }
 
