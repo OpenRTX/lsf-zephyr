@@ -227,7 +227,9 @@ static int crypto_csk6_session_setup(const struct device *dev,
 static int crypto_csk6_session_free(const struct device *dev,
 				     struct cipher_ctx *ctx)
 {
+	struct crypto_csk6_data *data = DEV_DATA(dev);
 	CRYPTO_PowerControl(DEV_HANDLER(dev), CSK_POWER_OFF);
+	data->event = 0;
     return 0;
 }
 
