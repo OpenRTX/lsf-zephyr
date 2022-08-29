@@ -113,6 +113,11 @@
 /* Miscellaneous options */
 #define MBEDTLS_AES_ROM_TABLES
 
+/* CSK6 config file */
+#ifdef CONFIG_CSK_MBEDTLS_HARDWARE_AES
+#include CONFIG_CSK_MBEDTLS_CONFIG_FILE
+#endif
+
 #include "check_config.h"
 
 #endif /* MBEDTLS_CONFIG_H */
