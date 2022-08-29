@@ -233,3 +233,6 @@ zephyr_udc0: &usbotg {
         num-out-endpoints = <6>;
 };
 
+&crypto {
+        status = "okay";
+};

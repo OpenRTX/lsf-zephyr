@@ -218,3 +218,7 @@ zephyr_udc0: &usbotg {
 &adc0 {
         status = "disabled";
 };
+
+&crypto {
+        status = "okay";
+};
