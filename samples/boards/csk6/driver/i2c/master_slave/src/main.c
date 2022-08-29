@@ -39,8 +39,8 @@ K_THREAD_STACK_DEFINE(slave_stack_area, SLAVE_STACK_SIZE);
 struct k_thread master_thread_data;
 struct k_thread slave_thread_data;
 
-uint8_t data0[256] = { 0 };
-uint8_t data1[256] = { 0 };
+uint8_t master_buf[256] = { 0 };
+uint8_t slave_buf[256] = { 0 };
 
 int i2c_master_init(void)
 {
@@ -86,22 +86,32 @@ int i2c_slave_init(void)
 	return 0;
 }
 
+K_SEM_DEFINE(i2c_sem_m2s, 0, 1);
+K_SEM_DEFINE(i2c_sem_s2m, 0, 1);
+
 void i2c_master_thread(void *v1, void *v2, void *v3)
 {
-	for (int i = 0; i < sizeof(data0) - 1; i++) {
-		data0[i] = i;
+	k_sem_take(&i2c_sem_s2m, K_FOREVER);
+
+	for (int i = 0; i < sizeof(master_buf) - 1; i++) {
+		master_buf[i] = i;
 	}
 
 	/* 1. master send, slave receive */
-	i2c_write(i2c0_dev, data0, sizeof(data0) - 1, SLAVE_ADDRESS);
+	i2c_write(i2c0_dev, master_buf, sizeof(master_buf) - 1, SLAVE_ADDRESS);
 
+	memset(master_buf, 0, sizeof(master_buf));
+
+	printk("master receive, slave send\n");
 	/* 2. master receive, slave send */
-	i2c_read(i2c0_dev, data0, sizeof(data0), SLAVE_ADDRESS);
+	i2c_read(i2c0_dev, master_buf, sizeof(master_buf), SLAVE_ADDRESS);
 
-	for (int i = 0; i < sizeof(data1); i++) {
-		if (data0[i] != data1[i]) {
-			printk("data0[%d]: %d != data1[%d]: %d\n", i, data0[i], i, data1[i]);
-		}
+	k_sem_give(&i2c_sem_m2s);
+
+	for (int i = 0; i < sizeof(slave_buf); i++) {
+		__ASSERT(master_buf[i] == slave_buf[i],
+			 "master recv error, master_buf[%d]: 0x%02X != slave_buf[%d]: 0x%02X\n", i, master_buf[i],
+			 i, slave_buf[i]);
 	}
 
 	printk("I2C TEST DONE\n");
@@ -115,24 +125,26 @@ void i2c_slave_thread(void *v1, void *v2, void *v3)
 {
 	/* 1. master send, alave receive */
 	printk("master send, slave receive\n");
-	i2c_read(i2c1_dev, data1, sizeof(data1), 0);
+	memset(slave_buf, 0, sizeof(slave_buf));
+	i2c_read(i2c1_dev, slave_buf, sizeof(slave_buf), 0);
+	k_sem_give(&i2c_sem_s2m);
 
 	/* data compare */
-	for (int i = 0; i < sizeof(data1); i++) {
-		if (data0[i] != data1[i]) {
-			printk("data0[%d]: %d != data1[%d]: %d\n", i, data0[i], i, data1[i]);
-		}
+	for (int i = 0; i < sizeof(slave_buf); i++) {
+		__ASSERT(master_buf[i] == slave_buf[i],
+			 "slave recv error, master_buf[%d]: 0x%02X != slave_buf[%d]: 0x%02X\n", i, master_buf[i],
+			 i, slave_buf[i]);
 	}
+
+	printk("slave received ok!\n");
 
 	/* reset data value */
-	memset(data0, sizeof(data0), 0);
-	for (int i = 0; i < sizeof(data1); i++) {
-		data1[i] = i;
+	k_sem_take(&i2c_sem_m2s, K_FOREVER);
+	for (int i = 0; i < sizeof(slave_buf); i++) {
+		slave_buf[i] = i;
 	}
 
-	/* 2. master recevice, alave send */
-	printk("master receive, slave send\n");
-	i2c_write(i2c1_dev, data1, sizeof(data1) - 1, 0);
+	i2c_write(i2c1_dev, slave_buf, sizeof(slave_buf) - 1, 0);
 
 	while (1) {
 		k_msleep(10);
