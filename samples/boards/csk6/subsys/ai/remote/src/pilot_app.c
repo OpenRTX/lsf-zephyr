@@ -2,8 +2,8 @@
 #include <pilot_app.h>
 #include <w_pilot_err.h>
 #include <stdlib.h>
-#include "luna.h"
-#include "pilot/w_pilot.h"
+#include <luna.h>
+#include <pilot/w_pilot.h>
 #include <logging/log.h>
 
 LOG_MODULE_REGISTER(pilot_app, LOG_LEVEL_DBG);
@@ -119,12 +119,12 @@ int UINIT_ENGINE(IPLT_INST ifr_inst)
 	int ret_error = IPILOT_SUCCESS;
 	ret_error = IPLTDestroyInst(ifr_inst);
 	if (IPILOT_SUCCESS != ret_error) {
-		LOG_INF("IPLTDestroyInst Failed | Error Code = %d\r\n", ret_error);
+		LOG_INF("IPLTDestroyInst Failed | Error Code = %d", ret_error);
 		return ret_error;
 	}
 	ret_error = IPLTUninit();
 	if (IPILOT_SUCCESS != ret_error) {
-		LOG_INF("IPLTUninit Failed | Error Code = %d\r\n", ret_error);
+		LOG_INF("IPLTUninit Failed | Error Code = %d", ret_error);
 		return ret_error;
 	}
 
@@ -248,7 +248,7 @@ int CSK_ATOMIC_TEST(IPLT_INST ifr_inst)
 		}
 		for (int fi = 0; fi<face_count; fi++)
 		{
-			LOG_INF("face count = %d\t x = %d\t y=%d\t w=%d\t h=%d\t score=%f\r\n",
+			LOG_INF("face count = %d\t x = %d\t y=%d\t w=%d\t h=%d\t score=%f",
 				face_count, face_detct_t[fi].rect.x, face_detct_t[fi].rect.y, 
 				face_detct_t[fi].rect.w, face_detct_t[fi].rect.h, face_detct_t[fi].score);
 		}
@@ -266,7 +266,7 @@ int CSK_ATOMIC_TEST(IPLT_INST ifr_inst)
 		ret_error = IPLTFaceAlign(ifr_inst, head_640x480, PIX_FMT_BGR888, 640, 480, 
 			&face_detct_t[0], FACE_ALIGN_68P, face_detct_t->p_align_point);
 		if (IPILOT_SUCCESS != ret_error) {
-			LOG_INF("pDetect Failed | Error Code = %d\r\n", ret_error);
+			LOG_INF("pDetect Failed | Error Code = %d", ret_error);
 			return ret_error;
 		}
 		for (int i=0;i<68;i++)
@@ -276,14 +276,14 @@ int CSK_ATOMIC_TEST(IPLT_INST ifr_inst)
 #endif
 
 #ifdef TEST_HEAD_DETECT
-		ret_error = IPLTHeadShoulderDetect(ifr_inst, head_640x480, PIX_FMT_BGR888, 640, 480, &head_detct_t, &head_shoulder_count);
+		ret_error = IPLTHeadShoulderDetect(ifr_inst, (unsigned char *)head_640x480, PIX_FMT_BGR888, 640, 480, &head_detct_t, &head_shoulder_count);
 		if (IPILOT_SUCCESS != ret_error) {
-			LOG_INF("pDetect Failed | Error Code = %d\r\n", ret_error);
+			LOG_INF("pDetect Failed | Error Code = %d", ret_error);
 			return ret_error;
 		}
 		for (int fi = 0; fi<head_shoulder_count; fi++)
 		{
-			LOG_INF("head count = %d\t x = %d\t y=%d\t w=%d\t h=%d\t score=%f\r\n", 
+			LOG_INF("head count = %d\t x = %d\t y=%d\t w=%d\t h=%d\t score=%f", 
 				head_shoulder_count, head_detct_t[fi].rect.x, head_detct_t[fi].rect.y,
 				head_detct_t[fi].rect.w, head_detct_t[fi].rect.h, head_detct_t[fi].score);
 		}
@@ -307,7 +307,7 @@ int CSK_ATOMIC_TEST(IPLT_INST ifr_inst)
 		ret_error = IPLTFaceGetFea(ifr_inst, head_640x480, PIX_FMT_BGR888, 640, 480, &face_detct_t[0], &feature, &feature_len);
 		if (IPILOT_SUCCESS != ret_error)
 		{
-			LOG_INF("pVerify Failed | Error Code = %d\r\n", ret_error);
+			LOG_INF("pVerify Failed | Error Code = %d", ret_error);
 			return ret_error;
 		}
 		LOG_INF("[0]=%f\t[192]=%f\t[383]=%f\n", feature[0], feature[192], feature[383]);
@@ -323,7 +323,7 @@ int CSK_GESTURE_TEST_CONSTANCE(IPLT_INST hIPLTTInst)
 {
 	head_shoulder_detect *head_detct_t = NULL;
 	int head_shoulder_count;
-	int ret_error = IPLTHeadShoulderDetect(hIPLTTInst, head_640x480, PIX_FMT_BGR888, 640, 480, &head_detct_t, &head_shoulder_count);
+	int ret_error = IPLTHeadShoulderDetect(hIPLTTInst, (unsigned char *)head_640x480, PIX_FMT_BGR888, 640, 480, &head_detct_t, &head_shoulder_count);
 	if (IPILOT_SUCCESS != ret_error) {
 		LOG_INF("pDetect Failed | Error Code = %d\n", ret_error);
 		return ret_error;
@@ -336,7 +336,7 @@ int CSK_GESTURE_TEST_CONSTANCE(IPLT_INST hIPLTTInst)
 				head_shoulder_count, head_detct_t[fi].rect.x, head_detct_t[fi].rect.y,
 				head_detct_t[fi].rect.w, head_detct_t[fi].rect.h, head_detct_t[fi].score);
 
-		ret_error = IPLTGestureRecognition(hIPLTTInst, head_640x480, PIX_FMT_BGR888, 640, 480, &head_detct_t[fi]);
+		ret_error = IPLTGestureRecognition(hIPLTTInst, (unsigned char *)head_640x480, PIX_FMT_BGR888, 640, 480, &head_detct_t[fi]);
 		if (IPILOT_SUCCESS != ret_error)
 		{
 			LOG_INF("IPLTGestureRecognition Failed | Error Code = %d\n", ret_error);
@@ -393,9 +393,9 @@ __attribute__ ((section (".iram.text"))) int CSK_EFFECTIVE(IPLT_INST ifr_inst)
 		{
 			float time_cost = (ticks_total_face_detect * 1.0 / loop_num_face_detect / (1000 * 1000.f)/300)*1000;
 			int time_cost_int = (int)time_cost;
-			LOG_INF("DETECT: total_clks_cost=%lld,average_clk_cost=%lld\r\n",
+			LOG_INF("DETECT: total_clks_cost=%lld,average_clk_cost=%lld",
 					ticks_total_face_detect,(ticks_total_face_detect/loop_num_face_detect));
-			LOG_INF("DETECT: average_time:%d(ms)\r\n", time_cost_int);
+			LOG_INF("DETECT: average_time:%d(ms)", time_cost_int);
 			ticks_total_face_detect = 0;
 			loop_num_face_detect = 0;
 		}
@@ -426,9 +426,9 @@ __attribute__ ((section (".iram.text"))) int CSK_EFFECTIVE(IPLT_INST ifr_inst)
 		{
 			float time_cost = (ticks_total_face_align * 1.0 / loop_num_face_align / (1000 * 1000.f)/300)*1000;
 			int time_cost_int = (int)time_cost;
-			LOG_INF("ALIGN: total_clks_cost=%lld,average_clk_cost=%lld\r\n",
+			LOG_INF("ALIGN: total_clks_cost=%lld,average_clk_cost=%lld",
 					ticks_total_face_align,(ticks_total_face_align/loop_num_face_align));
-			LOG_INF("ALIGN: average_time:%d(ms)\r\n", time_cost_int);
+			LOG_INF("ALIGN: average_time:%d(ms)", time_cost_int);
 			ticks_total_face_align = 0;
 			loop_num_face_align = 0;
 		}
@@ -461,9 +461,9 @@ __attribute__ ((section (".iram.text"))) int CSK_EFFECTIVE(IPLT_INST ifr_inst)
 		{
 			float time_cost = (ticks_total_face_verify * 1.0 / loop_num_face_verify / (1000 * 1000.f)/300)*1000;
 			int time_cost_int = (int)time_cost;
-			LOG_INF("FEATURE: total_clks_cost=%lld,average_clk_cost=%lld\r\n",
+			LOG_INF("FEATURE: total_clks_cost=%lld,average_clk_cost=%lld",
 					ticks_total_face_verify,(ticks_total_face_verify/loop_num_face_verify));
-			LOG_INF("FEATURE: average_time:%d(ms)\r\n", time_cost_int);
+			LOG_INF("FEATURE: average_time:%d(ms)", time_cost_int);
 			ticks_total_face_verify = 0;
 			loop_num_face_verify = 0;
 		}
@@ -473,23 +473,20 @@ __attribute__ ((section (".iram.text"))) int CSK_EFFECTIVE(IPLT_INST ifr_inst)
 {
 		//do head shoulder detect
 		uint32_t start = k_uptime_get_32();
-		GPIO_PinWrite(GPIOA(), (1 << 5), 1);
-		ret_error = IPLTHeadShoulderDetect(ifr_inst, head_640x480, PIX_FMT_BGR888, 640, 480, &head_detct_t, &head_shoulder_count);
+		ret_error = IPLTHeadShoulderDetect(ifr_inst, (unsigned char *)head_640x480, PIX_FMT_BGR888, 640, 480, &head_detct_t, &head_shoulder_count);
 		if (IPILOT_SUCCESS != ret_error) {
 			LOG_INF("pDetect Failed | Error Code = %d\n", ret_error);
 			return ret_error;
 		}
-		GPIO_PinWrite(GPIOA(), (1 << 5), 0);
 		ticks_once_head_detect = (k_uptime_get_32() - start);
 		ticks_total_head_detect += ticks_once_head_detect;
 		loop_num_head_detect++;
 		if (10 == loop_num_head_detect)
 		{
-			// float time_cost = (ticks_total_head_detect * 1.0 / loop_num_head_detect / (1000 * 1000.f)/300)*1000;
-			// int time_cost_int = (int)time_cost;
-			LOG_INF("HEAD: total_clks_cost=%lld ms,average_clk_cost=%lld ms\r\n" ,
+			float time_cost = (ticks_total_head_detect * 1.0 / loop_num_head_detect / (1000 * 1000.f)/300)*1000;
+			int time_cost_int = (int)time_cost;
+			LOG_INF("HEAD: total_clks_cost=%lld ms,average_clk_cost=%lld ms" ,
 					ticks_total_head_detect,(ticks_total_head_detect/loop_num_head_detect));
-			// LOG_INF("HEAD: average_time:%d(ms)\r\n", ticks_once_head_detect);
 			ticks_total_head_detect = 0;
 			loop_num_head_detect = 0;
 		}
@@ -500,28 +497,25 @@ __attribute__ ((section (".iram.text"))) int CSK_EFFECTIVE(IPLT_INST ifr_inst)
 #ifdef TEST_GESTURE
 {
 		uint32_t start = k_uptime_get_32();
-		GPIO_PinWrite(GPIOA(), (1 << 4), 1);
 		int index = 0;
 		for (int fi = 0; fi<head_shoulder_count; fi++)
 		{
-			ret_error = IPLTGestureRecognition(ifr_inst, head_640x480, PIX_FMT_BGR888,
+			ret_error = IPLTGestureRecognition(ifr_inst, (unsigned char *)head_640x480, PIX_FMT_BGR888,
 				640, 480, &head_detct_t[fi]);
 			if (IPILOT_SUCCESS != ret_error) {
 				LOG_INF("pDetect Failed | Error Code = %d\n", ret_error);
 				return ret_error;
 			}
 		}
-		GPIO_PinWrite(GPIOA(), (1 << 4), 0);
 		ticks_once_gesture = (k_uptime_get_32() - start);
 		ticks_total_gesture += ticks_once_gesture;
 		loop_num_gesture++;
 		if (10 == loop_num_gesture)
 		{
-			// float time_cost = (ticks_total_gesture * 1.0 / loop_num_gesture / (1000 * 1000.f) / 300) * 1000;
-			// int time_cost_int = (int)time_cost;
-			LOG_INF("GESTURE: total_clks_cost=%lld ms,average_clk_cost=%lld ms\r\n",
+			float time_cost = (ticks_total_gesture * 1.0 / loop_num_gesture / (1000 * 1000.f) / 300) * 1000;
+			int time_cost_int = (int)time_cost;
+			LOG_INF("GESTURE: total_clks_cost=%lld ms,average_clk_cost=%lld ms",
 					ticks_total_gesture, (ticks_total_gesture/loop_num_gesture));
-			// LOG_INF("GESTURE: average_time:%d(ms)\r\n", time_cost_int);
 			for (int fi = 0; fi < head_shoulder_count; fi++)
 			{
 				LOG_INF("gesture status = %d,gesture_score=%f\n", head_detct_t[fi].gesture_state,
@@ -540,7 +534,7 @@ __attribute__ ((section (".iram.text"))) int CSK_EFFECTIVE(IPLT_INST ifr_inst)
 
 int CSK_test_function(IPLT_INST ifr_inst)
 {
-	// CSK_ATOMIC_TEST(ifr_inst);
+	CSK_ATOMIC_TEST(ifr_inst);
 	CSK_GESTURE_TEST_CONSTANCE(ifr_inst);
 	CSK_EFFECTIVE(ifr_inst);
 	return 0;
