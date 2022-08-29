@@ -13,6 +13,19 @@ if(CONFIG_MBEDTLS_BUILTIN)
 
   zephyr_library()
 
+  if (CONFIG_CSK_MBEDTLS_HARDWARE_ALT)
+    target_include_directories(mbedTLS INTERFACE
+      csk
+    )
+    zephyr_include_directories_ifdef(CONFIG_CSK_MBEDTLS_HARDWARE_AES
+      csk/csk_aes
+    )
+    zephyr_library_sources_ifdef(CONFIG_CSK_MBEDTLS_HARDWARE_AES
+      csk/csk_aes/csk_aes.c
+      csk/csk_aes/csk_aes_xts.c
+    )
+  endif()
+
   file(GLOB
     mbedtls_sources # This is an output parameter
       ${ZEPHYR_CURRENT_MODULE_DIR}/library/*.c
