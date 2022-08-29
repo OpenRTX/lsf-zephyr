@@ -15,34 +15,36 @@ endif()
 find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
 project(sof_remote)
 
+
 zephyr_include_directories(
   ./include
   ./include/luna/
   ./include/hifi/
   ./include/opi_cpy/
   ./include/pilot/
+  ./include/img/
   ./include/pilot_app/
 )
 
-# set_target_properties(app PROPERTIES IMPORTED_LOCATION ./lib/libpilot.a)
+if(NOT CONFIG_ALGO_RES_BIN)
+	message(STATUS "CONFIG_ALGO_RES_BIN is not defined")
+	zephyr_include_directories(./include/res/)
+else()
+message(STATUS "generating inc file")
+	set(gen_dir ${ZEPHYR_BINARY_DIR}/include/generated)
+	generate_inc_file_for_target(
+	app
+	res/gesture.bin
+	${gen_dir}/gesture.inc
+	)
 
-# ./lib/libopi_cpy.a
-# ./lib/libpilot.a
-# ./lib/libthinker.a
-                                  
-# zephyr_link_libraries(ALGO_LIB ./lib/libluna.a
-#                               ./lib/libopi_cpy.a
-#                               ./lib/libpilot.a
-#                               ./lib/libthinker.a
-# )
-# zephyr_ld_options(
-#   -lm
-# )
+	generate_inc_file_for_target(
+	app
+	res/head_shoulder_detect.bin
+	${gen_dir}/head_shoulder_detect.inc
+	)
+endif()
 
-# zephyr_library_import(algo_luna ./lib/libluna.a)
-# zephyr_library_import(algo_opi_cpy ./lib/libopi_cpy.a)
-# zephyr_library_import(algo_pilot ./lib/libpilot.a)
-# zephyr_library_import(algo_thinker ./lib/libthinker.a)
 target_sources(app PRIVATE
     src/main.c
     src/opi_psram_cpy.c
@@ -64,3 +66,5 @@ target_link_libraries(app PUBLIC -Wl,--start-group
 						 ${LIB_DIR}/libthinker.a 
 						 ${LIB_DIR}/libpilot.a 
 						 -Wl,--end-group)
+
+

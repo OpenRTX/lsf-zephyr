@@ -35,30 +35,46 @@ static char *g_share_meme_buffer = (char *)LUNA_SHARE_MEM_BASE;
 
 #ifdef TEST_FACE_DETECT
 static char gDetectResBuffer[1 * 380 * 1024];
-#include"./res/face_detect_luna.h"
+#include "face_detect_luna.h"
 #endif
 
 #ifdef TEST_HEAD_DETECT
-#include"./res/castor_v1.6_luna_thinker.h"
+
+#if CONFIG_ALGO_RES_BIN
+static const unsigned char castor_luna_thinker_resource[] = {
+	#include "head_shoulder_detect.inc"
+};
+#else
+#include "castor_v1.6_luna_thinker.h"
+#endif
+
 static char gHeadShoulderBuffer[HEAD_SHOULDER_SIZE];
 #endif
 
 #ifdef TEST_FACE_VERIFY
-#include"./res/face_verify_luna.h"
+#include "face_verify_luna.h"
 static char gVerifyResBuffer[2 * 1024 * 1024 + 1 * 150 * 1024];
 #endif
 
 #ifdef TEST_FACE_ALIGN
-#include"./res/face_align_luna.h"
+#include "face_align_luna.h"
 static char gAlignResBuffer[1*380*1024];
 #endif
 
 #ifdef TEST_GESTURE
-#include"./res/mb_tiny_hand_0524_128_16bias_luna.h"
+
+#if CONFIG_ALGO_RES_BIN
+static const unsigned char mb_tiny_hand_0524_128_16bias_luna_resource[] = {
+	#include "gesture.inc"
+};
+#else
+#include "mb_tiny_hand_0524_128_16bias_luna.h"
+#endif
+
 static char gGestureResBuffer[1*1024*1024+1*230*1024];
 #endif
 
-#include "./res/input_640x480.h"
+#include "input_640x480.h"
 
 int SET_PARMA_ENGINE(IPLT_INST ifr_inst)
 {
@@ -176,7 +192,7 @@ int INIT_ENGINE(IPLT_INST *ifr_inst)
 #ifdef TEST_HEAD_DETECT
 	res_type_mgr.res_type_arr_[2].res_buffer_type = RES_HEAD_SHOULDER;
 	res_type_mgr.res_type_arr_[2].res_buffer_addr = gHeadShoulderBuffer;
-	res_type_mgr.res_type_arr_[2].res_buffer_addr = castor_luna_thinker_resource;
+	res_type_mgr.res_type_arr_[2].res_buffer_addr = (char *)castor_luna_thinker_resource;
 	res_type_mgr.res_type_arr_[2].res_buffer_size = HEAD_SHOULDER_SIZE;
 #endif
 
@@ -188,8 +204,8 @@ int INIT_ENGINE(IPLT_INST *ifr_inst)
 
 #ifdef TEST_GESTURE
 	res_type_mgr.res_type_arr_[4].res_buffer_type = RES_GESTURE_RECOGNITION;
-	res_type_mgr.res_type_arr_[4].res_buffer_addr = gGestureResBuffer;
-	res_type_mgr.res_type_arr_[4].res_buffer_addr = mb_tiny_hand_0524_128_16bias_luna_resource;
+	res_type_mgr.res_type_arr_[4].res_buffer_addr = (char *)gGestureResBuffer;
+	res_type_mgr.res_type_arr_[4].res_buffer_addr = (char *)mb_tiny_hand_0524_128_16bias_luna_resource;
 #endif
 
 	//1.Init 
