@@ -1,7 +1,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-
+if(CONFIG_ESP_HOSTED)
 zephyr_library_named(esp_hosted_glue)
 zephyr_interface_library_named(esp_hosted_glue_interface)
 
@@ -16,3 +16,4 @@ zephyr_library_sources_ifdef(CONFIG_ESP_HOSTED
     hosted.c
 )
 
+endif()
