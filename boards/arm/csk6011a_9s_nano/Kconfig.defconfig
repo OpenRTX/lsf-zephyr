@@ -5,6 +5,18 @@ config BOARD
 
 if WIFI
 
+choice CSK_WIFI_OFFLOAD_MODULE
+   prompt "WiFi Offload Module"
+   default CSK_WIFI_XR819S
+
+	config CSK_WIFI_ESP32C3
+      bool "ESP32C3"
+
+	config CSK_WIFI_XR819S
+      bool "XR819S"
+
+endchoice
+
 config XR_SDD_FILE
    default "sdd_xr819s_xtal_48.bin"
 
