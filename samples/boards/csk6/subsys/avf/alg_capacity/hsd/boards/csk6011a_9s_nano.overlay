@@ -1,0 +1,171 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ */
+/delete-node/ &psram_cp;
+/delete-node/ &psram_ap;
+/delete-node/ &psram_share;
+/ {
+	chosen {
+		/*
+		 * shared memory reserved for the inter-processor communication
+		 */
+		zephyr,ipc_shm = &psram_share;
+		zephyr,ipc = &mailbox0;
+	};
+
+	aliases {
+		avf-audio-pwr-amp = &pwr_amp;
+	};
+	pwr_amp: audio_pwr_amp{
+		compatible = "listenai,pwr-amp";
+		enable-gpios = <&gpioa 4 1>;
+		label = "audio_pwr_amp";
+		status = "okay";
+	};
+
+};
+
+&psram0 {
+	psram_cp: psram_cp@30000000 {
+		compatible = "listenai,csk6-psram-partition";
+		reg = <0x30000000 0x600000>;
+		status = "okay";
+	};
+	psram_ap: psram_ap@30600000 {
+		compatible = "listenai,csk6-psram-partition";
+		reg = <0x30600000 0x100000>;
+		status = "okay";
+	};
+	psram_share: psram_share@30700000 {
+		compatible = "listenai,csk6-psram-partition";
+		reg = <0x30700000 0x80000>;
+		status = "okay";
+	};
+};
+
+&csk6011a_9s_nano_pinctrl {
+	pinctrl_uart1_tx_default: uart1_tx_default{
+		pinctrls = <&pinmuxa 4 3>;
+	};
+
+	pinctrl_i2c0_scl_default: i2c0_scl_default{
+		pinctrls = <&pinmuxb 0 8>;
+	};
+
+	pinctrl_i2c0_sda_default: i2c0_sda_default{
+		pinctrls = <&pinmuxb 1 8>;
+	};
+
+	pinctrl_dvp_clkout_default: dvp_clkout_default{
+		pinctrls = <&pinmuxa 7 20>;
+	};
+
+	pinctrl_dvp_vsync_default: dvp_vsync_default{
+		pinctrls = <&pinmuxa 14 20>;
+	};
+
+	pinctrl_dvp_hsync_default: dvp_hync_default{
+		pinctrls = <&pinmuxa 13 20>;
+	};
+
+	pinctrl_dvp_pclk_default: dvp_pclk_default{
+		pinctrls = <&pinmuxa 15 20>;
+	};
+
+	pinctrl_dvp_d4_default: dvp_d4_default{
+		pinctrls = <&pinmuxb 4 20>;
+	};
+
+	pinctrl_dvp_d5_default: dvp_d5_default{
+		pinctrls = <&pinmuxb 5 20>;
+	};
+
+	pinctrl_dvp_d6_default: dvp_d6_default{
+		pinctrls = <&pinmuxb 6 20>;
+	};
+
+	pinctrl_dvp_d7_default: dvp_d7_default{
+		pinctrls = <&pinmuxb 7 20>;
+	};
+
+
+	pinctrl_dvp_d8_default: dvp_d8_default{
+		pinctrls = <&pinmuxb 8 20>;
+	};
+
+
+	pinctrl_dvp_d9_default: dvp_d9_default{
+		pinctrls = <&pinmuxa 20 20>;
+	};
+
+
+	pinctrl_dvp_d10_default: dvp_d10_default{
+		pinctrls = <&pinmuxa 8 20>;
+	};
+
+
+	pinctrl_dvp_d11_default: dvp_d11_default{
+		pinctrls = <&pinmuxa 9 20>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
+	pinctrl-names = "default";
+
+	ov9655: ov9655@30 {
+		compatible = "ovti,ov9655";
+		status = "okay";
+		label = "OV9655";
+		reg = <0x30>;
+		reset-gpios = <&gpioa 6 0>;
+
+		port {
+			ov9655_ep_out: endpoint {
+				remote-endpoint = <&dvp_ep_in>;
+			};
+		};
+	};
+
+};
+
+&uart1 {
+	pinctrl-0 = <&pinctrl_uart1_tx_default>;
+	pinctrl-names = "default";
+	current-speed = <921600>;
+	status = "okay";
+};
+
+&dvp {
+	status = "okay";
+	sensor-label = "OV9655";
+	clock-prescaler = <5>;
+	data-align-type = "high_align";
+	pclk-polarity = "post_edge_sampling";
+	hsync-polarity = "active_high";
+	vsync-polarity = "active_low";
+
+	pinctrl-0 = <
+	&pinctrl_dvp_clkout_default
+	&pinctrl_dvp_vsync_default
+	&pinctrl_dvp_hsync_default
+	&pinctrl_dvp_pclk_default
+	&pinctrl_dvp_d4_default
+	&pinctrl_dvp_d5_default
+	&pinctrl_dvp_d6_default
+	&pinctrl_dvp_d7_default
+	&pinctrl_dvp_d8_default
+	&pinctrl_dvp_d9_default
+	&pinctrl_dvp_d10_default
+	&pinctrl_dvp_d11_default
+	>;
+	pinctrl-names = "default";
+
+	port {
+		dvp_ep_in: endpoint {
+			remote-endpoint = <&ov9655_ep_out>;
+		};
+	};
+
+};
