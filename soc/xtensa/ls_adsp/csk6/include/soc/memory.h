@@ -7,6 +7,9 @@
 #ifndef __INC_MEMORY_H
 #define __INC_MEMORY_H
 
+#include <zephyr/devicetree.h>
+
+
 #define PLATFORM_CORE_COUNT 1
 
 /** Id of master DSP core */
@@ -22,13 +25,15 @@
 #define ISR_VECTOR_SIZE  0x400 + 0x298
 #define IRAM_BASE	0x5FF00000
 #define IRAM_SIZE	0x2000
-/* FIXME: temp modify, Just to distinguish between mailbox addresses, will re-partition later  */
-#define SDRAM0_BASE	0x60000000 + ISR_VECTOR_SIZE
-#define SDRAM0_SIZE	0x700000 - ISR_VECTOR_SIZE
 
-/* FIXME: temp modify, Just to distinguish between mailbox addresses, will re-partition later  */
-#define SDRAM1_BASE	0x60500000
-#define SDRAM1_SIZE	0x100000
+/* FIXME: if use dt to define sram0 addr and size, must repalce stdbool.h, or it can not build successful  */
+/* cp psram run start address  */
+#define SDRAM0_BASE	(DT_REG_ADDR(DT_NODELABEL(sram0)))
+#define SDRAM0_SIZE	(DT_REG_SIZE(DT_NODELABEL(sram0)))
+
+/* heap and stack addr  */
+#define SDRAM1_BASE	(DT_REG_ADDR(DT_NODELABEL(sram1)))
+#define SDRAM1_SIZE	(DT_REG_SIZE(DT_NODELABEL(sram1)))
 
 /* The reset vector address in SRAM and its size */
 #define MEM_RESET_TEXT_SIZE			0x2e0

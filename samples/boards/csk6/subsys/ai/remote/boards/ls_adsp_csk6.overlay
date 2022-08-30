@@ -7,3 +7,7 @@
 			pinctrls = < &pinmuxb 6 3 >;
 		};
 };
+
+&sram0 {
+	reg = <0x60000698 DT_SIZE_M(6)>;
+};
