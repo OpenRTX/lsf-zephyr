@@ -19,4 +19,16 @@ config SPI_RX_DMA
 	default y
 	select DMA
 
+config SPI_TX_DMA_WITHOUT_INT
+	bool "Enable SPI TX DMA without dma channel interrupt"
+	default n
+	depends on SPI_TX_DMA
+	help
+		Do not enable this option unless you know what you are doing.
+
+config SPI_TX_DMA_FIX_CHANNEL
+	int "select a fixed channel for spi transfer."
+	default 1
+	depends on SPI_TX_DMA_WITHOUT_INT
+
 endif #SPI_CSK6

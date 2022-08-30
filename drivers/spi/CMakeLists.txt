@@ -4,6 +4,7 @@ zephyr_library()
 
 zephyr_library_sources_ifdef(CONFIG_SPI_TELINK_B91  spi_b91.c)
 zephyr_library_sources_ifdef(CONFIG_SPI_CC13XX_CC26XX		spi_cc13xx_cc26xx.c)
+zephyr_library_sources_ifdef(CONFIG_SPI_TX_DMA_WITHOUT_INT   spi_csk6_dirty_code.c)
 zephyr_library_sources_ifdef(CONFIG_SPI_CSK6		spi_csk6.c)
 zephyr_library_sources_ifdef(CONFIG_SPI_DW		spi_dw.c)
 zephyr_library_sources_ifdef(CONFIG_SPI_EMUL		spi_emul.c)

@@ -127,14 +127,13 @@ static int32_t csk_spi_hal_transceive(const struct device *dev)
 	struct csk_spi_data *data = dev->data;
 	struct spi_context *ctx = &data->ctx;
 	size_t chunk_len = spi_context_max_continuous_chunk(ctx);
-	int32_t r;
+	int32_t r = -EIO;
 
 	if (chunk_len == 0) {
         spi_context_cs_control(&data->ctx, false);
 		spi_context_complete(ctx, 0);
 		return 0;
 	}
-
 	/* Resize the transaction item num since spi driver limitation */
     uint32_t real_trans_size;
     if (ctx->tx_buf == NULL){
@@ -150,10 +149,17 @@ static int32_t csk_spi_hal_transceive(const struct device *dev)
 			LOG_ERR("SPI_Transfer failed. r:%d", r);
 		}
 	} else if (ctx->tx_buf != NULL) {
+#ifndef CONFIG_SPI_TX_DMA_WITHOUT_INT
 		r = SPI_Send(data->driver_context, ctx->tx_buf, real_trans_size);
 		if (r != 0) {
 			LOG_ERR("SPI_Send failed. r:%d", r);
 		}
+#else
+		extern int32_t spi_send_data(void *spi_dev, const void *data, uint32_t num);
+		if ((r = spi_send_data(data->driver_context, ctx->tx_buf, real_trans_size)) != 0) {
+			LOG_ERR("spi_send_data() failed, return value:%d.", r);
+		}
+#endif
 	} else if (ctx->rx_buf != NULL) {
 		r = SPI_Receive(data->driver_context, ctx->rx_buf, real_trans_size);
 		if (r != 0) {
@@ -302,6 +308,7 @@ static void csk_zephyr_spi_isr(const struct device *dev)
 
 	if(hal_spi->irq_handler != NULL)
 	{
+		printk("spi irq_handler.\n");
 		hal_spi->irq_handler();
 	}
 }
