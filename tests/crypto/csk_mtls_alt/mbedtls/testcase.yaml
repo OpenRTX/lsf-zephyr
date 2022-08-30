@@ -1,0 +1,9 @@
+common:
+  min_flash: 65
+  min_ram: 36
+  tags: crypto mbedtls
+  timeout: 400
+tests:
+  crypto.csk_mtls_alt.mbedtls:
+    depends_on: crypto
+    platform_allow: csk6002_9s_nano csk6002_c3_nano
