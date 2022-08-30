@@ -3,6 +3,28 @@ if BOARD_CSK6002_C3_NANO
 config BOARD
    default "csk6002_c3_nano"
 
+if WIFI
 
+choice CSK_WIFI_OFFLOAD_MODULE
+   prompt "WiFi Offload Module"
+   default CSK_WIFI_ESP32C3
+
+	config CSK_WIFI_ESP32C3
+      bool "ESP32C3"
+
+	config CSK_WIFI_XR819S
+      bool "XR819S"
+
+endchoice
+
+endif # WIFI
+
+if BT
+
+choice BT_HCI_BUS_TYPE
+	default CSK_BLE_ESP32C3
+endchoice
+
+endif # BT
 
 endif # BOARD_CSK6002_C3_NANO
