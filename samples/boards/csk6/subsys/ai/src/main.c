@@ -23,6 +23,7 @@ static const unsigned char cp_img_bin[] = {
 
 SYSCFG_RegDef *cmn_sys_ctrl = (SYSCFG_RegDef* )CMN_SYSCTRL_BASE;
 
+extern void dcache_clean_range(unsigned long start, unsigned long end);
 void main(void)
 {
 
@@ -47,8 +48,6 @@ void main(void)
 
 	__DMB();
 	// copy cp code to psram
-	// extern unsigned char cp_img_bin[];
-	// extern unsigned int cp_img_bin_len;
 	memcpy((void *)AP_PSRAM_BASE, cp_img_bin, sizeof(cp_img_bin));
 	dcache_clean_range(AP_PSRAM_BASE, AP_PSRAM_BASE + sizeof(cp_img_bin));
 

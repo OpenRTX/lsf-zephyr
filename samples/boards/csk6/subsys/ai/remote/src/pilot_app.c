@@ -42,7 +42,7 @@ static char gDetectResBuffer[1 * 380 * 1024];
 
 #if CONFIG_ALGO_RES_BIN
 static const unsigned char castor_luna_thinker_resource[] = {
-	#include "head_shoulder_detect.inc"
+	#include "head_shoulder_detect.bin.inc"
 };
 #else
 #include "castor_v1.6_luna_thinker.h"
@@ -65,7 +65,7 @@ static char gAlignResBuffer[1*380*1024];
 
 #if CONFIG_ALGO_RES_BIN
 static const unsigned char mb_tiny_hand_0524_128_16bias_luna_resource[] = {
-	#include "gesture.inc"
+	#include "gesture.bin.inc"
 };
 #else
 #include "mb_tiny_hand_0524_128_16bias_luna.h"

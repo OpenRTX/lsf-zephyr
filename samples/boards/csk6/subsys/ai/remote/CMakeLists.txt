@@ -8,7 +8,7 @@ set(ENV{ZEPHYR_TOOLCHAIN_VARIANT} "xcc-clang")
 endif()
 
 if("${BOARD}" STREQUAL "ls_adsp_csk6")
-	message(INFO " ${REMOTE_ZEPHYR_DIR} compiles as remote in this sample")
+	message(STATUS " ${REMOTE_ZEPHYR_DIR} compiles as remote in this sample")
 else()
 	message(FATAL_ERROR "${BOARD} was not supported for this sample")
 endif()
@@ -32,17 +32,18 @@ if(NOT CONFIG_ALGO_RES_BIN)
 else()
 message(STATUS "generating inc file")
 	set(gen_dir ${ZEPHYR_BINARY_DIR}/include/generated)
-	generate_inc_file_for_target(
-	app
-	res/gesture.bin
-	${gen_dir}/gesture.inc
-	)
 
+	foreach(inc_file
+		gesture.bin
+		head_shoulder_detect.bin
+		)
 	generate_inc_file_for_target(
-	app
-	res/head_shoulder_detect.bin
-	${gen_dir}/head_shoulder_detect.inc
-	)
+		app
+		res/${inc_file}
+		${gen_dir}/${inc_file}.inc
+		)
+	endforeach()
+
 endif()
 
 target_sources(app PRIVATE
@@ -66,5 +67,4 @@ target_link_libraries(app PUBLIC -Wl,--start-group
 						 ${LIB_DIR}/libthinker.a 
 						 ${LIB_DIR}/libpilot.a 
 						 -Wl,--end-group)
-
 

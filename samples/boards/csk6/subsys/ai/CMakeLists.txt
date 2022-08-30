@@ -5,17 +5,14 @@ cmake_minimum_required(VERSION 3.20.0)
 # SPDX-License-Identifier: Apache-2.0
 #
 #set(ZEPHYR_EXTRA_MODULES $ENV{ZEPHYR_BASE}/../modules/lib/sof_host)
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+project(algo_ap)
+enable_language(C ASM)
 
 if("${BOARD}" STREQUAL "csk6_tester" OR "${BOARD}" STREQUAL "csk6002_c3_nano"  OR "${BOARD}" STREQUAL "csk6002_9s_nano")
   set(BUILD_DSP_FIRMWARE ON)
-  find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-
-  message(INFO "ZEPHYR_BINARY_DIR = ${ZEPHYR_BINARY_DIR} ")
-
-  set(gen_dir ${ZEPHYR_BINARY_DIR}/include/generated)
 
   message(INFO " ${BOARD} compile as Master in this sample")
-  target_sources(app PRIVATE src/main.c)
   add_subdirectory(./src)
   zephyr_compile_options(-g3 -gdwarf-2)
 
@@ -33,11 +30,7 @@ if(BUILD_DSP_FIRMWARE)
     message(FATAL_ERROR "${BOARD} was not supported for this sample")
   endif()
 
-  project(sof_remote)
 
-  enable_language(C ASM)
-
-  #target_sources(app PRIVATE src/load_fw.c src/mem_image_store.c src/platform_info.c src/zynqmp_csk6_rproc_example.c )
 
   include(ExternalProject)
 
@@ -57,31 +50,23 @@ if(BUILD_DSP_FIRMWARE)
   unset(ENV{XCC_USE_CLANG})
   unset(ENV{ZEPHYR_TOOLCHAIN_VARIANT})
   target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ./src)
+    
+  set(gen_dir ${ZEPHYR_BINARY_DIR}/include/generated)
+
+  add_custom_target(second_core_inc_target DEPENDS ${gen_dir}/zephyr_csk_dsp.inc)
+
+  generate_inc_file_for_gen_target(${ZEPHYR_CURRENT_LIBRARY}
+            ${REMOTE_ZEPHYR_DIR}/zephyr/zephyr_csk6_dsp.bin
+            ${gen_dir}/zephyr_csk_dsp.inc
+            second_core_inc_target)
   
-  # if (EXISTS "${REMOTE_ZEPHYR_DIR}/zephyr/zephyr_csk6_dsp.bin")
-    message(INFO "Found ${CMAKE_CURRENT_BINARY_DIR}")
-    generate_inc_file_for_target(
-      app
-      ${CMAKE_CURRENT_BINARY_DIR}/sof_remote-prefix/src/sof_remote-build/zephyr/zephyr_csk6_dsp.bin
-      src/zephyr_csk_dsp.inc
-    )
-  # else()
-  #   message(WARNING "NOT Found ${REMOTE_ZEPHYR_DIR}/zephyr/zephyr_csk6_dsp.bin")
-  # endif()
+  add_dependencies(second_core_inc_target sof_remote)
+
+  add_dependencies(app sof_remote)
 
 endif()
 
 
 
-# add_custom_target(second_core_inc_target DEPENDS ${gen_dir}/zephyr_csk_dsp.inc)
 
-# generate_inc_file_for_target(
-#   second_core_inc_target
-#   ${CMAKE_CURRENT_BINARY_DIR}/sof_remote-prefix/src/sof_remote-build/zephyr/zephyr_csk6_dsp.bin
-#   ${gen_dir}/zephyr_csk_dsp.inc
-#   sof_remote
-# )
-
-# add_dependencies(second_core_inc_target sof_remote)
-# # add_dependencies(test app)
 
