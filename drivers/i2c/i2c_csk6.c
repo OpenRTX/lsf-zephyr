@@ -235,9 +235,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				}
 
 			} else {
-				/* Detect trigger slave receive interrupt */
-				uint32_t status = 0;
-				/* wait until master transfer done */
+				/* Detect trigger slave receive interrupt and  master transfer done */
 				evt = k_event_wait_all(data->evt, CSK_I2C_EVENT_TRANSFER_DONE | CSK_I2C_EVENT_SLAVE_RECEIVE, true,
 						   K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
 				if (!(evt & (CSK_I2C_EVENT_TRANSFER_DONE | CSK_I2C_EVENT_SLAVE_RECEIVE))) {
