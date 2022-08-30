@@ -9,7 +9,7 @@ menuconfig WIFI_CSK6
 
 if WIFI_CSK6
 
-choice
+choice CSK_WIFI_OFFLOAD_MODULE
     prompt "WiFi Offload Module"
 	config CSK_WIFI_ESP32C3
 		bool "ESP32C3"
