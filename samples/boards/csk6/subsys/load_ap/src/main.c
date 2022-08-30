@@ -20,6 +20,8 @@
 
 SYSCFG_RegDef *cmn_sys_ctrl = (SYSCFG_RegDef* )CMN_SYSCTRL_BASE;
 
+extern void dcache_clean_range(unsigned long start, unsigned long end);
+
 void main(void)
 {
 
@@ -57,7 +59,6 @@ void main(void)
 	cmn_sys_ctrl->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x0;
 
 	while (1) {
-		uint8_t cnt =0;
 		k_msleep(1000);
 		//printk("cnt: %d \r\n", cnt);
 	}
