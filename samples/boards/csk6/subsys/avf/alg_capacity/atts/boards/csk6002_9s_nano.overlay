@@ -4,6 +4,9 @@
  /delete-node/ &psram_cp;
  /delete-node/ &psram_ap;
  /delete-node/ &psram_share;
+ /delete-node/ &wifi_driver_storage;
+ /delete-node/ &wifi_nvs_storage;
+ /delete-node/ &storage_partition;
  / {
 	 chosen {
 		 /*
@@ -11,6 +14,8 @@
 		  */
 		 zephyr,ipc_shm = &psram_share;
 		 zephyr,ipc = &mailbox0;
+		 zephyr,flash_partitions1 = &flash_cp_image;
+		 zephyr,flash_partitions2 = &flash_tts_data;
 	 };
  
 	 aliases {
@@ -31,7 +36,7 @@
 		reg = < 0x30000000 0x6b0000 >;
 		status = "okay";
 	};
-	psram_ap: psram_ap@306b0000 {
+	psram_ap: psram_ap@30600000 {
 		compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
 		reg = <0x30600000 0x100000>;
 		status = "okay";
@@ -43,5 +48,28 @@
 		compatible = "listenai,csk6-psram-partition";
 		reg = < 0x307b0000 0x50000 >;
 		status = "okay";
+	};
+};
+
+&flash0 {
+
+	partitions {
+		flash_ap_image:flash_ap_image@0{
+			label = "flash-ap-image";
+			reg = < 0x0 0x400000 >;
+			read-only;
+		};
+
+		flash_cp_image: flash_cp_image@400000 {
+			label = "flash-cp-image";
+			reg = < 0x400000 0x180000 >;
+			read-only;
+		};
+
+		flash_tts_data: flash_tts_data@580000 {
+			label = "flash-tts-data";
+			reg = < 0x580000 0x280000 >;
+			read-only;
+		};
 	};
 };
