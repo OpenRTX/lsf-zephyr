@@ -13,3 +13,17 @@ generate_inc_file_for_target(
   resource/csk6_default.tplg
   ${gen_dir}/dsp_tplg.inc
 )
+
+generate_inc_file_for_target(
+  app
+  resource/tts_data.bin
+  ${gen_dir}/tts_data.inc
+)
+
+generate_inc_file_for_target(
+  app
+  resource/zephyr.bin
+  ${gen_dir}/cp_firmware.inc
+)
+
+zephyr_linker_sources(SECTIONS custom-sections.ld)
