@@ -4,7 +4,10 @@
  /delete-node/ &psram_cp;
  /delete-node/ &psram_ap;
  /delete-node/ &psram_share;
- /delete-node/ &wifi_driver_storage;
+ /delete-node/ &boot_partition;
+ /delete-node/ &slot0_partition;
+ /delete-node/ &slot1_partition;
+ /delete-node/ &scratch_partition;
  /delete-node/ &wifi_nvs_storage;
  /delete-node/ &storage_partition;
  / {
@@ -16,6 +19,7 @@
 		 zephyr,ipc = &mailbox0;
 		 zephyr,flash_partitions1 = &flash_cp_image;
 		 zephyr,flash_partitions2 = &flash_tts_data;
+		 zephyr,code-partition = &flash_ap_image;
 	 };
  
 	 aliases {
@@ -33,12 +37,12 @@
  &psram0{
 	psram_cp: psram_cp@30000000 {
 		compatible = "listenai,csk6-psram-partition";
-		reg = < 0x30000000 0x6b0000 >;
+		reg = < 0x30000000 0x600000 >;
 		status = "okay";
 	};
 	psram_ap: psram_ap@30600000 {
 		compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
-		reg = <0x30600000 0x100000>;
+		reg = <0x30600000 0x1b0000>;
 		status = "okay";
 		zephyr,memory-region = "PSRAMAP";
 
