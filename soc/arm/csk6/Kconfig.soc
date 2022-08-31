@@ -24,7 +24,16 @@ config HAS_CSK6
 
 
 if SOC_CSK6
-
+	config CSK6_ICACHE
+		bool "Enable CSK6 ICACHE"
+		default y
+		help
+			Enable CSK6 ICACHE
+	config CSK6_DCACHE
+		bool "Enable CSK6 DCACHE"
+		default y
+		help
+			Enable CSK6 DCACHE
 	config CSK6_PSRAM
 		bool "Enable CSK6 PSRAM"
 		default y
