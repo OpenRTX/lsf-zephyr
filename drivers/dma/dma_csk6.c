@@ -23,8 +23,7 @@
 
 LOG_MODULE_REGISTER(dma_csk6, CONFIG_DMA_LOG_LEVEL);
 
-static void
-csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg);
+static void csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg);
 
 struct csk_dma_config {
 };
@@ -57,35 +56,55 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	uint32_t _DMA_CH_CTLx_CFG_MASK;
 	uint32_t _DMA_CH_CFGxL_CFG_MASK;
 	uint32_t _DMA_CH_CFGxH_CFG_MASK;
+
 	if (dev == NULL || config == NULL) {
 		return -EINVAL;
 	}
 
-    if (channel >= DMA_CHANNEL_NUM_MAX) {
-        LOG_ERR("Invalid channel num.");
-        return -EINVAL;
-    }
+	if (channel >= DMA_CHANNEL_NUM_MAX) {
+		LOG_ERR("Invalid channel num.");
+		return -EINVAL;
+	}
+
+	if (config->source_chaining_en || config->dest_chaining_en) {
+		LOG_ERR("Do not support source/dest block chaining.");
+		return -ENOTSUP;
+	}
+
+	if (config->head_block == NULL) {
+		LOG_ERR("Head blocl is null.");
+		return -EINVAL;
+	}
+
+	if (config->head_block->source_address == 0 || config->head_block->dest_address == 0) {
+		LOG_ERR("Dest address or source address is null.");
+		return -EINVAL;
+	}
+
+	if (config->head_block->dest_reload_en || config->head_block->source_reload_en) {
+		LOG_ERR("Do not support source/dest reload mode.");
+		return -ENOTSUP;
+	}
 
 	uint32_t direct_mask = 0;
 	uint32_t gatter_scatter_mask = 0;
+
 	switch (config->channel_direction) {
-		case MEMORY_TO_MEMORY:
-			direct_mask = DMA_CH_CTLL_TTFC_M2M;
-			gatter_scatter_mask = DMA_CH_CTLL_SRC_INC | DMA_CH_CTLL_DST_INC;
-		    break;
-        case MEMORY_TO_PERIPHERAL:
-            direct_mask = DMA_CH_CTLL_TTFC_M2P;
-            gatter_scatter_mask = DMA_CH_CTLL_SRC_INC | DMA_CH_CTLL_DST_FIX;
-            break;
-        case PERIPHERAL_TO_MEMORY:
-            direct_mask = DMA_CH_CTLL_TTFC_P2M;
-            gatter_scatter_mask = DMA_CH_CTLL_SRC_FIX | DMA_CH_CTLL_DST_INC;
-            break;
-		default:
-			LOG_ERR("DMA does not support peripheral to peripheral direction now");
-		    return -ENOTSUP;
+	case MEMORY_TO_MEMORY:
+		direct_mask = DMA_CH_CTLL_TTFC_M2M;
+		break;
+	default:
+		LOG_ERR("DMA does not support this direction.");
+		return -ENOTSUP;
 	}
-    struct channel_info *ch_info = &data->channels_info[real_channel];
+
+	if (config->head_block->source_addr_adj != DMA_ADDR_ADJ_INCREMENT ||
+	    config->head_block->dest_addr_adj != DMA_ADDR_ADJ_INCREMENT) {
+		LOG_ERR("Only support increment mode now.");
+		return -ENOTSUP;
+	}
+
+	struct channel_info *ch_info = &data->channels_info[real_channel];
 	uint32_t dst_width_mask = DMA_CH_CTLL_DST_WIDTH(config->dest_data_size);
 	uint32_t src_width_mask = DMA_CH_CTLL_SRC_WIDTH(config->source_data_size);
 	uint32_t dst_burst_size_mask = DMA_CH_CTLL_DST_BSIZE(config->dest_burst_length);
@@ -101,6 +120,11 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
     ch_info->dma_ch_cfgxh_cfg_mask = _DMA_CH_CFGxH_CFG_MASK;
     ch_info->channel_direction = config->channel_direction;
 
+    if (config->block_count > 1) {
+        LOG_ERR("Only support a single data transfer.");
+        return -ENOTSUP;
+    }
+
     if (config->head_block != NULL) {
         ch_info->dst_addr = config->head_block->dest_address;
         ch_info->src_addr = config->head_block->source_address;
@@ -111,6 +135,7 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
         ch_info->cb_info.callback = config->dma_callback;
         ch_info->cb_info.user_data = config->user_data;
 	}
+
     return 0;
 }
 
@@ -128,6 +153,35 @@ static int csk_dma_reload(const struct device *dev, uint32_t channel, uint32_t s
     ch_info->dst_addr = dst;
     ch_info->transfer_size = size;
     return 0;
+}
+
+static bool csk_dma_addr_is_right_access(void *addr, uint32_t size)
+{
+	if (addr == NULL) {
+		return false;
+	}
+
+	/* D-Cache is disabled? */
+	if (!(SCB->CCR & SCB_CCR_DC_Msk)) {
+		return true;
+	}
+
+#if CONFIG_NOCACHE_MEMORY
+	extern char _nocache_ram_start[];
+	extern char _nocache_ram_end[];
+	extern char _nocache_ram_size[];
+
+    /* make compiler happy */
+	(void)_nocache_ram_size;
+
+	/* may be at no-cache section */
+	if (((uint32_t)_nocache_ram_start <= (uint32_t)addr) &&
+	    (((uint32_t)addr) <= (uint32_t)_nocache_ram_end)) {
+		return true;
+	}
+#endif
+
+	return !((uint32_t)addr & (__SCB_DCACHE_LINE_SIZE - 1U));
 }
 
 static int csk_dma_start(const struct device *dev, uint32_t channel)
@@ -151,6 +205,12 @@ static int csk_dma_start(const struct device *dev, uint32_t channel)
 
     struct channel_info *ch_info = &data->channels_info[channel];
     if (ch_info->channel_direction == MEMORY_TO_MEMORY) {
+        if (!csk_dma_addr_is_right_access((void *)ch_info->dst_addr, ch_info->transfer_size)) {
+			LOG_ERR("The destination address(0x%x) must be aligned in the nocache segment or on a 32-byte address!",
+				ch_info->dst_addr);
+			return -EINVAL;
+		}
+
         int ret = dma_memcpy(channel, ch_info->src_addr, ch_info->dst_addr, ch_info->transfer_size);
         if (ret != 0) {
             return -EIO;
@@ -208,9 +268,7 @@ static const struct dma_driver_api csk_dma_driver_api = {
     .get_status = csk_dma_get_status,
 };
 
-DMA_CSK6_RAM_FUNC
- static void
-csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
+DMA_CSK6_RAM_FUNC static void csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
 {
     int ret = 1;
     struct device* dev = (struct device*)arg;
@@ -239,7 +297,6 @@ static int csk_dma_init(const struct device *dev)
     if (ret != 0) {
         return -EIO; /* unknown exception */
     }
-
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
     IRQ_CONNECT(DT_INST_IRQN(0),DT_INST_IRQ(0, priority),
