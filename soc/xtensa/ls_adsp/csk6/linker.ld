@@ -31,6 +31,10 @@ PROVIDE(_MemErrorHandler = 0x00000000);
 #define RAMABLE_REGION sdram0 :sdram0_phdr
 #define ROMABLE_REGION sdram0 :sdram0_phdr
 
+#define FLASH_ADDR 0x68300000
+#define FLASH_SIZE 0x00300000
+
+
 MEMORY
 {
   luna_sharedmem_dram :
@@ -111,6 +115,9 @@ MEMORY
   sdram1 :
 				org = SDRAM1_BASE,
         len = SDRAM1_SIZE
+  flash0 :
+        org = FLASH_ADDR,
+        len = FLASH_SIZE
 #ifdef CONFIG_GEN_ISR_TABLES
   IDT_LIST :
 				org = IDT_BASE,
@@ -159,6 +166,7 @@ PHDRS
   iram_text_start_phdr PT_LOAD;
   sdram0_phdr PT_LOAD;
   sdram1_phdr PT_LOAD;
+  flash0_phdr PT_LOAD;
   static_uuid_entries_phdr PT_NOTE;
   static_log_entries_phdr PT_NOTE;
   metadata_entries_phdr PT_NOTE;
@@ -351,6 +359,12 @@ SECTIONS
     KEEP (*(.DoubleExceptionVector.text))
     _DoubleExceptionVector_text_end = ABSOLUTE(.);
   } >vector_double_text :vector_double_text_phdr
+
+  . = ORIGIN(flash0);
+  .flash_memory : ALIGN(4)
+  {
+    KEEP(*(".flash_memory"));
+  } >flash0 :flash0_phdr
 
   . = ORIGIN(sdram0);
   _IRAM_TEXT_LOAD_START_ = .;
