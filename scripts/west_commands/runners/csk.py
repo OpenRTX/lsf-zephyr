@@ -5,6 +5,8 @@
 '''Runner for flashing CSK chips with cskburn.'''
 
 from runners.core import ZephyrBinaryRunner, RunnerCaps, BuildConfiguration
+from enquiries import choose
+from serial.tools import list_ports
 
 
 class CskBinaryRunner(ZephyrBinaryRunner):
@@ -28,7 +30,7 @@ class CskBinaryRunner(ZephyrBinaryRunner):
 
     @classmethod
     def do_add_parser(cls, parser):
-        parser.add_argument('--port', required=True,
+        parser.add_argument('--port',
                             help='serial port to flash')
         parser.add_argument('--baud', default='748800',
                             help='serial baud rate')
@@ -46,6 +48,10 @@ class CskBinaryRunner(ZephyrBinaryRunner):
             flash_addr = build_conf['CONFIG_FLASH_LOAD_OFFSET']
         else:
             flash_addr = 0
+
+        if args.port == None:
+            ports = [p.device for p in list_ports.comports()]
+            args.port = choose('Choose a port to flash', ports)
 
         return CskBinaryRunner(
             cfg, chip=args.chip, port=args.port,  baud=args.baud,
