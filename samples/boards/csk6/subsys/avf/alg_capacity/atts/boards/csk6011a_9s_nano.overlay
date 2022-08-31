@@ -33,12 +33,12 @@
  &psram0{
 	psram_cp: psram_cp@30000000 {
 		compatible = "listenai,csk6-psram-partition";
-		reg = < 0x30000000 0x6b0000 >;
+		reg = < 0x30000000 0x600000 >;
 		status = "okay";
 	};
 	psram_ap: psram_ap@30600000 {
 		compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
-		reg = <0x30600000 0x100000>;
+		reg = <0x30600000 0x1b0000>;
 		status = "okay";
 		zephyr,memory-region = "PSRAMAP";
 
