@@ -1,5 +1,0 @@
-tests:
-  sample.board.csk6.subsys.sof_host:
-    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_9s_nano
-    build_only: true
-    tags: csk6
