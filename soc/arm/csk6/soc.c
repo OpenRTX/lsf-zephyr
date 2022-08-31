@@ -181,9 +181,13 @@ void z_arm_platform_init(void)
 	
 #ifdef CONFIG_CSK6_ICACHE
 	SCB_EnableICache();
+#else
+	SCB_DisableICache();
 #endif
 #ifdef CONFIG_CSK6_DCACHE
 	SCB_EnableDCache();
+#else
+	SCB_DisableDCache();
 #endif
 
 	/*TODO: will rewrite later*/
