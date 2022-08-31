@@ -17,7 +17,7 @@ LOG_MODULE_REGISTER(main);
 #define IMAGE_WIDTH   320
 #define IMAGE_SIZE	  (IMAGE_WIDTH * IMAGE_HEIGHT * 2)
 
-#define USE_SERIAL_PROTOCOL   (0)
+#define USE_SERIAL_PROTOCOL   (1)
 
 const struct device *video;
 uint8_t image_buf[IMAGE_SIZE];
@@ -35,7 +35,7 @@ int calculate_fps(struct video_buffer *vbuf)
 
 	last_timestamp = vbuf->timestamp;
 
-	return fps; 
+	return fps;
 }
 
 void main(void)
@@ -54,7 +54,7 @@ void main(void)
             "fallback to software generator.", VIDEO_DEV);
 
 		return;
-    } 
+    }
 
 	printk("- Device name: %s\n", VIDEO_DEV);
 
@@ -121,7 +121,7 @@ void main(void)
 
 		//必需有刷新操作，除非保证video_buffer_alloc()申请的内存是nocache_region
 		SCB_InvalidateDCache_by_Addr((void *)vbuf->buffer, vbuf->bytesused);
-		
+
 #if USE_SERIAL_PROTOCOL
 		memcpy(image_buf, vbuf->buffer, IMAGE_SIZE);
 		frame_send(image_buf, fmt.width, fmt.height, 0);

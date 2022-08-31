@@ -32,9 +32,10 @@
 		status = "okay";
 	};
 	psram_ap: psram_ap@30600000 {
-		compatible = "listenai,csk6-psram-partition";
+		compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
 		reg = <0x30600000 0x100000>;
 		status = "okay";
+		zephyr,memory-region = "PSRAMAP";
 	};
 	psram_share: psram_share@30700000 {
 		compatible = "listenai,csk6-psram-partition";
@@ -107,6 +108,14 @@
 	pinctrl_dvp_d11_default: dvp_d11_default{
 		pinctrls = <&pinmuxa 9 20>;
 	};
+};
+
+&spi0 {
+	status = "disabled";
+};
+
+&spi1 {
+	status = "disabled";
 };
 
 &i2c0 {
