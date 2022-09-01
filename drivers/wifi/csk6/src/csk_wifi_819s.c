@@ -118,9 +118,10 @@ int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout)
     return ret;
 }
 
-int wlan_event_clear(void)
+void wlan_event_clear(void)
 {
     k_msgq_purge(&xrwlan_msgq); /* clean the message queue */
+
 }
 
 int wlan_event_give(wlan_event_t *event)
