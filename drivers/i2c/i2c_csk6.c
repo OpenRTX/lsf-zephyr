@@ -20,12 +20,15 @@ LOG_MODULE_REGISTER(i2c_csk);
 #define DEV_BASE(dev) ((I2C_RegDef *)(DEV_CFG(dev))->base)
 #define DEV_HANDLER(dev) ((void *)(DEV_DATA(dev)->handle))
 
-#define MAX_MSG (40)
-#define Q_ALIGN (4)
-
 #define I2C_SLAVE_ADDR (0x35) /* csk6 default i2c slave address 0x35 */
 
-
+/** Here we use the lowest rate of 100khz to calculate the timeout
+ * 1 * 1000 / (100000) * (256byte * 10(bit) = 25.6ms
+ * 25.6ms * 2 = 50
+ * At the slowest rate, we only need to wait up to 25.6ms,
+ * here we reserve twice the time.
+ */
+#define I2C_CSK6_MAX_TIME_OUT_MS 50
 
 struct i2c_csk_config {
 	I2C_RegDef *base;
@@ -38,6 +41,7 @@ struct i2c_csk_config {
 struct i2c_csk_data {
 	void *handle; /* driver handle */
 	struct k_msgq *msgq; /* driver message queues*/
+	struct k_event *evt;
 	uint32_t status; /* driver event status */
 	bool mode; /* transfer mode: true: master, false: slave */
 };
@@ -58,15 +62,9 @@ static void *i2c_csk_get_ctx(const struct device *dev)
 static void i2c_csk_event_cb(uint32_t event, void *user_arg)
 {
 	struct i2c_csk_data *data = (struct i2c_csk_data *)user_arg;
-	int ret = 0;
-	data->status |= event;
 
-	ret = k_msgq_put(data->msgq, &data->status, K_NO_WAIT);
-	if (ret != 0) {
-		LOG_ERR("ret:%d", ret);
-	}
+	k_event_post(data->evt, event);
 
-	data->status = 0;
 	return;
 }
 
@@ -144,6 +142,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 	struct i2c_csk_data *data = DEV_DATA(dev);
 	void *I2C_Handler = DEV_HANDLER(dev);
 	uint32_t ret = 0;
+	uint32_t evt;
 
 	if (!num_msgs) {
 		return 0;
@@ -188,14 +187,13 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				ret = -EIO;
 				break;
 			}
-
-			/* wait until transfer done */
-			uint32_t status = 0;
-			do {
-				status = 0;
-				k_msgq_get(data->msgq, &status, K_FOREVER);
-			} while (!(status & CSK_I2C_EVENT_TRANSFER_DONE));
-
+			
+			evt = k_event_wait(data->evt, CSK_I2C_EVENT_TRANSFER_DONE, true,
+						  K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
+			if (!(evt & CSK_I2C_EVENT_TRANSFER_DONE)) {
+				LOG_ERR("Wait I2C complete time out.");
+				return -ETIMEDOUT;
+			}
 			/* Move to the next message */
 			msgs++;
 		}
@@ -209,41 +207,41 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 			/* I2c write or read */
 			if ((msgs->flags & I2C_MSG_RW_MASK) == I2C_MSG_WRITE) {
 				/* wait until host controller start receive*/
-				uint32_t status = 0;
-				do {
-					status = 0;
-					k_msgq_get(data->msgq, &status, K_FOREVER);
-				} while (!(status & CSK_I2C_EVENT_SLAVE_TRANSMIT));
-
+				evt = k_event_wait(data->evt, CSK_I2C_EVENT_SLAVE_TRANSMIT, true,
+						   K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
+				if (!(evt & CSK_I2C_EVENT_SLAVE_TRANSMIT)) {
+					LOG_ERR("Wait I2C complete time out.");
+					return -ETIMEDOUT;
+				}
 				/* start slave transmit, one by one */
 				int index = 0;
-				do {
+				for (index = 0; index < msgs->len; index++) {
 					/* master receive byte count must less or equal than 256 bytes, because driver max transfer limit; in case
 					index is bigger than msgs->len, user msgs->len must bigger or equal than master receive byte counter */
 					I2C_SlaveTransmit(I2C_Handler, &msgs->buf[index++], 1);
 
 					/* wait until TRANSFER_INCOMPLETE, or TRANSFER_COMPLETE */
-					do {
-						status = 0;
-						k_msgq_get(data->msgq, &status, K_FOREVER);
-					} while (!(status & (CSK_I2C_EVENT_TRANSFER_INCOMPLETE |
-							     CSK_I2C_EVENT_TRANSFER_DONE)));
+					evt = k_event_wait(
+						data->evt,
+						CSK_I2C_EVENT_TRANSFER_DONE |
+							CSK_I2C_EVENT_TRANSFER_INCOMPLETE,
+						true, K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
 
-				} while (!(status & CSK_I2C_EVENT_TRANSFER_DONE));
+					if (!(evt & (CSK_I2C_EVENT_TRANSFER_DONE |
+						     CSK_I2C_EVENT_TRANSFER_INCOMPLETE))) {
+						LOG_ERR("Wait I2C complete time out.");
+						return -ETIMEDOUT;
+					}
+				}
 
 			} else {
-				/* Detect trigger slave receive interrupt */
-				uint32_t status = 0;
-				do {
-					status = 0;
-					k_msgq_get(data->msgq, &status, K_FOREVER);
-				} while (!(status & CSK_I2C_EVENT_SLAVE_RECEIVE));
-
-				/* wait until master transfer done */
-				do {
-					status = 0;
-					k_msgq_get(data->msgq, &status, K_FOREVER);
-				} while (!(status & (CSK_I2C_EVENT_TRANSFER_DONE)));
+				/* Detect trigger slave receive interrupt and  master transfer done */
+				evt = k_event_wait_all(data->evt, CSK_I2C_EVENT_TRANSFER_DONE | CSK_I2C_EVENT_SLAVE_RECEIVE, true,
+						   K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
+				if (!(evt & (CSK_I2C_EVENT_TRANSFER_DONE | CSK_I2C_EVENT_SLAVE_RECEIVE))) {
+					LOG_ERR("Wait I2C complete time out.");
+					return -ETIMEDOUT;
+				}
 
 				/* get slave received bufer byte cnt */
 				int cnt = I2C_GetDataCount(I2C_Handler);
@@ -317,8 +315,8 @@ static const struct i2c_driver_api i2c_csk_driver_api = {
 		.pinctrl_list_size = ARRAY_SIZE(i2c_alts_##n),									   \
 	};                	                                                                         \
                                                                                                    \
-	K_MSGQ_DEFINE(msgq_##n, sizeof(uint32_t), MAX_MSG, Q_ALIGN);                               \
-	static struct i2c_csk_data i2c_csk_data_##n = { .msgq = &msgq_##n };                       \
+	K_EVENT_DEFINE(csk6_i2c_event_##n);															\
+	static struct i2c_csk_data i2c_csk_data_##n = { .evt = &csk6_i2c_event_##n };                       \
                                                                                                    \
 	DEVICE_DT_INST_DEFINE(n, &i2c_csk_init, NULL, &i2c_csk_data_##n, &i2c_csk_config_##n,      \
 			      POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,                     \
