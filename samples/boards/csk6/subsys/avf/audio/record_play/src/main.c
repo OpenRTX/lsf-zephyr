@@ -71,7 +71,6 @@ void main(void)
         .bits = 16,
         .compr = AMEDIA_COMPR_PCM,
     };
-    uint32_t recv_bytes = 0;
     int iret = 0;
     static char buffer[sizeof(msgq_data_t) * ACAPTURE_MSGQ_NUMBER];
     msgq_data_t msgq_data;
