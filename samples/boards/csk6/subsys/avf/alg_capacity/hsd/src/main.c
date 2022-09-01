@@ -34,7 +34,18 @@ void main(void)
 
 	hsd_t *hsd = hsd_create();
 
+	if (hsd == NULL) {
+		LOG_ERR("Create HSD instance failed.");
+		return;
+	}
+
+	printk("first\n");
 	hsd_set_flag(hsd, HSD_FLAG_DEFAULT);
+	printk("sec\n");
+	// hsd_set_flag(hsd, HSD_FLAG_DEFAULT);
+
+	// void *ptr = csk_malloc(4);
+	// hsd_dbg_set_cmd(hsd, 5, ptr, 4);
 
 	// video = device_get_binding(VIDEO_DEV);
 

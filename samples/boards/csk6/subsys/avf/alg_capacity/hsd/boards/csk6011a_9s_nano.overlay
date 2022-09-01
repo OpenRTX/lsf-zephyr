@@ -96,7 +96,7 @@
 
 
 	pinctrl_dvp_d9_default: dvp_d9_default{
-		pinctrls = <&pinmuxa 20 20>;
+		pinctrls = <&pinmuxa 20 20>; // useless, should replace
 	};
 
 
