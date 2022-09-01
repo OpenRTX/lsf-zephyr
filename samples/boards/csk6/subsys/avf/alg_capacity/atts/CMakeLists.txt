@@ -27,3 +27,4 @@ generate_inc_file_for_target(
 )
 
 zephyr_linker_sources(SECTIONS custom-sections.ld)
+
