@@ -127,7 +127,7 @@ static int32_t csk_spi_hal_transceive(const struct device *dev)
 	struct csk_spi_data *data = dev->data;
 	struct spi_context *ctx = &data->ctx;
 	size_t chunk_len = spi_context_max_continuous_chunk(ctx);
-	int32_t r;
+	int32_t r = -EIO;
 
 	if (chunk_len == 0) {
         spi_context_cs_control(&data->ctx, false);
