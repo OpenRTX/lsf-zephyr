@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma GCC push_options
-#pragma GCC optimize ("O0")
+#pragma GCC optimize("O0")
 
 static const unsigned char dsp_tplg[] = {
 #include "dsp_tplg.inc"
