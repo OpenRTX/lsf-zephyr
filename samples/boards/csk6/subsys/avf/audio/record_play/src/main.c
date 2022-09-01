@@ -154,7 +154,7 @@ void main(void)
     printk("Set audio fmt to aplay success\n");
 
 	/*Enable audio power-amp*/
-	audio_pwr_amp_init();
+    audio_pwr_amp_init();
     audio_pwr_amp_enbale();
 
     /*step3: start play*/
