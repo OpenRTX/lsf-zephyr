@@ -21,7 +21,7 @@
 #include <avf/modules/audio/aplay.h>
 #include <avf/slogger.h>
 #include "dsp_resource.h"
-
+#include "pwr_amp.c"
 #define PERIOD_BYTES(fmt) amedia_frames_to_bytes(fmt, 1000)
 
 #define ID_RIFF 0x46464952
@@ -190,6 +190,10 @@ static void init_sof(void)
 		return;
 	}
 	printk("Set audio fmt to aplay success\n");
+	
+	/*Enable audio power-amp*/
+	audio_pwr_amp_init();
+    audio_pwr_amp_enbale();
 
 	/*step3: start play*/
 	if (0 != (iret = aplay_start(aplay))) {
