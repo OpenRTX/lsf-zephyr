@@ -575,7 +575,7 @@ void video_buffer_release(struct video_buffer *buf);
 /* YUV formats */
 #define VIDEO_PIX_FMT_YUYV video_fourcc('Y', 'U', 'Y', 'V') /* 16  YUYV */
 #define VIDEO_PIX_FMT_YVYU video_fourcc('Y', 'V', 'Y', 'U') /* 16  YVYU */
-#define VIDEO_PIX_FMT_VYVU video_fourcc('V', 'Y', 'V', 'U') /* 16  VYVU */
+#define VIDEO_PIX_FMT_VYUY video_fourcc('V', 'Y', 'U', 'Y') /* 16  VYUY */
 #define VIDEO_PIX_FMT_UYVY video_fourcc('U', 'Y', 'V', 'Y') /* 16  UYVY */
 
 #ifdef __cplusplus

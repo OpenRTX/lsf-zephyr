@@ -78,7 +78,7 @@ void main(void)
 		i++;
 	}
 
-	fmt.pixelformat = VIDEO_PIX_FMT_VYVU;
+	fmt.pixelformat = VIDEO_PIX_FMT_VYUY;
 	fmt.width = IMAGE_WIDTH;
 	fmt.height = IMAGE_HEIGHT;
 	fmt.pitch = fmt.width * 2;

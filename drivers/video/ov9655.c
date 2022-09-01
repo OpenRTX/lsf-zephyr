@@ -156,7 +156,7 @@ static int ov9655_set_fmt(const struct device *dev,
 			  struct video_format *fmt)
 {
 	/* we only support one format for now (QVGA VYUY) */
-	if (fmt->pixelformat != VIDEO_PIX_FMT_VYVU || fmt->height != 240 ||
+	if (fmt->pixelformat != VIDEO_PIX_FMT_VYUY || fmt->height != 240 ||
 	    fmt->width != 320) {
 		LOG_WRN("ov9655 only support one format for now (QVGA VYUY) \n ");
 		return -ENOTSUP;
@@ -184,7 +184,7 @@ static int ov9655_stream_stop(const struct device *dev)
 
 static const struct video_format_cap fmts[] = {
 	{
-		.pixelformat = VIDEO_PIX_FMT_VYVU,
+		.pixelformat = VIDEO_PIX_FMT_VYUY,
 		.width_min = 320,
 		.width_max = 320,
 		.height_min = 240,
