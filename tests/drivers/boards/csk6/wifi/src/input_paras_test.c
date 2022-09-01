@@ -22,24 +22,24 @@ void test_wifi_timeout_para(void)
     /* Test wifi csk_wifi_sta_connect() timeout parameter is FOREVER*/
     ret = csk_wifi_sta_connect(&sta_config, &result, K_FOREVER);
     zassert_equal(ret, 0, "wifi connect timeout = NO_WAIT test failed, ret:%d", ret);
-    ret = csk_wifi_msgq_take(&event, K_SECONDS(30));
+    ret = csk_wifi_connected_msgq_take(&event, K_SECONDS(30));
     zassert_equal(ret, 0, "wait wifi event failed, ret:%d", ret);
     zassert_equal(event, CSK_WIFI_EVT_STA_CONNECTED, "wifi event invalid, event: 0x%x", event);
     ret = csk_wifi_sta_disconnect(&result, K_FOREVER);
     zassert_equal(ret, 0, "wifi disconnect failed, ret:%d", ret);
-    ret = csk_wifi_msgq_take(&event, K_SECONDS(30));
+    ret = csk_wifi_disconnected_msgq_take(&event, K_SECONDS(30));
     zassert_equal(ret, 0, "wait wifi event failed, ret:%d", ret);
     zassert_equal(event, CSK_WIFI_EVT_STA_DISCONNECTED, "wifi event invalid, event: 0x%x", event);
 
     /* Test wifi csk_wifi_sta_connect() timeout parameter is NO_WAIT*/
     ret = csk_wifi_sta_connect(&sta_config, &result, K_FOREVER);
     zassert_equal(ret, 0, "wifi connect timeout = NO_WAIT test failed, ret:%d", ret);
-    ret = csk_wifi_msgq_take(&event, K_SECONDS(30));
+    ret = csk_wifi_connected_msgq_take(&event, K_SECONDS(30));
     zassert_equal(ret, 0, "wait wifi event failed, ret:%d", ret);
     zassert_equal(event, CSK_WIFI_EVT_STA_CONNECTED, "wifi event invalid, event: 0x%x", event);
     ret = csk_wifi_sta_disconnect(&result, K_FOREVER);
     zassert_equal(ret, 0, "wifi disconnect failed, ret:%d", ret);
-    ret = csk_wifi_msgq_take(&event, K_SECONDS(30));
+    ret = csk_wifi_disconnected_msgq_take(&event, K_SECONDS(30));
     zassert_equal(ret, 0, "wait wifi event failed, ret:%d", ret);
     zassert_equal(event, CSK_WIFI_EVT_STA_DISCONNECTED, "wifi event invalid, event: 0x%x", event);
 }
