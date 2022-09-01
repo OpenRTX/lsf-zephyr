@@ -9,7 +9,7 @@
 
 #include "pwr_amp.c"
 
-#define TTS_STRING "聆思科技完成数亿元pre-A轮融资！本轮融资由元禾璞华领投，沄柏资本联合领投，天际资本、中银集团旗下渤海基金、天智投资、连山基金跟投。在本轮融资的加持下，聆思科技必将进一步加速芯片研发，打造极简单芯片系统，助力万物智联时代的爆发。"
+#define TTS_STRING "这是一段TTS测试语音"
 
 extern int  atts_playback(const char* tts_string);
 
