@@ -102,11 +102,7 @@ void main(void)
 
 	/*step5: get audio data*/
 	for (;;) {
-		iret = k_msgq_get(&acapture_msgq, &msgq_data, K_MSEC(500));
-		if (iret != 0) {
-			printk("Get audio data timeout.\n");
-			goto _END;
-		}
+		k_msgq_get(&acapture_msgq, &msgq_data, K_FOREVER);
 		printk("Get audio data length %d \n", msgq_data.datalen);
 		k_free(msgq_data.pdata);
 		recv_bytes += msgq_data.datalen;

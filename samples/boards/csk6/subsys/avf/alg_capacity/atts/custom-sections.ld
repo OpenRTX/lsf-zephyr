@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
-
-
-
-
 SECTION_PROLOGUE(FLASH_PARTITIONS1,,)
 {
 	KEEP(*(".cp_image.text"));

@@ -126,7 +126,7 @@ void main(void)
 
 	/*Enable audio power-amp*/
 	audio_pwr_amp_init();
-    audio_pwr_amp_enbale();
+	audio_pwr_amp_enbale();
 
 	/*step3: start play*/
 	if (0 != (iret = aplay_start(aplay))) {
