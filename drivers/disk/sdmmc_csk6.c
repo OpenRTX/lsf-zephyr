@@ -21,6 +21,8 @@ struct sdmmc_csk_config {
 	/* I2C alternate configuration */
 	const struct csk6_pinctrl_cfg *pinctrl_list;
 	uint8_t pinctrl_list_size;
+
+	uint8_t bit_bus;
 };
 
 struct sdmmc_csk_data {
@@ -133,6 +135,7 @@ static struct disk_info csk6_sdmmc_info = {
 int csk6_sdmmc_bus_probe(const struct device *dev)
 {
 	uint32_t err;
+	const struct sdmmc_csk_config *cfg = dev->config;
 	gm_api_sdc_platform_init((SDC_OPTION_ENABLE | SDC_OPTION_CD_INVERT), 0, NullSetting, (uint32_t) sdcard_buf);
 	gm_sdc_api_action(SD_0, GM_SDC_ACTION_REG_SDIO_APP_INIT, (void*)NULL, NULL);
 
@@ -149,7 +152,7 @@ int csk6_sdmmc_bus_probe(const struct device *dev)
         return -EIO;
     }
 
-    uint32_t bus_width = 4; 
+    uint32_t bus_width = cfg->bit_bus; 
     gm_sdc_api_action(SD_0, GM_SDC_ACTION_SET_BUS_WIDTH, &bus_width, NULL);
 
 	return 0;
@@ -197,6 +200,7 @@ static void csk6_sdmmc_irq_config_func(const struct device *dev)
 		.irq_config_func = csk6_sdmmc_irq_config_func,                    \
 		.pinctrl_list = sdmmc_alts_##n, 													   \
 		.pinctrl_list_size = ARRAY_SIZE(sdmmc_alts_##n),									   \
+		.bit_bus = DT_INST_PROP(n, bit_bus),                                \
 	};									\
 										\
 	static struct sdmmc_csk_data sdmmc_data_##n = {};				\

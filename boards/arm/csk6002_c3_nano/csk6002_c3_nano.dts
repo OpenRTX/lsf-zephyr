@@ -236,6 +236,7 @@ zephyr_udc0: &usbotg {
 };
 &sdmmc {
     status = "okay";
+    bit-bus = <4>;
     pinctrl-0 = <
         &pinctrl_sdio_cmd_default 
         &pinctrl_sdio_clk_default
