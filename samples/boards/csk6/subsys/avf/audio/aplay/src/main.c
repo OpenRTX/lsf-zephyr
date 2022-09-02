@@ -9,6 +9,8 @@
 #include <avf/slogger.h>
 #include "dsp_resource.h"
 
+#include "pwr_amp.c"
+
 #define ID_RIFF 0x46464952
 #define ID_WAVE 0x45564157
 #define ID_FMT 0x20746d66
@@ -121,6 +123,10 @@ void main(void)
 		return;
 	}
 	printk("Set audio fmt to aplay success\n");
+
+	/*Enable audio power-amp*/
+	audio_pwr_amp_init();
+	audio_pwr_amp_enbale();
 
 	/*step3: start play*/
 	if (0 != (iret = aplay_start(aplay))) {

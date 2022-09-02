@@ -14,6 +14,8 @@
 #include <devicetree.h>
 #include <device.h>
 
+#include "pwr_amp.c"
+
 #define ACAPTURE_DATA_EVENT_THRES (1024)
 #define ACAPTURE_DATA_TOTAL_LENGTH (1024 * 100)
 #define ACAPTURE_MSGQ_NUMBER (50)
@@ -71,6 +73,7 @@ void main(void)
         .bits = 16,
         .compr = AMEDIA_COMPR_PCM,
     };
+
     int iret = 0;
     static char buffer[sizeof(msgq_data_t) * ACAPTURE_MSGQ_NUMBER];
     msgq_data_t msgq_data;
@@ -149,6 +152,10 @@ void main(void)
         return;
     }
     printk("Set audio fmt to aplay success\n");
+
+	/*Enable audio power-amp*/
+    audio_pwr_amp_init();
+    audio_pwr_amp_enbale();
 
     /*step3: start play*/
     if (0 != (iret = aplay_start(aplay)))

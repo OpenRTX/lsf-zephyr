@@ -1,0 +1,12 @@
+tests:
+  sample.board.csk6.subsys.avf.alg_capacity.atts:
+    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_9s_nano
+    tags: csk6
+    timeout: 30
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+      - "avf platform register success"
+      - "tts playback start"
+      - "tts playback over"

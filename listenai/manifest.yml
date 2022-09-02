@@ -40,10 +40,14 @@ manifest:
       remote: listenai
       revision: 800a13229206735951848c69de25094d23725471
       path: bootloader/mcuboot
-    - name: sof_host
+    - name: avf
       remote: listenai
-      revision: 8998782d1831a7f7c74d93141587933bd899162f
-      path: modules/lib/sof_host
+      revision: e16e867175049361b72e87e3980df8b8a48155cf
+      path: modules/lib/avf
+    - name: licak
+      remote: listenai
+      revision: 7dce682a21cdaab1a8ac32b88aec7f532f6595d2
+      path: modules/lib/licak
     - name: lisa_player
       remote: listenai
       revision: 0c05072250e56642a2354561fbc520ae3db479a6
