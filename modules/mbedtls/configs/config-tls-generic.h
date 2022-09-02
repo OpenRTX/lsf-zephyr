@@ -446,6 +446,11 @@
 #include CONFIG_MBEDTLS_USER_CONFIG_FILE
 #endif
 
+/* CSK6 config file */
+#ifdef CONFIG_CSK_MBEDTLS_HARDWARE_AES
+#include CONFIG_CSK_MBEDTLS_CONFIG_FILE
+#endif
+
 #include "mbedtls/check_config.h"
 
 #endif /* MBEDTLS_CONFIG_H */

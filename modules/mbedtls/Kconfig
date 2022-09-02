@@ -167,4 +167,19 @@ config APP_LINK_WITH_MBEDTLS
 	  disabled if the include paths for MBEDTLS are causing aliasing
 	  issues for 'app'.
 
+config CSK_MBEDTLS_HARDWARE_ALT
+	bool "CSK6 MbedTLS Hardware Acceleration"
+	depends on CRYPTO
+	default n
+
+config CSK_MBEDTLS_HARDWARE_AES
+	bool "CSK6 MbedTLS Hardware AES"
+	depends on CSK_MBEDTLS_HARDWARE_ALT
+	default n
+
+config CSK_MBEDTLS_CONFIG_FILE
+	string
+	depends on CSK_MBEDTLS_HARDWARE_ALT
+	default "csk_mtls_config.h"
+
 endif # MBEDTLS
