@@ -157,18 +157,12 @@ Combined refs:
 
 
 
-// the number of interrupt levels
-const unsigned char Xthal_num_intlevels = XCHAL_NUM_INTLEVELS;
 
 
 
-// the number of interrupts
-const unsigned char Xthal_num_interrupts = XCHAL_NUM_INTERRUPTS;
 
 
 
-// the highest level of interrupts masked by PS.EXCM (if XEA2)
-const unsigned char Xthal_excm_level = XCHAL_EXCM_LEVEL;
 
 
 
@@ -186,10 +180,6 @@ const unsigned Xthal_intlevel_andbelow_mask[16] = {
 
 
 
-// level per interrupt
-const unsigned char Xthal_intlevel[32] = { 
-    XCHAL_INT_LEVELS
-};
 
 
 
