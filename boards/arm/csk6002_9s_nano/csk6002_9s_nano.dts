@@ -220,3 +220,17 @@ zephyr_udc0: &usbotg {
 &crypto {
         status = "okay";
 };
+
+&sdmmc {
+    status = "okay";
+    bit-bus = <4>;
+    pinctrl-0 = <
+        &pinctrl_sdio_cmd_default 
+        &pinctrl_sdio_clk_default
+        &pinctrl_sdio_dat0_default
+        &pinctrl_sdio_dat1_default
+        &pinctrl_sdio_dat2_default
+        &pinctrl_sdio_dat3_default
+        >; 
+    pinctrl-names = "default";
+};
