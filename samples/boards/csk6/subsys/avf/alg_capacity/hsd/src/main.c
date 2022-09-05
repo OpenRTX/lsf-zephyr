@@ -32,40 +32,42 @@ void main(void)
 		return;
 	}
 
-	hsd_t *hsd = hsd_create();
+	video = device_get_binding(VIDEO_DEV);
+
+	if (video == NULL) {
+		LOG_ERR("Video device %s not found, "
+			"fallback to software generator.",
+			VIDEO_DEV);
+
+		return;
+	}
+
+	struct video_format fmt;
+	fmt.pixelformat = VIDEO_PIX_FMT_VYVU;
+	fmt.width = IMAGE_WIDTH;
+	fmt.height = IMAGE_HEIGHT;
+	fmt.pitch = fmt.width * 2;
+	if (video_set_format(video, VIDEO_EP_OUT, &fmt)) {
+		LOG_ERR("Unable to set video format");
+		return;
+	}
+
+	hsd_t *hsd = hsd_create(HSD_FLAG_DEFAULT);
 
 	if (hsd == NULL) {
 		LOG_ERR("Create HSD instance failed.");
 		return;
 	}
 
-	printk("first\n");
-	hsd_set_flag(hsd, HSD_FLAG_DEFAULT);
-	printk("sec\n");
-	// hsd_set_flag(hsd, HSD_FLAG_DEFAULT);
+	printk("- Device name: %s\n", VIDEO_DEV);
 
-	// void *ptr = csk_malloc(4);
-	// hsd_dbg_set_cmd(hsd, 5, ptr, 4);
+	hsd_start(hsd, video);
 
-	// video = device_get_binding(VIDEO_DEV);
+	while (1) {
+		k_sleep(K_MSEC(10));
+	}
 
-	// if (video == NULL) {
-	// 	LOG_ERR("Video device %s not found, "
-	// 		"fallback to software generator.",
-	// 		VIDEO_DEV);
+	hsd_stop(hsd);
 
-	// 	return;
-	// }
-
-	// printk("- Device name: %s\n", VIDEO_DEV);
-
-	// hsd_start(hsd, video);
-
-	// while (1) {
-	// 	LOG_DBG("Loop transporting...");
-	// }
-
-	// hsd_stop(hsd);
-
-	printk("AP EXEC END\n");
+	LOG_DBG("AP EXEC END\n");
 }
