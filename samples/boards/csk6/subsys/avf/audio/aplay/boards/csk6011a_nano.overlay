@@ -1,0 +1,15 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ / {
+	 chosen {
+		 /*
+		  * shared memory reserved for the inter-processor communication
+		  */
+		 zephyr,ipc_shm = &psram_share;
+		 zephyr,ipc = &mailbox0;
+	 };
+ 
+ };
+ 
+ 
