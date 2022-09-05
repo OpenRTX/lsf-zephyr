@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_CSK6011A_NANO
+   bool "csk6011a_nano Board"
+   depends on SOC_CSK6
