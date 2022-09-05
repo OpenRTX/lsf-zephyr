@@ -36,7 +36,7 @@ struct video_csk6_dvp_config {
 
 struct video_csk6_dvp_data {
 	/* driver handle */
-    void *handle; 
+    void *handle;
 
 	const struct device *dev;
 	const struct device *sensor_dev;
@@ -88,7 +88,7 @@ static void dvp_framedata_proc(void)
 	}else{
 		DVP_Stop(dvp_dev);
 		csk6_dvp_start(dev, temp_vbuf);
-		set_current_vbuf(dev, temp_vbuf);		
+		set_current_vbuf(dev, temp_vbuf);
 		LOG_DBG("not enough fifo_in \r\n");
 	}
 
@@ -180,6 +180,12 @@ static int video_csk6_dvp_get_fmt(const struct device *dev,
 		return -EINVAL;
 	}
 
+	struct video_csk6_dvp_data *data = dev->data;
+	fmt->width = data->fmt.width;
+	fmt->height = data->fmt.height;
+	fmt->pitch = data->fmt.pitch;
+	fmt->pixelformat = data->fmt.pixelformat;
+
 	return 0;
 }
 
@@ -214,11 +220,11 @@ static int csk6_dvp_start(const struct device *dev, struct video_buffer *vbuf)
 	ret = DVP_Start(dvp_dev, dvp_buf);
 	if(ret != 0){
 		LOG_ERR("dvp satrt faild \r\n");
-		return -EIO; 
+		return -EIO;
 	}
 
 	return 0;
-} 
+}
 
 
 static int video_csk6_dvp_stream_start(const struct device *dev)
@@ -262,7 +268,7 @@ static int video_csk6_dvp_flush(const struct device *dev,
 				bool cancel)
 {
 	struct video_csk6_dvp_data *data = dev->data;
-	struct video_buffer *vbuf;	
+	struct video_buffer *vbuf;
 
 	if (!cancel) {
 		/* wait for all buffer to be processed */
@@ -455,7 +461,7 @@ static int video_csk6_dvp_init_0(const struct device *dev)
 
 static const struct csk6_pinctrl_cfg                                       						\
 		dvp_alts[DT_INST_NUM_PINCTRLS_BY_IDX(0, 0)] =          									\
-			CSK6_DT_ALT_ITEMS_LIST(0); 
+			CSK6_DT_ALT_ITEMS_LIST(0);
 
 static const struct video_csk6_dvp_config video_csk6_dvp_config_0 = {
 	.sensor_label = DT_INST_PROP(0, sensor_label),
@@ -463,12 +469,12 @@ static const struct video_csk6_dvp_config video_csk6_dvp_config_0 = {
 	.pclk_polarity = DT_ENUM_IDX(DT_DRV_INST(0), pclk_polarity),
 	.hsync_polarity = DT_ENUM_IDX(DT_DRV_INST(0), hsync_polarity),
 	.vsync_polarity = DT_ENUM_IDX(DT_DRV_INST(0), vsync_polarity),
-	
+
 #if DT_NODE_HAS_PROP(DT_DRV_INST(0), clock_prescaler)
 	.clock_prescaler = DT_INST_PROP(0, clock_prescaler),
 #endif
-	.pinctrl_list = dvp_alts, 													   
-	.pinctrl_list_size = ARRAY_SIZE(dvp_alts),	
+	.pinctrl_list = dvp_alts,
+	.pinctrl_list_size = ARRAY_SIZE(dvp_alts),
 };
 
 static struct video_csk6_dvp_data video_csk6_dvp_data_0;
