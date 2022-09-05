@@ -33,9 +33,8 @@ void main(void)
 	}
 
 	hsd_t *hsd = hsd_create();
-
 	hsd_set_flag(hsd, HSD_FLAG_DEFAULT);
-
+	hsd_set_params(hsd, "ssass");
 	// video = device_get_binding(VIDEO_DEV);
 
 	// if (video == NULL) {

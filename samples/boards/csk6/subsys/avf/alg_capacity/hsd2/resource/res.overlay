@@ -1,0 +1,14 @@
+// / {
+//   chosen {
+//     avf,res=&algo_res_partition;
+//   };
+// };
+
+// &flash0 {
+//   partitions {
+//     algo_res_partition: partition@800000 {
+//       label = "algo_res";
+//       reg = <0x800000 0x100000>;
+//     };
+//   };
+// };
