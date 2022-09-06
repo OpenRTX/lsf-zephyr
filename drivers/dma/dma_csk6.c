@@ -34,30 +34,56 @@ struct csk_dma_callback {
 
 struct channel_info {
 	struct csk_dma_callback cb_info;
-	uint32_t channel_direction;
+	uint32_t direction;
 	uint32_t dst_addr;
 	uint32_t src_addr;
 	uint32_t transfer_size;
-	uint32_t dma_ch_ctlx_cfg_mask;
-	uint32_t dma_ch_cfgxl_cfg_mask;
-	uint32_t dma_ch_cfgxh_cfg_mask;
+	uint32_t reg_ctrl;
+	uint32_t reg_cfg_low;
+	uint32_t reg_cfg_high;
+	uint32_t reg_scatter;
+	uint32_t reg_gather;
 	bool busy;
 };
 
 struct csk_dma_data {
+	struct dma_context ctx;
 	struct channel_info channels_info[DMA_CHANNEL_NUM_MAX];
 };
 
+static uint8_t csk_dma_burst_length_convert(uint32_t len)
+{
+	/* See @DMAC DataBook */
+	const uint16_t table[] = { 1, 4, 8, 16, 32, 64, 128, 256 };
+	uint8_t i;
+
+	for (i = 0; i < ARRAY_SIZE(table); i++) {
+		if (len == table[i]) {
+			return i;
+		}
+	}
+
+	__ASSERT(false, "Unsupported burst length(%d)", len);
+
+	/* return default register value */
+	return 0;
+}
+
 static int csk_dma_configure(const struct device *dev, uint32_t channel, struct dma_config *config)
 {
-	struct csk_dma_data *data = dev->data;
-	uint8_t real_channel = channel;
-	uint32_t _DMA_CH_CTLx_CFG_MASK;
-	uint32_t _DMA_CH_CFGxL_CFG_MASK;
-	uint32_t _DMA_CH_CFGxH_CFG_MASK;
+	struct csk_dma_data *data;
+	struct channel_info *ch_info;
 
 	if (dev == NULL || config == NULL) {
 		return -EINVAL;
+	}
+
+	data = dev->data;
+	ch_info = &data->channels_info[channel];
+
+	if (ch_info->busy) {
+		LOG_ERR("channel channel is busy");
+		return -EBUSY;
 	}
 
 	if (channel >= DMA_CHANNEL_NUM_MAX) {
@@ -85,41 +111,6 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		return -ENOTSUP;
 	}
 
-	uint32_t direct_mask = 0;
-	uint32_t gatter_scatter_mask = 0;
-
-	switch (config->channel_direction) {
-	case MEMORY_TO_MEMORY:
-		direct_mask = DMA_CH_CTLL_TTFC_M2M;
-		break;
-	default:
-		LOG_ERR("DMA does not support this direction.");
-		return -ENOTSUP;
-	}
-
-	if (config->head_block->source_addr_adj != DMA_ADDR_ADJ_INCREMENT ||
-	    config->head_block->dest_addr_adj != DMA_ADDR_ADJ_INCREMENT) {
-		LOG_ERR("Only support increment mode now.");
-		return -ENOTSUP;
-	}
-
-	struct channel_info *ch_info = &data->channels_info[real_channel];
-	uint32_t dst_width_mask = DMA_CH_CTLL_DST_WIDTH(config->dest_data_size);
-	uint32_t src_width_mask = DMA_CH_CTLL_SRC_WIDTH(config->source_data_size);
-	uint32_t dst_burst_size_mask = DMA_CH_CTLL_DST_BSIZE(config->dest_burst_length);
-	uint32_t src_burst_size_mask = DMA_CH_CTLL_SRC_WIDTH(config->source_burst_length);
-	uint32_t dst_src_ms_mask = DMA_CH_CTLL_DMS(0) | DMA_CH_CTLL_SMS(0);
-	uint32_t irq_en_mask = DMA_CH_CTLL_INT_EN;
-	_DMA_CH_CTLx_CFG_MASK = direct_mask | gatter_scatter_mask | dst_width_mask |
-				src_width_mask | dst_burst_size_mask | src_burst_size_mask |
-				dst_src_ms_mask | irq_en_mask;
-	_DMA_CH_CFGxL_CFG_MASK = DMA_CH_CFGL_CH_PRIOR(1);
-	_DMA_CH_CFGxH_CFG_MASK = DMA_CH_CFGH_FIFO_MODE;
-	ch_info->dma_ch_ctlx_cfg_mask = _DMA_CH_CTLx_CFG_MASK;
-	ch_info->dma_ch_cfgxl_cfg_mask = _DMA_CH_CFGxL_CFG_MASK;
-	ch_info->dma_ch_cfgxh_cfg_mask = _DMA_CH_CFGxH_CFG_MASK;
-	ch_info->channel_direction = config->channel_direction;
-
 	if (config->block_count > 1) {
 		LOG_ERR("Only support a single data transfer.");
 		return -ENOTSUP;
@@ -131,10 +122,107 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		ch_info->transfer_size = config->head_block->block_size;
 	}
 
-	if (config->dma_callback) {
+	if (config->dma_callback != NULL) {
 		ch_info->cb_info.callback = config->dma_callback;
 		ch_info->cb_info.user_data = config->user_data;
 	}
+
+	if (config->dest_data_size != 1 && config->dest_data_size != 2 &&
+	    config->dest_data_size != 4) {
+		LOG_ERR("Do not support dest data width(%d).", config->dest_data_size);
+		return -EINVAL;
+	}
+
+	if (config->source_data_size != 1 && config->source_data_size != 2 &&
+	    config->source_data_size != 4) {
+		LOG_ERR("Do not support src data width(%d).", config->source_data_size);
+		return -EINVAL;
+	}
+
+	/* width size set */
+	ch_info->reg_ctrl = DMA_CH_CTLL_DST_WIDTH(config->dest_data_size >> 1);
+	ch_info->reg_ctrl |= DMA_CH_CTLL_SRC_WIDTH(config->source_data_size >> 1);
+
+	/* burst size set */
+	ch_info->reg_ctrl |=
+		DMA_CH_CTLL_DST_BSIZE(csk_dma_burst_length_convert(config->dest_burst_length));
+	ch_info->reg_ctrl |=
+		DMA_CH_CTLL_SRC_BSIZE(csk_dma_burst_length_convert(config->source_burst_length));
+
+	/* intterupt enable */
+	ch_info->reg_ctrl |= DMA_CH_CTLL_INT_EN;
+
+	/* hardware specific configuration, do not touch this field. */
+	ch_info->reg_ctrl |= DMA_CH_CTLL_DMS(0) | DMA_CH_CTLL_SMS(0);
+
+	switch (config->channel_direction) {
+	case MEMORY_TO_MEMORY:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_TTFC_M2M;
+		break;
+	case MEMORY_TO_PERIPHERAL:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_TTFC_M2P;
+		break;
+	case PERIPHERAL_TO_MEMORY:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_TTFC_P2M;
+		break;
+	default:
+		LOG_ERR("DMA does not support this direction.");
+		return -ENOTSUP;
+	}
+
+	switch (config->head_block->dest_addr_adj) {
+	case DMA_ADDR_ADJ_INCREMENT:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_DST_INC;
+		break;
+	case DMA_ADDR_ADJ_DECREMENT:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_DST_DEC;
+		break;
+	case DMA_ADDR_ADJ_NO_CHANGE:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_DST_FIX;
+		break;
+	default:
+		LOG_ERR("Invalid source addr adj.");
+		return -EINVAL;
+	}
+
+	switch (config->head_block->source_addr_adj) {
+	case DMA_ADDR_ADJ_INCREMENT:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_SRC_INC;
+		break;
+	case DMA_ADDR_ADJ_DECREMENT:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_SRC_DEC;
+		break;
+	case DMA_ADDR_ADJ_NO_CHANGE:
+		ch_info->reg_ctrl |= DMA_CH_CTLL_SRC_FIX;
+		break;
+	}
+
+	/**
+	 * channel priority set
+	 * 
+	 * It should be noted that the priority represents the 
+	 * response priority of the channel, not the preemption priority.
+	 */
+	ch_info->reg_cfg_low =
+		DMA_CH_CFGL_CH_PRIOR(config->channel_priority) & DMA_CH_CFGL_CH_PRIOR_MASK;
+
+	ch_info->reg_cfg_high = DMA_CH_CFGH_FIFO_MODE;
+
+#define DMA_CH_SCATTER_INTERVAL_MASK (0xFFFFF)
+
+	if (config->head_block->dest_scatter_en) {
+		ch_info->reg_scatter =
+			(config->head_block->dest_scatter_interval & DMA_CH_SCATTER_INTERVAL_MASK) |
+			config->head_block->dest_scatter_count;
+	}
+
+	if (config->head_block->source_gather_en) {
+		ch_info->reg_gather = (config->head_block->source_gather_interval &
+				       DMA_CH_SCATTER_INTERVAL_MASK) |
+				      config->head_block->source_gather_count;
+	}
+
+	ch_info->direction = config->channel_direction;
 
 	return 0;
 }
@@ -175,7 +263,7 @@ static bool csk_dma_addr_is_right_access(void *addr, uint32_t size)
 	/* make compiler happy */
 	(void)_nocache_ram_size;
 
-	/* may be at no-cache section */
+	/* may be axt no-cache section */
 	if (((uint32_t)_nocache_ram_start <= (uint32_t)addr) &&
 	    (((uint32_t)addr) <= (uint32_t)_nocache_ram_end)) {
 		return true;
@@ -189,14 +277,20 @@ static int csk_dma_start(const struct device *dev, uint32_t channel)
 {
 	uint8_t real_channel = channel;
 	struct csk_dma_data *data = dev->data;
+	struct channel_info *ch_info = &data->channels_info[channel];
 
 	if (channel >= DMA_CHANNEL_NUM_MAX) {
 		LOG_ERR("Invalid channel num.");
 		return -EINVAL;
 	}
 
+	if (ch_info->busy) {
+		return -EBUSY;
+	}
+
 	dma_channel_select(&real_channel, csk_dma_event_callback, (uint32_t)dev,
 			   DMA_CACHE_SYNC_BOTH);
+
 	if (real_channel == DMA_CHANNEL_ANY) {
 		LOG_ERR("NO free dma channel is available");
 		return -EBUSY;
@@ -206,34 +300,26 @@ static int csk_dma_start(const struct device *dev, uint32_t channel)
 		return -EBUSY;
 	}
 
-	struct channel_info *ch_info = &data->channels_info[channel];
-	if (ch_info->channel_direction == MEMORY_TO_MEMORY) {
+	if (ch_info->direction == MEMORY_TO_MEMORY || ch_info->direction == PERIPHERAL_TO_MEMORY) {
 		if (!csk_dma_addr_is_right_access((void *)ch_info->dst_addr,
 						  ch_info->transfer_size)) {
 			LOG_ERR("The destination address(0x%x) must be aligned in the nocache segment or on a 32-byte address!",
 				ch_info->dst_addr);
 			return -EINVAL;
 		}
-
-		int ret = dma_memcpy(channel, ch_info->src_addr, ch_info->dst_addr,
-				     ch_info->transfer_size);
-		if (ret != 0) {
-			return -EIO;
-		}
-	} else if (ch_info->channel_direction == PERIPHERAL_TO_PERIPHERAL) {
-		LOG_ERR("DMA does not support peripheral to peripheral direction now");
-		return -ENOTSUP;
-	} else {
-		int ret =
-			dma_channel_configure(channel, ch_info->src_addr, ch_info->dst_addr,
-					      ch_info->transfer_size, ch_info->dma_ch_ctlx_cfg_mask,
-					      ch_info->dma_ch_cfgxl_cfg_mask,
-					      ch_info->dma_ch_cfgxh_cfg_mask, 0, 0);
-		if (ret != 0) {
-			return -EIO;
-		}
 	}
+
+	int ret = dma_channel_configure(channel, ch_info->src_addr, ch_info->dst_addr,
+					ch_info->transfer_size, ch_info->reg_ctrl,
+					ch_info->reg_cfg_low, ch_info->reg_cfg_high,
+					ch_info->reg_gather, ch_info->reg_scatter);
+
+	if (ret != 0) {
+		return -EIO;
+	}
+
 	ch_info->busy = true;
+
 	return 0;
 }
 
@@ -245,21 +331,20 @@ static int csk_dma_stop(const struct device *dev, uint32_t channel)
 static int csk_dma_get_status(const struct device *dev, uint32_t channel, struct dma_status *status)
 {
 	struct csk_dma_data *data = dev->data;
+	struct channel_info *ch_info = NULL;
 
 	if (channel >= DMA_CHANNEL_NUM_MAX) {
 		LOG_ERR("Invalid channel num.");
 		return -EINVAL;
 	}
 
-	struct channel_info *ch_info = &data->channels_info[channel];
-	if (ch_info->busy) {
-		status->busy = true;
-		status->pending_length = ch_info->transfer_size - dma_channel_get_count(channel);
-	} else {
-		status->busy = false;
-		status->pending_length = 0;
-	}
-	status->dir = ch_info->channel_direction;
+	ch_info = &data->channels_info[channel];
+
+	status->busy = ch_info->busy;
+	status->dir = ch_info->direction;
+	status->pending_length =
+		status->busy ? ch_info->transfer_size - dma_channel_get_count(channel) : 0;
+
 	return 0;
 }
 
@@ -280,10 +365,12 @@ DMA_CSK6_RAM_FUNC static void csk_dma_event_callback(uint32_t event_ctx, uint32_
 	uint8_t channel = (uint16_t)event_ctx >> 8;
 	uint8_t event_type = event_ctx & 0xFF;
 	struct channel_info *ch_info = &data->channels_info[channel];
+
 	if (event_type == DMA_EVENT_TRANSFER_COMPLETE) {
 		ret = 0;
 		ch_info->busy = false;
 	}
+
 	ch_info->cb_info.callback(dev, ch_info->cb_info.user_data, channel, ret);
 }
 
@@ -297,10 +384,13 @@ ISR_DIRECT_DECLARE(dma_direct_irq_handler)
 
 static int csk_dma_init(const struct device *dev)
 {
-	int ret = dma_initialize();
-	if (ret != 0) {
+	struct csk_dma_data *data = dev->data;
+
+	if (dma_initialize() != 0) {
 		return -EIO; /* unknown exception */
 	}
+
+	memset(data, 0, sizeof(struct csk_dma_data));
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
 	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), dma_direct_irq_handler,
@@ -310,6 +400,7 @@ static int csk_dma_init(const struct device *dev)
 			   Z_COND_CODE_1(CONFIG_ZERO_LATENCY_IRQS, (IRQ_ZERO_LATENCY), (0)));
 #endif
 	irq_enable(DT_INST_IRQN(0));
+
 	return 0;
 }
 
