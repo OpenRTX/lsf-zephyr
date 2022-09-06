@@ -24,16 +24,23 @@ LOG_MODULE_REGISTER(main);
 #define __packed  __attribute__((packed,aligned(4)));
 const struct device *video;
 uint8_t image_buf[IMAGE_SIZE];
-struct ePILOT_INST_PARAM
-{
-        void *ram_addr;
-        void *psram_addr;
 
-        unsigned int ram_total;
-		unsigned int ram_used;
-        unsigned int psram_total;
-		unsigned int psram_used;
-}__packed;
+// typedef enum
+// {
+// 	RES_FACE_DETECT                     = 1,
+// 	RES_FACE_QA                         = 2,
+// 	RES_FACE_ALIVE                      = 3,
+// 	RES_FACE_VERIFY                     = 4,
+// 	RES_FACE_ALIGN						= 5,
+// 	RES_HEAD_SHOULDER					= 6,
+// 	RES_GESTURE_RECOGNITION				= 7,
+// }ePilotResType;
+// struct PilotRes
+// {
+// 	ePilotResType res_buffer_type;
+// 	char *res_buffer_addr;
+// 	int  res_buffer_size;
+// }__packed;
 
 typedef enum
 {
@@ -125,15 +132,17 @@ void main(void)
 
 	hsd_t *hsd = hsd_create();
 
-	struct ePILOT_INST_PARAM init_param;
-	int *addr = 1;	
-	init_param.psram_addr = addr;
-	init_param.ram_addr = addr;
-	init_param.ram_total = 503;
-	init_param.ram_used = 666;
-	init_param.psram_total = 456;
-	init_param.psram_used = 999;
-	hsd_set_params(hsd, AVF_CTL_MSGID_HSD_INIT_ADRRESS, &init_param, sizeof(init_param));
+	struct PilotResMgr algo_res;
+
+	algo_res.res_type_arr_[0].res_buffer_addr = gesture_res;
+	algo_res.res_type_arr_[0].res_buffer_size = sizeof(gesture_res);
+	algo_res.res_type_arr_[0].res_buffer_type =  RES_GESTURE_RECOGNITION;
+
+	algo_res.res_type_arr_[1].res_buffer_addr = head_shoulder_res;
+	algo_res.res_type_arr_[1].res_buffer_size = sizeof(head_shoulder_res);
+	algo_res.res_type_arr_[1].res_buffer_type =  RES_HEAD_SHOULDER;
+	// printk("struct PilotRes size:%d ePilotResType: %d\n",sizeof(struct PilotRes), sizeof(ePilotResType));
+	hsd_set_params(hsd, AVF_CTL_MSGID_HSD_INIT_ADRRESS, &algo_res, sizeof(algo_res));
 
 	struct PILOT_SET_PARAM set_params;
 	set_params.param_name = PARAM_DETECT_THRES;
@@ -146,8 +155,8 @@ void main(void)
 	set_data.pixel_format = PIX_FMT_BGR888;
 	set_data.height = 320;
 	set_data.width = 180;
-	set_data.data = "abcd";
-	hsd_set_params(hsd, AVF_CTL_MSGID_HSD_GET_PARAMS, &set_data, sizeof(set_data));
+	set_data.data = image_buf;
+	hsd_set_params(hsd, AVF_CTL_MSGID_HSD_GESTURE, &set_data, sizeof(set_data));
 
 	
 	

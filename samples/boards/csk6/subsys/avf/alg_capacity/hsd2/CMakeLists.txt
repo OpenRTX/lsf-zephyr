@@ -54,3 +54,9 @@ generate_inc_file_for_target(
   resource/head_shoulder_detect.bin
   ${gen_dir}/head_shoulder_res.inc
 )
+
+generate_inc_file_for_target(
+  app
+  resource/gesture.bin
+  ${gen_dir}/gesture.inc
+)
