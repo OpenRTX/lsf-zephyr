@@ -21,7 +21,7 @@
 #include <zephyr/drivers/dma.h>
 #include <ztest.h>
 
-#define XFERS 1
+#define XFERS 2
 #define XFER_SIZE 64
 
 #if CONFIG_NOCACHE_MEMORY

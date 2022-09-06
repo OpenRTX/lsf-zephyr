@@ -43,7 +43,7 @@ struct channel_info {
 	uint32_t reg_cfg_high;
 	uint32_t reg_scatter;
 	uint32_t reg_gather;
-	bool busy;
+	volatile bool busy;
 };
 
 struct csk_dma_data {
@@ -119,6 +119,11 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	if (config->head_block != NULL) {
 		ch_info->dst_addr = config->head_block->dest_address;
 		ch_info->src_addr = config->head_block->source_address;
+
+		if (config->head_block->block_size > 4095) {
+			LOG_ERR("transfer size out of range. Max transfer size is 4095.");
+			return -ENOTSUP;
+		}
 		ch_info->transfer_size = config->head_block->block_size;
 	}
 
@@ -181,7 +186,7 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		ch_info->reg_ctrl |= DMA_CH_CTLL_DST_FIX;
 		break;
 	default:
-		LOG_ERR("Invalid source addr adj.");
+		LOG_ERR("Invalid dest addr adj.");
 		return -EINVAL;
 	}
 
@@ -195,6 +200,9 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	case DMA_ADDR_ADJ_NO_CHANGE:
 		ch_info->reg_ctrl |= DMA_CH_CTLL_SRC_FIX;
 		break;
+	default:
+		LOG_ERR("Invalid source addr adj.");
+		return -EINVAL;
 	}
 
 	/**
@@ -213,13 +221,13 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	if (config->head_block->dest_scatter_en) {
 		ch_info->reg_scatter =
 			(config->head_block->dest_scatter_interval & DMA_CH_SCATTER_INTERVAL_MASK) |
-			config->head_block->dest_scatter_count;
+			(config->head_block->dest_scatter_count << 20);
 	}
 
 	if (config->head_block->source_gather_en) {
 		ch_info->reg_gather = (config->head_block->source_gather_interval &
 				       DMA_CH_SCATTER_INTERVAL_MASK) |
-				      config->head_block->source_gather_count;
+				      (config->head_block->source_gather_count << 20);
 	}
 
 	ch_info->direction = config->channel_direction;
@@ -241,6 +249,7 @@ static int csk_dma_reload(const struct device *dev, uint32_t channel, uint32_t s
 	ch_info->src_addr = src;
 	ch_info->dst_addr = dst;
 	ch_info->transfer_size = size;
+
 	return 0;
 }
 
