@@ -222,12 +222,14 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		ch_info->reg_scatter =
 			(config->head_block->dest_scatter_interval & DMA_CH_SCATTER_INTERVAL_MASK) |
 			(config->head_block->dest_scatter_count << 20);
+		ch_info->reg_ctrl |= DMA_CH_CTLL_D_SCAT_EN;
 	}
 
 	if (config->head_block->source_gather_en) {
 		ch_info->reg_gather = (config->head_block->source_gather_interval &
 				       DMA_CH_SCATTER_INTERVAL_MASK) |
 				      (config->head_block->source_gather_count << 20);
+		ch_info->reg_ctrl |= DMA_CH_CTLL_S_GATH_EN;
 	}
 
 	ch_info->direction = config->channel_direction;

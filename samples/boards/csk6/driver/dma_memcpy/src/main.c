@@ -11,7 +11,7 @@
 #include <drivers/spi.h>
 #include <drivers/dma.h>
 
-#define BUFFER_SIZE (32)
+#define BUFFER_SIZE (512)
 K_SEM_DEFINE(dma_sem, 0, 1);
 
 void dump(void *data, uint32_t size)
@@ -50,14 +50,14 @@ void test_dma_copy(const struct device *dma, void *src, void *dst, size_t size)
     int32_t r;
 
     struct dma_block_config block_config = {
-        .source_address = (uint32_t)((char *)src + size - 1),
-        .dest_address = (uint32_t)((char *)dst + size - 1),
-        .block_size = size,
-        .dest_addr_adj = DMA_ADDR_ADJ_NO_CHANGE,
-        .source_addr_adj = DMA_ADDR_ADJ_NO_CHANGE,
-        .source_gather_count = 4,
-        .source_gather_en = 1,
-        .source_gather_interval= 1,
+        .source_address = (uint32_t)((char *)src ),
+        .dest_address = (uint32_t)((char *)dst),
+        .block_size = 16,
+        .dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+        .source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+        .dest_scatter_count = 4,
+        .dest_scatter_en = 0,
+        .dest_scatter_interval = 2,
     };
 
     struct dma_config dma_cfg = {
@@ -66,7 +66,7 @@ void test_dma_copy(const struct device *dma, void *src, void *dst, size_t size)
         .user_data = NULL,
         .block_count = 1,
         .head_block = &block_config,
-        .source_data_size = 1,
+        .source_data_size = 4,
         .dest_data_size = 1,
         .channel_priority = 1,
         .complete_callback_en = 1,
