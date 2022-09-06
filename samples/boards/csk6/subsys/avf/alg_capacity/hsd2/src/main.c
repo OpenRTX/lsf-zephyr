@@ -114,9 +114,10 @@ struct HSD_SET_DATA{
 	int height;
 	void* data;
 }__packed;
-
+#include <avf/avf_topology_def.h>
 void main(void)
 {
+	int iret;
 	if (NULL == avf_stream_platform_register(dsp_firmware, sizeof(dsp_firmware), dsp_tplg,
 						 sizeof(dsp_tplg))) {
 		printk("avf platform register failed,exit.\n");
@@ -150,7 +151,8 @@ void main(void)
 	hsd_set_params(hsd, AVF_CTL_MSGID_HSD_GET_PARAMS, &set_data, sizeof(set_data));
 
 	
-	
+	iret = avf_ctl_get_binary(avf_stream_platform_get(),AVG_CTL_COMP_NAME_HSD_CONFIG,AVF_CTL_MSGID_HSD_INIT_ADRRESS,image_buf,256);
+	printk("get data len %d\n",iret);
 
 	// hsd_start_no_video(hsd);
 
