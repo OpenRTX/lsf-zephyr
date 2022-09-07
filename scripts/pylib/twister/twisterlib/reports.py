@@ -176,6 +176,7 @@ class Reporting:
                     continue
 
             duration = 0
+            logger.info(f"platform name: {platform}, self.timestamp: {self.timestamp}")
             eleTestsuite = ET.SubElement(eleTestsuites, 'testsuite',
                                             name=platform,
                                             timestamp = self.timestamp,
@@ -186,6 +187,7 @@ class Reporting:
             eleTSPropetries = ET.SubElement(eleTestsuite, 'properties')
             # Multiple 'property' can be added to 'properties'
             # differing by name and value
+            logger.info(f"version: {version}")
             ET.SubElement(eleTSPropetries, 'property', name="version", value=version)
 
             total = 0
