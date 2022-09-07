@@ -97,7 +97,7 @@ typedef enum
 }PILOT_PARAM;
 struct PILOT_SET_PARAM
 {
-	PILOT_PARAM param_name;
+	int param_name;
 	char* value;
 	int len; 
 }__packed;
@@ -115,8 +115,8 @@ typedef enum{
 }hsd_type;
 
 struct HSD_SET_DATA{
-	hsd_type type;
-	pixel_format pixel_format;
+	int type;
+	int pixel_format;
 	int width;
 	int height;
 	void* data;
