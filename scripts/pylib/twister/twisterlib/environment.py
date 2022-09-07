@@ -691,6 +691,7 @@ class TwisterEnv:
                 logger.info(f"Zephyr version: {self.version}")
         except OSError:
             logger.info("Cannot read zephyr version.")
+            self.version = "unknown"
 
 
     @staticmethod
