@@ -1,5 +1,5 @@
 tests:
-  sample.board.csk6.driver.sdmmc:
+  sample.board.csk6.driver.sdcard:
     platform_allow: csk6002_9s_nano
     tags: csk6
     build_only: true
