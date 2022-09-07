@@ -144,12 +144,14 @@ void main(void)
 	algo_res.res_type_arr_[1].res_buffer_type =  RES_HEAD_SHOULDER;
 	// printk("struct PilotRes size:%d ePilotResType: %d\n",sizeof(struct PilotRes), sizeof(ePilotResType));
 	hsd_set_params(hsd, AVF_CTL_MSGID_HSD_INIT_ADRRESS, &algo_res, sizeof(algo_res));
+	printk("hsd init addr\n");
 
 	struct PILOT_SET_PARAM set_params;
 	set_params.param_name = PARAM_DETECT_THRES;
 	set_params.value = "2.34";
 	set_params.len = strlen(set_params.value);
 	hsd_set_params(hsd, AVF_CTL_MSGID_HSD_SET_PARAMS, &set_params, sizeof(set_params));
+	printk("hsd set param ok\n");
 
 	struct HSD_SET_DATA set_data;
 	set_data.type = TYPE_HEAD_SHOULDER_DETECT;
@@ -160,8 +162,8 @@ void main(void)
 	hsd_set_params(hsd, AVF_CTL_MSGID_HSD_GESTURE, &set_data, sizeof(set_data));
 
 	
-	iret = avf_ctl_get_binary(avf_stream_platform_get(),AVG_CTL_COMP_NAME_HSD_CONFIG,AVF_CTL_MSGID_HSD_INIT_ADRRESS,image_buf,256);
-	printk("get data len %d\n",iret);
+	// iret = avf_ctl_get_binary(avf_stream_platform_get(),AVG_CTL_COMP_NAME_HSD_CONFIG,AVF_CTL_MSGID_HSD_INIT_ADRRESS,image_buf,256);
+	// printk("get data len %d\n",iret);
 
 	// hsd_start_no_video(hsd);
 

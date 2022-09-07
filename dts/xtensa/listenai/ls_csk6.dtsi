@@ -22,13 +22,13 @@
 	sram0: memory@60000698 {
 		device_type = "memory";
 		compatible = "mmio-sram";
-		reg = <0x60000698 DT_SIZE_M(5)>;
+		reg = <0x60000698 DT_SIZE_M(3)>;
 	};
 
-	sram1: memory@60500000 {
+	sram1: memory@60300000 {
 		device_type = "memory";
 		compatible = "mmio-sram";
-		reg = <0x60500000 DT_SIZE_M(1)>;
+		reg = <0x60300000 DT_SIZE_M(3)>;
 	};
 
 	core_intc: core_intc@0 {
