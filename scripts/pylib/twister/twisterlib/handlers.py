@@ -545,7 +545,7 @@ class DeviceHandler(Handler):
             stdout = stderr = None
             with subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
                 try:
-                    (stdout, stderr) = proc.communicate(timeout=60)
+                    (stdout, stderr) = proc.communicate(timeout=180)
                     # ignore unencodable unicode chars
                     logger.debug(stdout.decode(errors = "ignore"))
 
