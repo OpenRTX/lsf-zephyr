@@ -93,7 +93,7 @@ class Reporting:
 
 
         env = json_data.get('environment', {})
-        version = env.get('zephyr_version', None)
+        version = env.get('zephyr_version', 'Unknown')
 
         eleTestsuites = ET.Element('testsuites')
         all_suites = json_data.get("testsuites", [])
@@ -162,7 +162,7 @@ class Reporting:
 
 
         env = json_data.get('environment', {})
-        version = env.get('zephyr_version', None)
+        version = env.get('zephyr_version', 'Unknown')
 
         eleTestsuites = ET.Element('testsuites')
         all_suites = json_data.get("testsuites", [])
