@@ -176,6 +176,7 @@ class Reporting:
                     continue
 
             duration = 0
+            logger.info(f"platform name: {platform}, self.timestamp: {self.timestamp}")
             eleTestsuite = ET.SubElement(eleTestsuites, 'testsuite',
                                             name=platform,
                                             timestamp = self.timestamp,
