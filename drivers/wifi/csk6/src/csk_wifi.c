@@ -94,6 +94,11 @@ int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout)
     return k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
 }
 
+static inline void wifi_clear_message(void)
+{
+    k_msgq_purge(&wifi_interactive_msgq);
+}
+
 int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts)
 {
     csk_wifi_ctrl_msg_t msg = {
@@ -101,6 +106,8 @@ int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t 
         .type = WIFI_COMMAND,
         .command = command,
     };
+
+    wifi_clear_message();
     return k_msgq_put(&wifi_interactive_msgq, &msg, timeouts);
 }
 
