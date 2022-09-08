@@ -402,7 +402,6 @@ int csk_Open( sqlite3_vfs * vfs, const char * path, sqlite3_file * file, int fla
 		fs_file_t_init(p->fd);
 	}
 
-	printf("fs_open = %p\n", p->fd);
 	rc = fs_open(p->fd, path, mode);
 	if (rc < 0) {
 		printk("FAIL: open %s: %d\n", path, rc);
