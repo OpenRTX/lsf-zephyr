@@ -1,5 +1,5 @@
 tests:
-  sample.board.csk6.driver.uart:
+  sample.board.csk6.driver.uart.uart_interrupt:
     platform_allow: csk6002_9s_nano csk6011a_9s_nano
     timeout: 20
     tags: csk6
