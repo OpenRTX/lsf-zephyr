@@ -58,7 +58,7 @@ manifest:
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
-      revision: 8f0ff8792fcf87eb50921b6dc4649b1af2e6eb53 
+      revision: 4a0b142595d88ba4fdea44587ad14eddd02c0535 
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
