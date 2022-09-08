@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: bcdffcb68477dece41faad424de5fd4f0076f665
+      revision: c8d8fd6b805913b3d27b3ebf22746f7d42a03bee
       path: modules/hal/listenai
       groups:
         - hal
