@@ -34,8 +34,6 @@ static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, 
 
 static void connection_cb(wifi_mgr_connection_info_t *connection_info, void *arg)
 {
-    int ret = 0;
-
     switch (connection_info->status) {
     case WIFI_MGR_STA_DISCONNECTED:
         break;
