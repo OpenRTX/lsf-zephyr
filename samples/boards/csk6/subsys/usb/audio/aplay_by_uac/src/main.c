@@ -244,7 +244,7 @@ void main(void)
 		return;
 	}
 
-	printk("Found USB Headset Device");
+	printk("Found USB Headset Device \n");
 
 	usb_audio_register(hs_dev, &ops);
 
