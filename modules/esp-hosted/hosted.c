@@ -1,7 +1,6 @@
 #include <stdlib.h>
+#include <string.h>
 #include "util.h"
-#include "commands.h"
-#include "platform_wrapper.h"
 
 #include "hosted_gpio.h"
 #include "spi_drv.h"
@@ -10,6 +9,24 @@
 #include "adapter.h"
 
 #include "hosted/hosted.h"
+
+#define CLEANUP_CTRL_MSG(msg) do {                        \
+  if (msg) {                                              \
+    if (msg->free_buffer_handle) {                        \
+      if (msg->free_buffer_func) {                        \
+        msg->free_buffer_func(msg->free_buffer_handle);   \
+        msg->free_buffer_handle = NULL;                   \
+      }                                                   \
+    }                                                     \
+    hosted_free(msg);                                     \
+    msg = NULL;                                           \
+  }                                                       \
+} while(0);
+
+typedef struct {
+	int event;
+	ctrl_resp_cb_t fun;
+} event_callback_table_t;
 
 K_SEM_DEFINE(hosted_sync_sem, 0, 1);
 static sys_slist_t hosted_callback_list;
@@ -87,9 +104,104 @@ bool hosted_is_synced()
     return true;
 }
 
+static int ctrl_app_event_callback(ctrl_cmd_t * app_event)
+{
+	if (!app_event || (app_event->msg_type != CTRL_EVENT)) {
+		if (app_event)
+			printk("Msg type is not event[%u]\n\r",app_event->msg_type);
+		goto fail_parsing;
+	}
+
+	if ((app_event->msg_id <= CTRL_EVENT_BASE) ||
+	    (app_event->msg_id >= CTRL_EVENT_MAX)) {
+		printk("Event Msg ID[%u] is not correct\n\r",app_event->msg_id);
+		goto fail_parsing;
+	}
+
+	switch(app_event->msg_id) {
+
+		case CTRL_EVENT_ESP_INIT: {
+			printk("App EVENT: ESP INIT\n\r");
+			hosted_fire_callbacks(&hosted_callback_list, HOSTED_LINK_EVT_ACTIVE);
+			break;
+		} case CTRL_EVENT_HEARTBEAT: {
+			printk("App EVENT: Heartbeat event [%u]\n\r",
+					app_event->u.e_heartbeat.hb_num);
+			break;
+		} case CTRL_EVENT_STATION_DISCONNECT_FROM_AP: {
+			printk("App EVENT: Station mode: Disconnect Reason[%u]\n\r", app_event->resp_event_status);
+            hosted_fire_callbacks(&hosted_callback_list, HOSTED_WIFI_EVT_STA_DISCONNECTED);
+			break;
+		} case CTRL_EVENT_STATION_CONNECT_FROM_ESP_SOFTAP: {
+			char *p = app_event->u.e_sta_disconnected.mac;
+			if (p && strlen(p)) {
+				printk("App EVENT: SoftAP mode: Connect MAC[%s]\n\r", p);
+			}
+			hosted_fire_callbacks(&hosted_callback_list, HOSTED_WIFI_EVT_AP_STACONNECTED);
+			break;
+		} case CTRL_EVENT_STATION_DISCONNECT_FROM_ESP_SOFTAP: {
+			char *p = app_event->u.e_sta_disconnected.mac;
+			if (p && strlen(p)) {
+				printk("App EVENT: SoftAP mode: Disconnect MAC[%s]\n\r", p);
+			}
+			hosted_fire_callbacks(&hosted_callback_list, HOSTED_WIFI_EVT_AP_STADISCONNECTED);
+			break;
+		} default: {
+			printk("Invalid event[%u] to parse\n\r", app_event->msg_id);
+			break;
+		}
+	}
+	CLEANUP_CTRL_MSG(app_event);
+	return SUCCESS;
+
+fail_parsing:
+	CLEANUP_CTRL_MSG(app_event);
+	return FAILURE;
+}
+
+int register_event_callbacks(void)
+{
+	int ret = SUCCESS;
+	int evt = 0;
+
+	event_callback_table_t events[] = {
+		{ CTRL_EVENT_ESP_INIT,                           ctrl_app_event_callback },
+		{ CTRL_EVENT_HEARTBEAT,                          ctrl_app_event_callback },
+		{ CTRL_EVENT_STATION_DISCONNECT_FROM_AP,         ctrl_app_event_callback },
+		{ CTRL_EVENT_STATION_DISCONNECT_FROM_ESP_SOFTAP, ctrl_app_event_callback },
+		{ CTRL_EVENT_STATION_CONNECT_FROM_ESP_SOFTAP, 	 ctrl_app_event_callback },
+	};
+
+	for (evt=0; evt<sizeof(events)/sizeof(event_callback_table_t); evt++) {
+		if (CALLBACK_SET_SUCCESS != set_event_callback(events[evt].event, events[evt].fun) ) {
+			printk("event callback register failed for event[%u]\n\r", events[evt].event);
+			ret = FAILURE;
+			break;
+		}
+	}
+	return ret;
+}
+
+int unregister_event_callbacks(void)
+{
+	int ret = SUCCESS;
+	int evt = 0;
+	for (evt=CTRL_EVENT_BASE+1; evt<CTRL_EVENT_MAX; evt++) {
+		if (CALLBACK_SET_SUCCESS != reset_event_callback(evt) ) {
+			printk("reset event callback failed for event[%u]\n\r", evt);
+			ret = FAILURE;
+		}
+	}
+	return ret;
+}
+
 static inline void control_path_init(void)
 {
-	control_path_platform_init();
+    if (init_hosted_control_lib()) {
+		printk("init hosted control lib failed\n\r");
+		return;
+	}
+    register_event_callbacks();
 }
 
 static void reset_slave(void)
@@ -110,21 +222,10 @@ static void spi_driver_event_handler(uint8_t event)
 		case SPI_DRIVER_ACTIVE: {
 			/* Initiate control path now */
             control_path_init();  //init control path and control task
-            hosted_fire_callbacks(&hosted_callback_list, HOSTED_LINK_EVT_ACTIVE);
+            // hosted_fire_callbacks(&hosted_callback_list, HOSTED_LINK_EVT_ACTIVE);
 			break;
 		}
 		default:
 		break;
 	}
-}
-
-void hosted_priv_event_handler(struct esp_priv_event *priv_event)
-{
-    if (priv_event->event_type == ESP_PRIV_EVENT_WIFI_STA_DISCONN) {
-        hosted_fire_callbacks(&hosted_callback_list, HOSTED_WIFI_EVT_STA_DISCONNECTED);
-    } else if (priv_event->event_type == ESP_PRIV_EVENT_WIFI_AP_STACONN) {
-        hosted_fire_callbacks(&hosted_callback_list, HOSTED_WIFI_EVT_AP_STACONNECTED);
-    } else if (priv_event->event_type == ESP_PRIV_EVENT_WIFI_AP_STADISCONN) {
-        hosted_fire_callbacks(&hosted_callback_list, HOSTED_WIFI_EVT_AP_STADISCONNECTED);
-    }
 }
