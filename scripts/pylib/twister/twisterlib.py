@@ -436,6 +436,16 @@ class Handler:
         proc.kill()
         self.terminated = True
 
+    def add_missing_testscases(self, harness):
+        """
+        If testsuite was broken by some error (e.g. timeout) it is necessary to
+        add information about next testcases, which were not be
+        performed due to this error.
+        """
+        for c in self.instance.testcase.cases:
+            if c not in harness.tests:
+                harness.tests[c] = "BLOCK"
+
 
 class BinaryHandler(Handler):
     def __init__(self, instance, type_str):
@@ -590,6 +600,7 @@ class BinaryHandler(Handler):
         else:
             self.set_state("timeout", handler_time)
             self.instance.reason = "Timeout"
+            self.add_missing_testscases(harness)
 
         self.record(harness)
 
@@ -800,6 +811,15 @@ class DeviceHandler(Handler):
 
         ser.flush()
 
+        # turns out the ser.flush() is not enough to clear serial leftover from last case
+        # explicitly readline() can do it reliably
+        old_timeout = ser.timeout
+        ser.timeout = 1 # wait for 1s if no serial output
+        leftover_lines = ser.readlines(1000) # or read 1000 lines at most
+        for line in leftover_lines:
+            logger.debug(f"leftover log of previous test: {line}")
+        ser.timeout = old_timeout
+
         harness_name = self.instance.testcase.harness.capitalize()
         harness_import = HarnessImporter(harness_name)
         harness = harness_import.instance
@@ -817,18 +837,22 @@ class DeviceHandler(Handler):
             stdout = stderr = None
             with subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
                 try:
-                    (stdout, stderr) = proc.communicate(timeout=30)
-                    logger.debug(stdout.decode())
+                    (stdout, stderr) = proc.communicate(timeout=180)
+                    # ignore unencodable unicode chars
+                    logger.debug(stdout.decode(errors = "ignore"))
 
                     if proc.returncode != 0:
-                        self.instance.reason = "Device issue (Flash?)"
+                        self.instance.status = "error"
+                        self.instance.reason = "Device issue (Flash error?)"
                         with open(d_log, "w") as dlog_fp:
                             dlog_fp.write(stderr.decode())
                         os.write(write_pipe, b'x')  # halt the thread
                         out_state = "flash_error"
                 except subprocess.TimeoutExpired:
+                    logger.warning("Flash operation timed out.")
                     proc.kill()
                     (stdout, stderr) = proc.communicate()
+                    self.instance.status = "error"
                     self.instance.reason = "Device issue (Timeout)"
 
             with open(d_log, "w") as dlog_fp:
@@ -1152,6 +1176,7 @@ class QEMUHandler(Handler):
                 self.instance.reason = "Timeout"
             else:
                 self.instance.reason = "Exited with {}".format(self.returncode)
+            self.add_missing_testscases(harness)
 
     def get_fifo(self):
         return self.fifo_fn
@@ -2108,7 +2133,7 @@ class CMake():
 
         else:
             logger.error("Cmake script failure: %s" % (args[0]))
-            results = {"returncode": p.returncode}
+            results = {"returncode": p.returncode, "returnmsg": out}
 
         return results
 
