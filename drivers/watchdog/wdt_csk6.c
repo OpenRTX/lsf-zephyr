@@ -9,8 +9,6 @@
 
 #include <drivers/watchdog.h>
 
-#define WDT_CLK 32768
-
 #define DT_DRV_COMPAT listenai_csk6_watchdog
 
 static void wdt_csk6_irq_handler(void *param);
@@ -23,9 +21,6 @@ typedef struct wdt_csk6_data {
 #define WDT_CSK_DATA(dev) ((wdt_csk6_data_t *)((dev)->data))
 
 static wdt_csk6_data_t wdt_csk6_data = { 0 };
-
-// 1 / 32000 * 1000
-#define WDT_CSK6_CLK_PERIOD_US (31)
 
 static void wdt_csk6_signal_event(void *p)
 {
@@ -81,10 +76,10 @@ static int wdt_csk6_install_timeout(const struct device *dev, const struct wdt_t
 	uint32_t aon_wdt_max_val = AON_WDT_GetMaxValue();
 
 	if (cfg == NULL) {
-		return -1;
+		return -EINVAL;
 	}
 
-	aon_wdt_val = cfg->window.max / 1000 * WDT_CLK;
+	aon_wdt_val = cfg->window.max * CONFIG_WDT_CSK_SOURCE_NUM_PER_MS;
 
 	if ((aon_wdt_val == 0U) || (aon_wdt_val > aon_wdt_max_val)) {
 		return -EINVAL;
