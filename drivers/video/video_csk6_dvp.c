@@ -126,8 +126,6 @@ static int video_csk6_dvp_set_fmt(const struct device *dev,
 		return -EINVAL;
 	}
 
-	memcpy(&data->fmt, fmt, sizeof(struct video_format));
-
 	if(!config->pclk_polarity){
 		dvp_dev->Init.PCKPolarity = CSK_DVP_POL_CNTL_CLOCK_RISING;
 	}else{
@@ -169,6 +167,8 @@ static int video_csk6_dvp_set_fmt(const struct device *dev,
 		return -EIO;
 	}
 
+	memcpy(&data->fmt, fmt, sizeof(struct video_format));
+
 	return 0;
 }
 
@@ -176,9 +176,16 @@ static int video_csk6_dvp_get_fmt(const struct device *dev,
 				  enum video_endpoint_id ep,
 				  struct video_format *fmt)
 {
+	struct video_csk6_dvp_data *data = dev->data;
+
 	if (fmt == NULL || ep != VIDEO_EP_OUT) {
 		return -EINVAL;
 	}
+
+	fmt->width = data->fmt.width;
+	fmt->height = data->fmt.height;
+	fmt->pitch = data->fmt.pitch;
+	fmt->pixelformat = data->fmt.pixelformat;
 
 	return 0;
 }
