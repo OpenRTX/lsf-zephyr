@@ -554,7 +554,10 @@ static void wifi_control_thread(void *arg1, void *arg2, void *arg3)
 {
     csk_wifi_ctrl_msg_t msg;
     while (1) {
-        wifi_get_message(&msg, K_FOREVER);
+        int ret = wifi_get_message(&msg, K_FOREVER);
+        if (ret != 0) {
+            continue;
+        }
         const struct device *dev = msg.dev;
         if (msg.type == WIFI_COMMAND) {
             /* This function maybe will here block thread for a long time */
