@@ -93,9 +93,15 @@ static int pwm_csk_pin_set(const struct device *dev, uint32_t pwm,
 		return -EINVAL;
 	}
 
-	if (pulse_cycles > period_cycles) {
-		LOG_ERR("Invalid combination of pulse and period cycles");
-		return -EINVAL;
+	/* disable channel output if period is zero */
+	if (period_cycles == 0U) {
+		ret = HAL_GPT_DisablePWM(GPT0_PWM(), pwm);
+		return (ret == CSK_DRIVER_OK) ? 0 : -EIO;
+	}
+
+	if((pulse_cycles == period_cycles) || (pulse_cycles ==  0u)) {
+		LOG_ERR("not support the output duty cycle of 0 or 100\n");
+		return -EINVAL;		
 	}
 
 	duty_cycle = 100.0 * pulse_cycles / period_cycles;
