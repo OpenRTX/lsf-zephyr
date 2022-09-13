@@ -18,5 +18,6 @@ supported:
   - dma
   - counter
   - pwm
+  - sdmmc
 ram: 320
 flash: 8000
