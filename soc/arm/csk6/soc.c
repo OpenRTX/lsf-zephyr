@@ -167,7 +167,7 @@ static inline void z_arm_floating_point_init(void)
 void z_arm_platform_init(void)
 {
 	extern void BootClock_Init();
-	
+
 #if defined(CONFIG_CPU_HAS_FPU)
 	z_arm_floating_point_init();
 #endif
@@ -181,7 +181,7 @@ void z_arm_platform_init(void)
 	SCB_EnableICache();
 	SCB_EnableDCache();
 	/*TODO: will rewrite later*/
-	
+
 #if CONFIG_CSK6_PSRAM
 	extern int32_t PSRAM_Initialize(void);
 	PSRAM_Initialize();
