@@ -32,7 +32,7 @@ int csk_wifi_init()
     sys_slist_init(&wifi_callback_list);
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    ret = wifi_send_command(NULL, WIFI_CMD_INIT, K_NO_WAIT);
+    ret = wifi_send_command(NULL, WIFI_CMD_INIT, K_NO_WAIT, false);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, K_FOREVER);
     if (ret != 0)   goto __exit;
@@ -58,10 +58,11 @@ int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, 
                             -ENOTSUP, "This timeout parameter is not available now, "
                             "only FOREVER or NO_WAIT is abailable");
 
+    bool async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    ret = wifi_send_command(NULL, WIFI_CMD_SCAN, K_NO_WAIT);
+    ret = wifi_send_command(NULL, WIFI_CMD_SCAN, K_NO_WAIT, async_mode);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);
     if (ret != 0)   goto __exit;
@@ -93,7 +94,8 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
     CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
                             -ENOTSUP, "This timeout parameter is not available now, "
                             "only FOREVER or NO_WAIT is abailable");
-
+    
+    bool async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
@@ -102,7 +104,7 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
 
     memcpy(&data->sta_config, sta_config, sizeof(csk_wifi_sta_config_t));
 
-    ret = wifi_send_command(dev, WIFI_CMD_STA_CONNECT, K_NO_WAIT);
+    ret = wifi_send_command(dev, WIFI_CMD_STA_CONNECT, K_NO_WAIT, async_mode);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);
     if (ret != 0)   goto __exit;
@@ -130,11 +132,12 @@ int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
                             -ENOTSUP, "This timeout parameter is not available now, "
                             "only FOREVER or NO_WAIT is abailable");
 
+    bool async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
     const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
-    ret = wifi_send_command(dev, WIFI_CMD_STA_DISCONNECT, K_NO_WAIT);
+    ret = wifi_send_command(dev, WIFI_CMD_STA_DISCONNECT, K_NO_WAIT, async_mode);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);
     if (ret != 0)   goto __exit;
@@ -197,6 +200,7 @@ int csk_wifi_ap_start(const csk_wifi_softap_config_t *ap_config, csk_wifi_result
                    ap_config->bandwidth <= CSK_WIFI_BW_HT40,
                    -EINVAL);
 
+    bool async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
@@ -205,7 +209,7 @@ int csk_wifi_ap_start(const csk_wifi_softap_config_t *ap_config, csk_wifi_result
 
     memcpy(&data->ap_config, ap_config, sizeof(csk_wifi_softap_config_t));
 
-    ret = wifi_send_command(dev, WIFI_CMD_AP_START, K_NO_WAIT);
+    ret = wifi_send_command(dev, WIFI_CMD_AP_START, K_NO_WAIT, async_mode);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);
     if (ret != 0)   goto __exit;
@@ -226,11 +230,12 @@ int csk_wifi_ap_stop(csk_wifi_result_t *result, k_timeout_t timeout)
 {
     CSK_WIFI_CHECK(result != NULL, -EINVAL);
 
+    bool async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
     const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_AP);
-    ret = wifi_send_command(dev, WIFI_CMD_AP_STOP, K_NO_WAIT);
+    ret = wifi_send_command(dev, WIFI_CMD_AP_STOP, K_NO_WAIT, async_mode);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);
     if (ret != 0)   goto __exit;
