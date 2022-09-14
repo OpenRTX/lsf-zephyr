@@ -33,18 +33,18 @@ struct net_pbuf {
 /**
  * @brief Network device instance
  */
-typedef struct netdev * netdev_handle_t;
+typedef struct netdev *netdev_handle_t;
 
 /**
  * @brief Network operations implemented by driver
  */
 struct netdev_ops {
 	/* Open device */
-	int (* netdev_open) (netdev_handle_t netdev);
+	int (*netdev_open)(netdev_handle_t netdev);
 	/* Close device */
-	int (* netdev_close) (netdev_handle_t netdev);
+	int (*netdev_close)(netdev_handle_t netdev);
 	/* Transmit packet */
-	int (* netdev_xmit) (netdev_handle_t netdev, struct net_pbuf *net_buf);
+	int (*netdev_xmit)(netdev_handle_t netdev, struct net_pbuf *net_buf);
 };
 
 /**
@@ -67,7 +67,7 @@ void netdev_free(netdev_handle_t netdev);
  * @param netdev - Network device instance
  * @retval - Driver priv instance
  */
-void * netdev_get_priv(netdev_handle_t netdev);
+void *netdev_get_priv(netdev_handle_t netdev);
 
 /**
  *  @brief Register a network interface

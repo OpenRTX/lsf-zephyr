@@ -24,18 +24,18 @@ extern "C" {
 #include "common.h"
 
 /** constants/macros **/
-#define MAX_NETWORK_INTERFACES  2
-#define STA_INTERFACE           "ESP_STATION"
-#define SOFTAP_INTERFACE        "ESP_SOFTAP"
+#define MAX_NETWORK_INTERFACES 2
+#define STA_INTERFACE	       "ESP_STATION"
+#define SOFTAP_INTERFACE       "ESP_SOFTAP"
 
 /* NSS or CS0 configuration (Pin 11) */
 /* In case of different board than STM32F469I,
  * User need to update SPI NSS pin as per hardware*/
 #ifndef USR_SPI_CS_GPIO_Port
-#define USR_SPI_CS_GPIO_Port    GPIOA
+#define USR_SPI_CS_GPIO_Port GPIOA
 #endif
 #ifndef USR_SPI_CS_Pin
-#define USR_SPI_CS_Pin          GPIO_PIN_15
+#define USR_SPI_CS_Pin GPIO_PIN_15
 #endif
 
 typedef enum spi_drv_events_s {
@@ -49,14 +49,13 @@ typedef enum spi_drv_events_s {
 /** Inline functions **/
 
 /** Exported Functions **/
-void spi_link_init(void(*spi_drv_evt_handler)(uint8_t));
-stm_ret_t send_to_slave(uint8_t iface_type, uint8_t iface_num,
-		uint8_t * wbuffer, uint16_t wlen);
+void spi_link_init(void (*spi_drv_evt_handler)(uint8_t));
+stm_ret_t send_to_slave(uint8_t iface_type, uint8_t iface_num, uint8_t *wbuffer, uint16_t wlen);
 
 struct esp_private {
-	uint8_t     if_type;
-	uint8_t     if_num;
-	void        *netdev;
+	uint8_t if_type;
+	uint8_t if_num;
+	void *netdev;
 };
 
 #ifdef __cplusplus

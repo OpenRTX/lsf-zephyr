@@ -18,17 +18,17 @@
 #include "netdev_stub.h"
 #include "csk_os_common/csk_os_memory.h"
 
-#define malloc	csk_os_malloc
-#define free 	csk_os_free
+#define malloc csk_os_malloc
+#define free   csk_os_free
 
 struct netdev *ndev_db[MAX_INTERFACE];
 static uint8_t ndev_index = 0;
 
 /**
-  * @brief  initialize detdev
-  * @param  None
-  * @retval None
-  */
+ * @brief  initialize detdev
+ * @param  None
+ * @retval None
+ */
 void netdev_init(void)
 {
 	int i;
@@ -39,32 +39,30 @@ void netdev_init(void)
 }
 
 /**
-  * @brief  open netdev
-  * @param  ndev - netdev
-  * @retval 0 on success
-  */
+ * @brief  open netdev
+ * @param  ndev - netdev
+ * @retval 0 on success
+ */
 int netdev_open(netdev_handle_t ndev)
 {
 	if (!ndev)
 		return -EIO;
 
-	int ret = csk_os_queue_create(&ndev->rx_q,
-									RX_QUEUE_SIZE,
-									sizeof(struct net_pbuf));
+	int ret = csk_os_queue_create(&ndev->rx_q, RX_QUEUE_SIZE, sizeof(struct net_pbuf));
 	if (ret != 0) {
-        printk("[%s] no mem, ret: %d\n", __FUNCTION__, ret);
-        return ret;
-    }
+		printk("[%s] no mem, ret: %d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
 	ndev->state = NETDEV_STATE_UP;
 	return 0;
 }
 
 /**
-  * @brief  close netdev
-  * @param  ndev - netdev
-  * @retval None
-  */
+ * @brief  close netdev
+ * @param  ndev - netdev
+ * @retval None
+ */
 void netdev_close(netdev_handle_t ndev)
 {
 	if (!ndev)
@@ -72,20 +70,20 @@ void netdev_close(netdev_handle_t ndev)
 
 	ndev->state = NETDEV_STATE_DOWN;
 
-    k_msleep(200);
+	k_msleep(200);
 	/* reset queue */
-    csk_os_queue_delete(ndev->rx_q);
+	csk_os_queue_delete(ndev->rx_q);
 	ndev->rx_q = NULL;
 
 	ndev->net_handle = NULL;
 }
 
 /**
-  * @brief  get netdev handle from interface name
-  * @param  if_name - interface name
-  * @retval netdev handle
-  */
-struct netdev * netdev_get(char *if_name)
+ * @brief  get netdev handle from interface name
+ * @param  if_name - interface name
+ * @retval netdev handle
+ */
+struct netdev *netdev_get(char *if_name)
 {
 	int i = 0;
 	struct netdev *ndev;
@@ -108,11 +106,11 @@ struct netdev * netdev_get(char *if_name)
 }
 
 /**
-  * @brief  allocate netdev handle for interface
-  * @param  sizeof_priv - size of priv interface
-  *         name - interface name
-  * @retval allocated netdev
-  */
+ * @brief  allocate netdev handle for interface
+ * @param  sizeof_priv - size of priv interface
+ *         name - interface name
+ * @retval allocated netdev
+ */
 netdev_handle_t netdev_alloc(uint32_t sizeof_priv, char *name)
 {
 	struct netdev *ndev = NULL;
@@ -120,7 +118,7 @@ netdev_handle_t netdev_alloc(uint32_t sizeof_priv, char *name)
 	if (!name)
 		return NULL;
 
-	ndev = (struct netdev *) malloc(sizeof(struct netdev));
+	ndev = (struct netdev *)malloc(sizeof(struct netdev));
 
 	if (ndev) {
 		memset(ndev, 0, sizeof(struct netdev));
@@ -141,15 +139,14 @@ netdev_handle_t netdev_alloc(uint32_t sizeof_priv, char *name)
 	return ndev;
 }
 
-
 /**
-  * @brief  free netdev's private handle
-  * @param  dev - netdev handle
-  * @retval None
-  */
+ * @brief  free netdev's private handle
+ * @param  dev - netdev handle
+ * @retval None
+ */
 void netdev_free(netdev_handle_t dev)
 {
-	struct netdev *ndev = (struct netdev *) dev;
+	struct netdev *ndev = (struct netdev *)dev;
 
 	if (ndev) {
 		if (ndev->priv) {
@@ -162,21 +159,19 @@ void netdev_free(netdev_handle_t dev)
 			ndev->net_handle = NULL;
 		}
 
-
 		free(ndev);
 		ndev = NULL;
 	}
 }
 
-
 /**
-  * @brief  get netdev's private interface
-  * @param  dev - private interface
-  * @retval private interface handle on success else NULL
-  */
-void * netdev_get_priv(netdev_handle_t dev)
+ * @brief  get netdev's private interface
+ * @param  dev - private interface
+ * @retval private interface handle on success else NULL
+ */
+void *netdev_get_priv(netdev_handle_t dev)
 {
-	struct netdev *ndev = (struct netdev *) dev;
+	struct netdev *ndev = (struct netdev *)dev;
 
 	if (ndev) {
 		return ndev->priv;
@@ -185,19 +180,18 @@ void * netdev_get_priv(netdev_handle_t dev)
 	return NULL;
 }
 
-
 /**
-  * @brief  register netdev
-  * @param  dev - private interface
-  *         ops - network options to register
-  * @retval 0 on success, else -1
-  */
+ * @brief  register netdev
+ * @param  dev - private interface
+ *         ops - network options to register
+ * @retval 0 on success, else -1
+ */
 int netdev_register(netdev_handle_t dev, struct netdev_ops *ops)
 {
-	struct netdev *ndev = (struct netdev *) dev;
+	struct netdev *ndev = (struct netdev *)dev;
 
 	if (!ndev || !ops) {
-		printf ("Invalid arguments\n");
+		printf("Invalid arguments\n");
 		return STM_FAIL;
 	}
 
@@ -209,18 +203,17 @@ int netdev_register(netdev_handle_t dev, struct netdev_ops *ops)
 	return STM_OK;
 }
 
-
 /**
-  * @brief  unregister netdev
-  * @param  dev - private interface
-  * @retval 0 on success, else -1
-  */
+ * @brief  unregister netdev
+ * @param  dev - private interface
+ * @retval 0 on success, else -1
+ */
 int netdev_unregister(netdev_handle_t dev)
 {
-	struct netdev *ndev = (struct netdev *) dev;
+	struct netdev *ndev = (struct netdev *)dev;
 
 	if (!ndev) {
-		printf ("Invalid arguments\n");
+		printf("Invalid arguments\n");
 		return STM_FAIL;
 	}
 
@@ -231,26 +224,27 @@ int netdev_unregister(netdev_handle_t dev)
 }
 
 /**
-  * @brief  receive on netdev
-  * @param  dev - private interface
-  *         net_buf - buffer received
-  * @retval 0 on success, else -1
-  */
+ * @brief  receive on netdev
+ * @param  dev - private interface
+ *         net_buf - buffer received
+ * @retval 0 on success, else -1
+ */
 int netdev_rx(netdev_handle_t dev, struct net_pbuf *net_buf)
 {
-	struct netdev *ndev = (struct netdev *) dev;
+	struct netdev *ndev = (struct netdev *)dev;
 	struct network_handle *net_handle;
 
 	if (!ndev || !net_buf) {
-		printf ("Invalid arguments\n");
-        k_msleep(50);
+		printf("Invalid arguments\n");
+		k_msleep(50);
 		return STM_FAIL;
 	}
 
 	if (ndev->state == NETDEV_STATE_UP) {
-		csk_os_queue_send(ndev->rx_q, net_buf, CSK_OS_WAIT_FOREVER); //TODO: check return value
+		csk_os_queue_send(ndev->rx_q, net_buf,
+				  CSK_OS_WAIT_FOREVER); // TODO: check return value
 
-		net_handle = (struct network_handle *) ndev->net_handle;
+		net_handle = (struct network_handle *)ndev->net_handle;
 
 		if (net_handle->net_rx_callback)
 			net_handle->net_rx_callback(net_handle, net_handle->arg);
@@ -273,6 +267,6 @@ done:
 		free(net_buf);
 		net_buf = NULL;
 	}
-    k_msleep(50);
+	k_msleep(50);
 	return STM_FAIL;
 }

@@ -26,13 +26,13 @@ extern "C" {
 
 #include "csk_os_common/csk_os_queue.h"
 
-#define MAX_IF_NAME_SIZE    256
-#define MAX_INTERFACE       2
+#define MAX_IF_NAME_SIZE 256
+#define MAX_INTERFACE	 2
 
-#define NETDEV_STATE_DOWN   0
-#define NETDEV_STATE_UP     1
+#define NETDEV_STATE_DOWN 0
+#define NETDEV_STATE_UP	  1
 
-#define RX_QUEUE_SIZE       CONFIG_HOSTED_NETIF_QUEUE_LEN
+#define RX_QUEUE_SIZE CONFIG_HOSTED_NETIF_QUEUE_LEN
 
 struct network_handle;
 
@@ -50,7 +50,7 @@ struct netdev {
 	struct network_handle *net_handle;
 
 	/* Rx queue */
-  csk_os_queue_t rx_q;
+	csk_os_queue_t rx_q;
 
 	/* Driver priv */
 	void *priv;
@@ -58,40 +58,39 @@ struct netdev {
 
 struct network_handle {
 	struct netdev *ndev;
-	void (* net_rx_callback)();
-    void *arg;
+	void (*net_rx_callback)();
+	void *arg;
 };
 
 /**
-  * @brief  initialize detdev
-  * @param  None
-  * @retval None
-  */
+ * @brief  initialize detdev
+ * @param  None
+ * @retval None
+ */
 void netdev_init();
 
 /**
-  * @brief  open netdev
-  * @param  ndev - netdev
-  * @retval 0 on success
-  */
+ * @brief  open netdev
+ * @param  ndev - netdev
+ * @retval 0 on success
+ */
 int netdev_open(struct netdev *ndev);
 
 /**
-  * @brief  close netdev
-  * @param  ndev - netdev
-  * @retval None
-  */
+ * @brief  close netdev
+ * @param  ndev - netdev
+ * @retval None
+ */
 void netdev_close(struct netdev *ndev);
 
 /**
-  * @brief  get netdev handle from interface name
-  * @param  if_name - interface name
-  * @retval netdev handle
-  */
-struct netdev * netdev_get(char *if_name);
+ * @brief  get netdev handle from interface name
+ * @param  if_name - interface name
+ * @retval netdev handle
+ */
+struct netdev *netdev_get(char *if_name);
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

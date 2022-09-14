@@ -6,7 +6,7 @@
 #include "csk_os_common/csk_os_memory.h"
 #include "csk_os_common/csk_os_thread.h"
 
-#define Z_THREAD_STACK_SIZE_ADJUST(size) \
+#define Z_THREAD_STACK_SIZE_ADJUST(size)                                                           \
 	(ROUND_UP((size), ARCH_STACK_PTR_ALIGN) + K_THREAD_STACK_RESERVED)
 
 typedef struct {
@@ -15,8 +15,8 @@ typedef struct {
 } z_thread_t;
 
 typedef struct thread_handle_delete_item {
-    sys_snode_t node;
-    z_thread_t *delete_handle;
+	sys_snode_t node;
+	z_thread_t *delete_handle;
 } thread_handle_delete_item_t;
 
 static sys_slist_t s_thread_delete_list;
@@ -26,9 +26,9 @@ K_MUTEX_DEFINE(thread_delete_mutex);
 
 static int thread_delete_list_free(void)
 {
-    thread_handle_delete_item_t *entry, *next;
+	thread_handle_delete_item_t *entry, *next;
 	k_mutex_lock(&thread_delete_mutex, K_FOREVER);
-    SYS_SLIST_FOR_EACH_CONTAINER_SAFE(&s_thread_delete_list, entry, next, node) {
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE (&s_thread_delete_list, entry, next, node) {
 		z_thread_t *thread_handle = entry->delete_handle;
 		csk_os_free(thread_handle->stack);
 		thread_handle->stack = NULL;
@@ -37,9 +37,9 @@ static int thread_delete_list_free(void)
 		sys_slist_find_and_remove(&s_thread_delete_list, &entry->node);
 		csk_os_free(entry);
 		entry = NULL;
-    }
+	}
 	k_mutex_unlock(&thread_delete_mutex);
-    return 0;
+	return 0;
 }
 
 void csk_os_thread_yield(void)
@@ -61,13 +61,12 @@ csk_os_thread_t csk_os_thread_get_current(void)
 
 static void zep_thread_entry(void *real_entry, void *real_arg, void *arg3)
 {
-    csk_thread_entry_t thread_handler = real_entry;
-    thread_handler(real_arg);
+	csk_thread_entry_t thread_handler = real_entry;
+	thread_handler(real_arg);
 }
 
-int csk_os_thread_create(csk_os_thread_t *thread, const char *name,
-                          csk_thread_entry_t entry, void *arg,
-                          int priority, uint32_t stackSize)
+int csk_os_thread_create(csk_os_thread_t *thread, const char *name, csk_thread_entry_t entry,
+			 void *arg, int priority, uint32_t stackSize)
 {
 	z_thread_t *z_thread = csk_os_malloc(sizeof(z_thread_t));
 	if (z_thread == NULL) {
@@ -82,11 +81,10 @@ int csk_os_thread_create(csk_os_thread_t *thread, const char *name,
 	}
 
 	k_tid_t tid = k_thread_create(&z_thread->thread, z_thread->stack,
-									Z_THREAD_STACK_SIZE_ADJUST(stackSize),
-                    				&zep_thread_entry, (void *)entry, arg, NULL,
-									priority, 0, K_NO_WAIT);
+				      Z_THREAD_STACK_SIZE_ADJUST(stackSize), &zep_thread_entry,
+				      (void *)entry, arg, NULL, priority, 0, K_NO_WAIT);
 	__ASSERT(tid == &z_thread->thread, "tid not valid");
-	(void) tid;
+	(void)tid;
 	k_thread_name_set(&z_thread->thread, name);
 	*thread = z_thread;
 	return 0;
@@ -109,10 +107,10 @@ int csk_os_thread_delete(csk_os_thread_t thread)
 
 	k_sched_lock();
 	k_tid_t current_tid = k_current_get();
-    if (thread == NULL) {
+	if (thread == NULL) {
 		z_thread = CONTAINER_OF(current_tid, z_thread_t, thread);
 		is_delete_self = true;
-    } else {
+	} else {
 		z_thread = thread;
 		if (k_current_get() == (&z_thread->thread)) {
 			is_delete_self = true;
@@ -121,7 +119,7 @@ int csk_os_thread_delete(csk_os_thread_t thread)
 		}
 	}
 
-	if(is_delete_self) {
+	if (is_delete_self) {
 		k_work_cancel_delayable(&s_thread_delete_work);
 		k_work_reschedule(&s_thread_delete_work, K_MSEC(50));
 		k_sched_unlock();

@@ -33,7 +33,7 @@ extern "C" {
 
 stm_ret_t get_ipaddr_from_str(const char *ip_s, uint32_t *ip_x);
 int ipv4_addr_aton(const unsigned char *cp, uint32_t *ip_uint32);
-char * ipv4_addr_ntoa(const uint32_t addr, char *buf, int buflen);
+char *ipv4_addr_ntoa(const uint32_t addr, char *buf, int buflen);
 stm_ret_t convert_mac_to_bytes(uint8_t *out, const char *s);
 uint8_t is_same_buff(void *buff1, void *buff2, uint16_t len);
 stm_ret_t get_self_ip(int iface_type, uint32_t *self_ip);

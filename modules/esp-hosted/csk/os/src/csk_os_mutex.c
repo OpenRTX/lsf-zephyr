@@ -4,7 +4,7 @@
 #include "csk_os_common/csk_os_mutex.h"
 
 typedef struct {
-	struct k_mutex *mutex;	
+	struct k_mutex *mutex;
 } z_mutex_t;
 
 int csk_os_mutex_create(csk_os_mutex_t *mutex)
@@ -54,8 +54,9 @@ int csk_os_mutex_delete(csk_os_mutex_t mutex)
 int csk_os_mutex_lock(csk_os_mutex_t mutex, uint32_t wait_ms)
 {
 	z_mutex_t *z_mutex = mutex;
-    k_timeout_t timeout = (wait_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER :
-							(wait_ms == 0) ? K_NO_WAIT : K_MSEC(wait_ms);
+	k_timeout_t timeout = (wait_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER
+			      : (wait_ms == 0)		       ? K_NO_WAIT
+							       : K_MSEC(wait_ms);
 	int ret = k_mutex_lock(z_mutex->mutex, timeout);
 	if (ret != 0) {
 		return ret;

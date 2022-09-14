@@ -23,49 +23,50 @@ extern "C" {
 #include "netdev_stub.h"
 
 /**
-  * @brief  init network interface
-  * @param  None
-  * @retval STM_OK/STM_FAIL
-  */
+ * @brief  init network interface
+ * @param  None
+ * @retval STM_OK/STM_FAIL
+ */
 int network_init(void);
 
 /**
-  * @brief  open and return network interface handle
-  * @param  if_name - interfae to open
-  *         net_rx_callback - callback called on incoming data
-  * @retval handle of network interface
-  */
-struct network_handle * network_open(char *if_name, void (* net_rx_callback)(struct network_handle *, void *), void *arg);
+ * @brief  open and return network interface handle
+ * @param  if_name - interfae to open
+ *         net_rx_callback - callback called on incoming data
+ * @retval handle of network interface
+ */
+struct network_handle *
+network_open(char *if_name, void (*net_rx_callback)(struct network_handle *, void *), void *arg);
 
 /**
-  * @brief  read from network interface
-  * @param  handle - network interface handle
-  *         net_rx_callback - callback called on incoming data
-  *         xTicksToWait - wait for time(ms)
-  * @retval buffer read
-  */
-struct net_pbuf * network_read(struct network_handle *handle, uint32_t timeout);
+ * @brief  read from network interface
+ * @param  handle - network interface handle
+ *         net_rx_callback - callback called on incoming data
+ *         xTicksToWait - wait for time(ms)
+ * @retval buffer read
+ */
+struct net_pbuf *network_read(struct network_handle *handle, uint32_t timeout);
 
 /**
-  * @brief  write onnetwork interface
-  * @param  handle - network interface handle
-  *         buffer - buffer to transmit
-  * @retval 0 on success
-  */
+ * @brief  write onnetwork interface
+ * @param  handle - network interface handle
+ *         buffer - buffer to transmit
+ * @retval 0 on success
+ */
 int network_write(struct network_handle *, struct net_pbuf *buffer);
 
 /**
-  * @brief  close network interface
-  * @param  handle - network interface handle
-  * @retval 0 on success
-  */
+ * @brief  close network interface
+ * @param  handle - network interface handle
+ * @retval 0 on success
+ */
 int network_close(struct network_handle *net_handle);
 
 /**
-  * @brief  destroy network interface
-  * @param  None
-  * @retval None
-  */
+ * @brief  destroy network interface
+ * @param  None
+ * @retval None
+ */
 int network_deinit(void);
 #ifdef __cplusplus
 }

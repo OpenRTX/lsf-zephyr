@@ -55,8 +55,9 @@ int csk_os_queue_delete(csk_os_queue_t queue)
 int csk_os_queue_send(csk_os_queue_t queue, const void *item, uint32_t wait_ms)
 {
 	z_msgq_t *z_queue = queue;
-	k_timeout_t timeout = (wait_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER :
-							(wait_ms == 0) ? K_NO_WAIT : K_MSEC(wait_ms);
+	k_timeout_t timeout = (wait_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER
+			      : (wait_ms == 0)		       ? K_NO_WAIT
+							       : K_MSEC(wait_ms);
 	int ret = k_msgq_put(z_queue->msgq, item, timeout);
 	if (ret != 0) {
 		return ret;
@@ -67,8 +68,9 @@ int csk_os_queue_send(csk_os_queue_t queue, const void *item, uint32_t wait_ms)
 int csk_os_queue_receive(csk_os_queue_t queue, void *item, uint32_t wait_ms)
 {
 	z_msgq_t *z_queue = queue;
-	k_timeout_t timeout = (wait_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER :
-							(wait_ms == 0) ? K_NO_WAIT : K_MSEC(wait_ms);
+	k_timeout_t timeout = (wait_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER
+			      : (wait_ms == 0)		       ? K_NO_WAIT
+							       : K_MSEC(wait_ms);
 	int ret = k_msgq_get(z_queue->msgq, item, timeout);
 	if (ret != 0) {
 		return ret;

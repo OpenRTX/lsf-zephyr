@@ -12,8 +12,8 @@ extern "C" {
  *     - periodic timer: Timer will auto-reload after it expires.
  */
 typedef enum {
-    CSK_OS_TIMER_ONESHOT       = 0, /* one shot timer */
-    CSK_OS_TIMER_PERIODIC   = 1  /* periodic timer */
+	CSK_OS_TIMER_ONESHOT = 0, /* one shot timer */
+	CSK_OS_TIMER_PERIODIC = 1 /* periodic timer */
 } csk_os_timer_type_t;
 
 /** @brief Timer expire callback function definition */
@@ -35,8 +35,8 @@ typedef void *csk_os_timer_t;
  * @param[in] period_ms Timer period in milliseconds
  * @retval int, XR_OS_OK on success
  */
-int csk_os_timer_create(csk_os_timer_t *timer, csk_os_timer_type_t type,
-                         csk_os_timer_handler_t cb, void *arg, uint32_t period_ms);
+int csk_os_timer_create(csk_os_timer_t *timer, csk_os_timer_type_t type, csk_os_timer_handler_t cb,
+			void *arg, uint32_t period_ms);
 
 /**
  * @brief Delete the timer object

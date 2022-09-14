@@ -8,19 +8,19 @@ extern "C" {
 #endif
 
 typedef enum {
-    HOSTED_LINK_EVT_ACTIVE                  = BIT(0),
-    HOSTED_WIFI_EVT_AP_STACONNECTED         = BIT(1),
-    HOSTED_WIFI_EVT_AP_STADISCONNECTED      = BIT(2),
-    HOSTED_WIFI_EVT_STA_DISCONNECTED        = BIT(3),
+	HOSTED_LINK_EVT_ACTIVE = BIT(0),
+	HOSTED_WIFI_EVT_AP_STACONNECTED = BIT(1),
+	HOSTED_WIFI_EVT_AP_STADISCONNECTED = BIT(2),
+	HOSTED_WIFI_EVT_STA_DISCONNECTED = BIT(3),
 } hosted_event_t;
 
-typedef void(*hosted_event_cb_t) (hosted_event_t event, void *arg);
+typedef void (*hosted_event_cb_t)(hosted_event_t event, void *arg);
 
 typedef struct hosted_event_callback {
-    sys_snode_t node;
-    hosted_event_cb_t handler;
-    uint32_t events;
-    void *arg;
+	sys_snode_t node;
+	hosted_event_cb_t handler;
+	uint32_t events;
+	void *arg;
 } hosted_event_callback_t;
 
 int hosted_init();

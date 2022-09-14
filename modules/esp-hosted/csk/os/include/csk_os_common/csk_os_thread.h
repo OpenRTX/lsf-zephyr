@@ -58,9 +58,8 @@ csk_os_thread_t csk_os_thread_get_current(void);
  * @param[in] stackSize The number of bytes the thread stack can hold
  * @retval int, XR_OS_OK on success
  */
-int csk_os_thread_create(csk_os_thread_t *thread, const char *name,
-                                    csk_thread_entry_t entry, void *arg,
-                                    int priority, uint32_t stackSize);
+int csk_os_thread_create(csk_os_thread_t *thread, const char *name, csk_thread_entry_t entry,
+			 void *arg, int priority, uint32_t stackSize);
 
 /**
  * @brief Terminate the thread

@@ -22,17 +22,21 @@
 #include "csk_os_common/csk_os_queue.h"
 
 /** Macros / Constants **/
-#define MAX_VHCI_INTF 				1
-#define TO_VHCI_INFT_QUEUE_SIZE 	50
+#define MAX_VHCI_INTF		1
+#define TO_VHCI_INFT_QUEUE_SIZE 50
 
-typedef enum { INIT, ACTIVE, DESTROY } vhci_state_e;
+typedef enum {
+	INIT,
+	ACTIVE,
+	DESTROY
+} vhci_state_e;
 
 typedef struct vhci_handle_s {
-    csk_os_queue_t queue;
+	csk_os_queue_t queue;
 	uint8_t if_type;
 	uint8_t if_num;
 	uint8_t state;
-	void (* hci_rx_callback)(struct vhci_handle_s *, void *);
+	void (*hci_rx_callback)(struct vhci_handle_s *, void *);
 	void *arg;
 } vhci_handle_t;
 
@@ -62,9 +66,8 @@ vhci_handle_t *ble_vhci_open(void (*hci_rx_callback)(struct vhci_handle_s *, voi
 	vhci_hdl->state = INIT;
 	vhci_hdl->hci_rx_callback = hci_rx_callback;
 	vhci_hdl->arg = arg;
-	int ret = csk_os_queue_create(&vhci_hdl->queue,
-									TO_VHCI_INFT_QUEUE_SIZE,
-									sizeof(interface_buffer_handle_t));
+	int ret = csk_os_queue_create(&vhci_hdl->queue, TO_VHCI_INFT_QUEUE_SIZE,
+				      sizeof(interface_buffer_handle_t));
 	if (ret != 0) {
 		csk_os_free(vhci_hdl);
 		return NULL;
@@ -82,7 +85,7 @@ vhci_handle_t *ble_vhci_open(void (*hci_rx_callback)(struct vhci_handle_s *, voi
 static vhci_handle_t *get_vhci_handle(const uint8_t iface_num)
 {
 	if ((iface_num < MAX_VHCI_INTF) && (s_vhci_handle[iface_num]) &&
-			(s_vhci_handle[iface_num]->state == ACTIVE)) {
+	    (s_vhci_handle[iface_num]->state == ACTIVE)) {
 		return s_vhci_handle[iface_num];
 	}
 	return NULL;
@@ -94,8 +97,8 @@ void ble_vhci_close(vhci_handle_t *vhci_hdl)
 		return;
 	}
 	if (vhci_hdl->queue) {
-        csk_os_queue_delete(vhci_hdl->queue);
-        vhci_hdl->queue = NULL;
+		csk_os_queue_delete(vhci_hdl->queue);
+		vhci_hdl->queue = NULL;
 	}
 
 	/* reset connection */
@@ -138,11 +141,11 @@ uint8_t *ble_vhci_read(const vhci_handle_t *vhci_hdl, uint16_t *rlen)
 	 *
 	 * In our example, first approach of blocking read is used.
 	 */
-    int ret = csk_os_queue_receive(vhci_hdl->queue, &buf_handle, 0);
-    if (ret != 0) {
-        printk("[%s] serial queue recv failed \n", __FUNCTION__ );
-        return NULL;
-    }
+	int ret = csk_os_queue_receive(vhci_hdl->queue, &buf_handle, 0);
+	if (ret != 0) {
+		printk("[%s] serial queue recv failed \n", __FUNCTION__);
+		return NULL;
+	}
 
 	/* proceed only if payload and length are sane */
 	if (!buf_handle.payload || !buf_handle.payload_len) {
@@ -182,11 +185,11 @@ int vhci_rx_handler(uint8_t if_num, uint8_t *rxbuff, uint16_t rx_len)
 	buf_handle.free_buf_handle = csk_os_free;
 
 	/* send to vhci queue */
-    int ret = csk_os_queue_send(vhci_hdl->queue, &buf_handle, CSK_OS_WAIT_FOREVER);
-    if (ret != 0) {
-        printk("Failed send vhciif queue[%u]\n\r", if_num);
-        return -1;
-    }
+	int ret = csk_os_queue_send(vhci_hdl->queue, &buf_handle, CSK_OS_WAIT_FOREVER);
+	if (ret != 0) {
+		printk("Failed send vhciif queue[%u]\n\r", if_num);
+		return -1;
+	}
 
 	/* Indicate higher layer about data ready for consumption */
 	if (vhci_hdl->hci_rx_callback) {

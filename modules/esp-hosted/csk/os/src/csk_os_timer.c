@@ -9,14 +9,14 @@ static struct k_work_q xr_ostimer_workq;
 K_THREAD_STACK_DEFINE(xr_ostimer_workq_stack_area, 2048);
 
 typedef struct {
-    struct k_timer timer;   /* Timer handle */
-    struct k_work work;
+	struct k_timer timer; /* Timer handle */
+	struct k_work work;
 	struct k_work_sync work_sync;
-    k_timeout_t period;
-    k_timeout_t duration;
+	k_timeout_t period;
+	k_timeout_t duration;
 	csk_os_timer_type_t timer_type;
-    csk_os_timer_handler_t  callback; /* Timer expire callback function */
-    void *argument; /* Argument of timer expire callback function */
+	csk_os_timer_handler_t callback; /* Timer expire callback function */
+	void *argument;			 /* Argument of timer expire callback function */
 } z_timer_t;
 
 void timer_entry(struct k_timer *timer)
@@ -45,19 +45,16 @@ static void timer_work_handler(struct k_work *work)
  * @param[in] period_ms Timer period in milliseconds
  * @retval OS_Status, OS_OK on success
  */
-int csk_os_timer_create(csk_os_timer_t *timer, csk_os_timer_type_t type,
-                         csk_os_timer_handler_t cb, void *arg, uint32_t period_ms)
+int csk_os_timer_create(csk_os_timer_t *timer, csk_os_timer_type_t type, csk_os_timer_handler_t cb,
+			void *arg, uint32_t period_ms)
 {
 	static bool is_init = false;
-    if (!is_init) {
-        k_work_queue_start(&xr_ostimer_workq,
-                            xr_ostimer_workq_stack_area,
-                            K_THREAD_STACK_SIZEOF(xr_ostimer_workq_stack_area),
-                            2,
-                            NULL);
-        k_thread_name_set(&xr_ostimer_workq.thread, "xr_ostimer_workq");
-        is_init = true;
-    }
+	if (!is_init) {
+		k_work_queue_start(&xr_ostimer_workq, xr_ostimer_workq_stack_area,
+				   K_THREAD_STACK_SIZEOF(xr_ostimer_workq_stack_area), 2, NULL);
+		k_thread_name_set(&xr_ostimer_workq.thread, "xr_ostimer_workq");
+		is_init = true;
+	}
 
 	z_timer_t *z_timer = csk_os_malloc(sizeof(z_timer_t));
 	if (z_timer == NULL) {
@@ -68,12 +65,14 @@ int csk_os_timer_create(csk_os_timer_t *timer, csk_os_timer_type_t type,
 	z_timer->callback = cb;
 	z_timer->argument = arg;
 	if (z_timer->timer_type == CSK_OS_TIMER_ONESHOT) {
-		k_timeout_t wait = (period_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER : K_MSEC(period_ms);
+		k_timeout_t wait =
+			(period_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER : K_MSEC(period_ms);
 		z_timer->duration = wait;
 		z_timer->period = K_NO_WAIT;
 	} else {
-		k_timeout_t wait = (period_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER : K_MSEC(period_ms);
-    	z_timer->duration = wait;
+		k_timeout_t wait =
+			(period_ms == CSK_OS_WAIT_FOREVER) ? K_FOREVER : K_MSEC(period_ms);
+		z_timer->duration = wait;
 		z_timer->period = wait;
 	}
 
@@ -87,8 +86,8 @@ int csk_os_timer_create(csk_os_timer_t *timer, csk_os_timer_type_t type,
 
 int csk_os_timer_start(csk_os_timer_t timer)
 {
-    z_timer_t *z_timer = timer;
-    k_timer_start(&z_timer->timer, z_timer->duration, z_timer->period);
+	z_timer_t *z_timer = timer;
+	k_timer_start(&z_timer->timer, z_timer->duration, z_timer->period);
 	return 0;
 }
 
@@ -108,11 +107,10 @@ int csk_os_timer_delete(csk_os_timer_t timer)
 //     z_timer_t *timer_handle = timer->handle;
 
 // 	if (timer_handle->timer_type == CSK_OS_TIMER_ONESHOT) {
-// 		k_timeout_t wait = (period_ms == XR_OS_WAIT_FOREVER) ? K_FOREVER : K_MSEC(period_ms);
-// 		timer_handle->duration = wait;
-// 		timer_handle->period = K_NO_WAIT;
-// 	} else {
-// 		k_timeout_t wait = (period_ms == XR_OS_WAIT_FOREVER) ? K_FOREVER : K_MSEC(period_ms);
+// 		k_timeout_t wait = (period_ms == XR_OS_WAIT_FOREVER) ? K_FOREVER :
+// K_MSEC(period_ms); 		timer_handle->duration = wait; 		timer_handle->period = K_NO_WAIT; 	} else {
+// 		k_timeout_t wait = (period_ms == XR_OS_WAIT_FOREVER) ? K_FOREVER :
+// K_MSEC(period_ms);
 //     	timer_handle->duration = wait;
 // 		timer_handle->period = wait;
 // 	}
@@ -124,14 +122,14 @@ int csk_os_timer_delete(csk_os_timer_t timer)
 
 int csk_os_timer_stop(csk_os_timer_t timer)
 {
-    z_timer_t *z_timer = timer;
+	z_timer_t *z_timer = timer;
 	k_work_cancel(&z_timer->work);
-    k_timer_stop(&z_timer->timer);
+	k_timer_stop(&z_timer->timer);
 	return 0;
 }
 
 int csk_os_timer_get_status(csk_os_timer_t timer)
 {
-    z_timer_t *z_timer = timer;
-    return k_timer_remaining_ticks(&z_timer->timer) > 0;
+	z_timer_t *z_timer = timer;
+	return k_timer_remaining_ticks(&z_timer->timer) > 0;
 }

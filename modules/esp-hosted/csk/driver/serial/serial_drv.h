@@ -25,7 +25,7 @@ extern "C" {
 #include "serial_ll_if.h"
 
 /** Exported Functions **/
-static inline stm_ret_t serial_rx_handler(interface_buffer_handle_t * buf_handle)
+static inline stm_ret_t serial_rx_handler(interface_buffer_handle_t *buf_handle)
 {
 	return serial_ll_rx_handler(buf_handle);
 }

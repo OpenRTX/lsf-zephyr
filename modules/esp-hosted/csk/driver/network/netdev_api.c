@@ -18,28 +18,28 @@
 #include "netdev_api.h"
 #include "csk_os_common/csk_os_memory.h"
 
-#define malloc	csk_os_malloc
-#define free 	csk_os_free
+#define malloc csk_os_malloc
+#define free   csk_os_free
 
 /**
-  * @brief  init network interface
-  * @param  None
-  * @retval STM_OK/STM_FAIL
-  */
+ * @brief  init network interface
+ * @param  None
+ * @retval STM_OK/STM_FAIL
+ */
 int network_init(void)
 {
 	netdev_init();
 	return STM_OK;
 }
 
-
 /**
-  * @brief  open and return network interface handle
-  * @param  if_name - interfae to open
-  *         net_rx_callback - callback called on incoming data
-  * @retval handle of network interface
-  */
-struct network_handle * network_open(char *if_name, void (* net_rx_callback)(struct network_handle *, void *), void *arg)
+ * @brief  open and return network interface handle
+ * @param  if_name - interfae to open
+ *         net_rx_callback - callback called on incoming data
+ * @retval handle of network interface
+ */
+struct network_handle *
+network_open(char *if_name, void (*net_rx_callback)(struct network_handle *, void *), void *arg)
 {
 	struct netdev *ndev = NULL;
 	struct network_handle *net_handle = NULL;
@@ -50,7 +50,7 @@ struct network_handle * network_open(char *if_name, void (* net_rx_callback)(str
 	ndev = netdev_get(if_name);
 
 	if (!ndev) {
-		printf ("Invalid interface name\n");
+		printf("Invalid interface name\n");
 		return NULL;
 	}
 
@@ -59,10 +59,10 @@ struct network_handle * network_open(char *if_name, void (* net_rx_callback)(str
 
 	net_handle->ndev = ndev;
 	net_handle->net_rx_callback = net_rx_callback;
-    net_handle->arg = arg;
+	net_handle->arg = arg;
 
 	if (netdev_open(ndev)) {
-		printf ("Failed to setup netdev\n");
+		printf("Failed to setup netdev\n");
 		free(net_handle);
 		return NULL;
 	}
@@ -72,15 +72,14 @@ struct network_handle * network_open(char *if_name, void (* net_rx_callback)(str
 	return net_handle;
 }
 
-
 /**
-  * @brief  read from network interface
-  * @param  handle - network interface handle
-  *         net_rx_callback - callback called on incoming data
-  *         xTicksToWait - wait for ticks
-  * @retval buffer read
-  */
-struct net_pbuf * network_read(struct network_handle *handle, uint32_t timeout)
+ * @brief  read from network interface
+ * @param  handle - network interface handle
+ *         net_rx_callback - callback called on incoming data
+ *         xTicksToWait - wait for ticks
+ * @retval buffer read
+ */
+struct net_pbuf *network_read(struct network_handle *handle, uint32_t timeout)
 {
 	struct net_pbuf *buffer = NULL;
 
@@ -97,13 +96,12 @@ struct net_pbuf * network_read(struct network_handle *handle, uint32_t timeout)
 	return buffer;
 }
 
-
 /**
-  * @brief  write onnetwork interface
-  * @param  handle - network interface handle
-  *         buffer - buffer to transmit
-  * @retval 0 on success
-  */
+ * @brief  write onnetwork interface
+ * @param  handle - network interface handle
+ *         buffer - buffer to transmit
+ * @retval 0 on success
+ */
 int network_write(struct network_handle *net_handle, struct net_pbuf *buffer)
 {
 	struct netdev *ndev;
@@ -123,12 +121,11 @@ int network_write(struct network_handle *net_handle, struct net_pbuf *buffer)
 	return ret;
 }
 
-
 /**
-  * @brief  close network interface
-  * @param  handle - network interface handle
-  * @retval 0 on success
-  */
+ * @brief  close network interface
+ * @param  handle - network interface handle
+ * @retval 0 on success
+ */
 int network_close(struct network_handle *net_handle)
 {
 	netdev_close(net_handle->ndev);
@@ -138,12 +135,11 @@ int network_close(struct network_handle *net_handle)
 	return STM_OK;
 }
 
-
 /**
-  * @brief  destroy network interface
-  * @param  None
-  * @retval None
-  */
+ * @brief  destroy network interface
+ * @param  None
+ * @retval None
+ */
 int network_deinit(void)
 {
 	return STM_OK;

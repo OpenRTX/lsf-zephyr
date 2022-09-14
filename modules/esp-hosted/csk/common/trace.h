@@ -24,9 +24,14 @@ extern "C" {
 #include "stdio.h"
 
 /** constants/macros **/
-#define DEBUG_HEX_STREAM_PRINT            0
-#define hosted_assert(x) do { if (!(x)) { \
-	printf("Aborting at: %s:%u\n", __FILE__, __LINE__); while(1);}} while (0);
+#define DEBUG_HEX_STREAM_PRINT 0
+#define hosted_assert(x)                                                                           \
+	do {                                                                                       \
+		if (!(x)) {                                                                        \
+			printf("Aborting at: %s:%u\n", __FILE__, __LINE__);                        \
+			while (1);                                                                 \
+		}                                                                                  \
+	} while (0)
 
 /** Exported Structures **/
 
@@ -42,4 +47,3 @@ void print_hex_dump(uint8_t *buff, uint16_t rx_len, char *human_str);
 #endif
 
 #endif
-

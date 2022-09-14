@@ -26,23 +26,20 @@ extern "C" {
 #include "stddef.h"
 
 /** Constants/Macros **/
-#define UNUSED_VAR(x)                     (void)(x);
-#define MAX_SPI_BUFFER_SIZE               1600
+#define UNUSED_VAR(x)	    (void)(x);
+#define MAX_SPI_BUFFER_SIZE 1600
 
-#define htole16(x)                        ((uint16_t)(x))
-#define le16toh(x)                        ((uint16_t)(x))
+#define htole16(x) ((uint16_t)(x))
+#define le16toh(x) ((uint16_t)(x))
 
-#define IP_ADDR_LEN				          4
-#define MAC_LEN                           6
-#define MIN_MAC_STRING_LEN                17
-
-
+#define IP_ADDR_LEN	   4
+#define MAC_LEN		   6
+#define MIN_MAC_STRING_LEN 17
 
 typedef enum stm_ret_s {
 	STM_FAIL = -1,
 	STM_OK = 0
-}stm_ret_t;
-
+} stm_ret_t;
 
 /** Exported Structures **/
 /* interface header */
@@ -63,14 +60,14 @@ typedef struct {
 /** Exported variables **/
 
 /** Exported Functions **/
-uint16_t hton_short (uint16_t x);
-uint32_t hton_long (uint32_t x);
+uint16_t hton_short(uint16_t x);
+uint32_t hton_long(uint32_t x);
 
-#define ntoh_long hton_long
+#define ntoh_long  hton_long
 #define ntoh_short hton_short
 
-typedef unsigned char   u_char;
-typedef unsigned long   u_long;
+typedef unsigned char u_char;
+typedef unsigned long u_long;
 
 void hard_delay(int x);
 int min(int x, int y);
@@ -81,4 +78,3 @@ int get_num_from_string(int *val, char *arg);
 #endif
 
 #endif
-
