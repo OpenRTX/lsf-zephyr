@@ -1,6 +1,7 @@
 #pragma once
 
-#include "commands.h"
+#include "ctrl_api.h"
+#include "platform_wrapper.h"
 
 #ifdef __cplusplus
 extern "C" {
