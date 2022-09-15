@@ -173,7 +173,7 @@ const struct device * wifi_obj_get_dev(csk_wifi_mode_t mode);
 #ifdef CONFIG_XR819S
 int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts, bool async_mode);
 #else 
-int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts);
+int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts, bool async_mode);
 #endif
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout);
 
