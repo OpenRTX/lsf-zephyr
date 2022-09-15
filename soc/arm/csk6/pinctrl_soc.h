@@ -36,21 +36,22 @@ typedef struct pinctrl_soc_pin {
  * @param node_id Node identifier.
  */
 #define Z_PINCTRL_CSK6_PICTRL_INIT(node_id)      \
-	DEVICE_DT_GET(DT_PHANDLE(node_id, pinctrls))
+    DEVICE_DT_GET_OR_NULL(DT_PHANDLE(node_id, pinctrls))
+
 /**
  * @brief Utility macro to initialize pin of pinmux field in #pinctrl_pin_t.
  *
  * @param node_id Node identifier.
  */
 #define Z_PINCTRL_CSK6_PIN_INIT(node_id)          \
-	DT_PHA(node_id, pinctrls, pin)
+	DT_PHA_OR(node_id, pinctrls, pin, 0)
 /**
  * @brief Utility macro to initialize alt_func of pinmux field in #pinctrl_pin_t.
  *
  * @param node_id Node identifier.
  */
 #define Z_PINCTRL_CSK6_ALT_INIT(node_id)          \
-	DT_PHA(node_id, pinctrls, alt_func)
+	DT_PHA_OR(node_id, pinctrls, alt_func, 0)
 
 /**
  * @brief Utility macro to initialize each pin.

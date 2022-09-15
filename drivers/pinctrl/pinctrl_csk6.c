@@ -10,6 +10,10 @@
 
 static int csk6_pin_configure(const struct device *pinctrls, uint8_t pin, uint8_t alt_fun)
 {
+	if(pinctrls == NULL){
+		return 0;
+	}
+	
 	pinmux_pin_set(pinctrls, pin, alt_fun);		
 
 	return 0;		
