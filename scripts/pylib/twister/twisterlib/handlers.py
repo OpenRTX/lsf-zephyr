@@ -4,6 +4,7 @@
 # Copyright (c) 20180-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from cmath import log
 import math
 import os
 import sys
@@ -195,6 +196,7 @@ class BinaryHandler(Handler):
                 logger.debug("OUTPUT: {0}".format(line.decode('utf-8').rstrip()))
                 log_out_fp.write(line.decode('utf-8'))
                 log_out_fp.flush()
+                logger.debug("file:handlers, line: 198");
                 harness.handle(line.decode('utf-8').rstrip())
                 if harness.state:
                     if not timeout_extended or harness.capture_coverage:
@@ -315,6 +317,7 @@ class DeviceHandler(Handler):
 
         @param instance Test Instance
         """
+        self.seiral_available = False
         super().__init__(instance, type_str)
 
     def monitor_serial(self, ser, halt_fileno, harness):
@@ -333,8 +336,11 @@ class DeviceHandler(Handler):
             # from the test.
             harness.capture_coverage = True
 
-        ser.flush()
+        while  self.seiral_available == False:
+            time.sleep(1)
 
+        logger.debug(f"self.seiral_available: {self.seiral_available}");
+        ser.flush()
         while ser.isOpen():
             readable, _, _ = select.select(readlist, [], [], self.timeout)
 
@@ -363,6 +369,7 @@ class DeviceHandler(Handler):
 
                 log_out_fp.write(sl)
                 log_out_fp.flush()
+                logger.debug("file:handlers, line: 367");
                 harness.handle(sl.rstrip())
 
             if harness.state:
@@ -416,7 +423,7 @@ class DeviceHandler(Handler):
 
         hardware = self.device_is_available(self.instance)
         while not hardware:
-            logger.debug("Waiting for device {} to become available".format(self.instance.platform.name))
+        #    logger.debug("Waiting for device {} to become available".format(self.instance.platform.name))
             time.sleep(1)
             hardware = self.device_is_available(self.instance)
 
@@ -530,12 +537,11 @@ class DeviceHandler(Handler):
         # turns out the ser.flush() is not enough to clear serial leftover from last case
         # explicitly readline() can do it reliably
         old_timeout = ser.timeout
-        ser.timeout = 1 # wait for 1s if no serial output
+        ser.timeout = 3 # wait for 1s if no serial output
         leftover_lines = ser.readlines(1000) # or read 1000 lines at most
         for line in leftover_lines:
             logger.debug(f"leftover log of previous test: {line}")
         ser.timeout = old_timeout
-
 
         harness_name = self.instance.testsuite.harness.capitalize()
         harness_import = HarnessImporter(harness_name)
@@ -555,8 +561,13 @@ class DeviceHandler(Handler):
             stdout = stderr = None
             with subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
                 try:
+                    logger.debug("##### BEFORE (stdout, stderr) = proc.communicate(timeout=180) #####")
+                    time.sleep(0.1)
+                    self.seiral_available = True
+                    logger.debug(f"set seiral_available to {self.seiral_available}");
                     (stdout, stderr) = proc.communicate(timeout=180)
                     # ignore unencodable unicode chars
+                    logger.debug("##### AFTER (stdout, stderr) = proc.communicate(timeout=180) #####")
                     logger.debug(stdout.decode(errors = "ignore"))
 
                     if proc.returncode != 0:
