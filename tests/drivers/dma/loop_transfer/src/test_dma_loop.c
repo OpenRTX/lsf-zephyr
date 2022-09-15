@@ -191,7 +191,7 @@ static int test_loop(void)
 	TC_PRINT("Each RX buffer should contain the full TX buffer string.\n");
 
 	for (int i = 0; i < TRANSFER_LOOPS; i++) {
-		TC_PRINT("RX data Loop %d: %s\n", i, rx_data[i]);
+		//TC_PRINT("RX data Loop %d: %s\n", i, rx_data[i]);
 		if (strncmp(tx_data, rx_data[i], sizeof(rx_data[i])) != 0) {
 			return TC_FAIL;
 		}
@@ -332,7 +332,7 @@ static int test_loop_suspend_resume(void)
 	TC_PRINT("Each RX buffer should contain the full TX buffer string.\n");
 
 	for (int i = 0; i < TRANSFER_LOOPS; i++) {
-		TC_PRINT("RX data Loop %d: %s\n", i, rx_data[i]);
+		//TC_PRINT("RX data Loop %d: %s\n", i, rx_data[i]);
 		if (strncmp(tx_data, rx_data[i], sizeof(rx_data[i])) != 0) {
 			return TC_FAIL;
 		}

@@ -195,6 +195,7 @@ class BinaryHandler(Handler):
                 logger.debug("OUTPUT: {0}".format(line.decode('utf-8').rstrip()))
                 log_out_fp.write(line.decode('utf-8'))
                 log_out_fp.flush()
+                logger.debug("file:handlers, line: 198");
                 harness.handle(line.decode('utf-8').rstrip())
                 if harness.state:
                     if not timeout_extended or harness.capture_coverage:
@@ -315,6 +316,7 @@ class DeviceHandler(Handler):
 
         @param instance Test Instance
         """
+        self.seiral_available = False
         super().__init__(instance, type_str)
 
     def monitor_serial(self, ser, halt_fileno, harness):
@@ -333,6 +335,14 @@ class DeviceHandler(Handler):
             # from the test.
             harness.capture_coverage = True
 
+        origin_timeout = ser.timeout
+        ser.timeout = 1
+        while self.seiral_available == False:
+            ser.readlines(1000)
+            time.sleep(1)
+        ser.timeout = origin_timeout
+
+        logger.debug(f"self.seiral_available: {self.seiral_available}");
         ser.flush()
 
         while ser.isOpen():
@@ -416,7 +426,7 @@ class DeviceHandler(Handler):
 
         hardware = self.device_is_available(self.instance)
         while not hardware:
-            logger.debug("Waiting for device {} to become available".format(self.instance.platform.name))
+        #    logger.debug("Waiting for device {} to become available".format(self.instance.platform.name))
             time.sleep(1)
             hardware = self.device_is_available(self.instance)
 
@@ -551,13 +561,19 @@ class DeviceHandler(Handler):
         d_log = "{}/device.log".format(self.instance.build_dir)
         logger.debug('Flash command: %s', command)
         flash_error = False
+        self.seiral_available = False
         try:
             stdout = stderr = None
             with subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
                 try:
+                    logger.debug("##### BEFORE (stdout, stderr) = proc.communicate(timeout=180) #####")
+                #    time.sleep(0.1)
+                    self.seiral_available = True
+                    logger.debug(f"set seiral_available to {self.seiral_available}");
                     (stdout, stderr) = proc.communicate(timeout=180)
                     # ignore unencodable unicode chars
                     logger.debug(stdout.decode(errors = "ignore"))
+                    logger.debug("##### AFTER (stdout, stderr) = proc.communicate(timeout=180) #####")
 
                     if proc.returncode != 0:
                         self.instance.status = "error"
