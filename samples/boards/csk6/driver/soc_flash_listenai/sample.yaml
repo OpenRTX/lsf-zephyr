@@ -3,7 +3,7 @@ sample:
 
 tests:
   sample.board.csk6.driver.soc_flash_listenai:
-    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_9s_nano
+    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_nano
     tags: csk6
     timeout: 30
     harness: console
@@ -22,4 +22,4 @@ tests:
         -  "Data read: 1234"
         -  "Data read matches data written. Good!"
         -  "SoC flash consists of \\d+ pages."
-        -  "write-block-size = 1"
+        -  "write-block-size"
