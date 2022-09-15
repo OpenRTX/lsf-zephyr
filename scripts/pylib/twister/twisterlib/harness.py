@@ -272,6 +272,7 @@ class Test(Harness):
 
         if match and match.group(2):
             name = "{}.{}".format(self.id, match.group(3))
+            logger.debug("func:harness, line: 275");
             tc = self.instance.get_case_or_create(name)
 
             matched_status = match.group(1)

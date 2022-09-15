@@ -711,6 +711,7 @@ class ProjectBuilder(FilterBuilder):
                     self.defconfig['CONFIG_FAKE_ENTROPY_NATIVE_POSIX'] == 'y'):
                     instance.handler.seed = self.options.seed
 
+            logger.debug("func:run, line: 714");
             instance.handler.handle()
 
         sys.stdout.flush()
