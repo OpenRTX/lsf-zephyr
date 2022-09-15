@@ -1,4 +1,4 @@
-&csk6011a_9s_nano_pinctrl{
+&csk6011a_nano_pinctrl{
     pinctrl_uart0_rx_default: uart0_rx_default{
         pinctrls = <&pinmuxa 6 2>;              //rx pin
     };
