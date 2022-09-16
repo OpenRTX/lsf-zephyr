@@ -1,5 +1,5 @@
 tests:
-  drivers.boards.csk6.wifi:
+  tests.boards.listenai_csk6.wifi:
     depends_on: csk_wifi
     tags: drivers csk_wifi
     platform_allow: csk6002_9s_nano csk6002_c3_nano
