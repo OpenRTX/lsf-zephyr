@@ -2,14 +2,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
  / {
-	 chosen {
-		 /*
-		  * shared memory reserved for the inter-processor communication
-		  */
-		 zephyr,ipc_shm = &psram_share;
-		 zephyr,ipc = &mailbox0;
-	 };
- 
- };
- 
- 
+	chosen {
+		/*
+		 * shared memory reserved for the inter-processor communication
+		 */
+		zephyr,ipc_shm = &psram_share;
+		zephyr,ipc = &mailbox0;
+	};
+
+	aliases {
+		avf-audio-pwr-amp = &pwr_amp;
+	};
+	pwr_amp:audio_pwr_amp{
+		compatible = "listenai,pwr-amp";
+		enable-gpios = <&gpioa 4 1>;
+		label = "audio_pwr_amp";	
+		status = "okay";
+	};
+
+};
+
