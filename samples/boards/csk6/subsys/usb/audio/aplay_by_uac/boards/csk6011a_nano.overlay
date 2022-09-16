@@ -1,39 +1,50 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  */
-
-#define MICROPHONE    0x0201
-#define DESKTOP_MIC   0x0202
-#define PERSONAL_MIC  0x0203
-
-#define SPEAKER        0x0301
-#define HEADPHONES     0x0302
-#define HEAD_AUDIO     0x0303
-
-&zephyr_udc0 {
-	hs_0 {
-		label = "HEADSET";
-		compatible = "usb-audio-hs";
-		mic-feature-mute;
-		mic-channel-c;
-		mic-device-type = <MICROPHONE>;
-
-		hp-feature-mute;
-		hp-channel-c;
-		hp-feature-volume;
-		hp-device-type = <SPEAKER>;
-	};
-};
-
- / {
-	 chosen {
-		 /*
-		  * shared memory reserved for the inter-processor communication
-		  */
-		 zephyr,ipc_shm = &psram_share;
-		 zephyr,ipc = &mailbox0;
-	 };
+ #define MICROPHONE    0x0201
+ #define DESKTOP_MIC   0x0202
+ #define PERSONAL_MIC  0x0203
  
+ #define SPEAKER        0x0301
+ #define HEADPHONES     0x0302
+ #define HEAD_AUDIO     0x0303
+ 
+ &zephyr_udc0 {
+	 hs_0 {
+		 label = "HEADSET";
+		 compatible = "usb-audio-hs";
+		 mic-feature-mute;
+		 mic-channel-c;
+		 mic-device-type = <MICROPHONE>;
+ 
+		 hp-feature-mute;
+		 hp-channel-c;
+		 hp-feature-volume;
+		 hp-device-type = <SPEAKER>;
+	 };
  };
  
  
+  / {
+	  chosen {
+		  /*
+		   * shared memory reserved for the inter-processor communication
+		   */
+		  zephyr,ipc_shm = &psram_share;
+		  zephyr,ipc = &mailbox0;
+	  };
+  
+	  aliases {
+		  avf-audio-pwr-amp = &pwr_amp;
+	  };
+	  pwr_amp:audio_pwr_amp{
+		  compatible = "listenai,pwr-amp";
+		  enable-gpios = <&gpioa 4 1>;
+		  label = "audio_pwr_amp";	
+		  status = "okay";
+	  };
+  
+  };
+  
+  
+  
