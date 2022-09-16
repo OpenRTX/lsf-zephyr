@@ -2,6 +2,6 @@ sample:
   name: lowpower Sample
 tests:
   sample.board.csk6.subsys.lowpower:
-    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_9s_nano
+    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_nano
     build_only: true
     tags: csk6

@@ -4,7 +4,7 @@
  * Copyright (c) 2021 STMicroelectronics
  */
 
-&csk6011a_9s_nano_pinctrl{
+&csk6011a_nano_pinctrl{
                 /* ADC alternate function */
                 pinctrl_adc0_ch0_default: adc0_ch0_default{
 
