@@ -12,13 +12,26 @@
 
 #define MASTER_MODE 1
 #define BUF_SIZE 9
+
 #if MASTER_MODE
 uint8_t master_buffer_tx[BUF_SIZE] = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-uint8_t master_buffer_rx[BUF_SIZE] = {};
+
+#if (CONFIG_SPI_RX_DMA == 1) & (CONFIG_NOCACHE_MEMORY == 1)
+uint8_t master_buffer_rx[BUF_SIZE] __attribute__((section(".nocache"))) = {0};
 #else
+uint8_t *master_buffer_rx = NULL;
+#endif /* end of (CONFIG_SPI_RX_DMA == 1) & (CONFIG_NOCACHE_MEMORY == 1) */
+
+#else
+
 uint8_t slave_buffer_tx[BUF_SIZE] = { 9, 8, 7, 6, 5, 4, 3, 2, 1 };
-uint8_t slave_buffer_rx[BUF_SIZE] = {};
-#endif
+#ifdef (CONFIG_SPI_RX_DMA == 1) & (CONFIG_NOCACHE_MEMORY == 1)
+uint8_t slave_buffer_rx[BUF_SIZE] __attribute__((section(".nocache"))) = {0};
+#else
+uint8_t *slave_buffer_rx = NULL;
+#endif /* end of (CONFIG_SPI_RX_DMA == 1) & (CONFIG_NOCACHE_MEMORY == 1) */
+
+#endif /* end of MASTER_MODE */
 
 #define MASTER_STACK_SIZE 4096
 #define SLAVE_STACK_SIZE 4096
@@ -70,6 +83,20 @@ int spi_slave_init(void)
 void master_thread(void *v1, void *v2, void *v3)
 {
 	struct spi_config spi_cfg = { 0 };
+
+	if (master_buffer_rx == NULL) {
+#ifdef CONFIG_SPI_RX_DMA
+		master_buffer_rx = k_malloc(BUF_SIZE);
+#else
+		master_buffer_rx = k_aligned_alloc(32, BUF_SIZE);
+#endif
+	}
+
+	if (master_buffer_rx == NULL) {
+		printk("memaster_buffer_rx: memory alloc failed\n");
+		return;
+	}
+
 	const struct spi_buf tx_bufs[] = {
 		{
 			.buf = master_buffer_tx,
@@ -105,6 +132,20 @@ void master_thread(void *v1, void *v2, void *v3)
 void slave_thread(void *v1, void *v2, void *v3)
 {
 	struct spi_config spi_cfg = { 0 };
+
+	if (slave_buffer_rx == NULL) {
+#ifdef CONFIG_SPI_RX_DMA
+		slave_buffer_rx = k_malloc(BUF_SIZE);
+#else
+		slave_buffer_rx = k_aligned_alloc(32, BUF_SIZE);
+#endif
+	}
+
+	if (slave_buffer_rx == NULL) {
+		printk("memaster_buffer_rx: memory alloc failed\n");
+		return;
+	}
+
 	const struct spi_buf tx_bufs[] = {
 		{
 			.buf = slave_buffer_tx,
