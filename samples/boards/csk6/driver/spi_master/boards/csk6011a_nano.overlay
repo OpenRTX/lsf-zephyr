@@ -1,6 +1,6 @@
 
 
-&csk6011a_9s_nano_pinctrl{
+&csk6011a_nano_pinctrl{
             /* SPIC alternate function */
             pinctrl_spi0_cs_default: spi0_cs_default{
                     pinctrls = <&pinmuxa 20 6>;
