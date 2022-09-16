@@ -4068,7 +4068,10 @@ class HardwareMap:
             runner = dut.get('runner')
             serial = dut.get('serial')
             product = dut.get('product')
-            fixtures = dut.get('fixtures', [])
+            fixtures = dut.get('fixtures', [])            
+            connected= dut.get('connected') and ((serial) is not None)
+            if not connected:
+                continue
             new_dut = DUT(platform=platform,
                           product=product,
                           runner=runner,
