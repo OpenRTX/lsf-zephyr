@@ -87,6 +87,10 @@ static int entropy_csk6_get_entropy(const struct device *dev, uint8_t *buffer,
 	struct entropy_csk6_data *data = DEV_DATA(dev);
 	int ret;
 
+	if(0 == length){
+		return -EINVAL;		
+	}
+
 	k_sem_take(&data->sem_lock, K_FOREVER);
 	ret = csk6_get_trng(dev, buffer, length);
 	k_sem_give(&data->sem_lock);
@@ -103,6 +107,10 @@ static int entropy_csk6_get_entropy_isr(const struct device *dev,
 	int ret;
 	unsigned int key;
 	uint16_t cnt = length;
+
+	if(0 == length){
+		return -EINVAL;		
+	}
 
 	if ((flags & ENTROPY_BUSYWAIT) == ENTROPY_BUSYWAIT) {
 
