@@ -7,10 +7,9 @@
 #define DT_DRV_COMPAT listenai_csk_i2c
 
 #include <drivers/i2c.h>
-#include <drivers/pinmux.h>
 #include "hal/Driver_I2C.h"
 #include "hal/i2c.h"
-#include <soc_dt.h>
+#include <zephyr/drivers/pinctrl.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(i2c_csk);
@@ -34,8 +33,7 @@ struct i2c_csk_config {
 	I2C_RegDef *base;
 	void (*irq_config_func)(const struct device *dev);
 	/* I2C alternate configuration */
-	const struct csk6_pinctrl_cfg *pinctrl_list;
-	uint8_t pinctrl_list_size;
+	const struct pinctrl_dev_config *pcfg;
 };
 
 struct i2c_csk_data {
@@ -277,7 +275,7 @@ static int i2c_csk_init(const struct device *dev)
 	I2C_Initialize(I2C_Handler, i2c_csk_event_cb, data);
 	I2C_PowerControl(I2C_Handler, CSK_POWER_FULL);
 
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	/* IRQ_CONNECT and irq_enable */
 	config->irq_config_func(dev);
@@ -303,16 +301,12 @@ static const struct i2c_driver_api i2c_csk_driver_api = {
 
 #define I2C_DEVICE_INIT_CSK(n)                                                                     	\
 	static void i2c_csk_config_func_##n(const struct device *dev);                             		\
-																									\
-	static const struct csk6_pinctrl_cfg                                       						\
-		i2c_alts_##n[DT_INST_NUM_PINCTRLS_BY_IDX(n, 0)] =          									\
-			CSK6_DT_ALT_ITEMS_LIST(n);                        										\
+	PINCTRL_DT_INST_DEFINE(n);                                                                  \
                                                                                                    	\
 	static const struct i2c_csk_config i2c_csk_config_##n = {                                  		\
 		.base = (I2C_RegDef *)DT_INST_REG_ADDR(n),                                         \
 		.irq_config_func = i2c_csk_config_func_##n,                                        \
-		.pinctrl_list = i2c_alts_##n, 													   \
-		.pinctrl_list_size = ARRAY_SIZE(i2c_alts_##n),									   \
+		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),      								   \
 	};                	                                                                         \
                                                                                                    \
 	K_EVENT_DEFINE(csk6_i2c_event_##n);															\
