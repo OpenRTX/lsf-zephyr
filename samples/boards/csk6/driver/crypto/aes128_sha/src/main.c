@@ -5,7 +5,7 @@
 #include <device.h>
 #include <zephyr.h>
 #include <string.h>
-#include "crypto/crypto.h"
+#include <crypto/crypto.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
@@ -13,8 +13,10 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(crypto), okay)
 #define CRYPTO_DRV_NAME DT_NODELABEL(crypto)
 #else
-#error "can't find crypto"
+#error "can't find crypto dev"
 #endif
+
+uint32_t cap_flags;
 uint8_t test1[] = {};
 uint8_t test2[] = { 0xbd };
 uint8_t test3[] = { 0x5f, 0xd4 };
@@ -141,7 +143,7 @@ static void print_buffer_comparison(uint8_t *wanted_result, uint8_t *result, siz
 	printk("\n");
 }
 
-void sha_mode(const struct device *dev)
+void hash_mode(const struct device *dev)
 {
 	int ret;
 	struct hash_ctx ctx;
@@ -149,7 +151,6 @@ void sha_mode(const struct device *dev)
 	ctx.flags = CAP_SYNC_OPS | CAP_SEPARATE_IO_BUFS;
 
 	ret = hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256);
-	zassert_true(ret == 0, "Failed to init sha256 session");
 
 #define TEST_HASH(_i)                                                                              \
 	do {                                                                                       \
@@ -182,7 +183,7 @@ void main(void)
 		return;
 	}
 
-	LOG_INF("SHA128 HASH Cipher Sample");
+	LOG_INF("AES128 HASH Cipher Sample");
 
-	sha_mode(dev);
+	hash_mode(dev);
 }

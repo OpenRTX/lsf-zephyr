@@ -1,5 +1,5 @@
 tests:
-  sample.board.csk6.driver.crypto.aes128_ecb:
+  sample.board.csk6.driver.crypto.aes128_sha:
     platform_allow: csk6002_c3_nano csk6002_9s_nano
     tags: csk6
     timeout: 10
@@ -8,8 +8,8 @@ tests:
       type: multi_line
       ordered: true
       regex:
-        - "Output length \\(encryption\\): 16"
-        - "ECB mode ENCRYPT - Match"
-        - "Output length \\(decryption\\): 16"
-        - "ECB mode DECRYPT - Match"
+        - "Output length \\(encryption\\): 32"
+        - "CBC mode ENCRYPT - Match"
+        - "Output length \\(decryption\\): 32"
+        - "CBC mode DECRYPT - Match"
 
