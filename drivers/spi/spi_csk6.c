@@ -9,8 +9,7 @@
 #include <errno.h>
 #include <drivers/spi.h>
 #include <drivers/clock_control.h>
-#include <drivers/pinmux.h>
-#include <soc_dt.h>
+#include <zephyr/drivers/pinctrl.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(csk6_spi, CONFIG_SPI_LOG_LEVEL);
@@ -40,8 +39,7 @@ struct csk_spi_config {
 	char *label;
 	void (*irq_config_func)(const struct device *dev);
 	/* SPI alternate configuration */
-    const struct csk6_pinctrl_cfg *pinctrl_list;
-    uint8_t pinctrl_list_size;
+	const struct pinctrl_dev_config *pcfg;
 };
 
 static void *spi_csk_get_ctx(const struct device *dev)
@@ -326,7 +324,7 @@ static int spi_csk_init(const struct device *dev)
 	SPI_Initialize(data->driver_context, csk_spi_isr_callback, (uint32_t)dev);
 	SPI_PowerControl(data->driver_context, CSK_POWER_FULL);
 
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	/* IRQ_CONNECT and irq_enable */
 	config->irq_config_func(dev);
@@ -352,15 +350,12 @@ static int spi_csk_init(const struct device *dev)
 		irq_enable(DT_INST_IRQN(n));                                                       \
 	}																			\
 																				\
-	static const struct csk6_pinctrl_cfg                                        \
-        spi_alts_##n[DT_INST_NUM_PINCTRLS_BY_IDX(n, 0)] =               \
-            CSK6_DT_ALT_ITEMS_LIST(n);                                      \
+	PINCTRL_DT_INST_DEFINE(n);                                              \
 									               								\
 	static const struct csk_spi_config csk_spi_config_##n = {      			\
 		.label = DT_INST_LABEL(n),											\
 		.irq_config_func = spi_csk_config_func_##n,                             \
-        .pinctrl_list = spi_alts_##n,                   					\
-		.pinctrl_list_size = ARRAY_SIZE(spi_alts_##n),                      \
+        .pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),                              \
 	};                                                                     		\
 																				\
 	static struct csk_spi_data csk_spi_data_##n = {	     					\
