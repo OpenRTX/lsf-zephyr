@@ -170,7 +170,7 @@ static int crypot_csk_hash_decrypt(struct hash_ctx *ctx, struct hash_pkt *pkt, b
 
 	ret = csk6_hash_do_decrypt(ctx, pkt->in_buf, pkt->in_len, pkt->out_buf, finish);
 	if (0 == ret) {
-		pkt->out_len = pkt->in_len;
+		pkt->in_len = 0;
 	}
 
 	return ret;
