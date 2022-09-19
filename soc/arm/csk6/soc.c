@@ -95,6 +95,7 @@ static inline void z_arm_floating_point_init(void)
 	/* Privileged access only */
 	SCB->CPACR |= CPACR_CP10_PRIV_ACCESS | CPACR_CP11_PRIV_ACCESS;
 #endif /* CONFIG_USERSPACE */
+	__ISB();
 	/*
 	 * Upon reset, the FPU Context Control Register is 0xC0000000
 	 * (both Automatic and Lazy state preservation is enabled).
