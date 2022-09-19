@@ -29,7 +29,7 @@
 #define CSK_MBOX_SEND_NOTIFY_OFFSET   16
 #define CSK_MBOX_SEND_MAX_RETRY   5
 
-static K_SEM_DEFINE(data_sem, 1, 1);
+static K_SEM_DEFINE(data_sem, 1, 16);
 struct csk_mailbox_config {
 	MAILBOX_RegDef *mbx_base;
 };
@@ -62,42 +62,41 @@ static void csk_mailbox_isr(const struct device *dev)
 #endif
 		status &= ~CSK_MBX_CH(CSK_MBOX_SEND_COMPLETE_REG);
 	}
-	if(status) {  
-    	while (status) {
-			if (status & 0x01) {
-				break;
-			}
-			received_channel += 1;
-			status >>= 1;
-    	}
-		if(received_channel < CSK_IPM_MAX_ID_VAL) {
-			memset(data->rx_buf, 0, sizeof(data->rx_buf));
-#ifdef CONFIG_SOC_CSK6				
-			data->rx_buf[0] = config->mbx_base->REG_0X030.all;
-			data->rx_buf[1] = config->mbx_base->REG_0X034.all;
-			data->rx_buf[2] = config->mbx_base->REG_0X038.all;
-			data->rx_buf[3] = config->mbx_base->REG_0X03C.all;
-#elif CONFIG_SOC_LS_ADSP_CSK6
-			data->rx_buf[0] = config->mbx_base->REG_0X010.all;
-			data->rx_buf[1] = config->mbx_base->REG_0X014.all;
-			data->rx_buf[2] = config->mbx_base->REG_0X018.all;
-			data->rx_buf[3] = config->mbx_base->REG_0X01C.all;
-#endif
+	while(status) {  
+		if (status & 0x01) {
+		
+			if(received_channel < CSK_IPM_MAX_ID_VAL) {
+				memset(data->rx_buf, 0, sizeof(data->rx_buf));
+	#ifdef CONFIG_SOC_CSK6				
+				data->rx_buf[0] = config->mbx_base->REG_0X030.all;
+				data->rx_buf[1] = config->mbx_base->REG_0X034.all;
+				data->rx_buf[2] = config->mbx_base->REG_0X038.all;
+				data->rx_buf[3] = config->mbx_base->REG_0X03C.all;
+	#elif CONFIG_SOC_LS_ADSP_CSK6
+				data->rx_buf[0] = config->mbx_base->REG_0X010.all;
+				data->rx_buf[1] = config->mbx_base->REG_0X014.all;
+				data->rx_buf[2] = config->mbx_base->REG_0X018.all;
+				data->rx_buf[3] = config->mbx_base->REG_0X01C.all;
+	#endif
 
-#ifdef CONFIG_SOC_CSK6
-			config->mbx_base->REG_CP_MAILBOX_IRQ.all = 0x1U << received_channel;  
-			/* Use channel 16 as send completion notification */
-			config->mbx_base->REG_AP_MAILBOX_CTRL.all |= 0x1U << (CSK_IPM_MAX_ID_VAL + CSK_MBOX_SEND_NOTIFY_OFFSET);  
-#elif CONFIG_SOC_LS_ADSP_CSK6
-			config->mbx_base->REG_AP_MAILBOX_IRQ.all = 0x1U << received_channel;  
-			config->mbx_base->REG_CP_MAILBOX_CTRL.all |= 0x1U << (CSK_IPM_MAX_ID_VAL + CSK_MBOX_SEND_NOTIFY_OFFSET);  
-#endif 
-			if (data->callback) {
-				data->callback(dev, data->user_data,
-							(uint32_t)received_channel,
-							data->rx_buf);
+	#ifdef CONFIG_SOC_CSK6
+				config->mbx_base->REG_CP_MAILBOX_IRQ.all = 0x1U << received_channel;  
+				/* Use channel 16 as send completion notification */
+				config->mbx_base->REG_AP_MAILBOX_CTRL.all |= 0x1U << (CSK_IPM_MAX_ID_VAL + CSK_MBOX_SEND_NOTIFY_OFFSET);  
+	#elif CONFIG_SOC_LS_ADSP_CSK6
+				config->mbx_base->REG_AP_MAILBOX_IRQ.all = 0x1U << received_channel;  
+				config->mbx_base->REG_CP_MAILBOX_CTRL.all |= 0x1U << (CSK_IPM_MAX_ID_VAL + CSK_MBOX_SEND_NOTIFY_OFFSET);  
+	#endif 
+				if (data->callback) {
+					data->callback(dev, data->user_data,
+								(uint32_t)received_channel,
+								data->rx_buf);
+				}
 			}
+			
 		}
+		status >>= 1;
+		received_channel += 1;
 	}
 }
 
