@@ -141,12 +141,12 @@ void main(void)
 		sqlite3_close(db2);
 		return;
 	}
-	rc = db_exec(db1, "INSERT INTO test1 VALUES (2, 'over, World from test1');");
-	if (rc != SQLITE_OK) {
-		sqlite3_close(db1);
-		sqlite3_close(db2);
-		return;
-	}
+	// rc = db_exec(db1, "INSERT INTO test1 VALUES (2, 'over, World from test1');");
+	// if (rc != SQLITE_OK) {
+	// 	sqlite3_close(db1);
+	// 	sqlite3_close(db2);
+	// 	return;
+	// }
 	rc = db_exec(db2, "INSERT INTO test2 VALUES (1, 'Hello, World from test2');");
 	if (rc != SQLITE_OK) {
 		sqlite3_close(db1);
