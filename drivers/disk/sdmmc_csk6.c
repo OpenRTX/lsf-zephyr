@@ -7,21 +7,16 @@
 #include <errno.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/disk.h>
-#include <zephyr/drivers/pinmux.h>
-#include <soc_dt.h>
 #include <zephyr/logging/log.h>
 #include "hal/sdmmc/lib_sdc.h"
 #include "hal/sdmmc/ftsdc021.h"
+#include <zephyr/drivers/pinctrl.h>
 
 LOG_MODULE_REGISTER(csk6_sdmmc, CONFIG_SDMMC_LOG_LEVEL);
 
 struct sdmmc_csk_config {
 	void (*irq_config_func)(const struct device *dev);
-
-	/* I2C alternate configuration */
-	const struct csk6_pinctrl_cfg *pinctrl_list;
-	uint8_t pinctrl_list_size;
-
+	const struct pinctrl_dev_config *pcfg;
 	uint8_t bit_bus;
 };
 
@@ -163,7 +158,7 @@ static int disk_csk6_sdmmc_init(const struct device *dev)
 	const struct sdmmc_csk_config *cfg = dev->config;
 	int err = 0;
 
-	PINCTRL_CONFIG_PINS(cfg->pinctrl_list, cfg->pinctrl_list_size);
+	pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
 
 	cfg->irq_config_func(dev);
 
@@ -192,14 +187,11 @@ static void csk6_sdmmc_irq_config_func(const struct device *dev)
 }
 
 #define DISK_ACCESS_SDMMC_INIT(n)						\
-	static const struct csk6_pinctrl_cfg                                       						\
-		sdmmc_alts_##n[DT_INST_NUM_PINCTRLS_BY_IDX(n, 0)] =          									\
-			CSK6_DT_ALT_ITEMS_LIST(n);                        										\
+    PINCTRL_DT_INST_DEFINE(n);                           \
 			                                                            \
 	static const struct sdmmc_csk_config sdmmc_config_##n = {			\
 		.irq_config_func = csk6_sdmmc_irq_config_func,                    \
-		.pinctrl_list = sdmmc_alts_##n, 													   \
-		.pinctrl_list_size = ARRAY_SIZE(sdmmc_alts_##n),									   \
+        .pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),                         \
 		.bit_bus = DT_INST_PROP(n, bit_bus),                                \
 	};									\
 										\
