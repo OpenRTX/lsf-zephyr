@@ -46,6 +46,17 @@ static void set_boot_pins_to_high(void)
 }
 
 
+/**
+ * @brief  External operation for csk6, Make sure the csk6 reboot 
+ *         all other peripheral except arm core successfully
+ */
+static void csk6_reboot_external(void)
+{
+	IP_SYSCTRL->REG_AP_CTRL1.bit.AP_ENA_RESETREQ = 1;
+}
+
+	
+
 /* Overrides the weak ARM implementation:
    Set general purpose retention register and reboot */
 void sys_arch_reboot(int type)
@@ -58,6 +69,7 @@ void sys_arch_reboot(int type)
 	extern int csk_flash_clear_add4(void);
 	csk_flash_clear_add4();
 
+	csk6_reboot_external();
 	NVIC_SystemReset();
 }
 
