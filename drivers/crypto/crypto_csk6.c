@@ -152,6 +152,29 @@ static int crypto_csk6_cbc_decrypt(struct cipher_ctx *ctx, struct cipher_pkt *pk
 
 	return ret;
 }
+static int csk6_hash_do_decrypt(struct hash_ctx *ctx, uint8_t *in_buf, int in_len, uint8_t *out_buf,
+				bool finish)
+{
+	const struct device *dev = ctx->device;
+	struct crypto_csk6_data *data = DEV_DATA(dev);
+
+	CRYPTO_Hash(DEV_HANDLER(dev), (uint32_t *)in_buf, in_len, (uint32_t *)out_buf, finish);
+	while (!(data->event & CSK_CRYPTO_EVENT_DONE))
+		;
+	return 0;
+}
+
+static int crypot_csk_hash_decrypt(struct hash_ctx *ctx, struct hash_pkt *pkt, bool finish)
+{
+	int ret;
+
+	ret = csk6_hash_do_decrypt(ctx, pkt->in_buf, pkt->in_len, pkt->out_buf, finish);
+	if (0 == ret) {
+		pkt->out_len = pkt->in_len;
+	}
+
+	return ret;
+}
 
 static int crypto_csk6_ecb_decrypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
 {
@@ -204,6 +227,7 @@ static int crypto_csk6_session_setup(const struct device *dev, struct cipher_ctx
 
 	return 0;
 }
+
 static int crypto_csk6_hash_session_setup(const struct device *dev, struct hash_ctx *ctx,
 					  enum hash_algo algo)
 {
@@ -211,14 +235,20 @@ static int crypto_csk6_hash_session_setup(const struct device *dev, struct hash_
 		LOG_ERR("Unsupported this mode \n");
 		return -EINVAL;
 	}
-
+	ctx->hash_hndlr = crypot_csk_hash_decrypt;
 	CRYPTO_PowerControl(DEV_HANDLER(dev), CSK_POWER_FULL);
-	CRYPTO_Control(DEV_HANDLER(dev), CSK_CRYPTO_AES_KEY_MODE_USER,
-		       (uint32_t)ctx->key.bit_stream);
+	CRYPTO_Control(DEV_HANDLER(dev), CSK_CRYPTO_AES_KEY_MODE_Pos, 0);
 
 	return 0;
 }
 static int crypto_csk6_session_free(const struct device *dev, struct cipher_ctx *ctx)
+{
+	struct crypto_csk6_data *data = DEV_DATA(dev);
+	CRYPTO_PowerControl(DEV_HANDLER(dev), CSK_POWER_OFF);
+	data->event = 0;
+	return 0;
+}
+static int crypto_csk6_hash_session_free(const struct device *dev, struct hash_ctx *ctx)
 {
 	struct crypto_csk6_data *data = DEV_DATA(dev);
 	CRYPTO_PowerControl(DEV_HANDLER(dev), CSK_POWER_OFF);
@@ -232,6 +262,10 @@ static int crypto_csk6_query_caps(const struct device *dev)
 }
 
 static int crtpto_csk6_async_callback_set(const struct device *dev, cipher_completion_cb cb)
+{
+	return -EINVAL;
+}
+static int crtpto_csk6_hash_async_callback_set(const struct device *dev, hash_completion_cb cb)
 {
 	return -EINVAL;
 }
