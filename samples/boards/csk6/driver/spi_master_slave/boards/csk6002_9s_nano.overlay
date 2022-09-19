@@ -3,19 +3,19 @@
 &csk6002_9s_nano_pinctrl{
             /* SPIC alternate function */
             pinctrl_spi1_sclk_default: spi1_sclk_default{
-                    pinctrls = <&pinmuxa 4 7>;
+                    pinctrls = <SPI1_CLK_GPIOA_04>;
             };
             
             pinctrl_spi1_mosi_default: spi1_mosi_default{
-                    pinctrls = <&pinmuxa 7 7>;
+                    pinctrls = <SPI1_MOSI_GPIOA_07>;
             };
 
             pinctrl_spi1_miso_default: spi1_miso_default{
-                    pinctrls = <&pinmuxa 6 7>;
+                    pinctrls = <SPI1_MISO_GPIOA_06>;
             };    
 
             pinctrl_spi1_cs_default: spi1_cs_default{
-                    pinctrls = <&pinmuxa 5 7>;
+                    pinctrls = <SPI1_CS_N_GPIOA_05>;
             };
             
 };

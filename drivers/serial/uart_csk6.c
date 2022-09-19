@@ -324,6 +324,7 @@ static const struct uart_driver_api csk_uart_driver_api = {
 #endif
 
 #define UART_CSK_INIT(index)                                                                   \
+    CSK_UART_IRQ_HANDLER(index)																   \
     PINCTRL_DT_INST_DEFINE(index);                                                             \
 	static struct csk_uart_data csk_uart_data_##index = {};                                    \
 	static const struct csk_uart_config csk_uart_cfg_##index = {                               \
