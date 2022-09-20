@@ -9,8 +9,6 @@
 #include <logging/log.h>
 LOG_MODULE_DECLARE(csk_wifi, CONFIG_WIFI_LOG_LEVEL);
 
-#define MAC_BYTES_LEN                     6
-#define MAC_STRING_LEN                    18
 
 #define CTRL_CMD_DEFAULT_REQ() {                                                \
     .msg_type = CTRL_REQ,                                                       \
@@ -252,36 +250,7 @@ const struct device * wifi_obj_get_dev(csk_wifi_mode_t mode)
     }
 }
 
-static int convert_str_to_bytes(uint8_t *out, const char *s)
-{
-    int mac[MAC_BYTES_LEN] = {0};
-    int num_bytes = 0;
 
-    if (!s || (strlen(s) < (MAC_STRING_LEN - 1)))  {
-        return -1;
-    }
-    num_bytes =  sscanf(s, "%2x:%2x:%2x:%2x:%2x:%2x",
-                        &mac[0],&mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
-
-    if ((num_bytes < MAC_BYTES_LEN)  ||
-        (mac[0] > 0xFF) ||
-        (mac[1] > 0xFF) ||
-        (mac[2] > 0xFF) ||
-        (mac[3] > 0xFF) ||
-        (mac[4] > 0xFF) ||
-        (mac[5] > 0xFF)) {
-        return -1;
-    }
-
-    out[0] = mac[0]&0xff;
-    out[1] = mac[1]&0xff;
-    out[2] = mac[2]&0xff;
-    out[3] = mac[3]&0xff;
-    out[4] = mac[4]&0xff;
-    out[5] = mac[5]&0xff;
-
-    return 0;
-}
 
 static void hosted_event_handler(hosted_event_t events, void *arg)
 {
