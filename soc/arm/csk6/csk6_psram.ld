@@ -21,20 +21,6 @@ GROUP_START(PSRAMAP)
 	} GROUP_LINK_IN(PSRAMAP)
 
 GROUP_END(PSRAMAP)
-
-
-GROUP_START(PSRAMAP_NOCACHE)
-
-	SECTION_PROLOGUE(psram_nocache, (NOLOAD),)
-	{
-		__psram_nocache_start = .;
-		KEEP(*(.psram_nocache))
-		KEEP(*(".psram_nocache.*"))
-		__psram_nocache_end = .;
-	} GROUP_LINK_IN(PSRAMAP_NOCACHE)
-
-GROUP_END(PSRAMAP_NOCACHE)
-
 #endif
 
 #endif
