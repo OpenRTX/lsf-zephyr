@@ -24,6 +24,9 @@
 
 #include "csk6/csk_wifi.h"
 
+#define MAC_BYTES_LEN  6
+#define MAC_STRING_LEN 18
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -183,6 +186,37 @@ wifi_sta_state_machine_t wifi_obj_get_sm(void);
 csk_wifi_encryption_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
 const char *wlan_sm_str(wifi_sta_state_machine_t state);
 #endif
+
+static inline int convert_str_to_bytes(uint8_t *out, const char *s)
+{
+    int mac[MAC_BYTES_LEN] = {0};
+    int num_bytes = 0;
+
+    if (!s || (strlen(s) < (MAC_STRING_LEN - 1)))  {
+        return -1;
+    }
+    num_bytes =  sscanf(s, "%2x:%2x:%2x:%2x:%2x:%2x",
+                        &mac[0],&mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
+
+    if ((num_bytes < MAC_BYTES_LEN)  ||
+        (mac[0] > 0xFF) ||
+        (mac[1] > 0xFF) ||
+        (mac[2] > 0xFF) ||
+        (mac[3] > 0xFF) ||
+        (mac[4] > 0xFF) ||
+        (mac[5] > 0xFF)) {
+        return -1;
+    }
+
+    out[0] = mac[0]&0xff;
+    out[1] = mac[1]&0xff;
+    out[2] = mac[2]&0xff;
+    out[3] = mac[3]&0xff;
+    out[4] = mac[4]&0xff;
+    out[5] = mac[5]&0xff;
+
+    return 0;
+}
 
 #ifdef __cplusplus
 }
