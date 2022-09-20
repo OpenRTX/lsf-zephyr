@@ -113,7 +113,17 @@ uint8_t sha256_results[7][32] = {
 	  0x7f, 0x39, 0x30, 0x0f, 0x70, 0xfe, 0xde, 0x16, 0xe2, 0x1e, 0xfc,
 	  0x77, 0xf7, 0x86, 0x59, 0x98, 0x71, 0x4a, 0xad, 0x0b, 0x5e }
 };
-
+static void reverse_order(uint8_t arr[], int n)
+{
+	uint8_t *behind = &arr[n - 1];
+	uint8_t live;
+	int count;
+	for (count = 0; count < (n / 2); count++) {
+		live = *behind; //临时存储用来交换的值（后面）
+		*behind-- = arr[count]; //将前面的值放到后面
+		arr[count] = live;
+	}
+}
 static void print_buffer_comparison(uint8_t *wanted_result, uint8_t *result, size_t length)
 {
 	int i, j;
@@ -132,10 +142,10 @@ static void print_buffer_comparison(uint8_t *wanted_result, uint8_t *result, siz
 	printk("\n But got:\n");
 
 	for (i = 0, j = 1; i < length; i++, j++) {
-		printk("0x%02x ", result[i]);
+		// printk("0x%02x ", result[i]);
 
 		if (j == 10) {
-			printk("\n");
+			// printk("\n");
 			j = 0;
 		}
 	}
@@ -151,7 +161,8 @@ void hash_mode(const struct device *dev)
 	ctx.flags = CAP_SYNC_OPS | CAP_SEPARATE_IO_BUFS;
 
 	ret = hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256);
-
+	reverse_order(test7, sizeof(test7));
+	print_buffer_comparison(test7, test7, sizeof(test7));
 #define TEST_HASH(_i)                                                                              \
 	do {                                                                                       \
 		uint8_t out_buf[32] = { 0 };                                                       \
@@ -161,14 +172,15 @@ void hash_mode(const struct device *dev)
 			.out_buf = out_buf,                                                        \
 		};                                                                                 \
 		ret = hash_compute(&ctx, &pkt);                                                    \
+		print_buffer_comparison(out_buf, sha256_results[6], 32);                           \
 	} while (0)
 
-	TEST_HASH(1);
-	TEST_HASH(2);
-	TEST_HASH(3);
-	TEST_HASH(4);
-	TEST_HASH(5);
-	TEST_HASH(6);
+	// TEST_HASH(1);
+	// TEST_HASH(2);
+	// TEST_HASH(3);
+	// TEST_HASH(4);
+	// TEST_HASH(5);
+	// TEST_HASH(6);
 	TEST_HASH(7);
 
 	hash_free_session(dev, &ctx);

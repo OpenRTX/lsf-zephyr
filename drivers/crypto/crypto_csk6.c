@@ -237,7 +237,8 @@ static int crypto_csk6_hash_session_setup(const struct device *dev, struct hash_
 	}
 	ctx->hash_hndlr = crypot_csk_hash_decrypt;
 	CRYPTO_PowerControl(DEV_HANDLER(dev), CSK_POWER_FULL);
-	CRYPTO_Control(DEV_HANDLER(dev), CSK_CRYPTO_AES_KEY_MODE_Pos, 0);
+	// CRYPTO_Control(DEV_HANDLER(dev), CSK_CRYPTO_IV_OUT_WORD | CSK_CRYPTO_IV_OUT_BYTE, 1);
+	CRYPTO_Control(DEV_HANDLER(dev), 0, 0);
 	struct crypto_csk6_data *data = DEV_DATA(dev);
 	data->event = 0;
 	return 0;
