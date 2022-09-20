@@ -76,7 +76,7 @@ manifest:
         - lvgl
     - name: csk_sqlite3
       remote: listenai
-      revision: 06b2f34f052301f31ef83cffcbfcd56e639a82f9
+      revision: 5537947a8cb2cc029ba59bf88dbdbc0c68e01dd4
       path: modules/lib/csk_sqlite3
 
   self:

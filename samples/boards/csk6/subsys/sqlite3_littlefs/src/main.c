@@ -10,8 +10,9 @@
 
 #include <zephyr.h>
 #include <device.h>
-#include <fs/fs.h>
-#include <fs/littlefs.h>
+// #include <fs/fs.h>
+// #include <fs/littlefs.h>
+#include "csk_fs.h"
 #include <storage/flash_map.h>
 #include "sqlite3.h"
 
