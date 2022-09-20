@@ -126,8 +126,6 @@ static int video_csk6_dvp_set_fmt(const struct device *dev,
 		return -EINVAL;
 	}
 
-	memcpy(&data->fmt, fmt, sizeof(struct video_format));
-
 	if(!config->pclk_polarity){
 		dvp_dev->Init.PCKPolarity = CSK_DVP_POL_CNTL_CLOCK_RISING;
 	}else{
@@ -169,6 +167,8 @@ static int video_csk6_dvp_set_fmt(const struct device *dev,
 		return -EIO;
 	}
 
+	memcpy(&data->fmt, fmt, sizeof(struct video_format));
+
 	return 0;
 }
 
@@ -176,9 +176,16 @@ static int video_csk6_dvp_get_fmt(const struct device *dev,
 				  enum video_endpoint_id ep,
 				  struct video_format *fmt)
 {
+	struct video_csk6_dvp_data *data = dev->data;
+
 	if (fmt == NULL || ep != VIDEO_EP_OUT) {
 		return -EINVAL;
 	}
+
+	fmt->width = data->fmt.width;
+	fmt->height = data->fmt.height;
+	fmt->pitch = data->fmt.pitch;
+	fmt->pixelformat = data->fmt.pixelformat;
 
 	return 0;
 }
@@ -210,6 +217,8 @@ static int csk6_dvp_start(const struct device *dev, struct video_buffer *vbuf)
 	//DVP驱动访问的是CP侧的AHB总线，如果在AP侧使用DVP驱动，传入的地址必须重新映射
 	dvp_buf.pAddrY = (uint8_t *)DVP_PSRAM_ADDR_WRAP(vbuf->buffer);
 	dvp_buf.bufLenY = vbuf->size;
+
+	SCB_InvalidateDCache_by_Addr((void *)vbuf->buffer, vbuf->bytesused);
 
 	ret = DVP_Start(dvp_dev, dvp_buf);
 	if(ret != 0){

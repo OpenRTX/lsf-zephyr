@@ -4,12 +4,7 @@ tests:
   sample.board.csk6.subsys.usb.audio.headset:
     depends_on: usb_device
     tags: usb
-    platform_exclude: native_posix native_posix_64
-    integration_platforms:
-        - nrf52840dk_nrf52840
-        - nrf5340dk_nrf5340_cpuapp
-        - csk6002_9s_nano
-        - csk6002_c3_nano
+    platform_allow: csk6002_9s_nano csk6011a_nano csk6012_nano
     harness: console
     timeout: 20
     harness_config:

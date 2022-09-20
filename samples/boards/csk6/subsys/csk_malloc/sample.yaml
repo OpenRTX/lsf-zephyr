@@ -5,10 +5,7 @@ sample:
 tests:
   sample.board.csk6.subsys.csk_malloc:
     tags: csk
-    integration_platforms:
-        - csk6002_9s_nano
-        - csk6002_c3_nano
-        - csk6011a_9s_nano
+    platform_allow: csk6002_9s_nano csk6002_c3_nano csk6011a_nano csk6012_nano
     harness: console
     timeout: 20
     harness_config:

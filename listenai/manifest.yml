@@ -34,7 +34,7 @@ manifest:
       path: modules/lib/protobuf-c
     - name: esp-hosted
       remote: listenai
-      revision: 26144e0d08c0de46c04e2d7a285879fe09eaeb7e
+      revision: 77c5ef98eb5477ffc7b859020e7d84147c3149e7
       path: modules/lib/esp-hosted
     - name: mcuboot
       remote: listenai
@@ -62,7 +62,7 @@ manifest:
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
-      revision: 2e8a9892002eafc126f96bc853f208961ce2202e
+      revision: bac01f38940c498895d39cb4fe54fed5089c76bb
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
