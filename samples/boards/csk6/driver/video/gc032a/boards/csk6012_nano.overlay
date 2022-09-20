@@ -1,0 +1,153 @@
+/delete-node/ &psram_ap;
+/delete-node/ &psram_share;
+
+&psram0 {
+	psram_ap: psram_ap@30600000 {
+		compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
+		reg = <0x30600000 0x1b0000>;
+		status = "okay";
+		zephyr,memory-region = "PSRAMAP";
+
+
+	};
+	psram_share: psram_share@307b0000 {
+		compatible = "listenai,csk6-psram-partition";
+		reg = <0x307b0000 0x50000>;
+		status = "okay";
+	};
+};
+
+&csk6012_nano_pinctrl{
+                pinctrl_uart1_tx_default: uart1_tx_default{
+                    pinctrls = <&pinmuxa 10 3>;
+                };
+
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 4 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 3 8>;
+                };
+
+                pinctrl_dvp_clkout_default: dvp_clkout_default{
+                    pinctrls = <&pinmuxa 7 20>;
+                };
+
+                pinctrl_dvp_vsync_default: dvp_vsync_default{
+                    pinctrls = <&pinmuxa 14 20>;
+                };
+
+                pinctrl_dvp_hsync_default: dvp_hync_default{
+                    pinctrls = <&pinmuxa 13 20>;
+                };
+
+                pinctrl_dvp_pclk_default: dvp_pclk_default{
+                    pinctrls = <&pinmuxa 12 20>;
+                };
+
+                pinctrl_dvp_d4_default: dvp_d4_default{
+                    pinctrls = <&pinmuxa 4 20>;
+                };
+
+                pinctrl_dvp_d5_default: dvp_d5_default{
+                    pinctrls = <&pinmuxa 5 20>;
+                };
+
+                pinctrl_dvp_d6_default: dvp_d6_default{
+                    pinctrls = <&pinmuxa 6 20>;
+                };
+
+                pinctrl_dvp_d7_default: dvp_d7_default{
+                    pinctrls = <&pinmuxb 7 20>;
+                };
+
+                
+                pinctrl_dvp_d8_default: dvp_d8_default{
+                    pinctrls = <&pinmuxb 8 20>;
+                };
+
+                
+                pinctrl_dvp_d9_default: dvp_d9_default{
+                    pinctrls = <&pinmuxb 9 20>;
+                };
+
+                
+                pinctrl_dvp_d10_default: dvp_d10_default{
+                    pinctrls = <&pinmuxa 8 20>;
+                };
+
+                
+                pinctrl_dvp_d11_default: dvp_d11_default{
+                    pinctrls = <&pinmuxa 9 20>;
+                };
+};
+
+&spi0 {
+    status = "disabled";
+};
+
+&spi1 {
+    status = "disabled";
+};
+
+&i2c0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
+
+        gc032a: gc032a@21 {
+            compatible = "galaxyc,gc032a";
+            status = "okay";
+            label = "GC032A";
+            reg = <0x21>;
+            reset-gpios = <&gpioa 6 0>;
+
+            port {
+                gc032a_ep_out: endpoint {
+                    remote-endpoint = <&dvp_ep_in>;
+                };
+			};
+		};
+
+};
+
+&uart1 {
+        pinctrl-0 = <&pinctrl_uart1_tx_default>; 
+        pinctrl-names = "default";
+        current-speed = <921600>;
+        status = "okay";
+};
+
+&dvp {
+    status = "okay";
+    sensor-label = "GC032A";
+    clock-prescaler = <6>;
+    data-align-type = "high_align";
+    pclk-polarity = "post_edge_sampling";
+    hsync-polarity = "active_high";
+    vsync-polarity = "active_low";
+
+    pinctrl-0 = <
+                &pinctrl_dvp_clkout_default 
+                &pinctrl_dvp_vsync_default
+                &pinctrl_dvp_hsync_default
+                &pinctrl_dvp_pclk_default
+                &pinctrl_dvp_d4_default
+                &pinctrl_dvp_d5_default
+                &pinctrl_dvp_d6_default
+                &pinctrl_dvp_d7_default
+                &pinctrl_dvp_d8_default
+                &pinctrl_dvp_d9_default
+                &pinctrl_dvp_d10_default
+                &pinctrl_dvp_d11_default
+                >; 
+    pinctrl-names = "default";
+
+	port {
+		dvp_ep_in: endpoint {
+			remote-endpoint = <&gc032a_ep_out>;
+		};
+	};
+
+};
