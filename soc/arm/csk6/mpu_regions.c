@@ -3,8 +3,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
-#include <arch/arm/aarch32/mpu/arm_mpu.h>
+#include <zephyr/sys/slist.h>
+#include <zephyr/arch/arm/aarch32/mpu/arm_mpu.h>
+#include <zephyr/linker/devicetree_regions.h>
 
 #include "../common/cortex_m/arm_mpu_mem_cfg.h"
 
@@ -34,7 +35,7 @@ static const struct arm_mpu_region mpu_regions[] = {
 	/* Region 2 */
 	MPU_REGION_ENTRY("OPENAMP_SHARE_SRAM",
 				CONFIG_OPENAMP_IPC_SHM_BASE_ADDRESS,
-		 		REGION_RAM_NOCACHE_ATTR( CONFIG_OPENAMP_IPC_SHM_BASE_ADDRESS,CONFIG_OPENAMP_IPC_SHM_SIZE ))
+		 		REGION_RAM_NOCACHE_ATTR( CONFIG_OPENAMP_IPC_SHM_BASE_ADDRESS,CONFIG_OPENAMP_IPC_SHM_SIZE )),
 #endif
 
 
@@ -42,9 +43,10 @@ static const struct arm_mpu_region mpu_regions[] = {
 	/* Region 2 */
 	MPU_REGION_ENTRY("AVF_SHARE_SRAM",
 				CONFIG_AVF_IPC_SHM_BASE_ADDRESS,
-		 		REGION_RAM_NOCACHE_ATTR( CONFIG_AVF_IPC_SHM_BASE_ADDRESS,CONFIG_AVF_IPC_SHM_SIZE ))
+		 		REGION_RAM_NOCACHE_ATTR( CONFIG_AVF_IPC_SHM_BASE_ADDRESS,CONFIG_AVF_IPC_SHM_SIZE )),
 #endif
-
+	/* DT-defined regions */
+	LINKER_DT_REGION_MPU(ARM_MPU_REGION_INIT)
 };
 
 const struct arm_mpu_config mpu_config = {
