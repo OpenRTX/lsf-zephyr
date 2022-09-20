@@ -142,46 +142,76 @@ static void print_buffer_comparison(uint8_t *wanted_result, uint8_t *result, siz
 	printk("\n But got:\n");
 
 	for (i = 0, j = 1; i < length; i++, j++) {
-		// printk("0x%02x ", result[i]);
+		printk("0x%02x ", result[i]);
 
 		if (j == 10) {
-			// printk("\n");
+			printk("\n");
 			j = 0;
 		}
 	}
 
 	printk("\n");
 }
+static void *Hash256_Padding(char *m, uint64_t len, uint64_t *r_len)
+{
+	int blocks = 0;
+	if (len % 64) // len is the message length
+	{
+		blocks = (len + (64 - (len % 64))) / 64;
+	} else {
+		// I realized (the hard way) that messages that are of size 512 bits or its multiples have an additional block that contains padding info and they run through the compression function.
+		blocks = (len / 64) + 1;
+	}
+	*r_len = blocks * 64 * sizeof(unsigned char);
+	unsigned char *s =
+		(unsigned char *)k_malloc(*r_len); // Internal storage for the message with padding.
+	for (int i = 0; i < len; i++) {
+		s[i] = m[i]; // m is the message passed to the function, that has to be hashed.
+	}
+	int K = 0;
+	uint64_t L = len * 8;
+	uint64_t size = L;
 
+	K = (448 - L - 1) % 512;
+	if (K < 0) {
+		K += 512;
+	}
+
+	s[len] = 0x80; // or 0x80
+	K -= 7;
+	for (int i = 0; i < (K / 8); i++) {
+		s[i + len + 1] = 0; // The zero bytes...
+	}
+	// Append the length of the message as a 64 bit big endian integer
+	for (int i = 0; i < 8; i++) {
+		s[blocks * 64 - 1 - i] =
+			(unsigned char)(((uint64_t)size & (uint64_t)(0xff << i * 8)) >> 8 * i);
+	}
+
+	return s;
+}
 void hash_mode(const struct device *dev)
 {
 	int ret;
 	struct hash_ctx ctx;
+	uint64_t r_len;
 
 	ctx.flags = CAP_SYNC_OPS | CAP_SEPARATE_IO_BUFS;
-
+	uint8_t *buf = Hash256_Padding(test2, sizeof(test2), &r_len);
+	printk("last len =%d  ,now len %lld \n", sizeof(test2), r_len);
 	ret = hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256);
-	reverse_order(test7, sizeof(test7));
-	print_buffer_comparison(test7, test7, sizeof(test7));
-#define TEST_HASH(_i)                                                                              \
-	do {                                                                                       \
-		uint8_t out_buf[32] = { 0 };                                                       \
-		struct hash_pkt pkt = {                                                            \
-			.in_buf = test##_i,                                                        \
-			.in_len = sizeof(test##_i),                                                \
-			.out_buf = out_buf,                                                        \
-		};                                                                                 \
-		ret = hash_compute(&ctx, &pkt);                                                    \
-		print_buffer_comparison(out_buf, sha256_results[6], 32);                           \
-	} while (0)
+	// reverse_order(test7, sizeof(test7));
+	print_buffer_comparison(test2, buf, r_len);
 
-	// TEST_HASH(1);
-	// TEST_HASH(2);
-	// TEST_HASH(3);
-	// TEST_HASH(4);
-	// TEST_HASH(5);
-	// TEST_HASH(6);
-	TEST_HASH(7);
+	uint8_t out_buf[32] = { 0 };
+	struct hash_pkt pkt = {
+		.in_buf = buf,
+		.in_len = r_len,
+		.out_buf = out_buf,
+	};
+	ret = hash_compute(&ctx, &pkt);
+
+	print_buffer_comparison(out_buf, sha256_results[1], 32);
 
 	hash_free_session(dev, &ctx);
 }
