@@ -1,22 +1,22 @@
 &csk6002_9s_nano_pinctrl{
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
-                        pinctrls = <&pinmuxb 2 8>;
+                        pinctrls = <I2C0_SCL_GPIOB_02>;
                 };
 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
-                        pinctrls = <&pinmuxb 3 8>;
+                        pinctrls = <I2C0_SDA_GPIOB_03>;
                 };
 
                 pinctrl_spi1_sclk_default: spi1_sclk_default {
-                    pinctrls = < &pinmuxb 0 7 >;
+                    pinctrls = < SPI1_CLK_GPIOB_00 >;
                 };
 
                 pinctrl_spi1_mosi_default: spi1_mosi_default {
-                    pinctrls = < &pinmuxb 1 7 >;
+                    pinctrls = < SPI1_MOSI_GPIOB_01 >;
                 };
 
                 pinctrl_spi1_cs_default: spi1_cs_default {
-                    pinctrls = < &pinmuxa 9 7 >;
+                    pinctrls = < SPI1_CS_N_GPIOA_09 >;
                 };
 };
 

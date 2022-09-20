@@ -1,66 +1,66 @@
 &csk6002_9s_nano_pinctrl{
                 pinctrl_uart1_tx_default: uart1_tx_default{
-                    pinctrls = <&pinmuxa 4 3>;
+                    pinctrls = <UART1_TXD_GPIOA_04>;
                 };
 
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
-                        pinctrls = <&pinmuxb 0 8>;
+                        pinctrls = <I2C0_SCL_GPIOB_00>;
                 };
                 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
-                        pinctrls = <&pinmuxb 1 8>;
+                        pinctrls = <I2C0_SDA_GPIOB_01>;
                 };
 
                 pinctrl_dvp_clkout_default: dvp_clkout_default{
-                    pinctrls = <&pinmuxa 7 20>;
+                    pinctrls = <CLKP_OUT_GPIOA_07>;
                 };
 
                 pinctrl_dvp_vsync_default: dvp_vsync_default{
-                    pinctrls = <&pinmuxa 14 20>;
+                    pinctrls = <I_V_SYNC_GPIOA_14>;
                 };
 
                 pinctrl_dvp_hsync_default: dvp_hync_default{
-                    pinctrls = <&pinmuxa 13 20>;
+                    pinctrls = <I_H_SYNC_GPIOA_13>;
                 };
 
                 pinctrl_dvp_pclk_default: dvp_pclk_default{
-                    pinctrls = <&pinmuxa 15 20>;
+                    pinctrls = <I_PIXEL_CLK_GPIOA_15>;
                 };
 
                 pinctrl_dvp_d4_default: dvp_d4_default{
-                    pinctrls = <&pinmuxb 4 20>;
+                    pinctrls = <I_PIXEL_DATA4_GPIOB_04>;
                 };
 
                 pinctrl_dvp_d5_default: dvp_d5_default{
-                    pinctrls = <&pinmuxb 5 20>;
+                    pinctrls = <I_PIXEL_DATA5_GPIOB_05>;
                 };
 
                 pinctrl_dvp_d6_default: dvp_d6_default{
-                    pinctrls = <&pinmuxb 6 20>;
+                    pinctrls = <I_PIXEL_DATA6_GPIOB_06>;
                 };
 
                 pinctrl_dvp_d7_default: dvp_d7_default{
-                    pinctrls = <&pinmuxb 7 20>;
+                    pinctrls = <I_PIXEL_DATA7_GPIOB_07>;
                 };
 
                 
                 pinctrl_dvp_d8_default: dvp_d8_default{
-                    pinctrls = <&pinmuxb 8 20>;
+                    pinctrls = <I_PIXEL_DATA8_GPIOB_08>;
                 };
 
                 
                 pinctrl_dvp_d9_default: dvp_d9_default{
-                    pinctrls = <&pinmuxa 20 20>;
+                    pinctrls = <I_PIXEL_DATA9_GPIOA_20>;
                 };
 
                 
                 pinctrl_dvp_d10_default: dvp_d10_default{
-                    pinctrls = <&pinmuxa 8 20>;
+                    pinctrls = <I_PIXEL_DATA10_GPIOA_08>;
                 };
 
                 
                 pinctrl_dvp_d11_default: dvp_d11_default{
-                    pinctrls = <&pinmuxa 9 20>;
+                    pinctrls = <I_PIXEL_DATA11_GPIOA_09>;
                 };
 };
 

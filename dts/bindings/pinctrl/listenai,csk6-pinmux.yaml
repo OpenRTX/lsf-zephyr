@@ -18,7 +18,7 @@ properties:
 
 pinmux-cells:
   - pin
-  - function
+  - alt_func
 
 pinctrl-cells:
   - pin

@@ -10,8 +10,7 @@
 #include <drivers/video.h>
 #include "hal/Driver_DVP.h"
 #include <soc.h>
-#include <soc_dt.h>
-#include <drivers/pinmux.h>
+#include <zephyr/drivers/pinctrl.h>
 #include "hal/venus_ap.h"
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
@@ -30,8 +29,7 @@ struct video_csk6_dvp_config {
 	char *sensor_label;
 	uint16_t clock_prescaler;
 	/* DVP alternate configuration */
-	const struct csk6_pinctrl_cfg *pinctrl_list;
-	uint8_t pinctrl_list_size;
+	const struct pinctrl_dev_config *pcfg;
 };
 
 struct video_csk6_dvp_data {
@@ -457,14 +455,12 @@ static int video_csk6_dvp_init_0(const struct device *dev)
 	data->dev = dev;
 	data->handle = DVP_Instance();
 
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	return video_csk6_dvp_init(dev);
 }
 
-static const struct csk6_pinctrl_cfg                                       						\
-		dvp_alts[DT_INST_NUM_PINCTRLS_BY_IDX(0, 0)] =          									\
-			CSK6_DT_ALT_ITEMS_LIST(0); 
+PINCTRL_DT_INST_DEFINE(0);
 
 static const struct video_csk6_dvp_config video_csk6_dvp_config_0 = {
 	.sensor_label = DT_INST_PROP(0, sensor_label),
@@ -476,8 +472,7 @@ static const struct video_csk6_dvp_config video_csk6_dvp_config_0 = {
 #if DT_NODE_HAS_PROP(DT_DRV_INST(0), clock_prescaler)
 	.clock_prescaler = DT_INST_PROP(0, clock_prescaler),
 #endif
-	.pinctrl_list = dvp_alts, 													   
-	.pinctrl_list_size = ARRAY_SIZE(dvp_alts),	
+	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
 };
 
 static struct video_csk6_dvp_data video_csk6_dvp_data_0;

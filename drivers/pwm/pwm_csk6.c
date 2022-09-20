@@ -9,9 +9,8 @@
 #include <errno.h>
 
 #include <soc.h>
-#include <soc_dt.h>
+#include <zephyr/drivers/pinctrl.h>
 #include <drivers/pwm.h>
-#include <drivers/pinmux.h>
 #include <device.h>
 #include <kernel.h>
 #include <init.h>
@@ -32,8 +31,7 @@ struct pwm_csk_config {
 	uint8_t clock_prescaler;
 	uint8_t mode;
 	/* PWM alternate configuration */
-    const struct csk6_pinctrl_cfg *pinctrl_list;
-    uint8_t pinctrl_list_size;
+    const struct pinctrl_dev_config *pcfg;
 };
 
 static uint32_t get_polarity(pwm_flags_t flags)
@@ -138,23 +136,20 @@ static int pwm_csk_init(const struct device *dev)
 	HAL_GPT_PWMInitialize(GPT0_PWM(), NULL);
 	HAL_GPT_PWMPowerControl(GPT0_PWM(), CSK_POWER_FULL);
 
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 	
 	return 0;
 }
 
 #define PWM_DEVICE_INIT(index)                                                 	\
 																				\
-	static const struct csk6_pinctrl_cfg                                        \
-        pwm_alts_##index[DT_INST_NUM_PINCTRLS_BY_IDX(index, 0)] =               \
-            CSK6_DT_ALT_ITEMS_LIST(index);                                      \
+    PINCTRL_DT_INST_DEFINE(index);                                              \
 									               								\
 	static const struct pwm_csk_config pwm_csk_config_##index = {      			\
 		.clock_source = DT_INST_PROP(index, clock_source),                		\
 		.clock_prescaler = DT_INST_PROP(index, clock_prescaler),           		\
 		.mode = DT_INST_PROP(index, mode),           							\
-        .pinctrl_list = pwm_alts_##index,                   					\
-		.pinctrl_list_size = ARRAY_SIZE(pwm_alts_##index),                      \
+        .pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                          \
 	};                                                                     		\
 																				\
 	DEVICE_DT_INST_DEFINE(index, &pwm_csk_init, NULL,                    		\

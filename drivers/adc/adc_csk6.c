@@ -10,8 +10,7 @@
 #include <drivers/adc.h>
 #include <kernel.h>
 #include <soc.h>
-#include <soc_dt.h>
-#include <drivers/pinmux.h>
+#include <zephyr/drivers/pinctrl.h>
 
 #include "Driver_GPADC.h"
 #include "AON_IOMuxManager.h"
@@ -61,8 +60,7 @@ struct adc_csk6_cfg {
 	/* GPIO pin */
 	uint8_t pin;
 	/* ADC alternate configuration */
-	const struct csk6_pinctrl_cfg *pinctrl_list;
-	uint8_t pinctrl_list_size;
+	const struct pinctrl_dev_config *pcfg;
 };
 
 
@@ -245,7 +243,7 @@ static int adc_csk6_init(const struct device *dev)
 
 	adc_context_unlock_unconditionally(&data->ctx);
 
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	return 0;
 }
@@ -260,11 +258,7 @@ static const struct adc_driver_api api_stm32_driver_api = {
 	.ref_internal = CSK6_ADC_VREF_VOL,
 };
 
-#if DT_INST_NUM_PINCTRLS_BY_IDX(0, 0)
-static const struct csk6_pinctrl_cfg                                       							\
-		adc_alts[DT_INST_NUM_PINCTRLS_BY_IDX(0, 0)] =          									\
-			CSK6_DT_ALT_ITEMS_LIST(0); 
-#endif
+PINCTRL_DT_INST_DEFINE(0);
 
 static struct adc_csk6_data adc_csk6_data_0 = {
 		ADC_CONTEXT_INIT_TIMER(adc_csk6_data_0, ctx),
@@ -273,10 +267,7 @@ static struct adc_csk6_data adc_csk6_data_0 = {
 };
 
 static const struct adc_csk6_cfg adc_csk6_cfg_0 = {
-#if DT_INST_NUM_PINCTRLS_BY_IDX(0, 0)
-		.pinctrl_list = adc_alts, 													   
-		.pinctrl_list_size = ARRAY_SIZE(adc_alts),	
-#endif								   
+	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(0),							   
 };
 
 DEVICE_DT_INST_DEFINE(0, adc_csk6_init,

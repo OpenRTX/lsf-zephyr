@@ -1,23 +1,23 @@
 &csk6002_9s_nano_pinctrl{
         pinctrl_i2c0_scl_default: i2c0_scl_default{
-                pinctrls = <&pinmuxa 4 8>;
+                pinctrls = <I2C0_SCL_GPIOA_04>;
         };
         
         pinctrl_i2c0_sda_default: i2c0_sda_default{
-                pinctrls = <&pinmuxa 5 8>;
+                pinctrls = <I2C0_SDA_GPIOA_05>;
         };    
 
         pinctrl_spi0_sclk_default: spi0_sclk_default {
-                pinctrls = < &pinmuxa 19 6 >;
+                pinctrls = < SPI0_CLK_GPIOA_19 >;
         };
         pinctrl_spi0_mosi_default: spi0_mosi_default {
-                pinctrls = < &pinmuxa 18 6 >;
+                pinctrls = < SPI0_MOSI_GPIOA_18 >;
         };
         pinctrl_spi0_miso_default: spi0_miso_default {
-                pinctrls = < &pinmuxa 17 6 >;
+                pinctrls = < SPI0_MISO_GPIOA_17 >;
         };
         pinctrl_spi0_cs_default: spi0_cs_default {
-                pinctrls = < &pinmuxa 20 6 >;
+                pinctrls = < SPI0_CS_N_GPIOA_20 >;
         }; 
 };
 
