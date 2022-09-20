@@ -585,11 +585,30 @@ static int wifi_sta_connect(const struct device *dev)
     int ret = 0;
     wlan_event_t event;
     struct csk_wifi_data *data = dev->data;
+    wlan_sta_config_t config = {0};
 
     data->err = CSK_WIFI_SUCCESS;
 
-    ret = wlan_sta_set((uint8_t *)data->sta_config.ssid,
-                        strlen(data->sta_config.ssid), (uint8_t *)data->sta_config.pwd);
+    memset(&config, 0, sizeof(config));
+    config.field = WLAN_STA_FIELD_SSID;
+    config.u.ssid.ssid_len = strlen(data->sta_config.ssid);
+    memcpy(&(config.u.ssid.ssid), &(data->sta_config.ssid), strlen(data->sta_config.ssid));
+    ret = wlan_sta_set_config(&config);
+    CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
+
+    memset(&config, 0, sizeof(config));
+    config.field = WLAN_STA_FIELD_PSK;
+    memcpy(&(config.u.psk), &(data->sta_config.pwd), strlen(data->sta_config.pwd));
+    ret = wlan_sta_set_config(&config);
+    CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
+
+    if (strlen(data->sta_config.bssid) > 0) {
+        memset(&config, 0, sizeof(config));
+        config.field = WLAN_STA_FIELD_BSSID;
+        convert_str_to_bytes(config.u.bssid.bssid, data->sta_config.bssid);
+        config.u.bssid.bssid_set = 6;
+    }
+    ret = wlan_sta_set_config(&config);
     CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
 
     ret = wlan_sta_connect();
