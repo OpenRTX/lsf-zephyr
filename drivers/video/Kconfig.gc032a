@@ -1,0 +1,9 @@
+# gc032a
+
+# SPDX-License-Identifier: Apache-2.0
+
+config VIDEO_GC032A
+	bool "GC032A CMOS digital image sensor"
+    depends on HAS_CSK6
+	help
+	  Enable driver for GC032A CMOS digital image sensor devices
