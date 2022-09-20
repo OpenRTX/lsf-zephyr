@@ -29,6 +29,7 @@ LOG_MODULE_REGISTER(i2c_csk);
  */
 #define I2C_CSK6_MAX_TIME_OUT_MS 50
 
+#define I2C_XFER_MAX_NUM (255)
 struct i2c_csk_config {
 	I2C_RegDef *base;
 	void (*irq_config_func)(const struct device *dev);
@@ -150,49 +151,58 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 	which means that if address length is 1 byte, then max data length is 255 bytes*/
 	if (data->mode) {
 		for (int i = 0; i < num_msgs; i++) {
-			/* master and slave mode both supporting 10-bit address and 7-bit address */
+			I2C_RESOURCES* i2c = (I2C_RESOURCES*)I2C_Handler;
 
-			/* I2c write or read */
-			if ((msgs->flags & I2C_MSG_RW_MASK) == I2C_MSG_WRITE) {
-				/* start transfer */
-				if ((msgs->flags & I2C_MSG_STOP) == I2C_MSG_STOP) {
-					/* write, then stop */
-					ret = I2C_MasterTransmit(I2C_Handler, addr, msgs->buf,
-								 msgs->len, 0);
-				} else {
-					/* write, then wait next operation(write/read), not stop */
-					ret = I2C_MasterTransmit(I2C_Handler, addr, msgs->buf,
-								 msgs->len, 1);
-				}
-			} else {
-				/* start transfer */
-				if ((msgs->flags & I2C_MSG_STOP) == I2C_MSG_STOP) {
-					/* read, then stop */
-					ret = I2C_MasterReceive(I2C_Handler, addr, msgs->buf,
-								msgs->len, 0);
-				} else {
-					/* read, then wait next operation, not stop */
-					ret = I2C_MasterReceive(I2C_Handler, addr, msgs->buf,
-								msgs->len, 1);
-				}
+			if (msgs->len > I2C_XFER_MAX_NUM) {
+				LOG_ERR("The maximum transfer size is 255 bytes");
+				return -EINVAL;
 			}
 
-			/* transfer error, abort transfer and return */
-			if (ret != CSK_DRIVER_OK) {
-				LOG_ERR("I2C Master transfer error: %d\n", ret);
-				I2C_Control(I2C_Handler, CSK_I2C_ABORT_TRANSFER, 0);
+			if (i2c->reg->REG_STATUS.bit.LINESDA == 0) {
+				LOG_WRN("i2c(%p) sda line is low.", i2c->reg);
+			}
 
+			k_event_set(data->evt, 0);
+
+			if ((msgs->flags & I2C_MSG_RW_MASK) == I2C_MSG_WRITE) {
+				ret = I2C_MasterTransmit(I2C_Handler, addr, msgs->buf, msgs->len,
+							 (msgs->flags & I2C_MSG_STOP) !=
+								 I2C_MSG_STOP);
+			} else {
+				ret = I2C_MasterReceive(I2C_Handler, addr, msgs->buf, msgs->len,
+							(msgs->flags & I2C_MSG_STOP) !=
+								I2C_MSG_STOP);
+			}
+
+			if (ret != CSK_DRIVER_OK) {
+				LOG_ERR("i2c(%p) master transfer error: %d\n", i2c->reg, ret);
+				I2C_Control(I2C_Handler, CSK_I2C_ABORT_TRANSFER, 0);
 				ret = -EIO;
 				break;
 			}
-			
-			evt = k_event_wait(data->evt, CSK_I2C_EVENT_TRANSFER_DONE, true,
-						  K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
+
+			evt = k_event_wait(data->evt,
+					   CSK_I2C_EVENT_TRANSFER_DONE |
+						   CSK_I2C_EVENT_ARBITRATION_LOST,
+					   false, K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
 			if (!(evt & CSK_I2C_EVENT_TRANSFER_DONE)) {
-				LOG_ERR("Wait I2C complete time out.");
+				LOG_ERR("i2c(%p) Wait complete time out, event:%x, sda line:%d.",
+					i2c->reg, evt, i2c->reg->REG_STATUS.bit.LINESDA);
+
+				if (evt & CSK_I2C_EVENT_ARBITRATION_LOST) {
+					LOG_ERR("i2c(%p) lost arbitration", i2c->reg);
+				}
+
 				return -ETIMEDOUT;
 			}
-			/* Move to the next message */
+
+			/* This register will be decreased by one for each byte transmitted */
+			if (i2c->reg->REG_CTRL.bit.DATACNT != 0) {
+				LOG_ERR("i2c(%p) data transfer error, status:%d/%d, last ack:%d",
+					i2c->reg, msgs->len - i2c->reg->REG_CTRL.bit.DATACNT,
+					msgs->len, !i2c->reg->REG_STATUS.bit.ACK);
+				return -EIO;
+			}
 			msgs++;
 		}
 	} else {
