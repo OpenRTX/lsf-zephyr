@@ -1,6 +1,6 @@
 #include <dt-bindings/display/ili9xxx.h>
 
-&csk6002_9s_nano_pinctrl{
+&pinctrl{
                 pinctrl_spi0_sclk_default: spi0_sclk_default {
                         pinctrls = < SPI0_CLK_GPIOA_07 >;
                 };

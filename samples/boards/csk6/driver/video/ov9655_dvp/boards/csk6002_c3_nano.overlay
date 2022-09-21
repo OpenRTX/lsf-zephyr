@@ -1,4 +1,4 @@
-&csk6002_c3_nano_pinctrl{
+&pinctrl{
                 pinctrl_uart1_tx_default: uart1_tx_default{
                     pinctrls = <UART1_TXD_GPIOA_04>;
                 };

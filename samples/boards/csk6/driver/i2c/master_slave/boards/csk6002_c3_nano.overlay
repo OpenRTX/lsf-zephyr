@@ -4,7 +4,7 @@
  * Copyright (c) 2021 STMicroelectronics
  */
 
-&csk6002_c3_nano_pinctrl{
+&pinctrl{
                 /* I2C alternate function */
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
                         pinctrls = <I2C0_SCL_GPIOA_04>;
