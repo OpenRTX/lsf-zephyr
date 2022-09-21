@@ -53,4 +53,6 @@ source "drivers/video/Kconfig.csk6_dvp"
 
 source "drivers/video/Kconfig.ov9655"
 
+source "drivers/video/Kconfig.gc032a"
+
 endif # VIDEO

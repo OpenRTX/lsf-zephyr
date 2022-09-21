@@ -2,9 +2,4 @@ tests:
   sample.board.csk6.driver.video.ov9655_dvp:
     platform_allow: csk6002_9s_nano csk6002_c3_nano
     tags: csk6
-    harness: console
-    timeout: 10
-    harness_config:
-      type: multi_line
-      regex:
-        - "^Capture started$"
+    build_only: true

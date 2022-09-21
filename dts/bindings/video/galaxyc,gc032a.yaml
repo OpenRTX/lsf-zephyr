@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: GC032A CMOS video sensor
+
+compatible: "galaxyc,gc032a"
+
+properties:
+    reset-gpios:
+      type: phandle-array
+      required: false
+      description: |
+        The RESET pin is asserted to disable the sensor causing a hard
+        reset.  The sensor receives this as an active-low signal.
+
+    pwdn-gpios:
+      type: phandle-array
+      required: false
+      description: |
+        The PWDN pin is asserted to disable the sensor causing a power
+        down.  The sensor receives this as an active-high signal.
+
+include: i2c-device.yaml
