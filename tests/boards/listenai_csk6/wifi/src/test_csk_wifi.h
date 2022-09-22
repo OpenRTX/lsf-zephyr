@@ -12,4 +12,7 @@
 int csk_wifi_connected_msgq_give(csk_wifi_event_t events);
 int csk_wifi_connected_msgq_take(csk_wifi_event_t *events, k_timeout_t timeout);
 
+int csk_wifi_disconnected_msgq_give(csk_wifi_event_t events);
+int csk_wifi_disconnected_msgq_take(csk_wifi_event_t *events, k_timeout_t timeout);
+
 void test_wifi_timeout_para(void);
