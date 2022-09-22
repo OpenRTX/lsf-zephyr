@@ -1,7 +1,7 @@
 /*
- * SPDX-License-Identifier: Apache-2.0
+ * Copyright (c) 2021-2022 listenai Intelligent Technology (anhui) Co., Ltd.
  *
- * Copyright (c) 2021 STMicroelectronics
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 &csk6002_9s_nano_pinctrl{
