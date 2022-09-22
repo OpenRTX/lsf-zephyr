@@ -12,8 +12,8 @@
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 1000
 
-#define LED0 DT_GPIO_LABEL(DT_NODELABEL(board_led_2_label), gpios)
-#define PIN DT_GPIO_PIN(DT_NODELABEL(board_led_2_label), gpios)
+#define LED0 DT_GPIO_LABEL(DT_NODELABEL(green_led), gpios)
+#define PIN DT_GPIO_PIN(DT_NODELABEL(green_led), gpios)
 
 void main(void)
 {

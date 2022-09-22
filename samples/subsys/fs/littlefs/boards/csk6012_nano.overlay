@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Linumiz
+ * Copyright (c) 2020 Circuit Dojo LLC
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,8 +12,9 @@
 		lfs1: lfs1 {
 			compatible = "zephyr,fstab,littlefs";
 			mount-point = "/lfs1";
-			partition = <&lfs1_part>;
-			automount;
+			partition = <&storage_partition>;
+			automount ;
+			no-format;
 			read-size = <16>;
 			prog-size = <16>;
 			cache-size = <64>;
@@ -21,17 +22,21 @@
 			block-cycles = <512>;
 		};
 	};
+
 };
 
-&mx25r64 {
+ 
+&flash0 {
 	partitions {
 		compatible = "fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		lfs1_part: partition@0 {
+		/* storage: 1MB for storage */
+		storage_partition: partition@700000 {
 			label = "storage";
-			reg = <0x00000000 0x00010000>;
+			reg = <0x700000 0x100000>;
 		};
+
 	};
 };

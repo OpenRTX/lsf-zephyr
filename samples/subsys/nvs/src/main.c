@@ -54,7 +54,7 @@ static struct nvs_fs fs;
 #define SLEEP_TIME      100
 /* maximum reboot counts, make high enough to trigger sector change (buffer */
 /* rotation). */
-#define MAX_REBOOT 400
+#define MAX_REBOOT 800
 
 #define ADDRESS_ID 1
 #define KEY_ID 2
