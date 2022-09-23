@@ -763,11 +763,8 @@ static int gc032a_set_fmt(const struct device *dev, enum video_endpoint_id ep,
 			  struct video_format *fmt)
 {
 	int ret = 0;
-	// ret = gc032a_write_all(dev, gc032a_init_reg_tb, ARRAY_SIZE(gc032a_init_reg_tb));
-	/* we only support one format for now (QVGA VYUY) */
 	if (fmt->pixelformat == VIDEO_PIX_FMT_VYUY && fmt->height == 480 && fmt->width == 640) {
-		// LOG_WRN("gc032a only support one format for now (QVGA VYUY) \n ");
-		// return -ENOTSUP;
+
 		ret = gc032a_write_all(dev, gc032a_init_reg_tb, ARRAY_SIZE(gc032a_init_reg_tb));
 		if (ret) {
 			LOG_ERR("Unable to write gc032a config");
@@ -777,8 +774,6 @@ static int gc032a_set_fmt(const struct device *dev, enum video_endpoint_id ep,
 		return 0;
 	}
 	if (fmt->pixelformat == VIDEO_PIX_FMT_RGB565 && fmt->height == 480 && fmt->width == 640) {
-		// LOG_WRN("gc032a only support one format for now (QVGA VYUY) \n ");
-		// return -ENOTSUP;
 		ret = gc032a_write_all(dev, gc032a_init_grb_reg_tb,
 				       ARRAY_SIZE(gc032a_init_grb_reg_tb));
 		if (ret) {
