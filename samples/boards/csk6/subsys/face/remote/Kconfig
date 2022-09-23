@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config ALGO_RES_BIN
+	bool "Algo Resource Binary.Cmake will convert to inc file."
+	default y
+
+source "Kconfig.zephyr"

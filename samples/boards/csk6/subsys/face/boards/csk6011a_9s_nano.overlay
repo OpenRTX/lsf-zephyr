@@ -1,0 +1,4 @@
+pinctrl_uart2_tx_default: uart2_tx_default {
+    pinctrls = < &pinmuxb 0x6 0x3 >;
+    phandle = < 0x2 >;
+};
