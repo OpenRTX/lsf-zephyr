@@ -62,16 +62,16 @@ struct ieee802154_fcf_seq *ieee802154_validate_fc_seq(uint8_t *buf, uint8_t **p_
 	    (fs->fc.dst_addr_mode != IEEE802154_ADDR_MODE_NONE ||
 	     fs->fc.src_addr_mode == IEEE802154_ADDR_MODE_NONE ||
 	     fs->fc.pan_id_comp)) {
-		/** See section 5.2.2.1.1 */
+		/** See section 7.2.2.1.1 */
 		return NULL;
 	} else if (fs->fc.frame_type == IEEE802154_FRAME_TYPE_DATA &&
 		   fs->fc.dst_addr_mode == IEEE802154_ADDR_MODE_NONE &&
 		   fs->fc.src_addr_mode == IEEE802154_ADDR_MODE_NONE) {
-		/** See section 5.2.2.2.1 */
+		/** See section 7.2.2.2.1 */
 		return NULL;
 	} else if (fs->fc.frame_type == IEEE802154_FRAME_TYPE_MAC_COMMAND &&
 		   fs->fc.frame_pending) {
-		/** See section 5.3 */
+		/** See section 7.3 */
 		return NULL;
 	}
 
@@ -148,7 +148,7 @@ ieee802154_validate_aux_security_hdr(uint8_t *buf, uint8_t **p_buf, uint8_t *len
 		return NULL;
 	}
 
-	/* Explicit key must have a key index != 0x00, see Section 7.4.3.2 */
+	/* Explicit key must have a key index != 0x00, see section 7.6.2.4.2 */
 	switch (ash->control.key_id_mode) {
 	case IEEE802154_KEY_ID_MODE_IMPLICIT:
 		break;
@@ -466,45 +466,29 @@ bool ieee802154_validate_frame(uint8_t *buf, uint8_t length,
 	return validate_payload_and_mfr(mpdu, buf, p_buf, &length);
 }
 
-uint8_t ieee802154_compute_header_size(struct net_if *iface,
-				    struct in6_addr *dst)
+uint8_t ieee802154_compute_header_and_authtag_size(struct net_if *iface,
+				    struct net_linkaddr *dst)
 {
+	bool broadcast = !dst->addr;
 	uint8_t hdr_len = sizeof(struct ieee802154_fcf_seq);
+
+	/* PAN ID */
+	hdr_len += IEEE802154_PAN_ID_LENGTH;
+
+	/* Destination Address - see get_dst_addr_mode() */
+	hdr_len += broadcast ? IEEE802154_SHORT_ADDR_LENGTH : dst->len;
+
+	/* Source Address - see data_addr_to_fs_settings() */
+	hdr_len += broadcast ? IEEE802154_EXT_ADDR_LENGTH : dst->len;
+
 #ifdef CONFIG_NET_L2_IEEE802154_SECURITY
-	struct ieee802154_security_ctx *sec_ctx =
-		&((struct ieee802154_context *)net_if_l2_data(iface))->sec_ctx;
-#endif
-
-	/** if dst is NULL, we'll consider it as a broadcast header */
-	if (!dst ||
-	    net_ipv6_is_addr_mcast(dst) ||
-	    net_ipv6_is_addr_unspecified(dst)) {
-		NET_DBG("Broadcast destination");
-		/* 4 dst pan/addr + 8 src addr */
-		hdr_len += IEEE802154_PAN_ID_LENGTH +
-			IEEE802154_SHORT_ADDR_LENGTH +
-			IEEE802154_EXT_ADDR_LENGTH;
-		if (IS_ENABLED(CONFIG_NET_L2_IEEE802154_SECURITY)) {
-			NET_DBG("Broadcast packet do not have security");
-			goto done;
-		}
-	} else {
-		struct net_nbr *nbr;
-
-		nbr = net_ipv6_nbr_lookup(iface, dst);
-		if (nbr) {
-			/* ToDo: handle short addresses */
-			/* dst pan/addr + src addr */
-			hdr_len += IEEE802154_PAN_ID_LENGTH +
-				(IEEE802154_EXT_ADDR_LENGTH * 2);
-		} else {
-			/* src pan/addr only */
-			hdr_len += IEEE802154_PAN_ID_LENGTH +
-				IEEE802154_EXT_ADDR_LENGTH;
-		}
+	if (broadcast) {
+		NET_DBG("Broadcast packets are not being encrypted.");
+		goto done;
 	}
 
-#ifdef CONFIG_NET_L2_IEEE802154_SECURITY
+	struct ieee802154_security_ctx *sec_ctx =
+		&((struct ieee802154_context *)net_if_l2_data(iface))->sec_ctx;
 	if (sec_ctx->level == IEEE802154_SECURITY_LEVEL_NONE) {
 		goto done;
 	}
@@ -529,8 +513,8 @@ uint8_t ieee802154_compute_header_size(struct net_if *iface,
 		hdr_len += IEEE8021254_KEY_ID_FIELD_SRC_8_INDEX_LENGTH;
 	}
 
-	/* This is a _HACK_: as net_buf do not let the possibility to
-	 * reserve tailroom - here for authentication tag - it "reserves"
+	/* This is a _HACK_: As net_buf does not allow to reserve tailroom
+	 * - here for authentication tag (see section 7.6.3.4.3) - it "reserves"
 	 * it in headroom so the payload won't occupy all the left space
 	 * and then when it will come to finalize the data frame it will
 	 * reduce the reserved space by the tag size, move the payload
@@ -540,11 +524,11 @@ uint8_t ieee802154_compute_header_size(struct net_if *iface,
 	if (sec_ctx->level < IEEE802154_SECURITY_LEVEL_ENC) {
 		hdr_len += level_2_tag_size[sec_ctx->level];
 	} else {
-		hdr_len += level_2_tag_size[sec_ctx->level - 4];
+		hdr_len += level_2_tag_size[sec_ctx->level - 4U];
 	}
+done:
 #endif /* CONFIG_NET_L2_IEEE802154_SECURITY */
 
-done:
 	NET_DBG("Computed size of %u", hdr_len);
 
 	return hdr_len;
@@ -562,7 +546,7 @@ static inline struct ieee802154_fcf_seq *generate_fcf_grounds(uint8_t **p_buf,
 	fs->fc.ar = ack;
 	fs->fc.pan_id_comp = 0U;
 	fs->fc.reserved = 0U;
-	/** We support version 2006 only for now */
+	/* We support version 2006 only for now */
 	fs->fc.seq_num_suppr = 0U;
 	fs->fc.ie_list = 0U;
 	fs->fc.frame_version = IEEE802154_VERSION_802154_2006;
@@ -633,38 +617,40 @@ uint8_t *generate_addressing_fields(struct ieee802154_context *ctx,
 				 uint8_t *p_buf)
 {
 	struct ieee802154_address_field *af;
-	struct ieee802154_address *src_addr;
 
+	/* destination address */
 	if (fs->fc.dst_addr_mode != IEEE802154_ADDR_MODE_NONE) {
 		af = (struct ieee802154_address_field *)p_buf;
+
 		af->plain.pan_id = params->dst.pan_id;
+		p_buf += IEEE802154_PAN_ID_LENGTH;
 
 		if (fs->fc.dst_addr_mode == IEEE802154_ADDR_MODE_SHORT) {
 			af->plain.addr.short_addr =
 				sys_cpu_to_le16(params->dst.short_addr);
-			p_buf += IEEE802154_PAN_ID_LENGTH +
-				IEEE802154_SHORT_ADDR_LENGTH;
+			p_buf += IEEE802154_SHORT_ADDR_LENGTH;
 		} else {
 			sys_memcpy_swap(af->plain.addr.ext_addr,
 					params->dst.ext_addr,
 					IEEE802154_EXT_ADDR_LENGTH);
-			p_buf += IEEE802154_PAN_ID_LENGTH +
-				IEEE802154_EXT_ADDR_LENGTH;
+			p_buf += IEEE802154_EXT_ADDR_LENGTH;
 		}
 	}
 
+	/* source address */
 	if (fs->fc.src_addr_mode == IEEE802154_ADDR_MODE_NONE) {
 		return p_buf;
 	}
 
 	af = (struct ieee802154_address_field *)p_buf;
+	struct ieee802154_address *src_addr;
 
-	if (!fs->fc.pan_id_comp) {
+	if (fs->fc.pan_id_comp) {
+		src_addr = &af->comp.addr;
+	} else {
 		af->plain.pan_id = params->pan_id;
 		src_addr = &af->plain.addr;
 		p_buf += IEEE802154_PAN_ID_LENGTH;
-	} else {
-		src_addr = &af->comp.addr;
 	}
 
 	if (fs->fc.src_addr_mode == IEEE802154_ADDR_MODE_SHORT) {
@@ -711,7 +697,7 @@ uint8_t *generate_aux_security_hdr(struct ieee802154_security_ctx *sec_ctx,
 bool ieee802154_create_data_frame(struct ieee802154_context *ctx,
 				  struct net_linkaddr *dst,
 				  struct net_buf *buf,
-				  uint8_t hdr_size)
+				  uint8_t hdr_len)
 {
 	struct ieee802154_frame_params params;
 	struct ieee802154_fcf_seq *fs;
@@ -756,26 +742,26 @@ bool ieee802154_create_data_frame(struct ieee802154_context *ctx,
 
 		/* p_buf should point to the right place */
 		memmove(p_buf, buf->data, buf->len);
-		hdr_size -= level_2_tag_size[level];
+		hdr_len -= level_2_tag_size[level];
 	}
 
 no_security_hdr:
 #endif /* CONFIG_NET_L2_IEEE802154_SECURITY */
 
-	if ((p_buf - buf_start) != hdr_size) {
-		/* hdr_size was too small? We probably overwrote
+	if ((p_buf - buf_start) != hdr_len) {
+		/* hdr_len was too small? We probably overwrote
 		 * payload bytes
 		 */
 		NET_ERR("Could not generate data frame %zu vs %u",
-			(p_buf - buf_start), hdr_size);
+			(p_buf - buf_start), hdr_len);
 		return false;
 	}
 
 	dbg_print_fs(fs);
 
-	/* Let's encrypt/auth only in the end, is needed */
+	/* Let's encrypt/auth only in the end, if needed */
 	return ieee802154_encrypt_auth(broadcast ? NULL : &ctx->sec_ctx,
-				       buf_start, hdr_size, buf->len,
+				       buf_start, hdr_len, buf->len,
 				       ctx->ext_addr);
 }
 

@@ -952,7 +952,7 @@ static void test_client_syn_resend(void)
 	ret = net_context_connect(ctx, (struct sockaddr *)&peer_addr_s,
 				  sizeof(struct sockaddr_in),
 				  NULL,
-				  K_MSEC(300), NULL);
+				  K_MSEC(300 + 50), NULL);
 
 	zassert_true(ret < 0, "Connect on no response from peer");
 
@@ -1363,7 +1363,37 @@ fail:
 	net_pkt_unref(pkt);
 }
 
-static void test_server_recv_out_of_order_data(void)
+struct out_of_order_check_struct {
+	int seq_offset;
+	int length;
+	int ack_offset;
+	int delay_ms;
+};
+
+static struct out_of_order_check_struct out_of_order_check_list[] = {
+	{ 30, 10, 0, 0}, /* First packet will be out-of-order */
+	{ 20, 12, 0, 0},
+	{ 10,  9, 0, 0}, /* Section with a gap */
+	{ 0,  10, 10, 0},
+	{ 10, 10, 40, 0}, /* First sequence complete */
+	{ 50,  6, 40, 0},
+	{ 50,  3, 40, 0}, /* Discardable packet */
+	{ 55,  5, 40, 0},
+	{ 40, 10, 60, 0}, /* Some bigger data */
+	{ 61,  2, 60, 0},
+	{ 60,  5, 65, 0}, /* Over lapped incoming packet */
+	{ 66,  4, 65, 0},
+	{ 65,  5, 70, 0}, /* Over lapped incoming packet, at boundary */
+	{ 72,  2, 70, 0},
+	{ 71,  4, 70, 0},
+	{ 70,  1, 75, 0}, /* Over lapped in out of order processing */
+	{ 78,  2, 75, 0},
+	{ 77,  3, 75, 0},
+	{ 75,  2, 80, 0}, /* Over lapped in out of order processing, at boundary */
+};
+
+static void checklist_based_out_of_order_test(struct out_of_order_check_struct *check_list,
+					      int num_checks, int sequence_base)
 {
 	const uint8_t *data = lorem_ipsum + 10;
 	struct net_pkt *pkt;

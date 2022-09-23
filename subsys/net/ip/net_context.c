@@ -370,7 +370,8 @@ int net_context_unref(struct net_context *context)
 
 	if (context->conn_handler) {
 		if (IS_ENABLED(CONFIG_NET_TCP) || IS_ENABLED(CONFIG_NET_UDP) ||
-		    IS_ENABLED(CONFIG_NET_SOCKETS_CAN)) {
+		    IS_ENABLED(CONFIG_NET_SOCKETS_CAN) ||
+		    IS_ENABLED(CONFIG_NET_SOCKETS_PACKET)) {
 			net_conn_unregister(context->conn_handler);
 		}
 
@@ -1038,8 +1039,6 @@ int net_context_connect(struct net_context *context,
 		}
 
 		/* FIXME - Add multicast and broadcast address check */
-
-		addr4 = (struct sockaddr_in *)&context->remote;
 
 		memcpy(&addr4->sin_addr, &net_sin(addr)->sin_addr,
 		       sizeof(struct in_addr));
