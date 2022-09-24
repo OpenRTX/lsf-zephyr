@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-&csk6002_9s_nano_pinctrl{
+&pinctrl{
     /* UART alternate function */
     pinctrl_uart0_rx_default: uart0_rx_default{
     };

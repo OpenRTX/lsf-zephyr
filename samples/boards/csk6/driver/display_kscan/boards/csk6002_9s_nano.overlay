@@ -1,4 +1,4 @@
-&csk6002_9s_nano_pinctrl{
+&pinctrl{
         pinctrl_i2c0_scl_default: i2c0_scl_default{
                 pinctrls = <I2C0_SCL_GPIOA_04>;
         };

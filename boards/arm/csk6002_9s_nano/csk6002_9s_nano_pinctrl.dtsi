@@ -1,188 +1,50 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+#include "csk/csk6_pinctrl.dtsi"
 
-#include <dt-bindings/pinctrl/csk6-pinctrl.h>
+#define csk6002_9s_nano_pinctrl pinctrl \
+    __PINCTRL_DEPRECATED__("This node has been deprecated," \
+                           "please use 'pinctrl' instead of 'csk6002_9s_nano_pinctrl")
 
-/ {
-        csk6002_9s_nano_pinctrl:csk6002_pinctrl{
-                compatible = "listenai,csk-pinctrl";
+&pinctrl {
+    pinctrl_uart0_rx_default: uart0_rx_default{
+        pinctrls = <UART0_RXD_GPIOA_02>;
+    };
 
-                /* UART alternate function */
-                pinctrl_uart0_rx_default: uart0_rx_default{
-                        pinctrls = <UART0_RXD_GPIOA_02>;
-                };
-                
-                pinctrl_uart0_tx_default: uart0_tx_default{
-                        pinctrls = <UART0_TXD_GPIOA_03>;
-                };
+    pinctrl_uart0_tx_default: uart0_tx_default{
+        pinctrls = <UART0_TXD_GPIOA_03>;
+    };
 
-                pinctrl_uart1_rx_default: uart1_rx_default{
-                };
-                
-                pinctrl_uart1_tx_default: uart1_tx_default{
-                };
+    pinctrl_i2c0_scl_default: i2c0_scl_default{
+        pinctrls = <I2C0_SCL_GPIOB_00>;
+    };
 
-                pinctrl_uart2_rx_default: uart2_rx_default{
-                };
-                
-                pinctrl_uart2_tx_default: uart2_tx_default{
-                };
+    pinctrl_i2c0_sda_default: i2c0_sda_default{
+        pinctrls = <I2C0_SDA_GPIOB_01>;
+    };
 
-                pinctrl_uart3_rx_default: uart3_rx_default{
-                };
-                
-                pinctrl_uart3_tx_default: uart3_tx_default{
-                };
+    pinctrl_spi0_cs_default: spi0_cs_default{
+        pinctrls = <SPI0_CS_N_GPIOA_20>;
+    };
 
-                /* I2C alternate function */
-                pinctrl_i2c0_scl_default: i2c0_scl_default{
-                        pinctrls = <I2C0_SCL_GPIOB_00>;
-                };
-                
-                pinctrl_i2c0_sda_default: i2c0_sda_default{
-                        pinctrls = <I2C0_SDA_GPIOB_01>;
-                };
+    pinctrl_spi0_miso_default: spi0_miso_default{
+        pinctrls = <SPI0_MISO_GPIOA_17>;
+    };
 
-                pinctrl_i2c1_scl_default: i2c1_scl_default{
-                };
-                
-                pinctrl_i2c1_sda_default: i2c1_sda_default{
-                };
+    pinctrl_spi0_mosi_default: spi0_mosi_default{
+        pinctrls = <SPI0_MOSI_GPIOA_18>;
+    };
 
-                /* SPIC alternate function */
-                pinctrl_spi0_cs_default: spi0_cs_default{
-                        pinctrls = <SPI0_CS_N_GPIOA_20>;
-                };
+    pinctrl_spi0_sclk_default: spi0_sclk_default{
+        pinctrls = <SPI0_CLK_GPIOA_19>;
+    };
+    pinctrl_pwm4_default: pwm4_default{
+        pinctrls = <GPT_PWM_4_GPIOA_04>;
+    };
 
-                pinctrl_spi0_miso_default: spi0_miso_default{
-                        pinctrls = <SPI0_MISO_GPIOA_17>;
-                };
+    pinctrl_pwm5_default: pwm5_default{
+        pinctrls = <GPT_PWM_5_GPIOA_05>;
+    };
 
-                pinctrl_spi0_mosi_default: spi0_mosi_default{
-                        pinctrls = <SPI0_MOSI_GPIOA_18>;
-                };
-
-                pinctrl_spi0_sclk_default: spi0_sclk_default{
-                        pinctrls = <SPI0_CLK_GPIOA_19>;
-                };
-                
-                pinctrl_spi1_sclk_default: spi1_sclk_default{
-                };
-                
-                pinctrl_spi1_mosi_default: spi1_mosi_default{
-                };
-
-                pinctrl_spi1_miso_default: spi1_miso_default{
-                };    
-
-                pinctrl_spi1_cs_default: spi1_cs_default{
-                };
-                
-                /* ADC alternate function */
-                pinctrl_adc0_ch0_default: adc0_ch0_default{
-                };
-                
-                pinctrl_adc0_ch1_default: adc0_ch1_default{
-                };
-
-                pinctrl_adc0_ch2_default: adc0_ch2_default{
-                };
-
-                /* PWM alternate function*/
-                pinctrl_pwm0_default: pwm0_default{
-                };
-
-                pinctrl_pwm1_default: pwm1_default{
-                };
-
-                pinctrl_pwm2_default: pwm2_default{
-                };
-
-                pinctrl_pwm3_default: pwm3_default{
-                };
-
-                pinctrl_pwm4_default: pwm4_default{
-                        pinctrls = <GPT_PWM_4_GPIOA_04>;
-                };
-
-                pinctrl_pwm5_default: pwm5_default{
-                        pinctrls = <GPT_PWM_5_GPIOA_05>;
-                };
-
-                pinctrl_pwm6_default: pwm6_default{
-                        pinctrls = <GPT_PWM_6_GPIOB_02>;
-                };
-
-                pinctrl_pwm7_default: pwm7_default{
-                };
-
-                /* DVP alternate function */
-                pinctrl_dvp_clkout_default: dvp_clkout_default{
-                };
-
-                pinctrl_dvp_vsync_default: dvp_vsync_default{
-                };
-
-                pinctrl_dvp_hsync_default: dvp_hync_default{
-                };
-
-                pinctrl_dvp_pclk_default: dvp_pclk_default{
-                };
-
-                pinctrl_dvp_d0_default: dvp_d0_default{
-                };
-
-                pinctrl_dvp_d1_default: dvp_d1_default{
-                };
-
-                pinctrl_dvp_d2_default: dvp_d2_default{
-                };
-
-                pinctrl_dvp_d3_default: dvp_d3_default{
-                };
-
-                pinctrl_dvp_d4_default: dvp_d4_default{
-                };
-
-                pinctrl_dvp_d5_default: dvp_d5_default{
-                };
-
-                pinctrl_dvp_d6_default: dvp_d6_default{
-                };
-
-                pinctrl_dvp_d7_default: dvp_d7_default{
-                };
-
-                pinctrl_dvp_d8_default: dvp_d8_default{
-                };
-
-                pinctrl_dvp_d9_default: dvp_d9_default{
-                };
-
-                pinctrl_dvp_d10_default: dvp_d10_default{
-                };
-
-                pinctrl_dvp_d11_default: dvp_d11_default{
-                };
-
-                /* SDIO alternate function */
-                pinctrl_sdio_cmd_default: sdio_cmd_default{
-                };
-                
-                pinctrl_sdio_clk_default: sdio_clk_default{
-                };
-
-                pinctrl_sdio_dat0_default: sdio_dat0_default{
-                };
-
-                pinctrl_sdio_dat1_default: sdio_dat1_default{
-                };
-
-                pinctrl_sdio_dat2_default: sdio_dat2_default{
-                };
-
-                pinctrl_sdio_dat3_default: sdio_dat3_default{
-                        
-                };
-
-        };
+    pinctrl_pwm6_default: pwm6_default{
+        pinctrls = <GPT_PWM_6_GPIOB_02>;
+    };
 };

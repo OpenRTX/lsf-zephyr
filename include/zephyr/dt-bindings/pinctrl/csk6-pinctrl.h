@@ -2,6 +2,8 @@
 
 #define CSK6_PINMUX(pad, index, func)   &pinmux##pad index func
 
+#define __PINCTRL_DEPRECATED__(msg)
+
 // uart0
 #define UART0_RXD_GPIOA_00     CSK6_PINMUX(a, 0, 2)
 #define UART0_TXD_GPIOA_01     CSK6_PINMUX(a, 1, 2)

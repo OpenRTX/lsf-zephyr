@@ -1,6 +1,6 @@
 
 
-&csk6002_9s_nano_pinctrl{
+&pinctrl{
             /* SPIC alternate function */
             pinctrl_spi1_sclk_default: spi1_sclk_default{
                     pinctrls = <SPI1_CLK_GPIOA_04>;

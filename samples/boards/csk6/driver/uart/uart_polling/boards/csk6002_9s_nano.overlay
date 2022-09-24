@@ -1,4 +1,4 @@
-&csk6002_9s_nano_pinctrl{
+&pinctrl{
     pinctrl_uart0_rx_default: uart0_rx_default{
         pinctrls = <UART0_RXD_GPIOA_02>;              //rx pin
     };
