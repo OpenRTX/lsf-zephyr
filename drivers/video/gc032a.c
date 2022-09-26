@@ -556,6 +556,7 @@ static int gc032a_set_fmt(const struct device *dev,
 
 		return 0;
 	}
+	return 0;
 }
 
 static int gc032a_get_fmt(const struct device *dev,
