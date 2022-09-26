@@ -284,6 +284,7 @@ static int i2c_csk_init(const struct device *dev)
 	/* Initialize i2c */
 	I2C_Initialize(I2C_Handler, i2c_csk_event_cb, data);
 	I2C_PowerControl(I2C_Handler, CSK_POWER_FULL);
+	i2c_csk_configure(dev, I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER);
 
 	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
