@@ -50,7 +50,7 @@ typedef struct {
 csk6_flash_config_t csk6_flash_config = { .flash_dev = {
 						  .base_addr = DT_INST_REG_ADDR(0),
 						  .d_width = 4,
-						  .sclk_div = 0, //divider is 1
+						  .sclk_div = 0xff, // 0xff: special div in chip,indicates that sclk frequency = SPI clock frequency
 						  .run_mod = RUN_WITH_INT,
 						  .timeout = 0,
 					  } };
