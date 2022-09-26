@@ -556,7 +556,8 @@ static int gc032a_set_fmt(const struct device *dev,
 
 		return 0;
 	}
-	return 0;
+	LOG_ERR("video format unsupported \n");
+    return -ENOTSUP;
 }
 
 static int gc032a_get_fmt(const struct device *dev,
