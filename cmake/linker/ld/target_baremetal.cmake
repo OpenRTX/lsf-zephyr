@@ -5,12 +5,24 @@
 macro(toolchain_ld_baremetal)
 
   # LINKERFLAGPREFIX comes from linker/ld/target.cmake
-  zephyr_ld_options(
-    -nostdlib
-    -static
-    ${LINKERFLAGPREFIX},-X
-    ${LINKERFLAGPREFIX},-N
-  )
+  if(CONFIG_EXTERNAL_LIBC)
+    zephyr_ld_options(
+      -nostartfiles
+      -static
+      -no-pie
+      ${LINKERFLAGPREFIX},-X
+      ${LINKERFLAGPREFIX},-N
+    )
+  else()
+    zephyr_ld_options(
+      -nostdlib
+      -static
+      -no-pie
+      ${LINKERFLAGPREFIX},-X
+      ${LINKERFLAGPREFIX},-N
+    )
+  endif()
+
 
   # Funny thing is if this is set to =error, some architectures will
   # skip this flag even though the compiler flag check passes
