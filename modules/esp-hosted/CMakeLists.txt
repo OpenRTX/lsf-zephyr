@@ -15,8 +15,8 @@ zephyr_include_directories_ifdef(CONFIG_ESP_HOSTED
     csk/driver/network
     csk/driver/serial
     csk/driver/spi
-    csk/driver/gpio
     csk/driver/vhci
+    csk/driver/hw_driver
     csk/os/include
 )
 
@@ -28,9 +28,8 @@ zephyr_library_sources_ifdef(CONFIG_ESP_HOSTED
     csk/driver/network/netdev_api.c
     csk/driver/network/netdev_stub.c
     csk/driver/serial/serial_ll_if.c
-    csk/driver/spi/hosted_spi.c
     csk/driver/spi/spi_drv.c
-    csk/driver/gpio/hosted_gpio.c
+    csk/driver/hw_driver/hosted_hw_drv.c
     csk/driver/vhci/vhci_if.c
     csk/os/src/csk_os_memory.c
     csk/os/src/csk_os_queue.c

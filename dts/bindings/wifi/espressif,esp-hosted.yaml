@@ -2,16 +2,11 @@
 
 description: esp-hosted wifi module
 
-compatible: "wifi,esp32c3"
+compatible: "espressif,esp-hosted"
+
+include: [spi-device.yaml]
 
 properties:
-    spi_port:
-      type: int
-      required: true
-      enum:
-       - 0
-       - 1
-
     dataready-gpios:
       type: phandle-array
       required: true
