@@ -9,10 +9,10 @@
  * @brief Sample app for Audio class
  */
 
-#include <zephyr/zephyr.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/usb/usb_device.h>
-#include <zephyr/usb/class/usb_audio.h>
+#include <zephyr.h>
+#include <logging/log.h>
+#include <usb/usb_device.h>
+#include <usb/class/usb_audio.h>
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -32,9 +32,7 @@ static void data_received(const struct device *dev,
 	/* Check if the device OUT buffer can be used for input */
 	if (size == usb_audio_get_in_frame_size(dev)) {
 		ret = usb_audio_send(dev, buffer, size);
-		if (ret) {
-			net_buf_unref(buffer);
-		}
+		net_buf_unref(buffer);
 	} else {
 		net_buf_unref(buffer);
 	}

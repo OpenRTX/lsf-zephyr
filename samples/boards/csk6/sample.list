@@ -13,6 +13,9 @@ samples/subsys/console/echo
 samples/subsys/console/getchar
 samples/subsys/shell/shell_module
 samples/subsys/ipc/openamp
+samples/subsys/nvs
+samples/subsys/fs/littlefs
+samples/subsys/usb/audio/headset
 
 samples/bluetooth/beacon
 samples/bluetooth/central
