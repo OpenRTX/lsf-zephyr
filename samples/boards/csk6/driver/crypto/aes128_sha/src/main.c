@@ -140,15 +140,12 @@ static void *Hash256_LightPadding(char *m, uint64_t len, uint64_t *nopadding_len
 
 		if ((len * 8 + 1) % 512 > 448) {
 			*padding_len += 64;
-			printk("111\n");
 		}
 
-		*nopadding_len = (len / 64) * 64; // Floor
-		printk("123\n");
+		*nopadding_len = (len / 64) * 64;
 	} else {
 		*nopadding_len = len;
 		*padding_len = 64;
-		printk("321\n");
 	}
 
 	unsigned char *s = (unsigned char *)k_malloc(*padding_len);
@@ -184,7 +181,6 @@ void hash_mode(const struct device *dev)
 	uint64_t nopadding_len;
 	uint8_t padding_len;
 
-	
 	padding_source_addr = (volatile uint32_t *)Hash256_LightPadding(
 		(char *)source_addr, sizeof(test7), &nopadding_len, &padding_len);
 	ret = hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256);
@@ -197,7 +193,6 @@ void hash_mode(const struct device *dev)
 		ret = hash_update(&ctx, &pkt);
 		source_addr += 0x10; // word
 		nopadding_len -= 64;
-		printf_buffer((uint8_t *)dst_addr, 32);
 
 	} else { // == 0
 		pkt.in_buf = (uint8_t *)padding_source_addr;
@@ -206,28 +201,23 @@ void hash_mode(const struct device *dev)
 		ret = hash_update(&ctx, &pkt);
 		padding_len -= 64;
 		padding_source_addr += 0x10; // word
-		printf_buffer((uint8_t *)dst_addr, 32);
 	}
 
 	for (i = 0; i < nopadding_len / 64; i++) {
-		
-		
 		pkt.in_buf = (uint8_t *)source_addr;
 		pkt.in_len = 64;
 		pkt.out_buf = (uint8_t *)dst_addr;
 		ret = hash_compute(&ctx, &pkt);
 		source_addr += 0x10;
-		printf_buffer((uint8_t *)dst_addr, 32);
 	}
 
 	for (i = 0; i < padding_len / 64; i++) {
 		pkt.in_buf = (uint8_t *)padding_source_addr;
 		pkt.in_len = 64;
 		pkt.out_buf = (uint8_t *)dst_addr;
-		ret = hash_compute(&ctx, &pkt); 
+		ret = hash_compute(&ctx, &pkt);
 
 		padding_source_addr += 0x10; // word
-		
 	}
 	printf_buffer((uint8_t *)crypto_sha_result_data_8w, 32);
 	printf_buffer((uint8_t *)sha256_results[6], 32);

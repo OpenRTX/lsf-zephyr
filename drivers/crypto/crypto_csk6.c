@@ -163,6 +163,7 @@ static int csk6_hash_do_decrypt(struct hash_ctx *ctx, uint8_t *in_buf, int in_le
 
 	while (!(data->event & CSK_CRYPTO_EVENT_DONE))
 		;
+	data->event = 0;
 
 	return 0;
 }
