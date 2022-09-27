@@ -113,50 +113,15 @@ uint8_t sha256_results[7][32] = {
 	  0x7f, 0x39, 0x30, 0x0f, 0x70, 0xfe, 0xde, 0x16, 0xe2, 0x1e, 0xfc,
 	  0x77, 0xf7, 0x86, 0x59, 0x98, 0x71, 0x4a, 0xad, 0x0b, 0x5e }
 };
-unsigned int crypto_long_validation_array[] = {
-	0x746e6f4d, 0x72726573, 0x6c277461, 0x64657961, 0x56864627, 0x69662297, 0x26747372,
-	0x364617d6, 0x236e6982, 0x12939313, 0x26646e61, 0x92c7e6f6, 0x61636562, 0x6624656d,
-	0x6d126696, 0x65626d65, 0x96267372, 0x393931e2, 0x66242e36, 0x657922f7, 0x27737261,
-	0x92578646, 0x65726577, 0x6e61722a, 0x2664656b, 0xe6f6d616, 0x65687472, 0x26f77627,
-	0x327742c6, 0x73726f77, 0x17e62674, 0xe6f69646, 0x6973c216, 0x2e736564, 0x77746542,
-	0x236e6565, 0x12939313, 0x23646e61, 0x27323123, 0x92578646, 0x276e6f77, 0x6df27647,
-	0x68637461, 0xf7267365, 0x666f4257, 0x76722323, 0x569617c6, 0x26a6c242, 0x618246f7,
-	0x6e696167, 0x16247473, 0x965677e6, 0xc212c6c6, 0x746f6e61, 0x24726568, 0x6342f524,
-	0x65727275, 0x796c746e, 0x74132323, 0xe2962668, 0x61666946, 0x76277327, 0x42c626f7,
-	0x6b6e6172, 0x73676e69, 0x6e6fd222, 0x3625796c, 0x614de216, 0x6f6e6972, 0x52261726,
-	0x6f6c6562, 0x86462777, 0x76e5d256, 0xc2e25686, 0x4de296a6, 0x68637261, 0x42332323,
-	0x6e6f4dc2, 0x72657374, 0x27746172, 0x52265776, 0x616e6966, 0x26796c6c, 0x52c62616,
-	0x86266f74, 0x684237f7, 0x26656d6f, 0x364617d6, 0x61325786, 0x6e696167, 0x22f76626,
-	0x26656874, 0x37279766, 0x6d697442, 0x96362765, 0x745236e6, 0x57266568, 0x69745727,
-	0x2c736e6f, 0x2774692a, 0x69321776, 0x8646276e, 0x72696652, 0x26277473, 0x42e656f7,
-	0x2627666f, 0xf6967656, 0x71c216e6, 0x696c6175, 0x6e697966, 0xf7662667, 0x65687422,
-	0x62332323, 0x6c726f57, 0x57372464, 0x8646252e, 0x6f6c9257, 0x72237473, 0xf24627d3,
-	0x6d726542, 0x2e616475, 0x79656854, 0x66178626, 0x6e6f6c52,
-};
 
-unsigned int crypto_sha256_long_ref_arrary[] = {
-	0x00652952, 0x2950c4f6, 0xbc095788, 0x3cb6110b,
-	0x68e43e2c, 0xa7cf1b50, 0x761150c0, 0xcde4cabf,
-};
-static void print_buffer_comparison(uint8_t *wanted_result, uint8_t *result, size_t length)
+static void printf_buffer(uint8_t *wanted_result, size_t length)
 {
 	int i, j;
 
-	printk("Was waiting for: \n");
+	printk("buffer is: \n");
 
 	for (i = 0, j = 1; i < length; i++, j++) {
 		printk("0x%02x ", wanted_result[i]);
-
-		if (j == 10) {
-			printk("\n");
-			j = 0;
-		}
-	}
-
-	printk("\n But got:\n");
-
-	for (i = 0, j = 1; i < length; i++, j++) {
-		printk("0x%02x ", result[i]);
 
 		if (j == 10) {
 			printk("\n");
@@ -169,7 +134,7 @@ static void print_buffer_comparison(uint8_t *wanted_result, uint8_t *result, siz
 static void *Hash256_LightPadding(char *m, uint64_t len, uint64_t *nopadding_len,
 				  uint8_t *padding_len)
 {
-	printk("len = %lld \n",len);
+	printk("len = %lld \n", len);
 	if (len % 64) {
 		*padding_len = 64;
 
@@ -219,52 +184,53 @@ void hash_mode(const struct device *dev)
 	uint64_t nopadding_len;
 	uint8_t padding_len;
 
-	padding_source_addr =
-		Hash256_LightPadding((char *)source_addr, sizeof(test7),
-				     &nopadding_len, &padding_len);
-	// print_buffer_comparison(source_addr, source_addr, nopadding_len);
+	
+	padding_source_addr = (volatile uint32_t *)Hash256_LightPadding(
+		(char *)source_addr, sizeof(test7), &nopadding_len, &padding_len);
 	ret = hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256);
 	ctx.flags = CAP_SYNC_OPS | CAP_SEPARATE_IO_BUFS;
-	printk("nopadding_len = %lld  padding_len = %d \n", nopadding_len, padding_len);
-	if (nopadding_len != 0) {
 
-		pkt.in_buf = source_addr;
+	if (nopadding_len != 0) {
+		pkt.in_buf = (uint8_t *)source_addr;
 		pkt.in_len = 64;
-		pkt.out_buf = dst_addr;
-		ret = hash_update(&ctx, &pkt); //hash_update //hash_compute
+		pkt.out_buf = (uint8_t *)dst_addr;
+		ret = hash_update(&ctx, &pkt);
 		source_addr += 0x10; // word
 		nopadding_len -= 64;
-		printk("11111 nopadding_len=%lld\n", nopadding_len);
-	} else { // == 0
+		printf_buffer((uint8_t *)dst_addr, 32);
 
-		pkt.in_buf = padding_source_addr;
+	} else { // == 0
+		pkt.in_buf = (uint8_t *)padding_source_addr;
 		pkt.in_len = 64;
-		pkt.out_buf = dst_addr;
-		ret = hash_update(&ctx, &pkt); //hash_update //hash_compute
+		pkt.out_buf = (uint8_t *)dst_addr;
+		ret = hash_update(&ctx, &pkt);
 		padding_len -= 64;
 		padding_source_addr += 0x10; // word
-		printk("22222 padding_len=%d\n", padding_len);
+		printf_buffer((uint8_t *)dst_addr, 32);
 	}
 
 	for (i = 0; i < nopadding_len / 64; i++) {
-		ret = hash_compute(&ctx, &pkt); //hash_update //hash_compute
-
-		source_addr += 0x10; // word
-		printk("33333 nopadding_len = %lld \n",nopadding_len);
+		
+		
+		pkt.in_buf = (uint8_t *)source_addr;
+		pkt.in_len = 64;
+		pkt.out_buf = (uint8_t *)dst_addr;
+		ret = hash_compute(&ctx, &pkt);
+		source_addr += 0x10;
+		printf_buffer((uint8_t *)dst_addr, 32);
 	}
 
 	for (i = 0; i < padding_len / 64; i++) {
-		pkt.in_buf = padding_source_addr;
+		pkt.in_buf = (uint8_t *)padding_source_addr;
 		pkt.in_len = 64;
-		pkt.out_buf = dst_addr;
-		ret = hash_compute(&ctx, &pkt); //hash_update //hash_compute
+		pkt.out_buf = (uint8_t *)dst_addr;
+		ret = hash_compute(&ctx, &pkt); 
 
 		padding_source_addr += 0x10; // word
-
-		printk("444444 padding_len = %d\n",padding_len);
+		
 	}
-
-	print_buffer_comparison(dst_addr, (uint8_t *)sha256_results[6], 32);
+	printf_buffer((uint8_t *)crypto_sha_result_data_8w, 32);
+	printf_buffer((uint8_t *)sha256_results[6], 32);
 
 	hash_free_session(dev, &ctx);
 }
