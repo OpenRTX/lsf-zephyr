@@ -432,7 +432,7 @@ SECTIONS
     XIP_COPY_DEF(.sharedmem.text)
     XIP_COPY_DEF(.sharedmem.rodata)
     XIP_COPY_DEF(.sharedmem.data)
-    XIP_COPY_DEF(.dram1.text_rodata)
+    /* XIP_COPY_DEF(.dram1.text_rodata) */
     XIP_COPY_DEF(.ai_lib.text_rodata)
 
     /* data */
@@ -520,7 +520,7 @@ SECTIONS
     _dram1_bss_end = ABSOLUTE(.);
   } >luna_sharedmem_dram AT > ROMABLE_REGION
 
-#if CONFIG_CP_XIP
+#if 0
   .dram1.text_rodata : ALIGN(8)
   {
     . = ALIGN (8);
@@ -539,6 +539,7 @@ SECTIONS
     . = ALIGN (4);
     _sharedmem_text_start = ABSOLUTE(.);
     *(.sharedmem.literal .sharedmem.text)
+    *(.sharedmem.text.*)
     . = ALIGN (4);
     _sharedmem_text_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > ROMABLE_REGION
@@ -548,6 +549,7 @@ SECTIONS
     . = ALIGN (4);
     _sharedmem_rodata_start = ABSOLUTE(.);
     *(.sharedmem.rodata)
+    *(.sharedmem.rodata.*)
     . = ALIGN (4);
     _sharedmem_rodata_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > ROMABLE_REGION
@@ -557,6 +559,7 @@ SECTIONS
     . = ALIGN (4);
     _sharedmem_data_start = ABSOLUTE(.);
     *(.sharedmem.data)
+    *(.sharedmem.data.*)
     . = ALIGN (4);
     _sharedmem_data_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > ROMABLE_REGION
@@ -566,6 +569,7 @@ SECTIONS
     . = ALIGN (8);
     _sharedmem_bss_start = ABSOLUTE(.);
     *(.sharedmem.bss)
+    *(.sharedmem.bss.*)
     . = ALIGN (8);
     _sharedmem_bss_end = ABSOLUTE(.);
     _memmap_seg_sharedmem1_end = ALIGN(0x8);
@@ -630,8 +634,8 @@ SECTIONS
 
     /* ai lib */
     *libluna.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
-    *libtts.a:*(.text .text.* .literal .literal.*)
-    /* *libtts.a:*(.text .text.* .rodata .rodata.* .literal .literal.*) */
+    /* *libtts.a:*(.text .text.* .literal .literal.*) */
+    *libtts.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
 
 #if 0
     /* hal_xtensa(can't be copyed) */
