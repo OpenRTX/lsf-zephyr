@@ -43,12 +43,12 @@ void main(void)
         if (count < 0) {
             continue;
         }
-        printk("-----------------------------------Scan AP list------------------------------------\n");
+        printk("--------------------------------------------Scan AP list---------------------------------------------\n");
         for (int i = 0; i < count; i++) {
-            printk("|ssid: %-20s | bssid: %-18s | channel: %-3d | rssi: %-3d|\n",
+            printk("|ssid: %-32s\t | bssid: %-18s\t | channel: %-3d\t | rssi: %-3d|\n",
                     ap_list[i].ssid, ap_list[i].bssid, ap_list[i].channel, ap_list[i].rssi);
         }
-        printk("-----------------------------------------------------------------------------------\n");
+        printk("-----------------------------------------------------------------------------------------------------\n");
         k_free(ap_list);
         ap_list = NULL;
         k_msleep(1000);
