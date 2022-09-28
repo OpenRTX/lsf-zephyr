@@ -56,16 +56,6 @@
                 };
         };
 
-        wifi_module: esp32c3 {
-                compatible = "wifi,esp32c3";
-                label = "WiFi module";
-                spi_port = <0>;
-                dataready-gpios = <&gpioa 15 0>;
-                handshake-gpios = <&gpioa 16 0>;
-                reset-gpios = <&gpiob 8 0>;
-                status = "okay";
-        };
-
         /*
          * Your board-specific hardware: buttons, LEDs, sensors, etc.
          */
@@ -118,6 +108,16 @@
         pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>; 
         pinctrl-names = "default";
         status = "okay";
+        wifi_module: esp32c3@0 {
+                compatible = "espressif,esp-hosted";
+                label = "WiFi module";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+                dataready-gpios = <&gpioa 15 0>;
+                handshake-gpios = <&gpioa 16 0>;
+                reset-gpios = <&gpiob 8 0>;
+                status = "okay";
+        };
 };
 
 &spi1 {

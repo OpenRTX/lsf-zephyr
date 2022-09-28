@@ -21,8 +21,7 @@
 #include "netdev_if.h"
 #include "vhci_if.h"
 
-#include "hosted_gpio.h"
-#include "hosted_spi.h"
+#include "hosted_hw_drv.h"
 #include "hosted/hosted.h"
 
 #include "csk_os_common/csk_os_semaphore.h"
@@ -30,8 +29,6 @@
 #include "csk_os_common/csk_os_queue.h"
 #include "csk_os_common/csk_os_memory.h"
 #include "csk_os_common/csk_os_thread.h"
-
-csk_spi_handle_t spi_handle;
 
 #define TO_SLAVE_QUEUE_SIZE   CONFIG_HOSTED_TX_QUEUE_LEN
 #define FROM_SLAVE_QUEUE_SIZE CONFIG_HOSTED_RX_QUEUE_LEN
@@ -217,18 +214,7 @@ static void deinit_netdev(void)
  */
 void spi_link_init(void (*spi_drv_evt_handler)(uint8_t))
 {
-	csk_spi_config_t spi_config = {
-		.spi_port = 0,
-		.spi_parameter_config =
-			{
-				.spi_mode = SPI_MASTER,
-				.data_bit_len = 32,
-				.spi_clk = 10 * 1000 * 1000,
-				.spi_byte_order = SPI_BYTE_LSB,
-				.spi_sample_mode = SPI_CPOL1_CPHA0,
-			},
-	};
-	int ret = hosted_spi_init(&spi_config, &spi_handle);
+	int ret = hosted_spi_init();
 	if (ret != 0) {
 		printk("[%s] csk spi init failed", __FUNCTION__);
 		return;
@@ -287,7 +273,7 @@ void spi_link_init(void (*spi_drv_evt_handler)(uint8_t))
  */
 void spi_sync_callback(uint16_t pin)
 {
-	if ((pin == data_ready_spec.pin) || (pin == handshake_spec.pin)) {
+	if (hosted_gpio_is_handshake(pin) || hosted_gpio_is_dataready(pin)) {
 		if (!hosted_is_synced()) {
 			hosted_sync_set(true);
 		}
@@ -310,21 +296,21 @@ static void check_and_execute_spi_transaction(void)
 {
 	uint8_t *txbuff = NULL;
 	uint8_t is_valid_tx_buf = 0;
-	int gpio_handshake = GPIO_PIN_RESET;
-	int gpio_rx_data_ready = GPIO_PIN_RESET;
+	int gpio_handshake = 0;
+	int gpio_rx_data_ready = 0;
 
 	/* handshake line SET -> slave ready for next transaction */
-	gpio_handshake = csk_read_pin(&handshake_spec);
+	gpio_handshake = hosted_gpio_read_handshake();
 
 	/* data ready line SET -> slave wants to send something */
-	gpio_rx_data_ready = csk_read_pin(&data_ready_spec);
+	gpio_rx_data_ready = hosted_gpio_read_dataready();
 
-	if (gpio_handshake == GPIO_PIN_SET) {
+	if (gpio_handshake == 1) {
 
 		/* Get next tx buffer to be sent */
 		txbuff = get_tx_buffer(&is_valid_tx_buf);
 
-		if ((gpio_rx_data_ready == GPIO_PIN_SET) || (is_valid_tx_buf)) {
+		if ((gpio_rx_data_ready == 1) || (is_valid_tx_buf)) {
 
 			/* Execute transaction only if EITHER holds true-
 			 * a. A valid tx buffer to be transmitted towards slave
@@ -402,8 +388,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t *txbuff)
 		hosted_assert(txbuff);
 		memset(txbuff, 0, MAX_SPI_BUFFER_SIZE);
 	}
-	int retval = hosted_spi_send_recv(spi_handle, (uint8_t *)txbuff, (uint8_t *)rxbuff,
-					  MAX_SPI_BUFFER_SIZE, K_FOREVER);
+	int retval = hosted_spi_send_recv(txbuff, rxbuff, MAX_SPI_BUFFER_SIZE, K_FOREVER);
 	switch (retval) {
 	case 0:
 		/* create buffer rx handle, used for processing */
