@@ -37,7 +37,7 @@ typedef struct {
     const struct device *dev;
     wifi_ctrl_msg_type_t type;
     union {
-        wifi_cmd_t command;
+        wifi_req_t req;
         csk_wifi_event_t event;
     };
     void *data;
@@ -97,30 +97,43 @@ static inline void wifi_obj_set_sm(wifi_sta_state_machine_t sm)
     WIFI_STA_SM_PRIMARY_SET(s_csk_wifi_obj.state, sm);
 }
 
-static inline int wifi_give_result(wifi_ret_msg_t *ret_msg)
+static inline int wifi_give_result(wifi_ret_msg_t *ret_msg, bool async_mode)
 {
+    int ret = 0;
+    if (async_mode == false) {
     if (!k_msgq_num_free_get(&wifi_result_msgq)) {
-        k_msgq_purge(&wifi_result_msgq); /* clean the message queue */
+            k_msgq_purge(&wifi_result_msgq); /* clean the message queue */
+        }
+        ret = k_msgq_put(&wifi_result_msgq, ret_msg, K_NO_WAIT);
     }
-    return k_msgq_put(&wifi_result_msgq, ret_msg, K_NO_WAIT);
+    return ret;
 }
 
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout)
 {
-    return k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
+    int ret = 0;
+    bool async_mode = (K_TIMEOUT_EQ(timeout, K_NO_WAIT) ? true : false);
+    if (async_mode == false) {
+        ret = k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
+    }
+    return ret;
 }
-
 static inline void wifi_clear_message(void)
 {
     k_msgq_purge(&wifi_interactive_msgq);
 }
 
-int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts)
+int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts, bool async_mode)
 {
+    wifi_req_t req = {
+        .cmd = command,
+        .async_mode = async_mode,
+    };
+
     csk_wifi_ctrl_msg_t msg = {
         .dev = dev,
         .type = WIFI_COMMAND,
-        .command = command,
+        .req = req,
     };
 
     wifi_clear_message();
@@ -223,9 +236,9 @@ static inline int wifi_send_event(const struct device *dev, csk_wifi_event_t eve
         .data = event_data,
         .data_len = data_len,
     };
-    return k_msgq_put(&wifi_interactive_msgq, &msg, timeouts);
-}
 
+   return k_msgq_put(&wifi_interactive_msgq, &msg, timeouts);
+}
 static inline int wifi_get_message(csk_wifi_ctrl_msg_t *msg, k_timeout_t timeouts)
 {
     return k_msgq_get(&wifi_interactive_msgq, msg, timeouts);
@@ -457,8 +470,9 @@ static csk_wifi_result_t wifi_scan_list(int *ap_count, wifi_scan_list_t *aps)
     return ret;
 }
 
-static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
+static void wifi_command_handler(const struct device *dev,  wifi_req_t req)
 {
+    wifi_cmd_t command = req.cmd;
     wifi_ret_msg_t ret_msg = {
         .arg = NULL,
         .result = CSK_WIFI_SUCCESS,
@@ -473,19 +487,22 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
 #ifdef CONFIG_CSK_WIFI_SOFTAP
             wifi_virtual_netif_init(wifi_obj_get_dev(CSK_WIFI_MODE_AP));
 #endif
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
         case WIFI_CMD_STA_CONNECT: {
+            //Add event 'connecting'.
+            struct csk_wifi_data *data = dev->data;
+            wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTING,
+                                    &data->sta_config, sizeof(data->sta_config));
             ret_msg.result = wifi_sta_connect(dev);
             if (ret_msg.result == CSK_WIFI_SUCCESS) {
                 csk_wifi_result_t get_ret = wifi_sta_get_connected_info(dev);
                 if (get_ret == CSK_WIFI_SUCCESS) {
                     wifi_send_event(dev, CSK_WIFI_EVT_STA_CONNECTED, NULL, 0, K_FOREVER);
-                    struct csk_wifi_data *data = dev->data;
                     wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTED, &data->sta_config, sizeof(csk_wifi_sta_config_t));
                 }
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
         case WIFI_CMD_STA_DISCONNECT: {
             ret_msg.result = wifi_sta_disconnect(dev);
@@ -493,7 +510,7 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
                 wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0);
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
 
         case WIFI_CMD_AP_START: {
@@ -502,7 +519,7 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
                 wifi_send_event(dev, CSK_WIFI_EVT_AP_STARTED, NULL, 0, K_FOREVER);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_AP_STARTED, NULL, 0);
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
 
         case WIFI_CMD_AP_STOP: {
@@ -511,7 +528,7 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
                 wifi_send_event(dev, CSK_WIFI_EVT_AP_STOPPED, NULL, 0, K_FOREVER);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_AP_STOPPED, NULL, 0);
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
 
         case WIFI_CMD_SCAN: {
@@ -520,9 +537,11 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
             ret_msg.result = wifi_scan_list(&count, &scan_list);
             if (ret_msg.result == CSK_WIFI_SUCCESS) {
                 ret_msg.arg = &scan_list;
-                wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_DONE, scan_list.ap_list, scan_list.count);
+                LOG_DBG("wifi_scan_list scan_list.count = %d", scan_list.count);
+                wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_DONE, scan_list.ap_list, 
+                    sizeof(csk_wifi_scan_info_t) * scan_list.count);
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
 
         default:
@@ -573,7 +592,7 @@ static void wifi_control_thread(void *arg1, void *arg2, void *arg3)
         const struct device *dev = msg.dev;
         if (msg.type == WIFI_COMMAND) {
             /* This function maybe will here block thread for a long time */
-            wifi_command_handler(dev, msg.command);
+            wifi_command_handler(dev, msg.req);
         } else if (msg.type == WIFI_EVENT) {
             wifi_event_handler(dev, msg.event);
         }
@@ -590,17 +609,14 @@ static void csk_wifi_receive_pkt(struct network_handle *virtual_netif, void *arg
         pkt = net_pkt_rx_alloc_with_buffer(netif, wifi_rx_buf->len,
                                            AF_UNSPEC, 0, K_NO_WAIT);
         if (pkt == NULL) {
-            printk("Failed to get net buffer %d\n", wifi_rx_buf->len);
             goto __cleanup;
         }
 
         if (net_pkt_write(pkt, wifi_rx_buf->payload, wifi_rx_buf->len) < 0) {
-            printk("Failed to write pkt\n");
             goto __cleanup;
         }
 
         if (net_recv_data(netif, pkt) < 0) {
-            printk("Failed to push received data\n");
             goto __cleanup;
         }
 
