@@ -1044,7 +1044,7 @@ SECTIONS
   PROVIDE(end = ALIGN (8));
 
   __stack = SDRAM1_BASE + SDRAM1_SIZE;
-  _heap_sentry = __stack - 1024;
+  _heap_sentry = __stack - 4096;
   .comment  0 :  { *(.comment) }
   .debug  0 :  { *(.debug) }
   .line  0 :  { *(.line) }
