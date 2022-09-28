@@ -190,7 +190,7 @@ static int transceive(const struct device *dev,
 #if CONFIG_ASSERT == 1 || defined(CONFIG_SPI_LOG_LEVEL_DBG)
 	if (tx_bufs != NULL) {
 		size_t c = tx_bufs->count;
-		struct spi_buf *buf = tx_bufs->buffers;
+		const struct spi_buf *buf = tx_bufs->buffers;
 		while (buf && c) {
 #if CONFIG_ASSERT == 1
 			__ASSERT(buf->len % dw == 0,
@@ -210,7 +210,7 @@ static int transceive(const struct device *dev,
 
 	if (rx_bufs != NULL) {
 		size_t c = rx_bufs->count;
-		struct spi_buf *buf = rx_bufs->buffers;
+		const struct spi_buf *buf = rx_bufs->buffers;
 		while (buf && c) {
 #if CONFIG_ASSERT == 1
 			__ASSERT(buf->len % dw == 0,
