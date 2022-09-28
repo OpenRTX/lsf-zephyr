@@ -353,10 +353,13 @@ static csk_wifi_result_t wifi_sta_connect(const struct device *dev)
         data->sta_is_connected = true;
     } else if (resp->resp_event_status == CTRL_ERR_INVALID_PASSWORD) {
         ret = CSK_WIFI_ERR_INVALID_PASSWORD;
+        wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
     } else if (resp->resp_event_status == CTRL_ERR_NO_AP_FOUND) {
         ret = CSK_WIFI_ERR_AP_NOT_FOUND;
+        wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
     } else {
         ret = CSK_WIFI_ERR_STA_FAILED;
+        wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
     }
     CLEANUP_APP_MSG(resp);
     return ret;
@@ -501,6 +504,8 @@ static void wifi_command_handler(const struct device *dev,  wifi_req_t req)
                     wifi_send_event(dev, CSK_WIFI_EVT_STA_CONNECTED, NULL, 0, K_FOREVER);
                     wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTED, &data->sta_config, sizeof(csk_wifi_sta_config_t));
                 }
+            } else {
+                wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTION_FAILED, &(ret_msg.result), sizeof(ret_msg.result));
             }
             wifi_give_result(&ret_msg, req.async_mode);
         } break;
@@ -540,6 +545,8 @@ static void wifi_command_handler(const struct device *dev,  wifi_req_t req)
                 LOG_DBG("wifi_scan_list scan_list.count = %d", scan_list.count);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_DONE, scan_list.ap_list, 
                     sizeof(csk_wifi_scan_info_t) * scan_list.count);
+            } else {
+                wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_FAILED, &(ret_msg.result), sizeof(ret_msg.result));
             }
             wifi_give_result(&ret_msg, req.async_mode);
         } break;
@@ -561,6 +568,7 @@ static void wifi_event_handler(const struct device *dev, csk_wifi_event_t event)
         case CSK_WIFI_EVT_STA_DISCONNECTED: {
             net_eth_carrier_off(data->netif);
             net_if_down(data->netif);
+            wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
         } break;
 
         case CSK_WIFI_EVT_AP_STARTED: {

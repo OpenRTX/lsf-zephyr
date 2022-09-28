@@ -5,4 +5,11 @@ config DMA_CSK6
 	default y
 	depends on HAS_CSK6
 	help
-	  Enable the csk6 SPI driver.
+	  Enable the csk6 DMA driver.
+
+config DMA_CSK6_BUFFER_CHECK
+	bool "buffer address check"
+	default n
+	depends on DMA_CSK6
+	help
+	  Enable the buffer address check.

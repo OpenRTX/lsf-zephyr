@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: 54b3cf6665d1e19b1a98963fc8498c7130f17ae7
+      revision: dac1c6c6f5dcd588e8c5600c468ea6a2fea00506
       path: modules/hal/listenai
       groups:
         - hal
@@ -34,7 +34,7 @@ manifest:
       path: modules/lib/protobuf-c
     - name: esp-hosted
       remote: listenai
-      revision: 77c5ef98eb5477ffc7b859020e7d84147c3149e7
+      revision: 541ad4fa6d236f722b658e1543c9a890215023e5
       path: modules/lib/esp-hosted
     - name: mcuboot
       remote: listenai
@@ -62,7 +62,7 @@ manifest:
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
-      revision: ce1239935b37c815cf4da7ef8ab4f9df82e5a247
+      revision: 3452e5ba40beb657d287ff5e86d39f18883568a1
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai

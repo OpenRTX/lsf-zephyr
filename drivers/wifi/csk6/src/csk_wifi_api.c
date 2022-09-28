@@ -105,6 +105,14 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
     const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
     struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    const char* wifi_sm_str = WIFI_STA_SM_STRINGS[current_sm];
+    CSK_WIFI_CHECK_GOTO(current_sm == WIFI_SM_STA_DISCONNECTED ||
+                            current_sm == WIFI_SM_STA_SCAN_DONE ||
+                            current_sm == WIFI_SM_STARTUP_DONE, __wrong_status,
+                            "Invalid State, current_sm: %s", wifi_sm_str);
+    CSK_WIFI_CHECK_GOTO(data->sta_is_connected == false, __wrong_status,
+                            "Invalid State, Staion has connected");
 
     memcpy(&data->sta_config, sta_config, sizeof(csk_wifi_sta_config_t));
 
@@ -129,9 +137,15 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
     k_mutex_unlock(&wifi_api_mutex);
     return 0;
 
+__wrong_status:
+    k_mutex_unlock(&wifi_api_mutex);
+    ret = -EAGAIN;
+    return ret;
+
 __exit:
     k_mutex_unlock(&wifi_api_mutex);
     return ret;
+
 }
 
 int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
@@ -142,12 +156,15 @@ int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
     CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
                             -ENOTSUP, "This timeout parameter is not available now, "
                             "only FOREVER or NO_WAIT is abailable");
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
+    struct csk_wifi_data *data = dev->data;
+    CSK_WIFI_CHECK_RETURN(data->sta_is_connected == true, -EAGAIN,
+                            "Invalid State, Staion has disconnected");
 
     bool async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
     int ret = 0;
     wifi_ret_msg_t ret_msg;
     k_mutex_lock(&wifi_api_mutex, K_FOREVER);
-    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
     ret = wifi_send_command(dev, WIFI_CMD_STA_DISCONNECT, K_NO_WAIT, async_mode);
     if (ret != 0)   goto __exit;
     ret = wifi_take_result(&ret_msg, timeout);

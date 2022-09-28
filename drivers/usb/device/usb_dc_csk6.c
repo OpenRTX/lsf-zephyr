@@ -136,6 +136,7 @@ static int usb_venus_init(void)
 	/* Enable usb module interrupt */
 	CSK_USBC->INTRUSBE = 0x00;
 	CSK_USBC->INTRUSBE |= USB_VENUS_INTRUSBE_RESET;
+	CSK_USBC->INTRUSBE |= USB_VENUS_INTRUSBE_SUSPEND;
 
 	/* Enable global interrupt */
 	irq_enable(DT_INST_IRQN(0));
@@ -1531,6 +1532,7 @@ static void usb_venus_handle_reset(void)
 	CSK_USBC->INTRUSBE = 0x00;
 	//	CSK_USBC->INTRUSBE |= USB_VENUS_INTRUSBE_RESET | USB_VENUS_INTRUSBE_SOF;
 	CSK_USBC->INTRUSBE |= USB_VENUS_INTRUSBE_RESET;	
+	CSK_USBC->INTRUSBE |= USB_VENUS_INTRUSBE_SUSPEND;
 	
 	/* Inform upper layers */
 	if (usb_venus_ctrl.status_cb) {
