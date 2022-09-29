@@ -740,6 +740,7 @@ class TwisterEnv:
     def get_toolchain(self):
         toolchain_script = Path(ZEPHYR_BASE) / Path('cmake/modules/verify-toolchain.cmake')
         result = self.run_cmake_script([toolchain_script, "FORMAT=json"])
+        logger.info(result)
 
         try:
             if result['returncode']:
