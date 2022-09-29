@@ -198,7 +198,7 @@ void z_arm_platform_init(void)
 	SCB_DisableICache();
 #endif
 #ifdef CONFIG_CSK6_DCACHE
-	SCB_EnableDCache();
+	// SCB_EnableDCache();
 #else
 	SCB_DisableDCache();
 #endif

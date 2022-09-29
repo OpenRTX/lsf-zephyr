@@ -988,12 +988,15 @@ BF30A2_FAST_CODE static int bf30a2_driv_stream_start(const struct device *dev)
 		LOG_ERR("chip config error.");
 		return r;
 	}
+	int key = arch_irq_lock();
+	
 	bf30a2_dev_cs_enable(dev, true);
 	bf30a2_chip_write_register(dev, 0xCF, 0xF0);
 	bf30a2_stream_start_internal(dev);
 	k_timer_start(data->timer, K_MSEC(CONFIG_VIDEO_BF30A2_TIMER_TIMEOUT),
 		K_MSEC(CONFIG_VIDEO_BF30A2_TIMER_TIMEOUT));
 	data->flag = BF30A2_STATE_STARTED;
+
 	LOG_DBG("stream start!");
 	return 0;
 }

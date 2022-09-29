@@ -222,6 +222,9 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		DMA_CH_CFGL_CH_PRIOR(config->channel_priority) & DMA_CH_CFGL_CH_PRIOR_MASK;
 
 	ch_info->reg_cfg_high = DMA_CH_CFGH_FIFO_MODE;
+	if (config->channel_direction == PERIPHERAL_TO_MEMORY) {
+		ch_info->reg_cfg_high |= DMA_CH_CFGH_SRC_PER(config->dma_slot);
+	}
 
 	if (config->head_block->dest_scatter_en) {
 		ch_info->reg_scatter =
@@ -281,6 +284,8 @@ static bool csk_dma_addr_is_right_access(void *addr, uint32_t size)
 	if (addr == NULL) {
 		return false;
 	}
+
+	return true;
 
 #ifndef CONFIG_SOC_LS_ADSP_CSK6
 	/* D-Cache is disabled? */

@@ -68,7 +68,8 @@
 	defined(CONFIG_BOARD_MIMXRT1015_EVK)
 #define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(lpuart4))
 #else
-#define UART_DEVICE_NAME DT_LABEL(DT_CHOSEN(zephyr_console))
+#define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(uart1))
+// #define UART_DEVICE_NAME DT_LABEL(DT_CHOSEN(zephyr_console))
 #endif
 
 void init_test(void);
