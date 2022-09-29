@@ -308,6 +308,7 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 	block_config.block_size = len;
 	block_config.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT;
 	block_config.source_addr_adj = DMA_ADDR_ADJ_NO_CHANGE;
+	block_config.fifo_mode_control = 0;
 
 	/* other default config has been configed, see macro @CSK_UART_DMA_CONFIG_GET */
 	async_data->dma_rx.config.head_block = &block_config;

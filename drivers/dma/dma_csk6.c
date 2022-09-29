@@ -94,6 +94,8 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		return -EBUSY;
 	}
 
+	memset(ch_info, 0, sizeof(struct channel_info));
+
 	if (config->source_chaining_en || config->dest_chaining_en) {
 		LOG_ERR("Do not support source/dest block chaining.");
 		return -ENOTSUP;
@@ -116,7 +118,7 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	    config->dest_data_size != 4) {
 		LOG_ERR("Do not support dest data width(%d).", config->dest_data_size);
 		return -EINVAL;
-	}
+	}q
 
 	if (config->source_data_size != 1 && config->source_data_size != 2 &&
 	    config->source_data_size != 4) {
@@ -133,6 +135,16 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		ch_info->dst_addr = config->head_block->dest_address;
 		ch_info->src_addr = config->head_block->source_address;
 		ch_info->xfer_count = config->head_block->block_size / config->source_data_size;
+
+		if (config->head_block->fifo_mode_control) {
+			/**
+			 * Data available is greater than or equal to half the FIFO depth
+			 * for destination transfers and space available is greater than half
+			 * the fifo depth for source transfers. The exceptions are at the end
+			 * of a burst transaction request or at the end of a block transfer.
+			 */
+			ch_info->reg_cfg_high |= DMA_CH_CFGH_FIFO_MODE;
+		}
 
 		__ASSERT(config->head_block->block_size % config->dest_data_size == 0,
 			 "block size(%d) is not match data width(%d).",
@@ -221,7 +233,6 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	ch_info->reg_cfg_low =
 		DMA_CH_CFGL_CH_PRIOR(config->channel_priority) & DMA_CH_CFGL_CH_PRIOR_MASK;
 
-	ch_info->reg_cfg_high = DMA_CH_CFGH_FIFO_MODE;
 	if (config->channel_direction == PERIPHERAL_TO_MEMORY) {
 		ch_info->reg_cfg_high |= DMA_CH_CFGH_SRC_PER(config->dma_slot);
 	}

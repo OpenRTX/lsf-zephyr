@@ -52,6 +52,7 @@ void main(void)
 		return;
 	}
 
+	printk("rx target size: %d\n", strlen(test_msg) * 3);
 	err = uart_rx_enable(device, test_rx, strlen(test_msg) * 3, 1000 * 1000);
 	if (err != 0) {
 		printk("uart_rx_enable failed: %d\n", (err));
@@ -66,6 +67,7 @@ void main(void)
 	// while (1) {
 	/* timeout */
 	k_sem_take(&sem, K_FOREVER);
+	k_msleep(1000);
 	printk("recv: %s.\n", test_rx);
 	dump(test_rx, strlen(test_msg) * 3);
 	/* send again */
@@ -76,6 +78,7 @@ void main(void)
 	}
 	/* rx complete */
 	// k_sem_take(&sem, K_FOREVER);
+	k_msleep(1000);
 	printk("recv: %s.\n", test_rx);
 	dump(test_rx, strlen(test_msg) * 3);
 	printk("tx size: %d\n", strlen(test_msg));
@@ -83,6 +86,7 @@ void main(void)
 	if (err != 0) {
 		printk("uart_tx failed: %d\n", (err));
 	}
+	k_msleep(1000);
 	printk("recv: %s.\n", test_rx);
 	dump(test_rx, strlen(test_msg) * 3);
 	// }
