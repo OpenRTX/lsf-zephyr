@@ -4,6 +4,7 @@ tests:
     tags: csk6
     timeout: 30
     harness: console
+    skip: true
     harness_config:
       type: multi_line
       regex:
