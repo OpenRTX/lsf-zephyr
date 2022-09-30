@@ -64,7 +64,7 @@ struct csk_uart_config {
 	volatile uint32_t baud_rate;
 	const struct pinctrl_dev_config *pcfg;
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
 	void (*irq_config_func)(const struct device *dev);
 #endif
 };
@@ -144,7 +144,7 @@ static inline void csk_uart_async_evt_tx_aborted(csk_uart_async_data_t *async_da
 }
 
 static inline void csk_uart_async_evt_rx_rdy(csk_uart_async_data_t *async_data,
-				      csk_uart_dma_xfer_info_t *xfer_info)
+					     csk_uart_dma_xfer_info_t *xfer_info)
 {
 	struct uart_event evt = {
 		.type = UART_RX_RDY,
@@ -228,6 +228,7 @@ static void csk_uart_dma_rx_callback(const struct device *dev, void *user_data, 
 	} else {
 	}
 
+	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
 	if (async_data->rx_next_buf != NULL && async_data->rx_next_len > 0) {
 		dma_reload(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
 			   (uint32_t)&uart_reg->REG_RBR.all, (uint32_t)async_data->rx_next_buf,
@@ -235,6 +236,8 @@ static void csk_uart_dma_rx_callback(const struct device *dev, void *user_data, 
 		dma_start(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
 		async_data->rx_next_buf = NULL;
 		async_data->rx_next_len = 0;
+	} else {
+		csk_uart_async_evt_rx_disabled(async_data);
 	}
 }
 
@@ -308,7 +311,7 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 	block_config.block_size = len;
 	block_config.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT;
 	block_config.source_addr_adj = DMA_ADDR_ADJ_NO_CHANGE;
-	block_config.fifo_mode_control = 0;
+	block_config.fifo_mode_control = 1;
 
 	/* other default config has been configed, see macro @CSK_UART_DMA_CONFIG_GET */
 	async_data->dma_rx.config.head_block = &block_config;
@@ -325,15 +328,19 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 		return err;
 	}
 
+	uart_reg->REG_IER.all |= UARTC_IER_THRE | UARTC_IER_RDR | UARTC_IER_RLS | UARTC_IER_MS;
+
 	err = dma_start(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
 	if (err != 0) {
 		return err;
 	}
 
-	/* return value 1 to indicate successfully scheduled. */
-	err = k_work_reschedule(&async_data->dma_rx.dwork, K_USEC(timeout));
-	if (!err) {
-		return -EINVAL;
+	if ((timeout != SYS_FOREVER_US) && (timeout != 0)) {
+		/* return value 1 to indicate successfully scheduled. */
+		err = k_work_reschedule(&async_data->dma_rx.dwork, K_USEC(timeout));
+		if (!err) {
+			return -EINVAL;
+		}
 	}
 
 	csk_uart_async_evt_rx_buf_request(async_data);
@@ -377,7 +384,7 @@ int csk_uart_async_rx_disable(const struct device *dev)
 	dma_stop(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
 	csk_uart_async_evt_rx_disabled(async_data);
 	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
-	csk_uart_async_evt_rx_rdy(async_data, &async_data->dma_rx.xfer_info);
+		csk_uart_async_evt_rx_rdy(async_data, &async_data->dma_rx.xfer_info);
 
 	return 0;
 }
@@ -393,7 +400,7 @@ void csk_uart_async_rx_dwork_callback(struct k_work *work)
 	printk("dma_rx->xfer_info.buf:%p\n", dma_rx->xfer_info.buf);
 	/* Some data may have been transferred */
 	SCB_InvalidateDCache_by_Addr(dma_rx->xfer_info.buf, 32);
-	
+
 	csk_uart_async_evt_rx_rdy(async_data, &dma_rx->xfer_info);
 }
 
@@ -565,19 +572,50 @@ static void csk_uart_irq_callback_set(const struct device *dev, uart_irq_callbac
 	data->cb_data = cb_data;
 }
 
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+
 static void csk_uart_isr(const struct device *dev)
 {
 	struct csk_uart_data *data = dev->data;
 	const struct csk_uart_config *config = DEV_CFG(dev);
 	DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
+
 	if (uart_reg == NULL) {
 		return;
 	}
-	if (data->callback) {
-		data->callback(dev, data->cb_data);
+
+	volatile uint8_t interrupt_id = uart_reg->REG_IIR.bit.IID;
+	
+	printk("interrupt_id:%d\n", interrupt_id);
+
+	if (interrupt_id == UARTC_IIR_NONE) {
+		/* no interrupt pending */
+		return;
 	}
+
+	/* modem status */
+	if (interrupt_id == UARTC_IIR_MODEM) {
+	}
+
+	/* receiver line status */
+	if ((interrupt_id & UARTC_IIR_RLS) == UARTC_IIR_RLS) {
+	}
+
+	/* received data available */
+	if ((interrupt_id & UARTC_IIR_RDA) == UARTC_IIR_RDA) {
+	}
+
+	/* character timeout */
+	if ((interrupt_id & UARTC_IIR_RTO) == UARTC_IIR_RTO) {
+		// printk("-------------------timeout\n");
+	}
+
+	/*  THR empty */
+	if ((interrupt_id & UARTC_IIR_THRE) == UARTC_IIR_THRE) {
+	}
+
+	interrupt_id = 0;
 }
-#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
 static int csk_uart_init(const struct device *dev)
 {
@@ -602,7 +640,7 @@ static int csk_uart_init(const struct device *dev)
 	UART_Control(uart_driver_ctx, CSK_UART_CONTROL_TX, 1);
 	UART_Control(uart_driver_ctx, CSK_UART_CONTROL_RX, 1);
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
 	config->irq_config_func(dev);
 #endif
 
@@ -640,7 +678,7 @@ static const struct uart_driver_api csk_uart_driver_api = {
 #endif
 };
 
-#if defined(CONFIG_UART_INTERRUPT_DRIVEN)
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
 #define CSK_UART_IRQ_HANDLER(index)                                                                \
 	static void csk_uart_irq_config_func_##index(const struct device *dev)                     \
 	{                                                                                          \
@@ -670,19 +708,19 @@ static const struct uart_driver_api csk_uart_driver_api = {
 
 #define __CSK_UART_DMA_CONFIG_GET(idx, name)                                               \
 	{                                                                                      \
-	    .dwork = Z_WORK_DELAYABLE_INITIALIZER(csk_uart_async_##name##_dwork_callback),     \
+		.dwork = Z_WORK_DELAYABLE_INITIALIZER(csk_uart_async_##name##_dwork_callback),     \
 		.dma_dev = DEVICE_DT_GET(DT_DMAS_CTLR_BY_NAME(DT_DRV_INST(idx), name)),            \
 		.channel = DT_INST_DMAS_CELL_BY_NAME(idx, name, channel),                          \
 		.config = {                                                                        \
-				.channel_direction = CSK_UART_DMA_DIR_BY_NAME(name),                       \
-				.source_data_size = 1,                                                     \
-				.dest_data_size = 1,                                                       \
-				.source_burst_length = 1,                                                  \
-				.dest_burst_length = 1,                                                    \
-				.dma_callback = csk_uart_dma_##name##_callback,                            \
-				.user_data = (void *)DEVICE_DT_GET(DT_DRV_INST(idx)),                      \
-				.block_count = 1,                                                          \
-				.dma_slot = CSK_UART_DMA_SLOT_BY_NAME(idx, name),                          \
+			.channel_direction = CSK_UART_DMA_DIR_BY_NAME(name),                       \
+			.source_data_size = 1,                                                     \
+			.dest_data_size = 1,                                                       \
+			.source_burst_length = 1,                                                  \
+			.dest_burst_length = 1,                                                    \
+			.dma_callback = csk_uart_dma_##name##_callback,                            \
+			.user_data = (void *)DEVICE_DT_GET(DT_DRV_INST(idx)),                      \
+			.block_count = 1,                                                          \
+			.dma_slot = CSK_UART_DMA_SLOT_BY_NAME(idx, name),                          \
 		},                                                                                 \
 	}
 

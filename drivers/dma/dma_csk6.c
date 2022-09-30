@@ -118,7 +118,7 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	    config->dest_data_size != 4) {
 		LOG_ERR("Do not support dest data width(%d).", config->dest_data_size);
 		return -EINVAL;
-	}q
+	}
 
 	if (config->source_data_size != 1 && config->source_data_size != 2 &&
 	    config->source_data_size != 4) {
