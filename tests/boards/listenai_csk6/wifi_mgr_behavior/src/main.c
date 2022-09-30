@@ -6,7 +6,7 @@
 #include "kernel.h"
 #include "sys_clock.h"
 #include "tc_util.h"
-#include "wifi_manager.h"
+#include "wifi_manager/wifi_manager.h"
 #include "ztest_assert.h"
 #include "ztest_test.h"
 LOG_MODULE_REGISTER(lib_wif_mgr_test, LOG_LEVEL_DBG);
