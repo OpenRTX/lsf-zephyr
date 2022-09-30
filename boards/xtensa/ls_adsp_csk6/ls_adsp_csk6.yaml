@@ -10,3 +10,5 @@ testing:
      - kernel
      - sof
      - csk6
+     - introduction
+
