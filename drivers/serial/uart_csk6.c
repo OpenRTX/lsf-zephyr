@@ -724,15 +724,15 @@ static const struct uart_driver_api csk_uart_driver_api = {
 		},                                                                                 \
 	}
 
-#define CSK_UART_DMA_CONFIG_GET(idx, name)                                                 \
+#define CSK_UART_DMA_CONFIG_DEFINE(idx, name)                                                 \
 	COND_CODE_1(DT_INST_DMAS_HAS_NAME(idx, name),                                          \
-		(__CSK_UART_DMA_CONFIG_GET(idx, name)), ({0}))
+		(.dma_##name = __CSK_UART_DMA_CONFIG_GET(idx, name),), ())
 
 #define CSK_UART_ASYNC_DATA_DEFINE(idx)                                                    \
 	.async_data = {                                                                        \
-		.dma_tx = CSK_UART_DMA_CONFIG_GET(idx, tx),                                        \
-		.dma_rx = CSK_UART_DMA_CONFIG_GET(idx, rx),                                        \
 		.dev = DEVICE_DT_GET(DT_DRV_INST(idx)),                                            \
+		CSK_UART_DMA_CONFIG_DEFINE(idx, tx)   /* no comma here */                          \
+		CSK_UART_DMA_CONFIG_DEFINE(idx, rx)   /* no comma here */                          \
 	}
 
 #else
@@ -743,7 +743,7 @@ static const struct uart_driver_api csk_uart_driver_api = {
 	CSK_UART_IRQ_HANDLER(index)                                                                \
 	PINCTRL_DT_INST_DEFINE(index);                                                             \
 	static struct csk_uart_data csk_uart_data_##index = {                                      \
-		CSK_UART_ASYNC_DATA_DEFINE(index)                                                      \
+		CSK_UART_ASYNC_DATA_DEFINE(index),                                                     \
 	};                                                                                         \
 	static const struct csk_uart_config csk_uart_cfg_##index = {                               \
 		.reg_addr = DT_INST_REG_ADDR(index),                                                   \
