@@ -573,7 +573,7 @@ class DeviceHandler(Handler):
 
                     if proc.returncode != 0:
                         self.instance.status = "error"
-                        self.instance.reason = "Device issue (Flash error?)"
+                        self.instance.reason = f"Device issue (Flash error?, returncode: {proc.returncode})"
                         flash_error = True
                         with open(d_log, "w") as dlog_fp:
                             dlog_fp.write(stderr.decode())
