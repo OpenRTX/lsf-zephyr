@@ -10,8 +10,7 @@
 #include <drivers/video.h>
 #include "hal/Driver_DVP.h"
 #include <soc.h>
-#include <soc_dt.h>
-#include <drivers/pinmux.h>
+#include <zephyr/drivers/pinctrl.h>
 #include "hal/venus_ap.h"
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
@@ -30,8 +29,7 @@ struct video_csk6_dvp_config {
 	char *sensor_label;
 	uint16_t clock_prescaler;
 	/* DVP alternate configuration */
-	const struct csk6_pinctrl_cfg *pinctrl_list;
-	uint8_t pinctrl_list_size;
+	const struct pinctrl_dev_config *pcfg;
 };
 
 struct video_csk6_dvp_data {
@@ -169,6 +167,8 @@ static int video_csk6_dvp_set_fmt(const struct device *dev,
 
 	memcpy(&data->fmt, fmt, sizeof(struct video_format));
 
+	memcpy(&data->fmt, fmt, sizeof(struct video_format));
+
 	return 0;
 }
 
@@ -178,9 +178,16 @@ static int video_csk6_dvp_get_fmt(const struct device *dev,
 {
 	struct video_csk6_dvp_data *data = dev->data;
 
+	struct video_csk6_dvp_data *data = dev->data;
+
 	if (fmt == NULL || ep != VIDEO_EP_OUT) {
 		return -EINVAL;
 	}
+
+	fmt->width = data->fmt.width;
+	fmt->height = data->fmt.height;
+	fmt->pitch = data->fmt.pitch;
+	fmt->pixelformat = data->fmt.pixelformat;
 
 	fmt->width = data->fmt.width;
 	fmt->height = data->fmt.height;
@@ -217,6 +224,8 @@ static int csk6_dvp_start(const struct device *dev, struct video_buffer *vbuf)
 	//DVP驱动访问的是CP侧的AHB总线，如果在AP侧使用DVP驱动，传入的地址必须重新映射
 	dvp_buf.pAddrY = (uint8_t *)DVP_PSRAM_ADDR_WRAP(vbuf->buffer);
 	dvp_buf.bufLenY = vbuf->size;
+
+	SCB_InvalidateDCache_by_Addr((void *)vbuf->buffer, vbuf->bytesused);
 
 	ret = DVP_Start(dvp_dev, dvp_buf);
 	if(ret != 0){
@@ -455,7 +464,7 @@ static int video_csk6_dvp_init_0(const struct device *dev)
 	data->dev = dev;
 	data->handle = DVP_Instance();
 
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	return video_csk6_dvp_init(dev);
 }

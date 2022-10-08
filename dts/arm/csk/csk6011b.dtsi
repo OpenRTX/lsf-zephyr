@@ -1,0 +1,11 @@
+#include "csk6.dtsi"
+
+&psram0 {
+    reg = <0x30000000 DT_SIZE_M(8)>;
+};
+
+&flash0 {
+    reg = <0x18000000 DT_SIZE_M(8)>;
+    write-block-size = <1>;
+    erase-block-size = <4096>;
+};

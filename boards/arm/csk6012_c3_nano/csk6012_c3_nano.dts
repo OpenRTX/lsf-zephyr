@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /dts-v1/;
-#include <csk/csk6.dtsi>
+#include <csk/csk6012.dtsi>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/gpio/gpio.h>
 #include "csk6012_c3_nano_pinctrl.dtsi"
@@ -53,16 +53,6 @@
                         label = "User SW0";
                         gpios = <&gpiob 5 0>;
                 };
-        };
-
-        wifi_module: esp32c3 {
-                compatible = "wifi,esp32c3";
-                label = "WiFi module";
-                spi_port = <1>;
-                dataready-gpios = <&gpioa 11 0>;
-                handshake-gpios = <&gpioa 16 0>;
-                reset-gpios = <&gpioa 10 0>;
-                status = "okay";
         };
 
         /*
@@ -121,6 +111,16 @@
 	pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
         pinctrl-names = "default";
         status = "okay";
+        wifi_module: esp32c3@0 {
+                compatible = "espressif,esp-hosted";
+                label = "WiFi module";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+                dataready-gpios = <&gpioa 11 0>;
+                handshake-gpios = <&gpioa 16 0>;
+                reset-gpios = <&gpioa 10 0>;
+                status = "okay";
+        };
 };
 
 &i2c0 {

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /dts-v1/;
-#include <csk/csk6.dtsi>
+#include <csk/csk6002.dtsi>
+#include "csk6002_9s_nano_pinctrl.dtsi"
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "csk6002_9s_nano_pinctrl.dtsi"
 
 / {
         model = "csk6002 9s nano";

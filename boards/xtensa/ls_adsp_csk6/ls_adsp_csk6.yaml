@@ -4,7 +4,9 @@ type: mcu
 arch: xtensa
 toolchain:
   - xcc
+  - xcc-clang
 testing:
   only_tags:
      - kernel
      - sof
+     - csk6

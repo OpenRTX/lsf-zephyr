@@ -19,6 +19,9 @@
 #include <hal/venus_ap.h>
 #include <hal/spiflash.h>
 
+#include <logging/log.h>
+LOG_MODULE_REGISTER(flash_csk6, CONFIG_FLASH_LOG_LEVEL);
+
 
 #if (CONFIG_CSK6_FLASH_STALL_SECOND_CORE)
 #define FLASH_OPT_ENTER() \
@@ -47,7 +50,7 @@ typedef struct {
 csk6_flash_config_t csk6_flash_config = { .flash_dev = {
 						  .base_addr = DT_INST_REG_ADDR(0),
 						  .d_width = 4,
-						  .sclk_div = 0, //divider is 1
+						  .sclk_div = 0xff, // 0xff: special div in chip,indicates that sclk frequency = SPI clock frequency
 						  .run_mod = RUN_WITH_INT,
 						  .timeout = 0,
 					  } };
@@ -127,6 +130,11 @@ static int flash_csk6_erase(const struct device *dev, off_t start, size_t len)
 	int iret;
 
 	if (start > FLASH_CHIP_SZ || start + len > FLASH_CHIP_SZ) {
+		return -EINVAL;
+	}
+
+	if ((start % FLASH_ERASE_BLK_SZ != 0) || (len % FLASH_ERASE_BLK_SZ != 0)) {
+		LOG_ERR(" address and length must be aligned with %d bytes", FLASH_ERASE_BLK_SZ);
 		return -EINVAL;
 	}
 

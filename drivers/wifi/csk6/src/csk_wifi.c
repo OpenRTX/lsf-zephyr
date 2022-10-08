@@ -9,8 +9,24 @@
 #include <logging/log.h>
 LOG_MODULE_DECLARE(csk_wifi, CONFIG_WIFI_LOG_LEVEL);
 
-#define MAC_BYTES_LEN                     6
-#define MAC_STRING_LEN                    18
+
+#define CTRL_CMD_DEFAULT_REQ() {                                                \
+    .msg_type = CTRL_REQ,                                                       \
+    .ctrl_resp_cb = NULL,                                                       \
+    .cmd_timeout_sec = DEFAULT_CTRL_RESP_TIMEOUT /*30 sec*/                     \
+}
+
+#define CLEANUP_APP_MSG(app_msg) do {                                           \
+    if (app_msg) {                                                              \
+        if (app_msg->free_buffer_handle) {                                      \
+        if (app_msg->free_buffer_func) {                                        \
+            app_msg->free_buffer_func(app_msg->free_buffer_handle);             \
+            app_msg->free_buffer_handle = NULL;                                 \
+        }                                                                       \
+        }                                                                       \
+        hosted_free(app_msg);                                                   \
+    }                                                                           \
+} while(0);
 
 typedef enum {
     WIFI_COMMAND,
@@ -21,7 +37,7 @@ typedef struct {
     const struct device *dev;
     wifi_ctrl_msg_type_t type;
     union {
-        wifi_cmd_t command;
+        wifi_req_t req;
         csk_wifi_event_t event;
     };
     void *data;
@@ -81,39 +97,52 @@ static inline void wifi_obj_set_sm(wifi_sta_state_machine_t sm)
     WIFI_STA_SM_PRIMARY_SET(s_csk_wifi_obj.state, sm);
 }
 
-static inline int wifi_give_result(wifi_ret_msg_t *ret_msg)
+static inline int wifi_give_result(wifi_ret_msg_t *ret_msg, bool async_mode)
 {
+    int ret = 0;
+    if (async_mode == false) {
     if (!k_msgq_num_free_get(&wifi_result_msgq)) {
-        k_msgq_purge(&wifi_result_msgq); /* clean the message queue */
+            k_msgq_purge(&wifi_result_msgq); /* clean the message queue */
+        }
+        ret = k_msgq_put(&wifi_result_msgq, ret_msg, K_NO_WAIT);
     }
-    return k_msgq_put(&wifi_result_msgq, ret_msg, K_NO_WAIT);
+    return ret;
 }
 
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout)
 {
-    return k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
+    int ret = 0;
+    bool async_mode = (K_TIMEOUT_EQ(timeout, K_NO_WAIT) ? true : false);
+    if (async_mode == false) {
+        ret = k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
+    }
+    return ret;
 }
-
 static inline void wifi_clear_message(void)
 {
     k_msgq_purge(&wifi_interactive_msgq);
 }
 
-int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts)
+int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts, bool async_mode)
 {
+    wifi_req_t req = {
+        .cmd = command,
+        .async_mode = async_mode,
+    };
+
     csk_wifi_ctrl_msg_t msg = {
         .dev = dev,
         .type = WIFI_COMMAND,
-        .command = command,
+        .req = req,
     };
 
     wifi_clear_message();
     return k_msgq_put(&wifi_interactive_msgq, &msg, timeouts);
 }
 
-static wifi_auth_mode_t wifi_get_drv_encryption_mode(csk_wifi_encryption_mode_t mode)
+static wifi_auth_mode_e wifi_get_drv_encryption_mode(csk_wifi_encryption_mode_t mode)
 {
-    wifi_auth_mode_t ret;
+    wifi_auth_mode_e ret;
     switch (mode) {
     case CSK_WIFI_AUTH_OPEN:
         ret = WIFI_AUTH_OPEN;
@@ -149,7 +178,7 @@ static wifi_auth_mode_t wifi_get_drv_encryption_mode(csk_wifi_encryption_mode_t 
     return ret;
 }
 
-static csk_wifi_encryption_mode_t wifi_get_csk_encryption_mode(wifi_auth_mode_t mode)
+static csk_wifi_encryption_mode_t wifi_get_csk_encryption_mode(wifi_auth_mode_e mode)
 {
     csk_wifi_encryption_mode_t ret;
     switch (mode) {
@@ -187,7 +216,7 @@ static csk_wifi_encryption_mode_t wifi_get_csk_encryption_mode(wifi_auth_mode_t 
     return ret;
 }
 
-static wifi_mode_t wifi_get_drv_wifi_mode(csk_wifi_mode_t mode)
+static wifi_mode_e wifi_get_drv_wifi_mode(csk_wifi_mode_t mode)
 {
     if (mode == CSK_WIFI_MODE_STA) {
         return WIFI_MODE_STA;
@@ -207,9 +236,9 @@ static inline int wifi_send_event(const struct device *dev, csk_wifi_event_t eve
         .data = event_data,
         .data_len = data_len,
     };
-    return k_msgq_put(&wifi_interactive_msgq, &msg, timeouts);
-}
 
+   return k_msgq_put(&wifi_interactive_msgq, &msg, timeouts);
+}
 static inline int wifi_get_message(csk_wifi_ctrl_msg_t *msg, k_timeout_t timeouts)
 {
     return k_msgq_get(&wifi_interactive_msgq, msg, timeouts);
@@ -234,36 +263,7 @@ const struct device * wifi_obj_get_dev(csk_wifi_mode_t mode)
     }
 }
 
-static int convert_str_to_bytes(uint8_t *out, const char *s)
-{
-    int mac[MAC_BYTES_LEN] = {0};
-    int num_bytes = 0;
 
-    if (!s || (strlen(s) < (MAC_STRING_LEN - 1)))  {
-        return -1;
-    }
-    num_bytes =  sscanf(s, "%2x:%2x:%2x:%2x:%2x:%2x",
-                        &mac[0],&mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
-
-    if ((num_bytes < MAC_BYTES_LEN)  ||
-        (mac[0] > 0xFF) ||
-        (mac[1] > 0xFF) ||
-        (mac[2] > 0xFF) ||
-        (mac[3] > 0xFF) ||
-        (mac[4] > 0xFF) ||
-        (mac[5] > 0xFF)) {
-        return -1;
-    }
-
-    out[0] = mac[0]&0xff;
-    out[1] = mac[1]&0xff;
-    out[2] = mac[2]&0xff;
-    out[3] = mac[3]&0xff;
-    out[4] = mac[4]&0xff;
-    out[5] = mac[5]&0xff;
-
-    return 0;
-}
 
 static void hosted_event_handler(hosted_event_t events, void *arg)
 {
@@ -304,16 +304,22 @@ static int wifi_driver_init(void)
 
 static void wifi_virtual_netif_init(const struct device *dev)
 {
+    ctrl_cmd_t *resp = NULL;
+    ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
     const struct csk_wifi_config *config = dev->config;
     struct csk_wifi_data *data = dev->data;
-    char mac_addr_strs[MAC_STRING_LEN] = {'\0'};
-    wifi_mode_t esp_wifi_mode = wifi_get_drv_wifi_mode(config->mode);
+    wifi_mode_e esp_wifi_mode = wifi_get_drv_wifi_mode(config->mode);
     if ((esp_wifi_mode != WIFI_MODE_STA) && (esp_wifi_mode != WIFI_MODE_AP)) {
         LOG_ERR("wifi mode err, %d", config->mode);
         return;
     }
-    wifi_get_mac(esp_wifi_mode, mac_addr_strs);
-    convert_str_to_bytes(data->mac_addr, mac_addr_strs);
+	req.u.wifi_mac.mode = esp_wifi_mode;
+	resp = wifi_get_mac(req);
+    if (resp == NULL) {
+        return;
+    }
+    convert_str_to_bytes(data->mac_addr, resp->u.wifi_mac.mac);
+    CLEANUP_APP_MSG(resp);
     if (config->mode == CSK_WIFI_MODE_STA) {
         data->virtual_netif = network_open(STA_INTERFACE, csk_wifi_receive_pkt, data);
     } else if (config->mode == CSK_WIFI_MODE_AP) {
@@ -327,57 +333,72 @@ static void wifi_virtual_netif_init(const struct device *dev)
 static csk_wifi_result_t wifi_sta_connect(const struct device *dev)
 {
     wifi_obj_set_sm(WIFI_SM_STA_ON_CONNECT);
+	ctrl_cmd_t *resp = NULL;
+    ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
     struct csk_wifi_data *data = dev->data;
     csk_wifi_result_t ret = CSK_WIFI_SUCCESS;
-    esp_hosted_control_config_t esp_wifi_config = {0};
-    memcpy(esp_wifi_config.station.ssid, data->sta_config.ssid, strlen(data->sta_config.ssid));
-    memcpy(esp_wifi_config.station.pwd, data->sta_config.pwd, strlen(data->sta_config.pwd));
-    esp_wifi_config.station.encryption_mode = wifi_get_drv_encryption_mode(data->sta_config.encryption_mode);
-    int conn_ret = wifi_set_ap_config(esp_wifi_config);
-    if (conn_ret == SUCCESS) {
+
+    strcpy((char *)&req.u.wifi_ap_config.ssid, data->sta_config.ssid);
+	strcpy((char *)&req.u.wifi_ap_config.pwd, data->sta_config.pwd);
+	strcpy((char *)&req.u.wifi_ap_config.bssid, data->sta_config.bssid);
+	req.u.wifi_ap_config.is_wpa3_supported = false;
+	req.u.wifi_ap_config.listen_interval = 1;
+
+	resp = wifi_connect_ap(req);
+    if (resp == NULL) {
+        return CSK_WIFI_ERR_STA_FAILED;
+    }
+    if (resp->resp_event_status == 0) {
         wifi_obj_set_sm(WIFI_SM_STA_CONNECTED);
         data->sta_is_connected = true;
-        //do nothing
-    } else if (conn_ret == INVALID_PASSWORD) {
+    } else if (resp->resp_event_status == CTRL_ERR_INVALID_PASSWORD) {
         ret = CSK_WIFI_ERR_INVALID_PASSWORD;
-    } else if (conn_ret == NO_AP_FOUND) {
+    } else if (resp->resp_event_status == CTRL_ERR_NO_AP_FOUND) {
         ret = CSK_WIFI_ERR_AP_NOT_FOUND;
     } else {
-        ret = CSK_WIFI_ERR_STA_FAILED; //Fixme: esp32 bug, report invalid reason
+        ret = CSK_WIFI_ERR_STA_FAILED;
     }
+    CLEANUP_APP_MSG(resp);
     return ret;
 }
 
 static csk_wifi_result_t wifi_sta_get_connected_info(const struct device *dev)
 {
+    ctrl_cmd_t *resp = NULL;
+    ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
     struct csk_wifi_data *data = dev->data;
     csk_wifi_result_t ret = CSK_WIFI_SUCCESS;
 
-    esp_hosted_control_config_t connected_info = {0};
-    memset(connected_info.station.ssid, '\0', sizeof(connected_info.station.ssid));
-    int get_ret = wifi_get_ap_config(&connected_info);
-    if (get_ret != 0) {
-        ret = CSK_WIFI_ERR_STA_FAILED;
+    resp = wifi_get_ap_config(req);
+    if (resp == NULL || resp->resp_event_status != 0) {
+        CLEANUP_APP_MSG(resp);
+        return CSK_WIFI_ERR_STA_FAILED;
     }
-    strcpy(data->sta_config.bssid, connected_info.station.bssid);
-    data->sta_config.rssi = connected_info.station.rssi;
-    data->sta_config.channel = connected_info.station.channel;
+
+    wifi_ap_config_t *connected_ap = &resp->u.wifi_ap_config;
+    strcpy(data->sta_config.bssid, connected_ap->bssid);
+    data->sta_config.rssi = connected_ap->rssi;
+    data->sta_config.channel = connected_ap->channel;
+    CLEANUP_APP_MSG(resp);
     return ret;
 }
 
 static csk_wifi_result_t wifi_sta_disconnect(const struct device *dev)
 {
     wifi_obj_set_sm(WIFI_SM_STA_ON_DISCONNECT);
+	ctrl_cmd_t *resp = NULL;
+    ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
     csk_wifi_result_t ret = CSK_WIFI_SUCCESS;
     struct csk_wifi_data *data = dev->data;
-    int disconn_ret = wifi_disconnect_ap();
-    if (disconn_ret == SUCCESS) {
-        wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
-        data->sta_is_connected = false;
-        //do nothing
-    } else {
+
+    resp = wifi_disconnect_ap(req);
+    if (resp == NULL || resp->resp_event_status != 0) {
         ret = CSK_WIFI_ERR_STA_FAILED;
     }
+
+    wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
+    data->sta_is_connected = false;
+    CLEANUP_APP_MSG(resp);
     return ret;
 }
 
@@ -385,49 +406,73 @@ static csk_wifi_result_t wifi_sotfap_start(const struct device *dev)
 {
     struct csk_wifi_data *data = dev->data;
     csk_wifi_result_t ret = CSK_WIFI_SUCCESS;
-    esp_hosted_control_config_t esp_wifi_config = {0};
-    memcpy(esp_wifi_config.softap.ssid, data->ap_config.ssid, strlen(data->ap_config.ssid));
-    memcpy(esp_wifi_config.softap.pwd, data->ap_config.pwd, strlen(data->ap_config.pwd));
-    esp_wifi_config.softap.channel = data->ap_config.channel;
-    esp_wifi_config.softap.bandwidth = data->ap_config.bandwidth;
-    esp_wifi_config.softap.ssid_hidden = data->ap_config.ssid_hidden;
-    esp_wifi_config.softap.max_connections = data->ap_config.max_connections;
-    esp_wifi_config.softap.encryption_mode = wifi_get_drv_encryption_mode(data->ap_config.encryption_mode);
-    int start_ret = wifi_set_softap_config(esp_wifi_config);
-    if (start_ret == SUCCESS) {
-        //do nothing
-    } else {
+	ctrl_cmd_t *resp = NULL;
+    ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
+
+    strncpy((char *)&req.u.wifi_softap_config.ssid, data->ap_config.ssid, SSID_LENGTH);
+    strncpy((char *)&req.u.wifi_softap_config.pwd, data->ap_config.pwd, PASSWORD_LENGTH);
+    req.u.wifi_softap_config.channel = data->ap_config.channel;
+    req.u.wifi_softap_config.bandwidth = data->ap_config.bandwidth;
+    req.u.wifi_softap_config.ssid_hidden = data->ap_config.ssid_hidden;
+    req.u.wifi_softap_config.max_connections = data->ap_config.max_connections;
+    req.u.wifi_softap_config.encryption_mode = wifi_get_drv_encryption_mode(data->ap_config.encryption_mode);
+    resp = wifi_start_softap(req);
+    if (resp == NULL || resp->resp_event_status != 0) {
         ret = CSK_WIFI_ERR_AP_FAILED;
     }
+    CLEANUP_APP_MSG(resp);
     return ret;
 }
 
 static csk_wifi_result_t wifi_sotfap_stop(const struct device *dev)
 {
     csk_wifi_result_t ret = CSK_WIFI_SUCCESS;
-    int stop_ret = wifi_stop_softap();
-    if (stop_ret == SUCCESS) {
-        //do nothing
-    } else {
+
+	ctrl_cmd_t *resp = NULL;
+    ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
+	resp = wifi_stop_softap(req);
+    if (resp == NULL || resp->resp_event_status != 0) {
         ret = CSK_WIFI_ERR_AP_FAILED;
     }
+    CLEANUP_APP_MSG(resp);
     return ret;
 }
 
-static csk_wifi_result_t wifi_scan_list(int *ap_count, esp_hosted_wifi_scanlist_t **ap_list)
+static csk_wifi_result_t wifi_scan_list(int *ap_count, wifi_scan_list_t *aps)
 {
     wifi_obj_set_sm(WIFI_SM_STA_ON_SCAN);
+	ctrl_cmd_t *resp = NULL;
+    ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
     csk_wifi_result_t ret = CSK_WIFI_SUCCESS;
-    *ap_list = wifi_ap_scan_list(ap_count);
-    if (ap_list == NULL || *ap_count == 0) {
-        ret = CSK_WIFI_ERR_STA_FAILED; //TODO: use more reasonable FAILED value
+
+    resp = wifi_ap_scan_list(req);
+    if (resp == NULL || resp->resp_event_status != 0) {
+        return CSK_WIFI_ERR_STA_FAILED;
+    }
+
+    wifi_ap_scan_list_t *scan_list = &resp->u.wifi_ap_scan;
+    aps->count = scan_list->count;
+    aps->ap_list = k_calloc(aps->count, sizeof(csk_wifi_scan_info_t));
+    if (aps->ap_list == NULL) {
+        printk("No memory\n");
+        return CSK_WIFI_ERR_STA_FAILED;
+    }
+    for (int idx = 0; idx < scan_list->count; idx++) {
+        strncpy(aps->ap_list[idx].ssid, scan_list->out_list[idx].ssid, CSK_WIFI_SSID_LEN);
+        strncpy(aps->ap_list[idx].bssid, scan_list->out_list[idx].bssid, CSK_WIFI_BSSID_LEN);
+        aps->ap_list[idx].channel = scan_list->out_list[idx].channel;
+        aps->ap_list[idx].rssi = scan_list->out_list[idx].rssi;
+        aps->ap_list[idx].encryption_mode = wifi_get_csk_encryption_mode(
+                                                scan_list->out_list[idx].encryption_mode);
     }
     wifi_obj_set_sm(WIFI_SM_STA_SCAN_DONE);
+    CLEANUP_APP_MSG(resp);
     return ret;
 }
 
-static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
+static void wifi_command_handler(const struct device *dev,  wifi_req_t req)
 {
+    wifi_cmd_t command = req.cmd;
     wifi_ret_msg_t ret_msg = {
         .arg = NULL,
         .result = CSK_WIFI_SUCCESS,
@@ -442,19 +487,22 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
 #ifdef CONFIG_CSK_WIFI_SOFTAP
             wifi_virtual_netif_init(wifi_obj_get_dev(CSK_WIFI_MODE_AP));
 #endif
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
         case WIFI_CMD_STA_CONNECT: {
+            //Add event 'connecting'.
+            struct csk_wifi_data *data = dev->data;
+            wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTING,
+                                    &data->sta_config, sizeof(data->sta_config));
             ret_msg.result = wifi_sta_connect(dev);
             if (ret_msg.result == CSK_WIFI_SUCCESS) {
                 csk_wifi_result_t get_ret = wifi_sta_get_connected_info(dev);
                 if (get_ret == CSK_WIFI_SUCCESS) {
                     wifi_send_event(dev, CSK_WIFI_EVT_STA_CONNECTED, NULL, 0, K_FOREVER);
-                    struct csk_wifi_data *data = dev->data;
                     wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTED, &data->sta_config, sizeof(csk_wifi_sta_config_t));
                 }
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
         case WIFI_CMD_STA_DISCONNECT: {
             ret_msg.result = wifi_sta_disconnect(dev);
@@ -462,7 +510,7 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
                 wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0);
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
 
         case WIFI_CMD_AP_START: {
@@ -471,7 +519,7 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
                 wifi_send_event(dev, CSK_WIFI_EVT_AP_STARTED, NULL, 0, K_FOREVER);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_AP_STARTED, NULL, 0);
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
 
         case WIFI_CMD_AP_STOP: {
@@ -480,37 +528,20 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
                 wifi_send_event(dev, CSK_WIFI_EVT_AP_STOPPED, NULL, 0, K_FOREVER);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_AP_STOPPED, NULL, 0);
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
 
         case WIFI_CMD_SCAN: {
             wifi_scan_list_t scan_list = {0};
             int count = 0;
-            esp_hosted_wifi_scanlist_t *ap_list = NULL;
-            ret_msg.result = wifi_scan_list(&count, &ap_list);
+            ret_msg.result = wifi_scan_list(&count, &scan_list);
             if (ret_msg.result == CSK_WIFI_SUCCESS) {
-                csk_wifi_scan_info_t *csk_ap_list = k_calloc(count, sizeof(csk_wifi_scan_info_t));
-                if (csk_ap_list == NULL) {
-                    abort();
-                }
-                for (int idx = 0; idx < count; idx++) {
-                    memcpy(csk_ap_list[idx].ssid, ap_list[idx].ssid, sizeof(csk_ap_list[idx].ssid));
-                    memcpy(csk_ap_list[idx].bssid, ap_list[idx].bssid, sizeof(csk_ap_list[idx].bssid));
-                    csk_ap_list[idx].channel = ap_list[idx].channel;
-                    csk_ap_list[idx].rssi = ap_list[idx].rssi;
-                    csk_ap_list[idx].encryption_mode = wifi_get_csk_encryption_mode(ap_list[idx].encryption_mode);
-                }
-                k_free(ap_list);
-                ap_list = NULL;
-                scan_list.ap_list = csk_ap_list;
-                scan_list.count = count;
                 ret_msg.arg = &scan_list;
-                csk_wifi_scan_info_t csk_ap_list_copy[count];
-                memset(csk_ap_list_copy, 0, sizeof(csk_wifi_scan_info_t) * count);
-                memcpy(csk_ap_list_copy, csk_ap_list, sizeof(csk_wifi_scan_info_t) * count);
-                wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_DONE, csk_ap_list_copy, sizeof(csk_wifi_scan_info_t) * count);
+                LOG_DBG("wifi_scan_list scan_list.count = %d", scan_list.count);
+                wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_DONE, scan_list.ap_list, 
+                    sizeof(csk_wifi_scan_info_t) * scan_list.count);
             }
-            wifi_give_result(&ret_msg);
+            wifi_give_result(&ret_msg, req.async_mode);
         } break;
 
         default:
@@ -561,7 +592,7 @@ static void wifi_control_thread(void *arg1, void *arg2, void *arg3)
         const struct device *dev = msg.dev;
         if (msg.type == WIFI_COMMAND) {
             /* This function maybe will here block thread for a long time */
-            wifi_command_handler(dev, msg.command);
+            wifi_command_handler(dev, msg.req);
         } else if (msg.type == WIFI_EVENT) {
             wifi_event_handler(dev, msg.event);
         }
@@ -578,17 +609,14 @@ static void csk_wifi_receive_pkt(struct network_handle *virtual_netif, void *arg
         pkt = net_pkt_rx_alloc_with_buffer(netif, wifi_rx_buf->len,
                                            AF_UNSPEC, 0, K_NO_WAIT);
         if (pkt == NULL) {
-            printk("Failed to get net buffer %d\n", wifi_rx_buf->len);
             goto __cleanup;
         }
 
         if (net_pkt_write(pkt, wifi_rx_buf->payload, wifi_rx_buf->len) < 0) {
-            printk("Failed to write pkt\n");
             goto __cleanup;
         }
 
         if (net_recv_data(netif, pkt) < 0) {
-            printk("Failed to push received data\n");
             goto __cleanup;
         }
 

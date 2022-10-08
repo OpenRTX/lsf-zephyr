@@ -118,9 +118,6 @@ void main(void)
 			LOG_ERR("Unable to dequeue video buf");
 			return;
 		}
-
-		//必需有刷新操作，除非保证video_buffer_alloc()申请的内存是nocache_region
-		SCB_InvalidateDCache_by_Addr((void *)vbuf->buffer, vbuf->bytesused);
 		
 #if USE_SERIAL_PROTOCOL
 		memcpy(image_buf, vbuf->buffer, IMAGE_SIZE);

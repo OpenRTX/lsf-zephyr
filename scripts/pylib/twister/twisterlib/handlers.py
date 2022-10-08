@@ -315,6 +315,7 @@ class DeviceHandler(Handler):
 
         @param instance Test Instance
         """
+        self.seiral_available = False
         super().__init__(instance, type_str)
 
     def monitor_serial(self, ser, halt_fileno, harness):
@@ -332,6 +333,15 @@ class DeviceHandler(Handler):
             # test results we should get coverage data, otherwise we exit
             # from the test.
             harness.capture_coverage = True
+
+        origin_timeout = ser.timeout
+        ser.timeout = 1
+        while self.seiral_available == False:
+            ser.readlines(1000)
+            time.sleep(1)
+        ser.timeout = origin_timeout
+
+        logger.debug(f"self.seiral_available: {self.seiral_available}");
 
         ser.flush()
 
@@ -416,7 +426,7 @@ class DeviceHandler(Handler):
 
         hardware = self.device_is_available(self.instance)
         while not hardware:
-            logger.debug("Waiting for device {} to become available".format(self.instance.platform.name))
+        #    logger.debug("Waiting for device {} to become available".format(self.instance.platform.name))
             time.sleep(1)
             hardware = self.device_is_available(self.instance)
 
@@ -527,6 +537,16 @@ class DeviceHandler(Handler):
 
         ser.flush()
 
+        # turns out the ser.flush() is not enough to clear serial leftover from last case
+        # explicitly readline() can do it reliably
+        old_timeout = ser.timeout
+        ser.timeout = 1 # wait for 1s if no serial output
+        leftover_lines = ser.readlines(1000) # or read 1000 lines at most
+        for line in leftover_lines:
+            logger.debug(f"leftover log of previous test: {line}")
+        ser.timeout = old_timeout
+
+
         harness_name = self.instance.testsuite.harness.capitalize()
         harness_import = HarnessImporter(harness_name)
         harness = harness_import.instance
@@ -541,10 +561,12 @@ class DeviceHandler(Handler):
         d_log = "{}/device.log".format(self.instance.build_dir)
         logger.debug('Flash command: %s', command)
         flash_error = False
+        self.seiral_available = False
         try:
             stdout = stderr = None
             with subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
                 try:
+                    self.seiral_available = True
                     (stdout, stderr) = proc.communicate(timeout=180)
                     # ignore unencodable unicode chars
                     logger.debug(stdout.decode(errors = "ignore"))

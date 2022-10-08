@@ -2,16 +2,16 @@
 
 &csk6011a_9s_nano_pinctrl{
                 pinctrl_spi0_sclk_default: spi0_sclk_default {
-                        pinctrls = < &pinmuxa 7 6 >;
+                        pinctrls = < SPI0_CLK_GPIOA_07 >;
                 };
                 pinctrl_spi0_mosi_default: spi0_mosi_default {
-                        pinctrls = < &pinmuxa 6 6 >;
+                        pinctrls = < SPI0_MOSI_GPIOA_06 >;
                 };
                 pinctrl_spi0_miso_default: spi0_miso_default {
-                        pinctrls = < &pinmuxa 5 6 >;
+                        pinctrls = < SPI0_MISO_GPIOA_05 >;
                 };
                 pinctrl_spi0_cs_default: spi0_cs_default {
-                        pinctrls = < &pinmuxa 4 6 >;
+                        pinctrls = < SPI0_CS_N_GPIOA_04 >;
                 }; 
 };
 
