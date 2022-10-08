@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-#include <csk/csk6002.dtsi>
+#include "csk/csk6_pinctrl.dtsi"
 
 #define csk6011a_9s_nano_pinctrl pinctrl \
         __PINCTRL_DEPRECATED__("This node has been deprecated," \
