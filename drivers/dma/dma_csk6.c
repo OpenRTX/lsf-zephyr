@@ -235,6 +235,8 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 
 	if (config->channel_direction == PERIPHERAL_TO_MEMORY) {
 		ch_info->reg_cfg_high |= DMA_CH_CFGH_SRC_PER(config->dma_slot);
+	} else if (config->channel_direction == MEMORY_TO_PERIPHERAL) {
+		ch_info->reg_cfg_high |= DMA_CH_CFGH_DST_PER(config->dma_slot);
 	}
 
 	if (config->head_block->dest_scatter_en) {
