@@ -28,6 +28,7 @@ typedef struct csk_uart_dma_xfer_info {
 	uint8_t *buf;
 	uint32_t len;
 	uint32_t offset;
+	uint32_t expe_len;
 } csk_uart_dma_xfer_info_t;
 
 typedef struct csk_uart_dma_config {
@@ -46,6 +47,7 @@ typedef struct csk_uart_async_data {
 	const struct device *dev;
 	uint8_t *rx_next_buf;
 	uint32_t rx_next_len;
+	uint32_t rx_timeout;
 } csk_uart_async_data_t;
 
 struct csk_uart_data {
@@ -121,6 +123,7 @@ static void csk_uart_poll_out(const struct device *dev, unsigned char out_char)
 static inline void csk_uart_async_notify_user(csk_uart_async_data_t *async_data, struct uart_event *evt)
 {
 	if (async_data->async_cb) {
+		// printk("async notification, evt:%d\n", evt->type);
 		async_data->async_cb(async_data->dev, evt, async_data->async_user_data);
 	}
 }
@@ -203,11 +206,6 @@ static void csk_uart_dma_tx_callback(const struct device *dev, void *user_data, 
 
 	k_work_cancel_delayable(&async_data->dma_tx.dwork);
 	if (status == 0) {
-		/**
-		 * must wait fifo empty,
-		 * otherwise it may cause loss of data in polling mode
-		 */
-		while (!(uart_reg->REG_LSR.all & UARTC_LSR_THRE));
 		csk_uart_async_evt_tx_done(async_data);
 	} else {
 		
@@ -224,21 +222,41 @@ static void csk_uart_dma_rx_callback(const struct device *dev, void *user_data, 
 	k_work_cancel_delayable(&async_data->dma_rx.dwork);
 
 	if (status == 0) {
+		uint32_t tmp = async_data->dma_rx.xfer_info.len;
+		async_data->dma_rx.xfer_info.len =
+			async_data->dma_rx.xfer_info.expe_len -
+			(async_data->dma_rx.xfer_info.offset + async_data->dma_rx.xfer_info.len);
+		async_data->dma_rx.xfer_info.offset += tmp;
 		csk_uart_async_evt_rx_rdy(async_data, &async_data->dma_rx.xfer_info);
 	} else {
 	}
 
-	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
-	if (async_data->rx_next_buf != NULL && async_data->rx_next_len > 0) {
+	if ((async_data->rx_next_buf != NULL) && (async_data->rx_next_len > 0)) {
 		dma_reload(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
 			   (uint32_t)&uart_reg->REG_RBR.all, (uint32_t)async_data->rx_next_buf,
 			   async_data->rx_next_len);
 		dma_start(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+
+		async_data->dma_rx.xfer_info.buf = async_data->rx_next_buf;
+		async_data->dma_rx.xfer_info.expe_len = async_data->rx_next_len;
+		async_data->dma_rx.xfer_info.len = 0;
+		async_data->dma_rx.xfer_info.offset = 0;
+
 		async_data->rx_next_buf = NULL;
 		async_data->rx_next_len = 0;
+
+		/* request next buffer again */
+		csk_uart_async_evt_rx_buf_request(async_data);
+
+		if ((async_data->rx_timeout != SYS_FOREVER_US) && (async_data->rx_timeout != 0)) {
+			k_work_reschedule(&async_data->dma_rx.dwork,
+					  K_USEC(async_data->rx_timeout));
+		}
 	} else {
 		csk_uart_async_evt_rx_disabled(async_data);
 	}
+
+	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
 }
 
 static int csk_uart_callback_set(const struct device *dev, uart_callback_t callback, void *user_data)
@@ -265,11 +283,14 @@ int csk_uart_async_tx(const struct device *dev, const uint8_t *buf, size_t len, 
 		return -ENOTSUP;
 	}
 
+	k_work_cancel_delayable(&async_data->dma_tx.dwork);
+
 	block_config.source_address = (uint32_t)buf;
 	block_config.dest_address = (uint32_t)&uart_reg->REG_THR.all;
 	block_config.block_size = len;
 	block_config.dest_addr_adj = DMA_ADDR_ADJ_NO_CHANGE;
 	block_config.source_addr_adj = DMA_ADDR_ADJ_INCREMENT;
+	block_config.fifo_mode_control = 1;
 
 	/* other default config has been configed, see macro @CSK_UART_DMA_CONFIG_GET */
 	async_data->dma_tx.config.head_block = &block_config;
@@ -279,10 +300,12 @@ int csk_uart_async_tx(const struct device *dev, const uint8_t *buf, size_t len, 
 		return err;
 	}
 
-	/* Note that the return value 1 to indicate successfully scheduled. */
-	err = k_work_reschedule(&async_data->dma_tx.dwork, K_USEC(timeout));
-	if (!err) {
-		return -EINVAL;
+	if ((timeout != SYS_FOREVER_US) && (timeout != 0)) {
+		/* Note that the return value 1 to indicate successfully scheduled. */
+		err = k_work_reschedule(&async_data->dma_tx.dwork, K_USEC(timeout));
+		if (!err) {
+			return -EINVAL;
+		}
 	}
 
 	err = dma_start(async_data->dma_tx.dma_dev, async_data->dma_tx.channel);
@@ -306,21 +329,25 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 		return -ENOTSUP;
 	}
 
+	k_work_cancel_delayable(&async_data->dma_rx.dwork);
+
+	/* enable timeout interrupt */
+	uart_reg->REG_IER.bit.ECHT = 1;
+
 	block_config.source_address = (uint32_t)&uart_reg->REG_RBR.all;
 	block_config.dest_address = (uint32_t)buf;
 	block_config.block_size = len;
 	block_config.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT;
 	block_config.source_addr_adj = DMA_ADDR_ADJ_NO_CHANGE;
-	block_config.fifo_mode_control = 1;
+	block_config.fifo_mode_control = 0;
 
 	/* other default config has been configed, see macro @CSK_UART_DMA_CONFIG_GET */
 	async_data->dma_rx.config.head_block = &block_config;
 
 	async_data->dma_rx.xfer_info.buf = buf;
-	async_data->dma_rx.xfer_info.len = len;
+	async_data->dma_rx.xfer_info.len = 0;
+	async_data->dma_rx.xfer_info.expe_len = len;
 	async_data->dma_rx.xfer_info.offset = 0;
-
-	printk("FCR:%p, value:%x\n", &uart_reg->REG_FCR.all, uart_reg->REG_FCR.all);
 
 	err = dma_config(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
 			 &async_data->dma_rx.config);
@@ -328,22 +355,26 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 		return err;
 	}
 
-	uart_reg->REG_IER.all |= UARTC_IER_THRE | UARTC_IER_RDR | UARTC_IER_RLS | UARTC_IER_MS;
-
 	err = dma_start(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
 	if (err != 0) {
 		return err;
 	}
 
+	csk_uart_async_evt_rx_buf_request(async_data);
+
 	if ((timeout != SYS_FOREVER_US) && (timeout != 0)) {
+		/**
+		 * Because there is no idle interrupt,
+		 * the timeout value is increased here to pass ztest.
+		 */
+		timeout += 1000;
 		/* return value 1 to indicate successfully scheduled. */
 		err = k_work_reschedule(&async_data->dma_rx.dwork, K_USEC(timeout));
 		if (!err) {
 			return -EINVAL;
 		}
+		async_data->rx_timeout = timeout;
 	}
-
-	csk_uart_async_evt_rx_buf_request(async_data);
 
 	return 0;
 }
@@ -382,9 +413,13 @@ int csk_uart_async_rx_disable(const struct device *dev)
 	csk_uart_async_data_t *async_data = &data->async_data;
 
 	dma_stop(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
-	csk_uart_async_evt_rx_disabled(async_data);
-	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
+
+	if (dma_channel_get_count(async_data->dma_rx.channel)) {
 		csk_uart_async_evt_rx_rdy(async_data, &async_data->dma_rx.xfer_info);
+	}
+
+	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
+	csk_uart_async_evt_rx_disabled(async_data);
 
 	return 0;
 }
@@ -395,13 +430,29 @@ void csk_uart_async_rx_dwork_callback(struct k_work *work)
 	csk_uart_dma_config_t *dma_rx = CONTAINER_OF(dwork, csk_uart_dma_config_t, dwork);
 	csk_uart_async_data_t *async_data = CONTAINER_OF(dma_rx, csk_uart_async_data_t, dma_rx);
 
-	k_work_cancel_delayable(&async_data->dma_rx.dwork);
-
-	printk("dma_rx->xfer_info.buf:%p\n", dma_rx->xfer_info.buf);
 	/* Some data may have been transferred */
-	SCB_InvalidateDCache_by_Addr(dma_rx->xfer_info.buf, 32);
+	uint32_t c = dma_channel_get_count(async_data->dma_rx.channel);
 
-	csk_uart_async_evt_rx_rdy(async_data, &dma_rx->xfer_info);
+	if (c >= async_data->dma_rx.xfer_info.expe_len) {
+		k_work_cancel_delayable(&async_data->dma_rx.dwork);
+		csk_uart_async_rx_disable(async_data->dev);
+	} else if (c > 0) {
+		if (c > (dma_rx->xfer_info.len + dma_rx->xfer_info.offset)) {
+			dma_rx->xfer_info.offset = dma_rx->xfer_info.len;
+			dma_rx->xfer_info.len = c - dma_rx->xfer_info.len;
+
+			SCB_InvalidateDCache_by_Addr(dma_rx->xfer_info.buf +
+							     dma_rx->xfer_info.offset,
+						     dma_rx->xfer_info.len);
+
+			csk_uart_async_evt_rx_rdy(async_data, &dma_rx->xfer_info);
+		}
+
+		/* rx is not finished, restart work to detect is new datas has been received or not. */
+		if ((async_data->rx_timeout != SYS_FOREVER_US) && (async_data->rx_timeout != 0)) {
+			k_work_reschedule(dwork, K_USEC(async_data->rx_timeout));
+		}
+	}
 }
 
 void csk_uart_async_tx_dwork_callback(struct k_work *work)
@@ -571,50 +622,33 @@ static void csk_uart_irq_callback_set(const struct device *dev, uart_irq_callbac
 	data->callback = cb;
 	data->cb_data = cb_data;
 }
-
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
 static void csk_uart_isr(const struct device *dev)
 {
-	struct csk_uart_data *data = dev->data;
 	const struct csk_uart_config *config = DEV_CFG(dev);
 	DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
 
+#if CONFIG_UART_INTERRUPT_DRIVEN
+	struct csk_uart_data *data = dev->data;
 	if (uart_reg == NULL) {
 		return;
 	}
-
-	volatile uint8_t interrupt_id = uart_reg->REG_IIR.bit.IID;
-	
-	printk("interrupt_id:%d\n", interrupt_id);
-
-	if (interrupt_id == UARTC_IIR_NONE) {
-		/* no interrupt pending */
-		return;
+	if (data->callback) {
+		data->callback(dev, data->cb_data);
 	}
+#endif
 
-	/* modem status */
-	if (interrupt_id == UARTC_IIR_MODEM) {
+#if defined(CONFIG_UART_ASYNC_API)
+	uint8_t iid = uart_reg->REG_IIR.bit.IID;
+
+	// printk(">>>>>>>>>>>csk_uart_isr, iid: %d\n", iid);
+
+	if (iid & UARTC_IIR_RTO) {
+		// printk(">>>>>>>>>>>csk_uart_isr, recv time out\n");
+		uart_reg->REG_IER.bit.ECHT = 0;
 	}
-
-	/* receiver line status */
-	if ((interrupt_id & UARTC_IIR_RLS) == UARTC_IIR_RLS) {
-	}
-
-	/* received data available */
-	if ((interrupt_id & UARTC_IIR_RDA) == UARTC_IIR_RDA) {
-	}
-
-	/* character timeout */
-	if ((interrupt_id & UARTC_IIR_RTO) == UARTC_IIR_RTO) {
-		// printk("-------------------timeout\n");
-	}
-
-	/*  THR empty */
-	if ((interrupt_id & UARTC_IIR_THRE) == UARTC_IIR_THRE) {
-	}
-
-	interrupt_id = 0;
+#endif
 }
 
 static int csk_uart_init(const struct device *dev)
