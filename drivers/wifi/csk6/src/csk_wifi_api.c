@@ -110,8 +110,15 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
 
     ret = wifi_send_command(dev, WIFI_CMD_STA_CONNECT, K_NO_WAIT, async_mode);
     if (ret != 0)   goto __exit;
-    ret = wifi_take_result(&ret_msg, timeout);
-    if (ret != 0)   goto __exit;
+
+    if (async_mode == false) {
+        ret = wifi_take_result(&ret_msg, timeout);
+        if (ret != 0)   goto __exit;
+    } else {
+        *result = CSK_WIFI_SUCCESS;
+        goto __exit;
+    }
+
     *result = ret_msg.result;
     if (*result != CSK_WIFI_SUCCESS) {
         ret = -EIO;

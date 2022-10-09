@@ -6,7 +6,7 @@
 #include "kernel.h"
 #include "sys_clock.h"
 #include "tc_util.h"
-#include "wifi_manager.h"
+#include "wifi_manager/wifi_manager.h"
 #include "ztest_assert.h"
 
 extern void test_wifi_mgr_storage_save_ap_assert(wifi_mgr_sta_config_t *sta_config);
