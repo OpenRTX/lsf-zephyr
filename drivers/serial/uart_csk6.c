@@ -123,7 +123,6 @@ static void csk_uart_poll_out(const struct device *dev, unsigned char out_char)
 static inline void csk_uart_async_notify_user(csk_uart_async_data_t *async_data, struct uart_event *evt)
 {
 	if (async_data->async_cb) {
-		// printk("async notification, evt:%d\n", evt->type);
 		async_data->async_cb(async_data->dev, evt, async_data->async_user_data);
 	}
 }
@@ -436,10 +435,11 @@ void csk_uart_async_rx_dwork_callback(struct k_work *work)
 			dma_rx->xfer_info.offset = dma_rx->xfer_info.len;
 			dma_rx->xfer_info.len = c - dma_rx->xfer_info.len;
 
+#if !defined(CONFIG_SOC_LS_ADSP_CSK6) && defined(CONFIG_CSK6_DCACHE)
 			SCB_InvalidateDCache_by_Addr(dma_rx->xfer_info.buf +
 							     dma_rx->xfer_info.offset,
 						     dma_rx->xfer_info.len);
-
+#endif
 			csk_uart_async_evt_rx_rdy(async_data, &dma_rx->xfer_info);
 		}
 
