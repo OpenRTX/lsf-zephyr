@@ -79,7 +79,7 @@ void test_single_read(void)
 	zassert_not_equal(memcmp(tx_buf, rx_buf, 5), 0,
 			  "Initial buffer check failed");
 
-	uart_rx_enable(uart_dev, rx_buf, 10, 50 * USEC_PER_MSEC);
+	uart_rx_enable(uart_dev, rx_buf, 10, 100 * USEC_PER_MSEC);
 	zassert_equal(k_sem_take(&rx_rdy, K_MSEC(100)), -EAGAIN,
 		      "RX_RDY not expected at this point");
 
@@ -458,6 +458,7 @@ void test_write_abort_callback(const struct device *dev,
 
 void test_write_abort_setup(void)
 {
+	k_sem_reset(&rx_rdy);
 	uart_callback_set(uart_dev, test_write_abort_callback, NULL);
 }
 
@@ -524,6 +525,7 @@ void test_forever_timeout_callback(const struct device *dev,
 
 void test_forever_timeout_setup(void)
 {
+	k_sem_reset(&rx_rdy);
 	uart_callback_set(uart_dev, test_forever_timeout_callback, NULL);
 }
 
@@ -683,7 +685,7 @@ void test_long_buffers(void)
 	memset(long_rx_buf, 0, sizeof(long_rx_buf));
 	memset(long_tx_buf, 1, sizeof(long_tx_buf));
 
-	uart_rx_enable(uart_dev, long_rx_buf, sizeof(long_rx_buf), 10 * USEC_PER_MSEC);
+	uart_rx_enable(uart_dev, long_rx_buf, sizeof(long_rx_buf), 200 * USEC_PER_MSEC);
 
 	uart_tx(uart_dev, long_tx_buf, 500, 200 * USEC_PER_MSEC);
 	zassert_equal(k_sem_take(&tx_done, K_MSEC(200)), 0, "TX_DONE timeout");
