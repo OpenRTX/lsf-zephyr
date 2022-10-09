@@ -2,6 +2,7 @@ common:
   platform_exclude: seeeduino_xiao serpente arduino_nano_33_iot atsamr21_xpro
     adafruit_itsybitsy_m4_express atsame54_xpro atsamd21_xpro adafruit_trinket_m0
     arduino_nano_33_iot arduino_zero atsamd21_xpro adafruit_feather_m0_basic_proto
+    csk6002_9s_nano csk6002_c3_nano csk6011a_nano csk6011a_9s_nano csk6012a_nano csk6012a_c3_nano
 
 tests:
   drivers.uart.async_api:
