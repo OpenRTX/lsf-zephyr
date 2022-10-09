@@ -268,7 +268,6 @@ void test_chained_read(void)
 		zassert_equal(k_sem_take(&rx_rdy, K_MSEC(1000)), 0,
 			      "RX_RDY timeout");
 		size_t read_len_temp = read_len;
-
 		zassert_equal(read_len_temp, sizeof(tx_buf),
 			      "Incorrect read length");
 		zassert_equal(memcmp(tx_buf, read_ptr, sizeof(tx_buf)),
@@ -524,6 +523,7 @@ void test_forever_timeout_callback(const struct device *dev,
 
 void test_forever_timeout_setup(void)
 {
+	k_sem_reset(&rx_rdy);
 	uart_callback_set(uart_dev, test_forever_timeout_callback, NULL);
 }
 
