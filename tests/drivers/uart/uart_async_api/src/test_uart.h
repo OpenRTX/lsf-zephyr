@@ -67,6 +67,8 @@
 #elif defined(CONFIG_BOARD_MIMXRT1010_EVK) || \
 	defined(CONFIG_BOARD_MIMXRT1015_EVK)
 #define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(lpuart4))
+#elif defined(CONFIG_SOC_CSK6)
+	#define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(uart1))
 #else
 #define UART_DEVICE_NAME DT_LABEL(DT_CHOSEN(zephyr_console))
 #endif
