@@ -399,7 +399,7 @@ static int csk_dma_stop(const struct device *dev, uint32_t channel)
 		return -EINVAL;
 	}
 
-	if (dma_channel_disable(channel, 0) != 0) {
+	if (dma_channel_disable(channel, 1) != 0) {
 		return -EIO;
 	}
 
