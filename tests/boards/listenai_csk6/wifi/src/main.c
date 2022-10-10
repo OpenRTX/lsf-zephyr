@@ -12,6 +12,7 @@ LOG_MODULE_DECLARE(test_csk6_wifi, CONFIG_LOG_DEFAULT_LEVEL);
 static csk_wifi_event_cb_t wifi_event_cb;
 K_MSGQ_DEFINE(test_csk_wifi_connected_msgq, sizeof(csk_wifi_event_t), 1, 4);
 K_MSGQ_DEFINE(test_csk_wifi_disconnected_msgq, sizeof(csk_wifi_event_t), 1, 4);
+K_MSGQ_DEFINE(test_csk_wifi_connection_failed_msgq, sizeof(csk_wifi_event_t), 1, 4);
 
 int csk_wifi_connected_msgq_give(csk_wifi_event_t events)
 {
@@ -33,14 +34,30 @@ int csk_wifi_disconnected_msgq_take(csk_wifi_event_t *events, k_timeout_t timeou
 	return k_msgq_get(&test_csk_wifi_disconnected_msgq, events, timeout);
 }
 
+int csk_wifi_msgq_take(struct k_msgq *msgq, csk_wifi_event_t *events, k_timeout_t timeout)
+{
+	return k_msgq_get(msgq, events, timeout);
+}
+
+int csk_wifi_msgq_give(struct k_msgq *msgq, csk_wifi_event_t events)
+{
+	return k_msgq_put(msgq, &events, K_NO_WAIT);
+}
+
+
 static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32_t data_len, void *arg)
 {
+	int reason = 0;
 	if (events & CSK_WIFI_EVT_STA_CONNECTED) {
 		csk_wifi_connected_msgq_give(events);
 		LOG_DBG("file:%s, func:%s, connected\n", __FILE__, __FUNCTION__);
 	} else if (events & CSK_WIFI_EVT_STA_DISCONNECTED) {
 		csk_wifi_disconnected_msgq_give(events);
 		LOG_DBG("file:%s, func:%s, disconnected\n", __FILE__, __FUNCTION__);
+	} else if (events & CSK_WIFI_EVT_STA_CONNECTION_FAILED) {
+		reason = *((int *) (event_data));
+		csk_wifi_msgq_give(&test_csk_wifi_connection_failed_msgq, events);
+		LOG_DBG("file:%s, func:%s, connection failed, reason: %d\n", __FILE__, __FUNCTION__, reason);
 	} else {
 	}
 }
@@ -53,7 +70,7 @@ void test_csk_wifi_setup(void)
 	ret = csk_wifi_init();
 	zassert_equal(ret, 0, "csk_wifi_init failed");
 	wifi_event_cb.handler = &wifi_event_handler;
-	wifi_event_cb.events = CSK_WIFI_EVT_STA_CONNECTED | CSK_WIFI_EVT_STA_DISCONNECTED;
+	wifi_event_cb.events = CSK_WIFI_EVT_STA_CONNECTED | CSK_WIFI_EVT_STA_DISCONNECTED | CSK_WIFI_EVT_STA_CONNECTION_FAILED;
 	wifi_event_cb.arg = NULL;
 	csk_wifi_add_callback(&wifi_event_cb);
 
@@ -194,6 +211,10 @@ void test_csk_wifi_connect_with_correct_ssid_but_wrong_pwd(void)
 
 	ret = csk_wifi_sta_connect(&sta_config, &wifi_result, K_FOREVER);
 	zassert_equal(wifi_result, CSK_WIFI_ERR_INVALID_PASSWORD, "ret is not equal to CSK_WIFI_ERR_INVALID_PASSWORD, wifi_result: %d", wifi_result);
+	
+	ret = csk_wifi_msgq_take(&test_csk_wifi_connection_failed_msgq, &event, K_NO_WAIT);
+	zassert_equal(ret, 0, "connection failed ret: %d", ret);
+
 	ret = csk_wifi_connected_msgq_take(&event, K_NO_WAIT);
 	zassert_equal(ret, -ENOMSG, "csk wifi msg take failed %d", ret);
 
