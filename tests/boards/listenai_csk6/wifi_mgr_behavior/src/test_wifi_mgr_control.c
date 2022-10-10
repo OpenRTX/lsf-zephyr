@@ -16,7 +16,7 @@ extern void test_wifi_mgr_storage_save_ap_assert(wifi_mgr_sta_config_t *sta_conf
 
 K_MSGQ_DEFINE(connected, 4, 1, 1);
 K_SEM_DEFINE(connecting, 0, 1);
-K_SEM_DEFINE(disconnected, 0, 1);
+K_MSGQ_DEFINE(disconnected, 4 ,1, 1);
 
 static wifi_mgr_sta_config_t correct_sta_config = {
 	.ssid = CONFIG_CORRECT_WIFI_SSID,
@@ -37,7 +37,12 @@ static void connection_cb(wifi_mgr_connection_info_t *connection_info, void *arg
 	// TC_PRINT("fun: %s, connection_info->status: %d \n", __FUNCTION__, connection_info->status);
 	switch (connection_info->status) {
 	case WIFI_MGR_STA_DISCONNECTED:
-		k_sem_give(&disconnected);
+		do {
+			ret = k_msgq_put(&disconnected, &(connection_info->reason), K_SECONDS(2));
+			if (ret != 0) {
+				k_msgq_purge(&disconnected);
+			}
+		} while (ret != 0);
 		break;
 	case WIFI_MGR_STA_CONNECTING:
 		k_sem_give(&connecting);
@@ -113,10 +118,22 @@ void test_lib_wifi_mgr_is_connecting_assert(k_timeout_t timeout)
 void test_lib_wifi_mgr_is_disconnected_assert(k_timeout_t timeout)
 {
 	int ret = 0;
+	int reason = 0;
 
-	k_sem_reset(&disconnected);
-	ret = k_sem_take(&disconnected, timeout);
+	k_msgq_purge(&disconnected);
+	ret = k_msgq_get(&disconnected, &reason, timeout);
 	zassert_equal(ret, 0, "get disconnected event failed, ret: %d", ret);
+}
+
+int test_lib_wifi_mgr_connection_failed_assert(k_timeout_t timeout)
+{
+	int ret = 0;
+	int reason = 0;
+
+	ret = k_msgq_get(&disconnected, &reason, timeout);
+	zassert_equal(ret, 0, "get connection failed event failed, ret: %d", ret);
+	
+	return reason;
 }
 
 wifi_mgr_connection_status_t test_lib_wifi_mgr_get_sta_connect_status_while_no_register_callback(int timeout_seconds)
