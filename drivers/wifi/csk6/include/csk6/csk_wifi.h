@@ -111,6 +111,7 @@ typedef enum {
     CSK_WIFI_EVT_SCAN_DONE =                BIT(6),     /* WIFI-SoftAP scan done event bit */
     CSK_WIFI_EVT_STA_CONNECTING =           BIT(7),     /* WIFI-Station connecting event bit */
     CSK_WIFI_EVT_STA_CONNECTION_FAILED =    BIT(8),     /* WIFI-Station connection failed event bit */
+    CSK_WIFI_EVT_SCAN_FAILED =              BIT(9),     /* WIFI-Station scan failed event bit */
 } csk_wifi_event_t;
 
 /**
