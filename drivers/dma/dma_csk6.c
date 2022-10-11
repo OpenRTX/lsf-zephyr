@@ -94,6 +94,8 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		return -EBUSY;
 	}
 
+	memset(ch_info, 0, sizeof(struct channel_info));
+
 	if (config->source_chaining_en || config->dest_chaining_en) {
 		LOG_ERR("Do not support source/dest block chaining.");
 		return -ENOTSUP;
@@ -133,6 +135,16 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		ch_info->dst_addr = config->head_block->dest_address;
 		ch_info->src_addr = config->head_block->source_address;
 		ch_info->xfer_count = config->head_block->block_size / config->source_data_size;
+
+		if (config->head_block->fifo_mode_control) {
+			/**
+			 * Data available is greater than or equal to half the FIFO depth
+			 * for destination transfers and space available is greater than half
+			 * the fifo depth for source transfers. The exceptions are at the end
+			 * of a burst transaction request or at the end of a block transfer.
+			 */
+			ch_info->reg_cfg_high |= DMA_CH_CFGH_FIFO_MODE;
+		}
 
 		__ASSERT(config->head_block->block_size % config->dest_data_size == 0,
 			 "block size(%d) is not match data width(%d).",
@@ -221,7 +233,11 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	ch_info->reg_cfg_low =
 		DMA_CH_CFGL_CH_PRIOR(config->channel_priority) & DMA_CH_CFGL_CH_PRIOR_MASK;
 
-	ch_info->reg_cfg_high = DMA_CH_CFGH_FIFO_MODE;
+	if (config->channel_direction == PERIPHERAL_TO_MEMORY) {
+		ch_info->reg_cfg_high |= DMA_CH_CFGH_SRC_PER(config->dma_slot);
+	} else if (config->channel_direction == MEMORY_TO_PERIPHERAL) {
+		ch_info->reg_cfg_high |= DMA_CH_CFGH_DST_PER(config->dma_slot);
+	}
 
 	if (config->head_block->dest_scatter_en) {
 		ch_info->reg_scatter =
@@ -281,6 +297,9 @@ static bool csk_dma_addr_is_right_access(void *addr, uint32_t size)
 	if (addr == NULL) {
 		return false;
 	}
+#ifndef CONFIG_DMA_CSK6_BUFFER_CHECK
+	return true;
+#else
 
 #ifndef CONFIG_SOC_LS_ADSP_CSK6
 	/* D-Cache is disabled? */
@@ -301,11 +320,13 @@ static bool csk_dma_addr_is_right_access(void *addr, uint32_t size)
 		return true;
 	}
 
-#endif
+#endif /* End of CONFIG_NOCACHE_MEMORY */
 	return !((uint32_t)addr & (__SCB_DCACHE_LINE_SIZE - 1U));
 #else
 	return true;
-#endif
+#endif /* End of CONFIG_SOC_LS_ADSP_CSK6 */
+
+#endif /* End of CONFIG_DMA_CSK6_BUFFER_CHECK */
 }
 
 static int csk_dma_start(const struct device *dev, uint32_t channel)
