@@ -48,10 +48,11 @@ extern "C" {
 })
 
 
-#define CSK_WIFI_CHECK_GOTO(cond, label, format, ...) ({                      \
+#define CSK_WIFI_CHECK_GOTO(cond, label, ret_var_name, ret_var_val, format, ...) ({\
     if (!(cond)) {                                                            \
         LOG_ERR("%s:%d Check failed", __FUNCTION__, __LINE__);                \
         LOG_ERR(format, ##__VA_ARGS__);                                       \
+        ret_var_name = ret_var_val;                                           \
         goto label;                                                           \
     }                                                                         \
 })
