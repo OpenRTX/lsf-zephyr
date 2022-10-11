@@ -386,6 +386,9 @@ class DeviceHandler(Handler):
         device = instance.platform.name
         fixture = instance.testsuite.harness_config.get("fixture")
         for d in self.duts:
+            # skip the device marked fixture only and there is no fixture in this testsuite.
+            if not fixture and d.fixture_only:
+                continue
             if fixture and fixture not in d.fixtures:
                 continue
             if d.platform != device or (d.serial is None and d.serial_pty is None):
