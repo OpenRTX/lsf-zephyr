@@ -145,6 +145,9 @@ static void test_csk_wifi_connect_with_correct_ssid_and_pwd(bool async)
 		sta_config.ssid, sta_config.pwd, sta_config.bssid, sta_config.channel,
 		sta_config.rssi);
 
+	ret = csk_wifi_sta_connect(&sta_config, &result, timeout);	
+	zassert_not_equal(ret, 0, "csk_wifi_sta_connect shouldn't success, ret: %d", ret);
+
 	char ssid[CSK_WIFI_SSID_LEN + 1] = CONFIG_TEST_VALID_WIFI_SSID;
 	char pwd[CSK_WIFI_PWD_LEN + 1] = CONFIG_TEST_VALID_WIFI_PASSWORD;
 
@@ -218,10 +221,8 @@ void test_csk_wifi_connect_with_correct_ssid_but_wrong_pwd(void)
 	ret = csk_wifi_connected_msgq_take(&event, K_NO_WAIT);
 	zassert_equal(ret, -ENOMSG, "csk wifi msg take failed %d", ret);
 
-	LOG_DBG("ssid: %s  pwd: %s  bssid: %s  channel: %d  rssi: %d",
-		sta_config.ssid, sta_config.pwd, sta_config.bssid, sta_config.channel,
-		sta_config.rssi);
-
+	ret = csk_wifi_sta_disconnect(&wifi_result, K_FOREVER);
+	zassert_not_equal(ret, 0, "csk wifi disconnect shouldn't success, ret: %d", ret);
 
 }
 
