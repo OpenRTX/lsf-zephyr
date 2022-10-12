@@ -338,7 +338,6 @@ class DeviceHandler(Handler):
         ser.timeout = 1
         while self.seiral_available == False:
             ser.readlines(1000)
-            time.sleep(1)
         ser.timeout = origin_timeout
 
         logger.debug(f"self.seiral_available: {self.seiral_available}");
