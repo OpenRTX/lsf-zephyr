@@ -1,0 +1,61 @@
+/*
+ * Copyright (c) 2021 ListenAI
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+
+#include <listenai/ls_csk6.dtsi>
+#include "csk6011a_scanpen_s3_dspcase_pinctrl.dtsi"
+
+/ {
+	model = "csk6011a_scanpen_s3_dspcase";
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,console = &uart2;
+	};
+
+	soc {
+		uart0: uart@45000000 {
+			compatible = "listenai,csk-uart";
+			reg = <0x45000000 0x100000>;
+			label = "UART_0";
+		};
+
+		uart1: uart@45100000 {
+			compatible = "listenai,csk-uart";
+			reg = <0x45100000 0x100000>;
+			label = "UART_1";
+		};
+
+		uart2: uart@45200000 {
+			compatible = "listenai,csk-uart";
+			reg = <0x45200000 0x100000>;
+			label = "UART_2";
+		};
+
+		gpioa: gpio@45900000 {
+			compatible = "listenai,csk-gpio";
+			reg = <0x45900000 0x100000>;
+			label = "GPIO_A";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};
+};
+
+&uart0 {
+        status = "disabled";
+};
+
+&uart1 {
+        status = "disabled";
+};
+
+&uart2 {
+	pinctrl-0 = <&pinctrl_uart2_rx_default &pinctrl_uart2_tx_default>; 
+	pinctrl-names = "default";
+	current-speed = <115200>;
+	status = "okay";
+};
