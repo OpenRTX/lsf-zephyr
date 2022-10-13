@@ -102,14 +102,16 @@ typedef enum {
  * @brief CSK WiFi events structure
  */
 typedef enum {
-    CSK_WIFI_EVT_STA_CONNECTED =        BIT(0),     /* WIFI-Station connected event bit */
-    CSK_WIFI_EVT_STA_DISCONNECTED =     BIT(1),     /* WIFI-Station disconnected event bit */
-    CSK_WIFI_EVT_AP_STARTED =           BIT(2),     /* WIFI-SoftAP stared event bit */
-    CSK_WIFI_EVT_AP_STOPPED =           BIT(3),     /* WIFI-SoftAP stopped event bit */
-    CSK_WIFI_EVT_AP_STACONNECTED =      BIT(4),     /* WIFI-SoftAP station connected event bit */
-    CSK_WIFI_EVT_AP_STADISCONNECTED =   BIT(5),     /* WIFI-SoftAP station disconnected event bit */
-    CSK_WIFI_EVT_SCAN_DONE =            BIT(6),     /* WIFI-SoftAP scan done event bit */
-    CSK_WIFI_EVT_STA_CONNECTING =       BIT(7),     /* WIFI-Station connecting event bit */
+    CSK_WIFI_EVT_STA_CONNECTED =            BIT(0),     /* WIFI-Station connected event bit */
+    CSK_WIFI_EVT_STA_DISCONNECTED =         BIT(1),     /* WIFI-Station disconnected event bit */
+    CSK_WIFI_EVT_AP_STARTED =               BIT(2),     /* WIFI-SoftAP stared event bit */
+    CSK_WIFI_EVT_AP_STOPPED =               BIT(3),     /* WIFI-SoftAP stopped event bit */
+    CSK_WIFI_EVT_AP_STACONNECTED =          BIT(4),     /* WIFI-SoftAP station connected event bit */
+    CSK_WIFI_EVT_AP_STADISCONNECTED =       BIT(5),     /* WIFI-SoftAP station disconnected event bit */
+    CSK_WIFI_EVT_SCAN_DONE =                BIT(6),     /* WIFI-SoftAP scan done event bit */
+    CSK_WIFI_EVT_STA_CONNECTING =           BIT(7),     /* WIFI-Station connecting event bit */
+    CSK_WIFI_EVT_STA_CONNECTION_FAILED =    BIT(8),     /* WIFI-Station connection failed event bit */
+    CSK_WIFI_EVT_SCAN_FAILED =              BIT(9),     /* WIFI-Station scan failed event bit */
 } csk_wifi_event_t;
 
 /**

@@ -501,6 +501,8 @@ static void wifi_command_handler(const struct device *dev,  wifi_req_t req)
                     wifi_send_event(dev, CSK_WIFI_EVT_STA_CONNECTED, NULL, 0, K_FOREVER);
                     wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTED, &data->sta_config, sizeof(csk_wifi_sta_config_t));
                 }
+            } else {
+                wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTION_FAILED, &(ret_msg.result), sizeof(ret_msg.result));
             }
             wifi_give_result(&ret_msg, req.async_mode);
         } break;
@@ -540,6 +542,8 @@ static void wifi_command_handler(const struct device *dev,  wifi_req_t req)
                 LOG_DBG("wifi_scan_list scan_list.count = %d", scan_list.count);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_DONE, scan_list.ap_list, 
                     sizeof(csk_wifi_scan_info_t) * scan_list.count);
+            } else {
+                wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_FAILED, &(ret_msg.result), sizeof(ret_msg.result));
             }
             wifi_give_result(&ret_msg, req.async_mode);
         } break;

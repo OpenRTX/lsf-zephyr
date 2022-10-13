@@ -29,6 +29,7 @@ extern void wifi_auto_connect_stop_assert();
 extern void test_lib_wifi_mgr_clear_connect_status(void);
 extern void test_lib_wifi_mgr_is_connecting_assert(k_timeout_t timeout);
 extern void test_lib_wifi_mgr_is_disconnected_assert(k_timeout_t timeout);
+extern int test_lib_wifi_mgr_connection_failed_assert(k_timeout_t timeout);
 
 void test_lib_wifi_mgr_auto_connect_to_ap_with_correct_ssid_and_pwd_then_disable_finally_enable(
 	void);
@@ -36,6 +37,12 @@ void test_lib_wifi_mgr_auto_connect_to_ap_with_correct_ssid_and_pwd_then_disable
 static wifi_mgr_sta_config_t correct_sta_config = {
 	.ssid = CONFIG_CORRECT_WIFI_SSID,
 	.pwd = CONFIG_CORRECT_WIFI_PASSWORD,
+	.encryption_mode = CSK_WIFI_AUTH_WPA2_PSK,
+};
+
+static wifi_mgr_sta_config_t correct_ssid_wrong_pwd_sta_config = {
+	.ssid = CONFIG_CORRECT_WIFI_SSID,
+	.pwd = CONFIG_WRONG_WIFI_PASSWORD,
 	.encryption_mode = CSK_WIFI_AUTH_WPA2_PSK,
 };
 
@@ -203,6 +210,21 @@ void test_lib_wifi_mgr_sta_connect_with_correct_ssid_and_pwd_then_disconnect(voi
 	get_connected_info_assert(&correct_sta_config);
 
 	wifi_disconnect_assert();
+}
+
+void test_lib_wifi_mgr_sta_connect_with_correct_ssid_but_wrong_pwd(void)
+{
+	int ret = 0;
+	int reason = 0;
+
+	ret = wifi_mgr_sta_connect(&correct_ssid_wrong_pwd_sta_config, false);
+	reason = test_lib_wifi_mgr_connection_failed_assert(K_MSEC(1000));
+	zassert_not_equal(ret, 0, "wifi shouldn't connect success, ret: %d", ret);
+	zassert_true(reason < 0, "Connection failed, reason: %d", reason);
+	if (ret == 0) {
+		wifi_mgr_sta_disconnect(false);
+	}
+
 }
 
 void test_lib_wifi_mgr_auto_connect_to_ap_with_correct_ssid_and_pwd_then_disable_finally_enable(void)
@@ -416,6 +438,8 @@ void test_main(void)
 		ztest_unit_test(test_lib_wifi_mgr_async_connect_then_async_disconnect),
 		ztest_unit_test(
 			test_lib_wifi_mgr_sta_connect_with_correct_ssid_and_pwd_then_disconnect),
+		ztest_unit_test(
+			test_lib_wifi_mgr_sta_connect_with_correct_ssid_but_wrong_pwd),
 		ztest_unit_test(
 			test_lib_wifi_mgr_auto_connect_to_ap_with_correct_ssid_and_pwd_then_disable_finally_enable),
 		ztest_unit_test(
