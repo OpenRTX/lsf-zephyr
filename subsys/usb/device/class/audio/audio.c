@@ -881,6 +881,7 @@ int usb_audio_send(const struct device *dev, struct net_buf *buffer,
 {
 	struct usb_audio_dev_data *audio_dev_data = dev->data;
 	struct usb_cfg_data *cfg = (void *)dev->config;
+	int iret;
 	/* EP ISO IN is always placed first in the endpoint table */
 	uint8_t ep = cfg->endpoint[0].ep_addr;
 
@@ -902,9 +903,9 @@ int usb_audio_send(const struct device *dev, struct net_buf *buffer,
 	/** buffer passed to *priv because completion callback
 	 * needs to release it to the pool
 	 */
-	usb_transfer(ep, buffer->data, len, USB_TRANS_WRITE | USB_TRANS_NO_ZLP,
+	iret = usb_transfer(ep, buffer->data, len, USB_TRANS_WRITE | USB_TRANS_NO_ZLP,
 		     audio_write_cb, buffer);
-	return 0;
+	return iret;
 }
 
 size_t usb_audio_get_in_frame_size(const struct device *dev)
