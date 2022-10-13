@@ -202,6 +202,7 @@ int usb_transfer(uint8_t ep, uint8_t *data, size_t dlen, unsigned int flags,
 
 	/* Parallel transfer to same endpoint is not supported. */
 	if (usb_transfer_is_busy(ep)) {
+		LOG_ERR("USB transfer is busy");
 		return -EBUSY;
 	}
 
