@@ -9,5 +9,5 @@
 };
 
 &sram0 {
-	reg = <0x60000698 DT_SIZE_M(6)>;
+	reg = <0x60000000 DT_SIZE_M(6)>;
 };

@@ -15,7 +15,7 @@
 
 #define CHECK_FUNC_IF_SUCCESS(exp,func) if(exp!=LS_CSP_SUCCESS)\
 {\
-	printf("%s Failed! ret = %d\n",#func, exp);\
+	printk("%s Failed! ret = %d\n",#func, exp);\
 	return -1;\
 }
 
@@ -61,11 +61,8 @@ static int64_t csp_res_psram[5 *1024 * 1024 / 8];
 static char * csp_rlt[1024] = {0};
 static int16_t tempPcmBuf[max_buf * AUDIO_CHANNEL/2] = {0};
 static T_csp_res res_mgr;
-int csp_test(void){
-	
-	return 0;
-}
-int csp_test111(void)
+
+int csp_test(void)
 {
 	LS_CSP_HANDLE h_csp_inst = NULL;
 	int nFileSize[AUDIO_CHANNEL] = { 0 };
@@ -94,7 +91,7 @@ int csp_test111(void)
 	T_csp_init_param t_csp_init_param;
 
 	ret = ls_csp_get_info(&t_csp_info, &res_mgr);
-	CHECK_FUNC_IF_SUCCESS(ret, ls_csp_get_info);
+	// CHECK_FUNC_IF_SUCCESS(ret, ls_csp_get_info);
 	mem_pool_size = t_csp_info.share_mem_size;
 
 	//init callsp engine inst
@@ -103,26 +100,26 @@ int csp_test111(void)
 	t_csp_init_param.res = res_mgr;
 
 	inst_size = t_csp_info.inst_mem_size;
-	printf("inst_size: %d \n\r", inst_size);
+	printk("inst_size: %d \n\r", inst_size);
 	h_csp_inst = NULL;
 
-	printf("mem_pool_size: %d \n\r", mem_pool_size);
+	printk("mem_pool_size: %d \n\r", mem_pool_size);
 	t_csp_init_param.share_mem_addr = (char *)(SHAREMEM_ADDR);
 	t_csp_init_param.share_mem_size = t_csp_info.share_mem_size;
 
-	printf("version: %s \n\r", t_csp_info.version);
+	printk("version: %s \n\r", t_csp_info.version);
 
 	ret = ls_csp_create(&h_csp_inst, &t_csp_init_param);
-	CHECK_FUNC_IF_SUCCESS(ret, ls_csp_create);
+	// CHECK_FUNC_IF_SUCCESS(ret, ls_csp_create);
 
 	nFileSize[0] = sizeof(apple_resource);
 	pBuf[0] = (char *)apple_resource;
-
+	GPIO_SetDir(GPIOA(), (1 << 8), 1);
 	for (i = 1;i < AUDIO_CHANNEL;i++)
 	{
 		if (nFileSize[i] != nFileSize[0])
 		{
-			printf("wav data size not equal between 0 and %d channel!\n", i);
+			printk("wav data size not equal between 0 and %d channel!\n", i);
 			return -1;
 		}
 	}
@@ -130,10 +127,11 @@ int csp_test111(void)
 	int run_count = 0;
 	for(run_count= 0; run_count < 5; run_count++)
 	{
+		GPIO_PinWrite(GPIOA(), (1 << 8), 0);
 		//SetParameter
 		ret |= ls_csp_set_parameter(h_csp_inst, PARAM_LS_FEA_USE_MVA, 1);
 		ret |= ls_csp_set_parameter(h_csp_inst, PARAM_LS_DEC_PHONE_THRESHOLD, 50);
-		CHECK_FUNC_IF_SUCCESS(ret, ls_csp_set_parameter);
+		// CHECK_FUNC_IF_SUCCESS(ret, ls_csp_set_parameter);
 
 		for (i=audio_jump_size; i < nFileSize[0]; i += max_buf)
 		{
@@ -146,7 +144,7 @@ int csp_test111(void)
 					ret = ls_csp_write(h_csp_inst, (const short*)tempPcmBuf, max_buf);
 					if (0 != ret)
 					{
-						printf("ls_csp_write fail | ret:%d \n\r", ret);
+						printk("ls_csp_write fail | ret:%d \n\r", ret);
 					}
 				}
 				break;
@@ -157,7 +155,7 @@ int csp_test111(void)
 			ret = ls_csp_write(h_csp_inst, (const short *)(pBuf[0]+i), max_buf * AUDIO_CHANNEL);
 			if (LS_SUCCESS != ret)
 			{
-				printf("ls_csp_write fail | ret:%d \n\r", ret);
+				printk("ls_csp_write fail | ret:%d \n\r", ret);
 				break;
 			}
 
@@ -171,21 +169,22 @@ int csp_test111(void)
 			int len = 1024;
 			memset(csp_rlt, 0, len);
 			ret = ls_csp_get_rlt(h_csp_inst, "æ p l", csp_rlt, &len);
-			CHECK_FUNC_IF_SUCCESS(ret, ls_csp_get_rlt);
+			// CHECK_FUNC_IF_SUCCESS(ret, ls_csp_get_rlt);
 
-			printf("csp_rlt:%s\n", csp_rlt);
+			printk("csp_rlt:%s\n", csp_rlt);
 		}
 
 		cnt_each = get_counter();
 		cnt_total += cnt_each;
 
-		printf("counter:%lld, average_clk_cost:%f \r\n", cnt_total, cnt_total / ((nFileSize[0] * 1.0f) / 32768.f) / (1000 * 1000.f));
+		printk("counter:%lld, average_clk_cost:%f \r\n", cnt_total, cnt_total / ((nFileSize[0] * 1.0f) / 32768.f) / (1000 * 1000.f));
 
 		cnt_total = 0;
+		GPIO_PinWrite(GPIOA(), (1 << 8), 1);
 	}
 	
 	ret = ls_csp_destroy(h_csp_inst);
-	CHECK_FUNC_IF_SUCCESS(ret, ls_csp_destroy);
+	// CHECK_FUNC_IF_SUCCESS(ret, ls_csp_destroy);
 
 	return 0;
 }

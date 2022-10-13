@@ -558,6 +558,7 @@ SECTIONS
   {
     _sharedmem_text_start = ABSOLUTE(.);
     *(.sharedmem.literal .sharedmem.text)
+    *(.sharedmem.text.*)
     . = ALIGN (4);
     _sharedmem_text_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > sdram0 :luna_sharedmem_data_phdr
@@ -566,6 +567,7 @@ SECTIONS
   {
     _sharedmem_rodata_start = ABSOLUTE(.);
     *(.sharedmem.rodata)
+    *(.sharedmem.rodata.*)
     . = ALIGN (4);
     _sharedmem_rodata_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > sdram0 :luna_sharedmem_data_phdr
@@ -574,6 +576,7 @@ SECTIONS
   {
     _sharedmem_data_start = ABSOLUTE(.);
     *(.sharedmem.data)
+    *(.sharedmem.data.*)
     . = ALIGN (4);
     _sharedmem_data_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > sdram0 :luna_sharedmem_data_phdr
@@ -583,6 +586,7 @@ SECTIONS
     . = ALIGN (8);
     _sharedmem_bss_start = ABSOLUTE(.);
     *(.sharedmem.bss)
+    *(.sharedmem.bss.*)
     . = ALIGN (8);
     _sharedmem_bss_end = ABSOLUTE(.);
     _memmap_seg_sharedmem1_end = ALIGN(0x8);
