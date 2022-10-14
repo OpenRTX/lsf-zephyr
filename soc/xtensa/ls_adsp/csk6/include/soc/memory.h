@@ -28,12 +28,13 @@
 
 /* FIXME: if use dt to define sram0 addr and size, must repalce stdbool.h, or it can not build successful  */
 /* cp psram run start address  */
-#define SDRAM0_BASE	(DT_REG_ADDR(DT_NODELABEL(sram0)))
-#define SDRAM0_SIZE	(DT_REG_SIZE(DT_NODELABEL(sram0)))
+#define SDRAM0_BASE	(DT_REG_ADDR(DT_NODELABEL(sram0))) + ISR_VECTOR_SIZE
+#define SDRAM0_SIZE	(DT_REG_SIZE(DT_NODELABEL(sram0))) - ISR_VECTOR_SIZE
 
 /* heap and stack addr  */
 #define SDRAM1_BASE	(DT_REG_ADDR(DT_NODELABEL(sram1)))
 #define SDRAM1_SIZE	(DT_REG_SIZE(DT_NODELABEL(sram1)))
+
 
 /* The reset vector address in SRAM and its size */
 #define MEM_RESET_TEXT_SIZE			0x2e0
