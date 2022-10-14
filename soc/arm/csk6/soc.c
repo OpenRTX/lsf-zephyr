@@ -81,6 +81,17 @@ static int csk6_init(const struct device *arg)
 	GPT_Init_Handler();
 #endif
 
+#ifdef CONFIG_CSK6_ICACHE
+	SCB_EnableICache();
+#else
+	SCB_DisableICache();
+#endif
+#ifdef CONFIG_CSK6_DCACHE
+	SCB_EnableDCache();
+#else
+	SCB_DisableDCache();
+#endif
+
 	return 0;
 }
 
@@ -191,17 +202,6 @@ void z_arm_platform_init(void)
 
 	BootClock_Init();
 	outw(ABB_BASE, inw(ABB_BASE)); //write 0 to bit16
-	
-#ifdef CONFIG_CSK6_ICACHE
-	SCB_EnableICache();
-#else
-	SCB_DisableICache();
-#endif
-#ifdef CONFIG_CSK6_DCACHE
-	SCB_EnableDCache();
-#else
-	SCB_DisableDCache();
-#endif
 
 	/*TODO: will rewrite later*/
 	
