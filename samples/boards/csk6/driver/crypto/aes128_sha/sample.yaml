@@ -9,7 +9,7 @@ tests:
       ordered: true
       regex:
         - "Output length \\(encryption\\): 32"
-        - "CBC mode ENCRYPT - Match"
+        - "HASH mode ENCRYPT - Match"
         - "Output length \\(decryption\\): 32"
-        - "CBC mode DECRYPT - Match"
+        - "HASH mode DECRYPT - Match"
 

@@ -25,10 +25,7 @@ Sample Output
 .. code-block:: console
 
    *** Booting Zephyr OS build v1.0.3-alpha.1-1-g1cd2b6612079  ***
-   I: AES128 CBC Cipher Sample
-   I: Output length (encryption): 32
-   I: CBC mode ENCRYPT - Match
-   I: Output length (decryption): 32
-   I: CBC mode DECRYPT - Match
+   I: HASH256  Sample
+
 
 
