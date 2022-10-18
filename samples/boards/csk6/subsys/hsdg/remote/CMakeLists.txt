@@ -20,6 +20,7 @@ zephyr_include_directories(
   ./include
   ./include/luna/
   ./include/hifi/
+  ./include/hifi_sim/
   ./include/opi_cpy/
   ./include/pilot/
   ./include/img/
@@ -50,6 +51,8 @@ target_sources(app PRIVATE
     src/main.c
     src/opi_psram_cpy.c
     src/pilot_app.c
+    src/test_cvtcolor.c
+    src/cv_cvtcolor.c
   )
 
 

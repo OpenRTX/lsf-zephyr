@@ -42,14 +42,14 @@ void main(void)
 		cmn_sys_ctrl->REG_SW_RESET_NPU.all = SYSCTRL_RESET_NPU;
 	}
 
-	__DMB();
-	// copy cp code to psram
-	extern unsigned char cp_img_bin[];
-	extern unsigned int cp_img_bin_len;
-	memcpy((void *)AP_PSRAM_BASE, cp_img_bin, cp_img_bin_len);
-	dcache_clean_range(AP_PSRAM_BASE, AP_PSRAM_BASE + cp_img_bin_len);
+	// __DMB();
+	// // copy cp code to psram
+	// extern unsigned char cp_img_bin[];
+	// extern unsigned int cp_img_bin_len;
+	// memcpy((void *)AP_PSRAM_BASE, cp_img_bin, cp_img_bin_len);
+	// dcache_clean_range(AP_PSRAM_BASE, AP_PSRAM_BASE + cp_img_bin_len);
 
-	__DSB();
+	// __DSB();
 
 	// run cp
 	cmn_sys_ctrl->REG_SW_RESET_CP.all = SYSCTRL_RESET_CP;

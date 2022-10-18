@@ -4,10 +4,14 @@
 		};
 
 		pinctrl_uart2_tx_default: uart2_tx_default {
-			pinctrls = < &pinmuxb 6 3 >;
+			pinctrls = < &pinmuxa 18 3 >;
 		};
 };
 
 &sram0 {
-	reg = <0x60000698 DT_SIZE_M(6)>;
+	reg = <0x60000000 DT_SIZE_M(5)>;
+};
+
+&sram1 {
+	reg = <0x60500000 DT_SIZE_M(5)>;
 };

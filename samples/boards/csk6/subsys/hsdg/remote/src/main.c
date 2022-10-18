@@ -15,20 +15,26 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
-
+extern void test_cvt_yuv();
 //CSK star app
 int start_app(void)
 {
-	int ret_error = IPILOT_SUCCESS;
-	IPLT_INST ifr_inst = NULL;
-	//init
-	ret_error = INIT_ENGINE(&ifr_inst);
-	//set params
-	SET_PARMA_ENGINE(ifr_inst);
-	//test
-	CSK_test_function(ifr_inst);
-	//unint
-	ret_error = UINIT_ENGINE(ifr_inst);
+	printk("Starting application_note\n");
+	printk("Starting application_note2\n");
+	test_cvt_yuv();
+	// int ret_error = IPILOT_SUCCESS;
+	// IPLT_INST ifr_inst = NULL;
+	// //init
+	// ret_error = INIT_ENGINE(&ifr_inst);
+	// //set params
+	// SET_PARMA_ENGINE(ifr_inst);
+	// //test
+	// CSK_test_function(ifr_inst);
+	// //unint
+	// ret_error = UINIT_ENGINE(ifr_inst);
+
+
+
 	return 0;
 }
 
