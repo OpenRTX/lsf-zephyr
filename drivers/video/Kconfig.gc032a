@@ -7,3 +7,21 @@ config VIDEO_GC032A
     depends on HAS_CSK6
 	help
 	  Enable driver for GC032A CMOS digital image sensor devices
+
+config VIDEO_GC032A_MANUAL_UV
+	bool "Use fixed UV value"
+	depends on VIDEO_GC032A
+	help
+	  Use fixed value as UV output instead of chip output
+	
+config VIDEO_GC032A_MANUAL_U_VALUE
+	int "fixed U value"
+	default 170
+	help
+	  fixed value as U output instead of chip output
+	  
+config VIDEO_GC032A_MANUAL_V_VALUE
+	int "fixed V value"
+	default 85
+	help
+	  fixed value as V output instead of chip output

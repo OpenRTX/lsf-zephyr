@@ -446,6 +446,28 @@ static int gc032a_write_all(const struct device *dev,
 	return 0;
 }
 
+#if CONFIG_VIDEO_GC032A_MANUAL_UV
+static int gc032a_set_fixed_UV_value(const struct device *dev)
+{
+	uint8_t value = 0;
+
+	//Set CrCb fixed en
+	gc032a_write_reg(dev, 0xfe, 0x00);
+	gc032a_read_reg(dev, 0x43, &value);
+	gc032a_write_reg(dev, 0x43, value | (1 << 1));
+
+	//Set Cb
+	gc032a_write_reg(dev, 0xda, 0);
+
+	//Set Cr
+	gc032a_write_reg(dev, 0xdb, 0);
+
+	//wait stable
+	k_sleep(K_MSEC(1));
+	return 0;
+}
+#endif
+
 static int gc032a_set_fmt(const struct device *dev,
 			  enum video_endpoint_id ep,
 			  struct video_format *fmt)
@@ -530,6 +552,10 @@ static int gc032a_init(const struct device *dev)
 		LOG_ERR("Unable to write gc032a config");
 		return ret;
 	}
+
+#if CONFIG_VIDEO_GC032A_MANUAL_UV
+	gc032a_set_fixed_UV_value(dev);
+#endif
 
 	return 0;
 }
