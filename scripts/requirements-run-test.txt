@@ -7,7 +7,6 @@ pyserial
 
 # used to flash & debug various boards
 https://cdn.iflyos.cn/public/lisa-binary/pyocd/pyocd-0.34.2.dev20-py3-none-any.whl
-enquiries
 
 # used by twister for board/hardware map
 tabulate
