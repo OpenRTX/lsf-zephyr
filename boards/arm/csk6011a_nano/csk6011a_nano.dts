@@ -29,7 +29,7 @@
                 /* other chosen settings  for your hardware */
         };
 
-        leds {
+        leds:leds {
                 compatible = "gpio-leds";
                 green_led: led1 {
                         gpios = <&gpiob 6 GPIO_ACTIVE_LOW>;
