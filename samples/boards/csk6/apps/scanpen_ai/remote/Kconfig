@@ -1,0 +1,8 @@
+
+source "Kconfig.zephyr"
+
+config 25M_XTAL
+	bool "Use 25M XTAL instead of 24M XTAL"
+	default n
+	help
+	  Use 25M XTAL instead of 24M XTAL
