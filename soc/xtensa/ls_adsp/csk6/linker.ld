@@ -13,6 +13,7 @@
 
 OUTPUT_ARCH(xtensa)
 
+
 #include <xtensa/config/core-isa.h>
 #include <soc/memory.h>
 #include <autoconf.h>
@@ -20,11 +21,7 @@ OUTPUT_ARCH(xtensa)
 
 #include "linker-defs.h"
 
-#include <zephyr/devicetree.h>
 
-#define PSRAM_CP_NODEID DT_NODE_BY_FIXED_PARTITION_LABEL("psram_cp")
-#define PSRAM_CP_START DT_REG_ADDR(PSRAM_CP_NODEID)
-#define PSRAM_CP_SIZE DT_REG_SIZE(PSRAM_CP_NODEID)
 
 #if CONFIG_CP_XIP
 
@@ -44,8 +41,8 @@ OUTPUT_ARCH(xtensa)
 
 #define RESET_VECTOR      (FLASH_START)
 
-#define SDRAM0_START_X    (PSRAM_CP_START)
-#define SDRAM0_SIZE_X     (PSRAM_CP_SIZE)
+#define SDRAM0_START_X    (CONFIG_SRAM0_START)
+#define SDRAM0_SIZE_X     (CONFIG_SRAM0_SIZE)
 
 #else
 

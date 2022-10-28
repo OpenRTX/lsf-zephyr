@@ -1,6 +1,8 @@
 # Copyright (c) 2021 ListenAI
 # SPDX-License-Identifier: Apache-2.0
 
+DT_CHOSEN_Z_SRAM0 := zephyr,sram
+
 if SOC_SERIES_LS_CSK6
 
 # This series does not have MISC0.
@@ -63,5 +65,18 @@ config CP_XIP_MAX_SIZE
 config TEST_LOGGING_DEFAULTS
 	default n
 	depends on TEST
+
+
+config SRAM0_START
+	hex
+	default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_SRAM0))"
+	help
+	  psram cp start address
+
+config SRAM0_SIZE
+	hex
+	default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_SRAM0))"
+	help
+	  psram cp start size
 
 endif # SOC_SERIES_LS_CSK6

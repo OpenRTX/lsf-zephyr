@@ -13,7 +13,7 @@
 / {
 	model = "ls_adsp_csk6";
 	chosen {
-		zephyr,sram = &sram0;
+		zephyr,sram = &psram_cp;
 		zephyr,console = &uart2;
 	};
 

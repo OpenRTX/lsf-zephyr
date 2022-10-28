@@ -1,7 +1,5 @@
 #include <listenai/ls_csk6.dtsi>
 
-#define sram0 psram0
-
 &psram0 {
     reg = <0x60000000 DT_SIZE_M(8)>;
 
@@ -10,19 +8,19 @@
         #address-cells = <1>;
         #size-cells = <1>;
 
-        psram_cp: partition@0 {
+        psram_cp: partition@60000000 {
             label = "psram_cp";
-            reg = <0 0x300000>;
+            reg = <0x60000000 0x400000>;
         };
 
-        psram_ap: partition@300000 {
+        psram_ap: partition@60400000 {
             label = "psram_ap";
-            reg = <300000 80000>;
+            reg = <60400000 80000>;
         };
 
-        psram_share: partition@380000 {
+        psram_share: partition@60380000 {
             label = "psram_share";
-            reg = <380000 0x80000>;
+            reg = <60380000 0x80000>;
         };
     };
 };
