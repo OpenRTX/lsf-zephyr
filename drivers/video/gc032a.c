@@ -522,7 +522,7 @@ static int gc032a_write_all(const struct device *dev,
 
 	for (i = 0; i < reg_num; i++) {
 		err = gc032a_write_reg(dev, regs[i].addr, regs[i].value);
-		k_sleep(K_MSEC(10));
+		k_sleep(K_MSEC(1));
 		if (err) {
 			return err;
 		}
