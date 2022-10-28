@@ -146,9 +146,9 @@ set(list_boards_commands
 )
 
 if(NOT BOARD_DIR)
-  message("No board named '${BOARD}' found.\n\n"
-          "Please choose one of the following boards:\n"
+  message(SEND_ERROR "No board named '${BOARD}' found.\n\n"
   )
+  message("Please choose one of the following boards:\n")
   execute_process(${list_boards_commands})
   unset(CACHED_BOARD CACHE)
   message(FATAL_ERROR "Invalid BOARD; see above.")
