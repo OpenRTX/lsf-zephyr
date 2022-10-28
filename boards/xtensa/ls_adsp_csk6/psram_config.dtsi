@@ -1,0 +1,28 @@
+#include <listenai/ls_csk6.dtsi>
+
+#define sram0 psram0
+
+&psram0 {
+    reg = <0x60000000 DT_SIZE_M(8)>;
+
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        psram_cp: partition@0 {
+            label = "psram_cp";
+            reg = <0 0x300000>;
+        };
+
+        psram_ap: partition@300000 {
+            label = "psram_ap";
+            reg = <300000 80000>;
+        };
+
+        psram_share: partition@380000 {
+            label = "psram_share";
+            reg = <380000 0x80000>;
+        };
+    };
+};

@@ -19,16 +19,10 @@
 		};
 	};
 
-	sram0: memory@60000698 {
+	psram0: memory@60000000 {
 		device_type = "memory";
 		compatible = "mmio-sram";
-		reg = <0x60000698 DT_SIZE_K(512)>;
-	};
-
-	sram1: memory@60700000 {
-		device_type = "memory";
-		compatible = "mmio-sram";
-		reg = <0x60700000 DT_SIZE_K(512)>;
+		reg = <0x60000000 DT_SIZE_M(8)>;
 	};
 
 	core_intc: core_intc@0 {
@@ -56,7 +50,7 @@
 		status = "okay";
 	};
 
-	mailbox0:mailbox@46100000 {
+	mailbox0: mailbox@46100000 {
 		compatible = "listenai,csk-mailbox";
 		reg = <0x46100000 0x100000>;
 		interrupts = <0 0 2>;

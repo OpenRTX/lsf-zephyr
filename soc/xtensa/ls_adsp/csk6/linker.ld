@@ -20,6 +20,12 @@ OUTPUT_ARCH(xtensa)
 
 #include "linker-defs.h"
 
+#include <zephyr/devicetree.h>
+
+#define PSRAM_CP_NODEID DT_NODE_BY_FIXED_PARTITION_LABEL("psram_cp")
+#define PSRAM_CP_START DT_REG_ADDR(PSRAM_CP_NODEID)
+#define PSRAM_CP_SIZE DT_REG_SIZE(PSRAM_CP_NODEID)
+
 #if CONFIG_CP_XIP
 
 #define FLASH_PHY_START   (CONFIG_CP_XIP_RUN_ADDRESS)
@@ -38,15 +44,15 @@ OUTPUT_ARCH(xtensa)
 
 #define RESET_VECTOR      (FLASH_START)
 
-#define SDRAM0_START_X    (SDRAM0_BASE - ISR_VECTOR_SIZE)
-#define SDRAM0_SIZE_X     (SDRAM0_SIZE + ISR_VECTOR_SIZE)
+#define SDRAM0_START_X    (PSRAM_CP_START)
+#define SDRAM0_SIZE_X     (PSRAM_CP_SIZE)
 
 #else
 
 #define RAMABLE_REGION    sdram0
 #define ROMABLE_REGION    sdram0
 
-#define RESET_TEXT_ADDR   (SDRAM0_BASE - ISR_VECTOR_SIZE)
+#define RESET_TEXT_ADDR   (PSRAM_CP_START)
 
 #define VECTORS_START     (RESET_TEXT_ADDR + MEM_RESET_TEXT_SIZE + MEM_RESET_LIT_SIZE)
 #define VECTORS_SIZE      0x298
@@ -57,7 +63,7 @@ OUTPUT_ARCH(xtensa)
 #define RESET_VECTOR      (RESET_TEXT_ADDR)
 
 #define SDRAM0_START_X    (VECTORS_START + VECTORS_SIZE)
-#define SDRAM0_SIZE_X     (SDRAM0_SIZE - ISR_VECTOR_SIZE)
+#define SDRAM0_SIZE_X     (PSRAM_CP_SIZE - ISR_VECTOR_SIZE - MEM_RESET_TEXT_SIZE - MEM_RESET_LIT_SIZE)
 
 #endif /* CONFIG_CP_XIP */
 
@@ -100,10 +106,6 @@ MEMORY
   sdram0 :
         org = SDRAM0_START_X,
         len = SDRAM0_SIZE_X
-  sdram1 :
-        org = SDRAM1_BASE,
-        len = SDRAM1_SIZE
-
 
   vector_base_text :
                 org = XCHAL_VECBASE_RESET_PADDR_IRAM,
@@ -1008,6 +1010,18 @@ SECTIONS
   . = ALIGN (8);
   _common-ram_end_ = .;
 
+  .heap_mem (NOLOAD) : ALIGN(8)
+  {
+    . = ALIGN (8);
+    _heap_mem_start = ABSOLUTE(.);
+    *(*.heap_mem)
+    _heap_mem_end = ABSOLUTE(.);
+  } >sdram0
+
+  /* stack */
+  __stack = ABSOLUTE(.);
+  _heap_sentry = __stack - 4096;
+
   .bss (NOLOAD) : ALIGN(8)
   {
     . = ALIGN (8);
@@ -1031,20 +1045,13 @@ SECTIONS
     _bss_end = ABSOLUTE(.);
   } >RAMABLE_REGION
 
-  .heap_mem (NOLOAD) : ALIGN(8)
-  {
-    . = ALIGN (8);
-    _heap_mem_start = ABSOLUTE(.);
-    *(*.heap_mem)
-    _heap_mem_end = ABSOLUTE(.);
-  } >sdram1
-
-  /* stack */
   _end = ALIGN (8);
+
+  _algo_mem_start = ABSOLUTE(.);
+  _algo_mem_end = ORIGIN(sdram0) + LENGTH(sdram0);
+
   PROVIDE(end = ALIGN (8));
 
-  __stack = SDRAM1_BASE + SDRAM1_SIZE;
-  _heap_sentry = __stack - 4096;
   .comment  0 :  { *(.comment) }
   .debug  0 :  { *(.debug) }
   .line  0 :  { *(.line) }

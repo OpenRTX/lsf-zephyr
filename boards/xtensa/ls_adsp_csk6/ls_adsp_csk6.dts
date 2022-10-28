@@ -6,6 +6,7 @@
 
 /dts-v1/;
 
+#include "psram_config.dtsi"
 #include <listenai/ls_csk6.dtsi>
 #include "ls_adsp_csk6_pinctrl.dtsi"
 
