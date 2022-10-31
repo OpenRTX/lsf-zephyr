@@ -20,6 +20,7 @@
 #include <zephyr/drivers/pinctrl.h>
 
 #include <drivers/uart.h>
+#include <string.h>
 
 #define DEV_CFG(dev)  ((const struct csk_uart_config *const)(dev)->config)
 #define DEV_DATA(dev) ((struct csk_uart_data *)(dev)->data)
@@ -64,6 +65,9 @@ struct csk_uart_data {
 
 #ifdef CONFIG_UART_ASYNC_API
 	csk_uart_async_data_t async_data;
+#endif
+#ifdef CONFIG_UART_USE_RUNTIME_CONFIGURE
+	struct uart_config config;
 #endif
 };
 
@@ -749,6 +753,11 @@ static int csk_uart_init(const struct device *dev)
 	unsigned int old_level;
 	unsigned int baud_rate;
 	const struct csk_uart_config *config = DEV_CFG(dev);
+	struct csk_uart_data *data = DEV_DATA(dev);
+
+	/* make complier happy */
+	ARG_UNUSED(data);
+
 	/* disable interrupts */
 	old_level = irq_lock();
 
@@ -764,9 +773,16 @@ static int csk_uart_init(const struct device *dev)
 			CSK_UART_STOP_BITS_1 | CSK_UART_FLOW_CONTROL_NONE |
 			CSK_UART_GPIO_CONTROL_DEFAULT;
 
-#ifdef CONFIG_UART_ASYNC_API
-	struct csk_uart_data *data = DEV_DATA(dev);
+#ifdef CONFIG_UART_USE_RUNTIME_CONFIGURE
+	struct uart_config *cfg = &data->config;
+	cfg->baudrate = baud_rate;
+	cfg->parity = UART_CFG_PARITY_NONE;
+	cfg->stop_bits = UART_CFG_STOP_BITS_1;
+	cfg->data_bits = UART_CFG_DATA_BITS_8;
+	cfg->flow_ctrl = UART_CFG_FLOW_CTRL_NONE;
+#endif
 
+#ifdef CONFIG_UART_ASYNC_API
 	if (data->async_data.dma_tx.dma_dev != NULL || data->async_data.dma_rx.dma_dev != NULL) {
 		ctrl |= CSK_UART_Function_CONTROL_Dma;
 	} else {
@@ -796,6 +812,104 @@ static int csk_uart_init(const struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_UART_USE_RUNTIME_CONFIGURE
+static int csk_uart_configure(const struct device *dev, const struct uart_config *cfg)
+{
+	struct csk_uart_data *data = DEV_DATA(dev);
+	const struct csk_uart_config *config = DEV_CFG(dev);
+
+	void *uart_driver_ctx = get_uart_ctx((DW_UART_RegDef *)config->reg_addr);
+	uint32_t ctrl = CSK_UART_MODE_ASYNCHRONOUS;
+
+	switch (cfg->parity) {
+	case UART_CFG_PARITY_NONE:
+		break;
+	case UART_CFG_PARITY_ODD:
+		ctrl |= UARTC_LCR_PARITY_ODD;
+		break;
+	case UART_CFG_PARITY_EVEN:
+		ctrl |= UARTC_LCR_PARITY_EVEN;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+	switch (cfg->stop_bits) {
+	case UART_CFG_STOP_BITS_1:
+		ctrl |= CSK_UART_STOP_BITS_1;
+		break;
+	case UART_CFG_STOP_BITS_1_5:
+		ctrl |= CSK_UART_STOP_BITS_1_5;
+		break;
+	case UART_CFG_STOP_BITS_2:
+		ctrl |= CSK_UART_STOP_BITS_2;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+	switch (cfg->data_bits) {
+	case UART_CFG_DATA_BITS_5:
+		ctrl |= CSK_UART_DATA_BITS_5;
+		break;
+	case UART_CFG_DATA_BITS_6:
+		ctrl |= CSK_UART_DATA_BITS_6;
+		break;
+	case UART_CFG_DATA_BITS_7:
+		ctrl |= CSK_UART_DATA_BITS_7;
+		break;
+	case UART_CFG_DATA_BITS_8:
+		ctrl |= CSK_UART_DATA_BITS_8;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+	switch (cfg->flow_ctrl) {
+	case UART_CFG_FLOW_CTRL_NONE:
+		break;
+	case UART_CFG_FLOW_CTRL_RTS_CTS:
+		ctrl |= CSK_UART_FLOW_CONTROL_RTS_CTS;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+#ifdef CONFIG_UART_ASYNC_API
+	if (data->async_data.dma_tx.dma_dev != NULL || data->async_data.dma_rx.dma_dev != NULL) {
+		ctrl |= CSK_UART_Function_CONTROL_Dma;
+	} else {
+		ctrl |= CSK_UART_Function_CONTROL_Int;
+	}
+#else
+	ctrl |= CSK_UART_Function_CONTROL_Int;
+#endif
+
+	int k = arch_irq_lock();
+	if (UART_Control(uart_driver_ctx, ctrl, cfg->baudrate) != 0) {
+		arch_irq_unlock(k);
+		return -EIO;
+	}
+
+	memcpy(&data->config, cfg, sizeof(struct uart_config));
+	arch_irq_unlock(k);
+
+	return 0;
+}
+
+static int csk_uart_config_get(const struct device *dev, struct uart_config *cfg)
+{
+	const struct csk_uart_data *data = DEV_DATA(dev);
+
+	if (cfg != NULL) {
+		memcpy(cfg, &data->config, sizeof(struct csk_uart_config));
+		return 0;
+	}
+
+	return -EINVAL;
+}
+#endif
+
 static const struct uart_driver_api csk_uart_driver_api = {
 	.poll_in = csk_uart_poll_in,
 	.poll_out = csk_uart_poll_out,
@@ -822,6 +936,10 @@ static const struct uart_driver_api csk_uart_driver_api = {
 	.rx_disable = csk_uart_async_rx_disable,
 	.rx_buf_rsp = csk_uart_async_rx_buf_rsp,
 #endif
+#ifdef CONFIG_UART_USE_RUNTIME_CONFIGURE
+	.configure = csk_uart_configure,
+	.config_get = csk_uart_config_get,
+#endif /* CONFIG_UART_USE_RUNTIME_CONFIGURE */
 };
 
 #if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)

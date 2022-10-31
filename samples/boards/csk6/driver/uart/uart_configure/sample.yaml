@@ -1,0 +1,15 @@
+tests:
+  sample.board.csk6.driver.uart:
+    timeout: 20
+    tags: csk6
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+        - "config result:"
+        - "baudrate: 115200"
+        - "data_bits: 3"
+        - "stop_bits: 1"
+        - "flow_ctrl: 0"
+        - "parity: 0"
+        - "hello world"
