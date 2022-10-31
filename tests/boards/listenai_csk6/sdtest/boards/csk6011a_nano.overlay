@@ -1,0 +1,89 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/delete-node/ &psram_ap;
+/delete-node/ &psram_cp;
+/delete-node/ &psram_share;
+
+&pinctrl{
+    /* SDIO alternate function */
+    pinctrl_sdio_cmd_default: sdio_cmd_default{
+        pinctrls = <IO_SD_CMD_GPIOA_13>;
+    };
+    
+    pinctrl_sdio_clk_default: sdio_clk_default{
+        pinctrls = <IO_SD_CLK_GPIOA_20>;
+    };
+
+    pinctrl_sdio_dat0_default: sdio_dat0_default{
+        pinctrls = <IO_SD_DAT0_GPIOA_19>;
+    };
+
+    pinctrl_sdio_dat1_default: sdio_dat1_default{
+        pinctrls = <IO_SD_DAT1_GPIOA_06>;
+    };
+
+    pinctrl_sdio_dat2_default: sdio_dat2_default{
+        pinctrls = <IO_SD_DAT2_GPIOA_16>;
+    };
+
+    pinctrl_sdio_dat3_default: sdio_dat3_default{
+        pinctrls = <IO_SD_DAT3_GPIOA_17>;
+    };
+
+    /* SPIC alternate function */
+    pinctrl_spi1_sclk_default: spi1_sclk_default{
+            pinctrls = <SPI1_CLK_GPIOA_04>;
+    };
+    
+    pinctrl_spi1_mosi_default: spi1_mosi_default{
+            pinctrls = <SPI1_MOSI_GPIOA_07>;
+    };
+
+    pinctrl_spi1_miso_default: spi1_miso_default{
+            pinctrls = <SPI1_MISO_GPIOA_10>;
+    };    
+
+    pinctrl_spi1_cs_default: spi1_cs_default{
+            pinctrls = <SPI1_CS_N_GPIOA_05>;
+    };
+            
+};
+
+&spi1{
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
+    pinctrl-names = "default";
+    status = "okay";
+};
+
+&spi0 {
+    status = "disabled";
+};
+
+&pwm2 {
+    status = "disabled";
+};
+
+&sdmmc {
+    bit-bus = <4>;
+};
+
+&psram0 {
+	psram_cp: psram_cp@30000000 {
+		compatible = "listenai,csk6-psram-partition";
+		reg = <0x30000000 0x100000>;
+		status = "okay";
+	};
+	psram_ap: psram_ap@30400000 {
+		compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
+		reg = <0x30100000 0x700000>;
+		status = "okay";
+		zephyr,memory-region = "PSRAMAP";
+	};
+	psram_share: psram_share@307e0000 {
+		compatible = "listenai,csk6-psram-partition";
+		reg = <0x307e0000 0x20000>;
+		status = "okay";
+	};
+};

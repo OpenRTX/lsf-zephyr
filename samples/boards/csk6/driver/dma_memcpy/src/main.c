@@ -52,7 +52,7 @@ void test_dma_copy(const struct device *dma, void *src, void *dst, size_t size)
         .block_count = 1,
         .head_block = &block_config,
         .source_data_size = 4,
-        .dest_data_size = 1,
+        .dest_data_size = 4,
         .channel_priority = 1,
     };
 
