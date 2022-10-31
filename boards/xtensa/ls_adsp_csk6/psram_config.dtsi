@@ -1,7 +1,7 @@
 #include <listenai/ls_csk6.dtsi>
 
 &psram0 {
-    reg = <0x60000000 DT_SIZE_M(8)>;
+    reg = <0x60000000 DT_SIZE_M(4)>;
 
     partitions {
         compatible = "fixed-partitions";
@@ -10,17 +10,17 @@
 
         psram_cp: partition@60000000 {
             label = "psram_cp";
-            reg = <0x60000000 0x400000>;
+            reg = <0x60000000 0x380000>;
         };
 
-        psram_ap: partition@60400000 {
+        psram_ap: partition@60380000 {
             label = "psram_ap";
-            reg = <60400000 80000>;
+            reg = <0x60380000 0x64000>;
         };
 
-        psram_share: partition@60380000 {
+        psram_share: partition@603E4000  {
             label = "psram_share";
-            reg = <60380000 0x80000>;
+            reg = <0x603E4000 0x1C000>;
         };
     };
 };

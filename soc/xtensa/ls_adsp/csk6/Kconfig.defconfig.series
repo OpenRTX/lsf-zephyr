@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 DT_CHOSEN_Z_SRAM0 := zephyr,sram
+DT_CHOSEN_Z_PSRAM_AP := zephyr,psram_ap
+DT_CHOSEN_Z_PSRAM_SHARE := zephyr,psram_share
 
 if SOC_SERIES_LS_CSK6
 
@@ -78,5 +80,29 @@ config SRAM0_SIZE
 	default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_SRAM0))"
 	help
 	  psram cp start size
+
+config PSRAM_AP_START
+	hex
+	default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_PSRAM_AP))"
+	help
+	  psram ap start address
+
+config PSRAM_AP_SIZE
+	hex
+	default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_PSRAM_AP))"
+	help
+	  psram ap start size
+
+config PSRAM_SHARE_START
+	hex
+	default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_PSRAM_SHARE))"
+	help
+	  psram share start address
+
+config PSRAM_SHARE_SIZE
+	hex
+	default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_PSRAM_SHARE))"
+	help
+	  psram share start size
 
 endif # SOC_SERIES_LS_CSK6
