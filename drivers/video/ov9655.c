@@ -422,6 +422,30 @@ int ov9655_modify_reg(const struct device *dev,
 	return ret;
 }
 
+#if CONFIG_VIDEO_OV9655_MANUAL_UV
+static int ov9655_set_fixed_UV_value(const struct device *dev)
+{
+	uint8_t value = 0;
+	ov9655_read_reg(dev, OV9655_TSLB, &value);
+	ov9655_write_reg(dev, OV9655_TSLB, value | (1 << 4));
+	ov9655_write_reg(dev, 0x67, CONFIG_VIDEO_OV9655_MANUAL_U_VALUE);
+	ov9655_write_reg(dev, 0x68, CONFIG_VIDEO_OV9655_MANUAL_V_VALUE);
+
+	ov9655_read_reg(dev, OV9655_TSLB, &value);
+	LOG_ERR("reg0x3a : 0x%02x\n", value);
+
+		ov9655_read_reg(dev, 0x67, &value);
+	LOG_ERR("reg0x67 : 0x%02x\n", value);
+
+		ov9655_read_reg(dev, 0x68, &value);
+
+	LOG_ERR("reg0x68 : 0x%02x\n", value);
+	//wait stable
+	k_sleep(K_MSEC(1));
+	return 0;
+}
+#endif
+
 static int ov9655_write_all(const struct device *dev,
 			    const struct ov9655_reg *regs,
 			    uint16_t reg_num)
@@ -436,6 +460,10 @@ static int ov9655_write_all(const struct device *dev,
 			return err;
 		}
 	}
+
+#if CONFIG_VIDEO_OV9655_MANUAL_UV
+	ov9655_set_fixed_UV_value(dev);
+#endif
 
 	return 0;
 }
@@ -523,21 +551,6 @@ static int ov9655_get_caps(const struct device *dev,
 	return 0;
 }
 
-#if CONFIG_VIDEO_OV9655_MANUAL_UV
-static int ov9655_set_fixed_UV_value(const struct device *dev)
-{
-	uint8_t value = 0;
-	ov9655_read_reg(dev, OV9655_TSLB, &value);
-	ov9655_write_reg(dev, OV9655_TSLB, value | (1 << 4));
-	ov9655_write_reg(dev, 0x67, CONFIG_VIDEO_OV9655_MANUAL_U_VALUE);
-	ov9655_write_reg(dev, 0x68, CONFIG_VIDEO_OV9655_MANUAL_V_VALUE);
-
-	//wait stable
-	k_sleep(K_MSEC(1));
-	return 0;
-}
-#endif
-
 static int ov9655_init(const struct device *dev)
 {
 	struct ov9655_data *drv_data = dev->data;
@@ -565,10 +578,6 @@ static int ov9655_init(const struct device *dev)
 	/* Prepare the camera to be configured by resetting all its registers */
 	ov9655_write_reg(dev, OV9655_COMMON_CTRL7, 0x80);
 	k_sleep(K_MSEC(10));
-
-#if CONFIG_VIDEO_OV9655_MANUAL_UV
-	ov9655_set_fixed_UV_value(dev);
-#endif
 
 	return 0;
 }
