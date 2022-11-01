@@ -7,6 +7,7 @@
 #include <zephyr/storage/disk_access.h>
 #include <zephyr/device.h>
 #include <logging/log.h>
+#include <csk_malloc.h>
 #include "res_storage.h"
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_DBG);
 
@@ -14,6 +15,7 @@ LOG_MODULE_REGISTER(sample, LOG_LEVEL_DBG);
 uint32_t bytes_per_tests[4] = {1024 * 1024 * 2, 1024 * 1024 * 3, 1024 * 1024 * 4, 1024 * 1024 * 5};
 uint32_t sram_size[2] = {1024 * 25, 1024 * 50};
 
+void *psram_buf = NULL;
 
 void test_csk_sdcard_setup(void)
 {
@@ -28,17 +30,23 @@ void test_csk_sdcard_wr(void)
 	int ret = 0;
 
 	for(uint8_t i = 0; i < sizeof(bytes_per_tests)/sizeof(bytes_per_tests[0]); i++){
+		psram_buf = csk_malloc(bytes_per_tests[i]);
+		if(!psram_buf){
+			LOG_ERR(" psram malloc err(0x%x) \n", bytes_per_tests[i]);
+		}
 		for(uint8_t j = 0; j < sizeof(sram_size)/sizeof(sram_size[0]); j++){
 			res_storage_cgf_t cfg;
 			cfg.inner_ram_size = sram_size[j];
 			ret = res_storage_config(&cfg);
-			zassert_equal(ret, 0, "res_storage_config failed 0x%x", disk_cfg.inner_ram_size);
+			zassert_equal(ret, 0, "res_storage_config failed 0x%x", cfg.inner_ram_size);
 
 			LOG_INF(" data size:%d MB  sram buf size:%d KB \n", bytes_per_tests[i] / (1024 * 1024), sram_size[j] / 1024);
-			ret = res_storage_copy(0, 0, bytes_per_tests[i]);
+			ret = res_storage_copy(0, psram_buf, bytes_per_tests[i]);
 			zassert_equal(ret, 0, "disk_sdmmc_tests failed, %d", ret);
 
 		}
+
+		csk_free(psram_buf);
 	}
 }
 

@@ -1,6 +1,10 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  */
+ 
+/delete-node/ &psram_ap;
+/delete-node/ &psram_cp;
+/delete-node/ &psram_share;
 
 &pinctrl{
     /* UART alternate function */
@@ -49,11 +53,20 @@
 };
 
 &psram0 {
-	psram_ap_nocache: psram@3061d000 {
-		compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
-		reg = <0x3061d000 0x1c3000>;
+	psram_cp: psram_cp@30000000 {
+		compatible = "listenai,csk6-psram-partition";
+		reg = <0x30000000 0x100000>;
 		status = "okay";
-		zephyr,memory-region = "PSRAMAP_NOCACHE";
-        zephyr,memory-region-mpu = "RAM_NOCACHE";
+	};
+	psram_ap: psram_ap@30400000 {
+		compatible = "zephyr,memory-region","listenai,csk6-psram-partition";
+		reg = <0x30100000 0x700000>;
+		status = "okay";
+		zephyr,memory-region = "PSRAMAP";
+	};
+	psram_share: psram_share@307e0000 {
+		compatible = "listenai,csk6-psram-partition";
+		reg = <0x307e0000 0x20000>;
+		status = "okay";
 	};
 };
