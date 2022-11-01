@@ -106,12 +106,13 @@ static int dma_copy(uint32_t src, uint32_t dst, uint32_t size)
 
     LOG_DBG("[%s] src:0x%x dst:0x%x size:0x%x\n", __FUNCTION__, src, dst, size);
 
+    // uint32_t time = k_cycle_get_32();
+
     ret = k_sem_take(&dma_copy->dma_done, K_NO_WAIT);
     if(ret == -EBUSY){
         LOG_INF("[%s]", __FUNCTION__);
     }
-    // uint32_t time = k_cycle_get_32();
-
+    
     dma_copy->burst_size = size > DMA_COPY_MAX_SIZE ? DMA_COPY_MAX_SIZE : size;
     dma_copy->size = size - dma_copy->burst_size;
     dma_copy->src = src;
@@ -119,10 +120,9 @@ static int dma_copy(uint32_t src, uint32_t dst, uint32_t size)
 
     _dma_copy(dma_copy->src, dma_copy->dst, dma_copy->burst_size);
 
-    // ret = k_sem_take(&dma_copy->dma_done, K_FOREVER);
+    // time = k_cycle_get_32() - time;
 
-    // time = (double)(k_cycle_get_32() - time) / sys_clock_hw_cycles_per_sec() * 1000 * 1000;
-    // LOG_INF("DMA copy cost time: %d us\n", time);
+    // LOG_INF("DMA copy cost time: %d us\n", (uint32_t)((double)time / sys_clock_hw_cycles_per_sec() * 1000 * 1000));
 
     return 0;
 }
