@@ -1,19 +1,12 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  */
- 
+
 /delete-node/ &psram_ap;
 /delete-node/ &psram_cp;
 /delete-node/ &psram_share;
 
 &pinctrl{
-    /* UART alternate function */
-    pinctrl_uart0_rx_default: uart0_rx_default{
-    };
-    
-    pinctrl_uart0_tx_default: uart0_tx_default{
-    };
-    
     /* SDIO alternate function */
     pinctrl_sdio_cmd_default: sdio_cmd_default{
         pinctrls = <IO_SD_CMD_GPIOA_13>;
@@ -38,6 +31,30 @@
     pinctrl_sdio_dat3_default: sdio_dat3_default{
         pinctrls = <IO_SD_DAT3_GPIOA_17>;
     };
+
+    /* SPIC alternate function */
+    pinctrl_spi1_sclk_default: spi1_sclk_default{
+            pinctrls = <SPI1_CLK_GPIOA_04>;
+    };
+    
+    pinctrl_spi1_mosi_default: spi1_mosi_default{
+            pinctrls = <SPI1_MOSI_GPIOA_07>;
+    };
+
+    pinctrl_spi1_miso_default: spi1_miso_default{
+            pinctrls = <SPI1_MISO_GPIOA_10>;
+    };    
+
+    pinctrl_spi1_cs_default: spi1_cs_default{
+            pinctrls = <SPI1_CS_N_GPIOA_05>;
+    };
+            
+};
+
+&spi1{
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_miso_default &pinctrl_spi1_cs_default>; 
+    pinctrl-names = "default";
+    status = "okay";
 };
 
 &spi0 {

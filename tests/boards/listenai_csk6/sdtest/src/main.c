@@ -50,8 +50,10 @@ void test_csk_sdcard_wr(void)
 	}
 }
 
+extern void spi_mock(void);
 void test_main(void)
 {
+	spi_mock();
 	ztest_test_suite(csk_sdcard_test,
 			 ztest_unit_test(test_csk_sdcard_setup),
 			 ztest_unit_test(test_csk_sdcard_wr)
