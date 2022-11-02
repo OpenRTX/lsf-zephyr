@@ -22,7 +22,7 @@
                 };
                 
                 pinctrl_uart2_tx_default: uart2_tx_default{
-                        pinctrls = <&pinmuxb 6 3>;
+                        pinctrls = <&pinmuxa 18 3>;
                 };
 
                 pinctrl_uart3_rx_default: uart3_rx_default{
