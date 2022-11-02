@@ -11,7 +11,8 @@
 #include "res_storage.h"
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_DBG);
 
-#define VALIDATION_DATA		(1)
+#define VALIDATION_DATA		(0)
+#define STORAGE_TESTSELF	(0)
 
 //使用限定sram内存下，测试读写不同长度的速率
 uint32_t bytes_per_tests[4] = {1024 * 1024 * 2, 1024 * 1024 * 3, 1024 * 1024 * 4, 1024 * 1024 * 5};
@@ -27,6 +28,10 @@ void test_csk_sdcard_setup(void)
 	if(rc != 0){
 		LOG_ERR(" res storage initialization failed\n");
 	}
+
+#if STORAGE_TESTSELF
+	res_storage_testself();
+#endif
 }
 
 void test_csk_sdcard_wr(void)

@@ -226,6 +226,49 @@ int res_storage_write(void *src, void *dst, uint32_t size)
     return 0;
 }
 
+int res_storage_testself(void)
+{
+    uint8_t *buf;
+    int ret = 0;
+
+    buf = k_malloc(res_storage.disk_sector_size);
+    if(!buf){
+        LOG_ERR("[%s] malloc faild! \n", __FUNCTION__);
+        return -EIO;
+    }
+
+    for(uint32_t i = 0; i < res_storage.disk_sector_count; i++){
+        for(uint32_t j = 0; j < res_storage.disk_sector_size; j++){
+            buf[j] = (uint8_t)(j + i);
+        }
+
+        ret = disk_access_write(res_storage.disk_pdrv, buf, i, 1);
+        if (ret) {
+            LOG_ERR("[%s] disk_access_write failed (%d) num %d\n", __FUNCTION__, ret, i);
+            return -EIO;
+        }
+
+        memset((void *)buf, 0, res_storage.disk_sector_size);
+
+        ret = disk_access_read(res_storage.disk_pdrv, buf, i, 1);
+        if (ret) {
+            LOG_ERR("[%s] disk_access_read failed (%d) num %d\n", __FUNCTION__, ret, i);
+            return -EIO;
+        }
+
+        for(uint32_t j = 0; j < res_storage.disk_sector_size; j++){
+            if(buf[j] != (uint8_t)(j + i)){
+                LOG_ERR("[%s] res_storage_testself err buf[%d] = %d\n", __FUNCTION__, j, buf[j]);
+                return -EIO;
+            }
+        }
+    }
+
+    LOG_INF("res_storage_testself ok\n");
+
+    return 0;
+}
+
 int res_storage_copy(void *src, void *dst, uint32_t size)
 {
     int ret = 0;
@@ -241,7 +284,7 @@ int res_storage_copy(void *src, void *dst, uint32_t size)
         return -EIO;
     }
 
-    LOG_INF("[%s] num_sector:%d burst_num:%d\n", __FUNCTION__, num_sector, burst_num);
+    LOG_DBG("[%s] num_sector:%d burst_num:%d\n", __FUNCTION__, num_sector, burst_num);
 
 	read_time = k_uptime_get_32();
 	for(i = 0; i < num_sector/burst_num; i++){

@@ -13,4 +13,6 @@ int res_storage_copy(void *src, void *dst, uint32_t size);
 
 int res_storage_write(void *src, void *dst, uint32_t size);
 
+int res_storage_testself(void);
+
 #endif  /* __RES_STORAGE_H__ */
