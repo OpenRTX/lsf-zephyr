@@ -7,8 +7,11 @@
 #include <zephyr/device.h>
 #include <logging/log.h>
 #include <csk_malloc.h>
+#include <cache.h>
 #include "res_storage.h"
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_DBG);
+
+#define VALIDATION_DATA		(1)
 
 //使用限定sram内存下，测试读写不同长度的速率
 uint32_t bytes_per_tests[4] = {1024 * 1024 * 2, 1024 * 1024 * 3, 1024 * 1024 * 4, 1024 * 1024 * 5};
@@ -45,11 +48,28 @@ void test_csk_sdcard_wr(void)
 			}
 
 			LOG_DBG(" data size:%d MB  sram buf size:%d KB \n", bytes_per_tests[i] / (1024 * 1024), sram_size[j] / 1024);
+#if VALIDATION_DATA
+			for(uint32_t j = 0; j < bytes_per_tests[i]; j++){
+				*((uint8_t *)psram_buf + j)= (uint8_t)j % (i + 13);
+			}
+			res_storage_write(psram_buf, 0, bytes_per_tests[i]);
+			memset(psram_buf, 0, bytes_per_tests[i]);
+#endif
 			ret = res_storage_copy(0, psram_buf, bytes_per_tests[i]);
 			if(ret != 0){
 				LOG_ERR("disk_sdmmc_tests failed, %d", ret);
 				return;
 			}
+
+#if VALIDATION_DATA
+			sys_cache_data_range(psram_buf, bytes_per_tests[i], K_CACHE_INVD);
+			for(uint32_t j = 0; j < bytes_per_tests[i]; j++){
+				if(*((uint8_t *)psram_buf + j) != (uint8_t)j % (i + 13)){
+					LOG_ERR("test_csk_sdcard_wr err psram_buf[%d] = %d", j, *((uint8_t *)psram_buf + j));
+					break;
+				}
+			}
+#endif			
 		}
 
 		csk_free(psram_buf);

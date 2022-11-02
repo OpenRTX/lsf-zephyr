@@ -194,6 +194,38 @@ int res_storage_config(res_storage_cgf_t *cfg)
     return 0;
 }
 
+int res_storage_write(void *src, void *dst, uint32_t size)
+{
+    int ret = 0;
+    uint32_t i;
+	uint32_t num_sector = size/res_storage.disk_sector_size;
+	uint32_t burst_num = res_storage.inner_ram_size/res_storage.disk_sector_size;   
+    uint32_t src_addr = (uint32_t)src;
+
+	for(i = 0; i < num_sector/burst_num; i++){
+        memcpy((void *)res_storage.inner_buffer, (void *)src_addr, res_storage.inner_ram_size);
+		ret = disk_access_write(res_storage.disk_pdrv, res_storage.inner_buffer, (uint32_t)dst + i * burst_num, burst_num);
+		if (ret) {
+			LOG_ERR("disk_access_write failed (%d)\n", ret);
+			return -EIO;
+		}
+
+        src_addr += res_storage.inner_ram_size;
+	}     
+
+    if(num_sector % burst_num != 0){
+        memcpy((void *)res_storage.inner_buffer, (void *)src_addr, (num_sector % burst_num) * res_storage.disk_sector_size);
+		ret = disk_access_write(res_storage.disk_pdrv, res_storage.inner_buffer, (uint32_t)dst + i * burst_num, num_sector % burst_num);
+		if (ret) {
+			LOG_ERR("disk_access_write failed (%d)\n", ret);
+			return -EIO;
+		}
+
+    }
+
+    return 0;
+}
+
 int res_storage_copy(void *src, void *dst, uint32_t size)
 {
     int ret = 0;
