@@ -568,6 +568,7 @@ static void wifi_event_handler(const struct device *dev, csk_wifi_event_t event)
         case CSK_WIFI_EVT_STA_DISCONNECTED: {
             net_eth_carrier_off(data->netif);
             net_if_down(data->netif);
+            data->sta_is_connected = false;
             wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
         } break;
 
