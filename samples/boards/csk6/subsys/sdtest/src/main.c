@@ -44,7 +44,7 @@ void test_csk_sdcard_wr(void)
 				return;
 			}
 
-			LOG_INF(" data size:%d MB  sram buf size:%d KB \n", bytes_per_tests[i] / (1024 * 1024), sram_size[j] / 1024);
+			LOG_DBG(" data size:%d MB  sram buf size:%d KB \n", bytes_per_tests[i] / (1024 * 1024), sram_size[j] / 1024);
 			ret = res_storage_copy(0, psram_buf, bytes_per_tests[i]);
 			if(ret != 0){
 				LOG_ERR("disk_sdmmc_tests failed, %d", ret);

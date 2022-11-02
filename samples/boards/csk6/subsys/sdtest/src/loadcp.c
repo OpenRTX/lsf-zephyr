@@ -36,7 +36,7 @@ int load_cp(void)
 
 	__DMB();
 	// copy cp code to psram
-	memcpy((void *)AP_PSRAM_BASE, 0x18400000, 290000);
+	memcpy((void *)AP_PSRAM_BASE, (void *)0x18400000, 290000);
 	dcache_clean_range(AP_PSRAM_BASE, AP_PSRAM_BASE + 290000);
 
 	__DSB();

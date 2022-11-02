@@ -27,7 +27,7 @@ typedef struct {
     uint32_t disk_sector_count;
     uint32_t disk_sector_size;
     void *inner_buffer;
-    void *inner_dma_buffer;
+    uint8_t pingpong;
     uint32_t inner_ram_size;
     dma_copy_t dma_copy;
 } res_storage_info_t;
@@ -183,19 +183,10 @@ int res_storage_config(res_storage_cgf_t *cfg)
         k_free(res_storage.inner_buffer);
     }
 
-    if(res_storage.inner_dma_buffer){
-        k_free(res_storage.inner_dma_buffer);
-    }
-
-    res_storage.inner_buffer = k_malloc(cfg->inner_ram_size);
+    res_storage.pingpong = 0;
+    res_storage.inner_buffer = k_malloc(cfg->inner_ram_size * 2);
     res_storage.inner_ram_size = cfg->inner_ram_size;
     if(!res_storage.inner_buffer){
-        LOG_ERR("[%s %d] Failed to malloc", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    res_storage.inner_dma_buffer = k_malloc(cfg->inner_ram_size);
-    if(!res_storage.inner_dma_buffer){
         LOG_ERR("[%s %d] Failed to malloc", __FUNCTION__, __LINE__);
         return -1;
     }
@@ -207,6 +198,7 @@ int res_storage_copy(void *src, void *dst, uint32_t size)
 {
     int ret = 0;
     uint32_t i;
+    uint8_t *databuf;
     uint32_t dst_addr = (uint32_t)dst;
 	uint32_t read_time = 0;
 	uint32_t num_sector = size/res_storage.disk_sector_size;
@@ -221,36 +213,39 @@ int res_storage_copy(void *src, void *dst, uint32_t size)
 
 	read_time = k_uptime_get_32();
 	for(i = 0; i < num_sector/burst_num; i++){
+        databuf = (uint8_t *)res_storage.inner_buffer + res_storage.pingpong * res_storage.inner_ram_size;
+        res_storage.pingpong ^= 0x01;
 #if TEST_DMA_COPY
-        uint8_t *buf = (uint8_t *)res_storage.inner_dma_buffer;
         for(uint32_t j = 0; j < res_storage.inner_ram_size; j++){
-            buf[j] = j;
+            databuf[j] = j;
         }
 #else
-		ret = disk_access_read(res_storage.disk_pdrv, res_storage.inner_buffer, (uint32_t)src + i * burst_num, burst_num);
+		ret = disk_access_read(res_storage.disk_pdrv, databuf, (uint32_t)src + i * burst_num, burst_num);
 		if (ret) {
 			LOG_ERR("disk_access_write failed (%d)\n", ret);
 			return -EIO;
 		}
 #endif
-        dma_copy((uint32_t)res_storage.inner_dma_buffer, dst_addr, res_storage.inner_ram_size);
+        dma_copy((uint32_t)databuf, dst_addr, res_storage.inner_ram_size);
         dst_addr += res_storage.inner_ram_size;
 	}
 
     if(num_sector % burst_num != 0){
+        databuf = (uint8_t *)res_storage.inner_buffer + res_storage.pingpong * res_storage.inner_ram_size;
+        res_storage.pingpong ^= 0x01;
 #if TEST_DMA_COPY
         uint8_t *buf = (uint8_t *)res_storage.inner_dma_buffer;
         for(uint32_t j = 0; j < res_storage.inner_ram_size; j++){
             buf[j] = j;
         }
 #else
-		ret = disk_access_read(res_storage.disk_pdrv, res_storage.inner_buffer, (uint32_t)src + i * burst_num, num_sector % burst_num);
+		ret = disk_access_read(res_storage.disk_pdrv, databuf, (uint32_t)src + i * burst_num, num_sector % burst_num);
 		if (ret) {
 			LOG_ERR("disk_access_write failed (%d)\n", ret);
 			return -EIO;
 		}
 #endif
-        dma_copy((uint32_t)res_storage.inner_dma_buffer, dst_addr, (num_sector % burst_num) * res_storage.disk_sector_size);
+        dma_copy((uint32_t)databuf, dst_addr, (num_sector % burst_num) * res_storage.disk_sector_size);
     }
 
 	read_time = k_uptime_get_32() - read_time;
