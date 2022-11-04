@@ -105,4 +105,16 @@ config PSRAM_SHARE_SIZE
 	help
 	  psram share start size
 
+config STACK_SIZE
+	int "config stack size"
+	default 4096
+	help
+	  stack size
+
+config LIBC_HEAP_SIZE
+	int "config libc heap size"
+	default 4096
+	help
+	   libc heap size
+
 endif # SOC_SERIES_LS_CSK6

@@ -1007,18 +1007,6 @@ SECTIONS
   . = ALIGN (8);
   _common-ram_end_ = .;
 
-  .heap_mem (NOLOAD) : ALIGN(8)
-  {
-    . = ALIGN (8);
-    _heap_mem_start = ABSOLUTE(.);
-    *(*.heap_mem)
-    _heap_mem_end = ABSOLUTE(.);
-  } >sdram0
-
-  /* stack */
-  __stack = ABSOLUTE(.);
-  _heap_sentry = __stack - 4096;
-
   .bss (NOLOAD) : ALIGN(8)
   {
     . = ALIGN (8);
@@ -1042,12 +1030,36 @@ SECTIONS
     _bss_end = ABSOLUTE(.);
   } >RAMABLE_REGION
 
+  .heap_mem (NOLOAD) : ALIGN(8)
+  {
+    . = ALIGN (8);
+    _heap_mem_start = ABSOLUTE(.);
+    *(*.heap_mem)
+    _heap_mem_end = ABSOLUTE(.);
+  } >sdram0
+
+  /* stack */
+  . = ALIGN (8);
+  __stack_low_addr = ABSOLUTE(.);
+  __stack_high_addr = __stack_low_addr + CONFIG_STACK_SIZE;
+  __stack = __stack_high_addr;
+  . = __stack;
+
+#if (CONFIG_STACK_SIZE % 8) != 0
+#error CONFIG_STACK_SIZE % 8 != 0
+#endif
+
+  . = ALIGN (8);
+  PROVIDE(end = ALIGN (8));
   _end = ALIGN (8);
 
+  /* libc heap */
+  _heap_sentry = _end + CONFIG_LIBC_HEAP_SIZE;
+  . = _heap_sentry;
+
+  /* algo mem */
   _algo_mem_start = ABSOLUTE(.);
   _algo_mem_end = ORIGIN(sdram0) + LENGTH(sdram0);
-
-  PROVIDE(end = ALIGN (8));
 
   .comment  0 :  { *(.comment) }
   .debug  0 :  { *(.debug) }
