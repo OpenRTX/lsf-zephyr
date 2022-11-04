@@ -3,5 +3,5 @@
 # Copyright (c) 2021 ListenAI
 # SPDX-License-Identifier: Apache-2.0
 
-config  BOARD_CSK6011B_SCANPEN_DSPCASE
-	bool "CSK6011B_SCANPEN_DSPCASE"
+config  BOARD_CSK6011B_XXX_CXSD
+	bool "CSK6011B_XXX_CXSD"

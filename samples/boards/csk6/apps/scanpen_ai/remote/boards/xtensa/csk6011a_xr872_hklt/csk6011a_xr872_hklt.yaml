@@ -1,0 +1,10 @@
+identifier: csk6011a_xr872_hklt
+name: CSK6 DSP
+type: mcu
+arch: xtensa
+toolchain:
+  - xcc
+testing:
+  only_tags:
+     - kernel
+     - sof

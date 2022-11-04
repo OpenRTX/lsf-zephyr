@@ -7,10 +7,10 @@
 /dts-v1/;
 
 #include <listenai/ls_csk6.dtsi>
-#include "csk6011b_scanpen_dspcase_pinctrl.dtsi"
+#include "csk6011a_xr872_hklt_pinctrl.dtsi"
 
 / {
-	model = "csk6011b_scanpen_dspcase";
+	model = "csk6011a_xr872_hklt";
 	chosen {
 		zephyr,sram = &sram0;
 		zephyr,console = &uart2;
