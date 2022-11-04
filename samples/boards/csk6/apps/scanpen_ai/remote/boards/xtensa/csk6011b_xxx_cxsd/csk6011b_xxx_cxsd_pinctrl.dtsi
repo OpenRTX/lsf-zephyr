@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 / {
-        csk6011a_scanpen_s3_dspcase_pinctrl:adsp_csk6_pinctrl{
+        csk6011b_xxx_cxsd_pinctrl:adsp_csk6_pinctrl{
                 compatible = "listenai,csk-pinctrl";
 
                 /* UART alternate function */
