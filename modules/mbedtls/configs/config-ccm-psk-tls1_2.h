@@ -75,6 +75,7 @@
 #define MBEDTLS_ENTROPY_C
 #define MBEDTLS_MD_C
 #define MBEDTLS_NET_C
+#define MBEDTLS_SHA224_C
 #define MBEDTLS_SHA256_C
 #define MBEDTLS_SSL_CLI_C
 #define MBEDTLS_SSL_SRV_C
@@ -107,6 +108,11 @@
  * The optimal size here depends on the typical size of records.
  */
 #define MBEDTLS_SSL_MAX_CONTENT_LEN             1024
+
+/* CSK6 config file */
+#ifdef CONFIG_CSK_MBEDTLS_HARDWARE_AES
+#include CONFIG_CSK_MBEDTLS_CONFIG_FILE
+#endif
 
 #include "mbedtls/check_config.h"
 

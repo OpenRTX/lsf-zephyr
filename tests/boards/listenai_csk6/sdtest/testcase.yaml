@@ -1,0 +1,9 @@
+tests:
+  drivers.baords.csk6.sdtest:
+    depends_on: sdmmc
+    tags: drivers sdmmc
+    platform_allow: csk6002_9s_nano 
+    harness: ztest
+    harness_config:
+      fixture: sdcard
+    

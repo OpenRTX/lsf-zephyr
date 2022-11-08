@@ -18,7 +18,7 @@
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			
+
 			mpu: mpu@e000ed90 {
 				compatible = "arm,armv8m-mpu";
 				reg = <0xe000ed90 0x40>;
@@ -34,9 +34,10 @@
 	};
 
     itcm0: code@10000 {
-        compatible = "listenai,csk-itcm";
+        compatible = "zephyr,memory-region";
         reg = <0x00010000 (16*1024)>;
         label = "itcm CODE";
+		zephyr,memory-region = "ITCM";
     };
 
 	dtcm0: code@20000000 {
@@ -49,7 +50,7 @@
 		compatible = "listenai,csk6-psram";
 		reg = <0x30000000 DT_SIZE_M(8)>;
 		label = "psram0";
-	};	
+	};
 
 	soc {
 
@@ -173,59 +174,59 @@
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_0";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm1 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_1";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm2 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_2";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm3 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_3";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm4 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_4";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm5 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_5";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm6 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_6";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 
 			pwm7 {
 				compatible = "listenai,csk-pwm";
 				status = "disabled";
 				label = "PWM_7";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 			};
 		};
-		
+
 		i2c0: i2c@45600000 {
 			compatible = "listenai,csk-i2c";
 			reg = <0x45600000 0x100000>;
@@ -243,7 +244,7 @@
 			#size-cells = <0>;
 			label = "I2C_1";
 		};
-		
+
 		usbotg: usbd@41000000 {
 			compatible = "listenai,csk-usbd";
 			reg = <0x41000000 0x1000000>;
@@ -254,10 +255,10 @@
 			label = "USBD";
 		};
 
-		wdt: watchdog@44200000 {
+		wdt: watchdog@46b00000 {
 			compatible = "listenai,csk6-watchdog";
-			reg = <0x44200000 0x100000>;
-			interrupts = <7 0>;
+			reg = <0x46B00000 0x100000>;
+			interrupts = <26 0>;
 			label = "WDT";
 			status = "okay";
 		};
@@ -285,6 +286,38 @@
 			status = "disabled";
 			label = "KEYSENSE";
 		};
+
+		dvp: dvp@4a050000{
+			compatible = "listenai,csk-dvp";
+			reg = <0x4a050000 0x100000>;
+			interrupts = <29 0>;
+			status = "disabled";
+			label = "DVPI";			
+		};
+		
+		crypto: crypto@44300000{
+			compatible = "listenai,csk-crypto";
+			reg = <0x44300000 0x100000>;
+			interrupts = <3 0>;
+			status = "disabled";
+			label = "CRYPTO";
+		};
+
+		trng: trng@45c00000{
+			compatible = "listenai,csk-entropy";
+			reg = <0x45c00000 0x100000>;
+			interrupts = <20 0>;
+			status = "disabled";
+			label = "ENTROPY";			
+		};
+
+		sdmmc:sdmmc@42000000{
+			compatible = "listenai,csk-sdmmc";
+			reg = <0x42000000 DT_SIZE_M(16)>;
+			interrupts = <2 0>;
+			status = "disabled";
+			label = "SDMCC";
+        };
 
 	};
 };

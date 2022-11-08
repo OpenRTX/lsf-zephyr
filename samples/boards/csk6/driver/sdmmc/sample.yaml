@@ -1,0 +1,6 @@
+tests:
+  sample.board.csk6.driver.sdmmc:
+    platform_allow: csk6002_9s_nano
+    tags: csk6
+    build_only: true
+    

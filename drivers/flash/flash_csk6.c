@@ -14,27 +14,39 @@
 
 #include <string.h>
 #include <kernel.h>
+#include <cache.h>
 #include <drivers/flash.h>
 #include <hal/venus_ap.h>
 #include <hal/spiflash.h>
 
+#include <logging/log.h>
+LOG_MODULE_REGISTER(flash_csk6, CONFIG_FLASH_LOG_LEVEL);
 
+
+#if (CONFIG_CSK6_FLASH_STALL_SECOND_CORE)
 #define FLASH_OPT_ENTER() \
-	int flash_irq_key = irq_lock();\
+	uint32_t primask = __get_PRIMASK();\
+	__set_PRIMASK(1);\
 	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x1;
 
 #define FLASH_OPT_EXIT() \
 	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x0;\
-	irq_unlock(flash_irq_key);
+	__set_PRIMASK(primask);
+#else
+
+
+#define FLASH_OPT_EXIT() \
+	__set_PRIMASK(primask);
+
+#endif
 
 typedef struct {
 	FLASH_DEV flash_dev;
 } csk6_flash_config_t;
 
-csk6_flash_config_t csk6_flash_config = { .flash_dev = {
 						  .base_addr = DT_INST_REG_ADDR(0),
 						  .d_width = 4,
-						  .sclk_div = 0, //divider is 1
+						  .sclk_div = 0xff, // 0xff: special div in chip,indicates that sclk frequency = SPI clock frequency
 						  .run_mod = RUN_WITH_INT,
 						  .timeout = 0,
 					  } };
@@ -46,13 +58,13 @@ static const struct flash_parameters flash_csk6_parameters = {
 
 static int flash_csk6_read(const struct device *dev, off_t address, void *buffer, size_t length)
 {
-	int iret = 0;
 	if (length == 0) {
 		return 0;
 	}
 	if (buffer == NULL || address > FLASH_CHIP_SZ || address + length > FLASH_CHIP_SZ) {
 		return -EINVAL;
 	}
+	sys_cache_data_range((void*)(FLASH_BASE_ADDRESS+address), length, K_CACHE_INVD);
 	memcpy(buffer,(void*)(FLASH_BASE_ADDRESS+address),length);
 	return 0;
 }
@@ -117,6 +129,11 @@ static int flash_csk6_erase(const struct device *dev, off_t start, size_t len)
 		return -EINVAL;
 	}
 
+	if ((start % FLASH_ERASE_BLK_SZ != 0) || (len % FLASH_ERASE_BLK_SZ != 0)) {
+		LOG_ERR(" address and length must be aligned with %d bytes", FLASH_ERASE_BLK_SZ);
+		return -EINVAL;
+	}
+
 	FLASH_OPT_ENTER();
 	sflash_write_protection_set((void *)dev->config, false);
 
@@ -155,10 +172,9 @@ static const struct flash_parameters *flash_csk6_get_parameters(const struct dev
 
 static int flash_csk6_init(const struct device *dev)
 {
-	unsigned int key;
-	key = irq_lock();
+	FLASH_OPT_ENTER();
 	sflash_init((void *)dev->config);
-	irq_unlock(key);
+	FLASH_OPT_EXIT();
 	return 0;
 }
 

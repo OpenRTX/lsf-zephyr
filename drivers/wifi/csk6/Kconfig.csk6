@@ -9,7 +9,7 @@ menuconfig WIFI_CSK6
 
 if WIFI_CSK6
 
-choice
+choice CSK_WIFI_OFFLOAD_MODULE
     prompt "WiFi Offload Module"
 	config CSK_WIFI_ESP32C3
 		bool "ESP32C3"
@@ -21,6 +21,11 @@ choice
 		bool "XR819S"
 		select XR819S
 		select GPIO
+		select NVS
+		select FLASH
+		select FLASH_PAGE_LAYOUT
+		select FLASH_MAP
+		select MPU_ALLOW_FLASH_WRITE
 endchoice
 
 config CSK_WIFI_STATION
@@ -41,7 +46,7 @@ if XR819S
 
 config MAX_SCAN_APS_NUM
 	int "WiFi Maximum Scan AP's Number"
-	default 10
+	default 40
 
 config WLAN_API_TIMEOUT
 	int "WiFi Driver api timeout(s)"

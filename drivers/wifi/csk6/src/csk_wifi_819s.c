@@ -28,7 +28,7 @@ typedef struct {
     const struct device *dev;
     wifi_ctrl_msg_type_t type;
     union {
-        wifi_cmd_t command;
+        wifi_req_t req;
         csk_wifi_event_t event;
     };
     void *data;
@@ -96,17 +96,31 @@ static inline void wifi_reset_result(void)
     k_msgq_purge(&wifi_result_msgq);
 }
 
-static inline int wifi_give_result(wifi_ret_msg_t *ret_msg)
+static inline int wifi_give_result(wifi_ret_msg_t *ret_msg, bool async_mode)
 {
-    if (!k_msgq_num_free_get(&wifi_result_msgq)) {
-        wifi_reset_result(); /* clean the message queue */
+    int ret = 0;
+    if (async_mode == false) {
+        if (!k_msgq_num_free_get(&wifi_result_msgq)) {
+            wifi_reset_result(); /* clean the message queue */
+        }
+        ret = k_msgq_put(&wifi_result_msgq, ret_msg, K_NO_WAIT);
     }
-    return k_msgq_put(&wifi_result_msgq, ret_msg, K_NO_WAIT);
+    return ret;
 }
 
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout)
 {
-    return k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
+    int ret = 0;
+    bool async_mode = (K_TIMEOUT_EQ(timeout, K_NO_WAIT) ? true : false);
+    if (async_mode == false) {
+        ret = k_msgq_get(&wifi_result_msgq, ret_msg, timeout);
+    }
+    return ret;
+}
+
+void wlan_event_clear(void)
+{
+    k_msgq_purge(&xrwlan_msgq); /* clean the message queue */
 }
 
 int wlan_event_give(wlan_event_t *event)
@@ -122,13 +136,18 @@ int wlan_event_take(wlan_event_t *event, k_timeout_t timeout)
     return k_msgq_get(&xrwlan_msgq, event, timeout);
 }
 
-int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts)
+int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts, bool async_mode)
 {
+    wifi_req_t req = {
+        .cmd = command,
+        .async_mode = async_mode,
+    };
     csk_wifi_ctrl_msg_t msg = {
         .dev = dev,
         .type = WIFI_COMMAND,
-        .command = command,
+        .req = req,
     };
+    wifi_reset_result();
     return k_msgq_put(&wifi_interactive_msgq, &msg, timeouts);
 }
 
@@ -345,6 +364,10 @@ int wifi_sm_connected_handler(const struct device *dev, wlan_event_t current_eve
         LOG_INF("STA_SM[%s]: async disconnected", wifi_sta_sm_str);
         wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
         wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
+    } else if (current_event == WLAN_EVENT_CONNECTED ||
+                current_event == WLAN_EVENT_REKEY_COMPLETE) {
+        LOG_INF("STA_SM[%s]: async connected, rekey event trigger, {%s}",
+                    wifi_sta_sm_str, wlan_event_str);
     } else {
         LOG_ERR("STA_SM[%s]: err event [%s]", wifi_sta_sm_str, wlan_event_str);
     }
@@ -386,6 +409,34 @@ int wifi_sm_on_scan_handler(const struct device *dev, wlan_event_t current_event
         wifi_obj_set_sm(WIFI_SM_STA_SCAN_DONE);
         wlan_event_give(&current_event);
     }
+    return 0;
+}
+
+int wifi_sm_scandone_handler(const struct device *dev, wlan_event_t current_event)
+{
+    wifi_sta_state_machine_t primary_state = wifi_obj_get_sm();
+
+    if (primary_state != WIFI_SM_STA_SCAN_DONE) {
+        return -ENXIO;
+    }
+
+    const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
+    const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
+
+    if (current_event == WLAN_EVENT_CONNECTED ||
+        current_event == WLAN_EVENT_REKEY_COMPLETE) {
+        LOG_INF("STA_SM[%s]: Rekey event trigger, {%s}", wifi_sta_sm_str, wlan_event_str);
+        if (current_event == WLAN_EVENT_CONNECTED) {
+            wifi_obj_set_sm(WIFI_SM_STA_CONNECTED);
+        }
+    } else if (current_event == WLAN_EVENT_DISCONNECTED) {
+        LOG_INF("STA_SM[%s]: async disconnected", wifi_sta_sm_str);
+        wifi_obj_set_sm(WIFI_SM_STA_DISCONNECTED);
+        wifi_send_event(dev, CSK_WIFI_EVT_STA_DISCONNECTED, NULL, 0, K_FOREVER);
+    } else {
+        LOG_ERR("STA_SM[%s]: err event [%s]", wifi_sta_sm_str, wlan_event_str);
+    }
+
     return 0;
 }
 
@@ -474,6 +525,9 @@ void wifi_sta_sm_handler(wlan_event_t current_event)
     ret = wifi_sm_disconnected_handler(dev, current_event);
     if (ret == 0) return;
 
+    ret = wifi_sm_scandone_handler(dev, current_event);
+    if (ret == 0) return;
+
     const char *wlan_event_str = WLAN_EVENT_STRINGS[current_event];
     const char *wifi_sta_sm_str = WIFI_STA_SM_STRINGS[primary_state];
     if (ret < 0) {
@@ -531,11 +585,30 @@ static int wifi_sta_connect(const struct device *dev)
     int ret = 0;
     wlan_event_t event;
     struct csk_wifi_data *data = dev->data;
+    wlan_sta_config_t config = {0};
 
     data->err = CSK_WIFI_SUCCESS;
 
-    ret = wlan_sta_set((uint8_t *)data->sta_config.ssid,
-                        strlen(data->sta_config.ssid), (uint8_t *)data->sta_config.pwd);
+    memset(&config, 0, sizeof(config));
+    config.field = WLAN_STA_FIELD_SSID;
+    config.u.ssid.ssid_len = strlen(data->sta_config.ssid);
+    memcpy(&(config.u.ssid.ssid), &(data->sta_config.ssid), strlen(data->sta_config.ssid));
+    ret = wlan_sta_set_config(&config);
+    CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
+
+    memset(&config, 0, sizeof(config));
+    config.field = WLAN_STA_FIELD_PSK;
+    memcpy(&(config.u.psk), &(data->sta_config.pwd), strlen(data->sta_config.pwd));
+    ret = wlan_sta_set_config(&config);
+    CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
+
+    if (strlen(data->sta_config.bssid) > 0) {
+        memset(&config, 0, sizeof(config));
+        config.field = WLAN_STA_FIELD_BSSID;
+        convert_str_to_bytes(config.u.bssid.bssid, data->sta_config.bssid);
+        config.u.bssid.bssid_set = 6;
+    }
+    ret = wlan_sta_set_config(&config);
     CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
 
     ret = wlan_sta_connect();
@@ -583,7 +656,7 @@ static int wifi_sta_get_connected_info(const struct device *dev)
         CSK_WIFI_CHECK_RETURN(ret == 0, -EIO, "Driver unknown exception, ret: %d", ret);
         memcpy(data->sta_config.pwd, config.u.psk, CSK_WIFI_PWD_LEN);
     } else {
-        memcpy(data->sta_config.pwd, "\0", CSK_WIFI_PWD_LEN);
+        memset(data->sta_config.pwd, '\0', CSK_WIFI_PWD_LEN);
     }
 
     data->sta_config.pwd[CSK_WIFI_PWD_LEN - 1] = '\0';
@@ -615,6 +688,9 @@ static int wifi_scan_list(const struct device *dev, int *ap_count, csk_wifi_scan
     int ret = 0;
     wlan_event_t event;
     wlan_sta_scan_results_t scan_results;
+
+    /* clear old events */
+    wlan_event_clear();
 
     /**
      * -2 pending scan schedule -reject new request
@@ -667,9 +743,11 @@ __driver_err:
     return -EIO;
 }
 
-static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
+static void wifi_command_handler(const struct device *dev, wifi_req_t req)
 {
     int ret = 0;
+    wifi_cmd_t command = req.cmd;
+
     wifi_ret_msg_t ret_msg = {
         .arg = NULL,
         .result = 0,
@@ -702,6 +780,8 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
             } else if (ret != 0) {
                 break;
             } else {
+                wifi_dispatch_callbacks(CSK_WIFI_EVT_STA_CONNECTING,
+                                        &data->sta_config, sizeof(data->sta_config));
             }
             ret = wifi_sta_get_connected_info(dev);
             if (ret != 0)   break;
@@ -751,7 +831,7 @@ static void wifi_command_handler(const struct device *dev, wifi_cmd_t command)
             break;
     }
     ret_msg.result = ret;
-    wifi_give_result(&ret_msg);
+    wifi_give_result(&ret_msg, req.async_mode);
 }
 
 static void wifi_async_event_handler(const struct device *dev, csk_wifi_event_t event)
@@ -785,7 +865,7 @@ static void wifi_control_thread(void *arg1, void *arg2, void *arg3)
         const struct device *dev = msg.dev;
         if (msg.type == WIFI_COMMAND) {
             /* This function maybe will here block thread for a long time */
-            wifi_command_handler(dev, msg.command);
+            wifi_command_handler(dev, msg.req);
         } else if (msg.type == WIFI_EVENT) {
             wifi_async_event_handler(dev, msg.event);
         }

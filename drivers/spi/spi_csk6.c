@@ -1,10 +1,6 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifdef CONFIG_SOC_CSK6
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-#endif
 
 #define DT_DRV_COMPAT listenai_csk_spi
 
@@ -13,8 +9,7 @@
 #include <errno.h>
 #include <drivers/spi.h>
 #include <drivers/clock_control.h>
-#include <drivers/pinmux.h>
-#include <soc_dt.h>
+#include <zephyr/drivers/pinctrl.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(csk6_spi, CONFIG_SPI_LOG_LEVEL);
@@ -44,8 +39,7 @@ struct csk_spi_config {
 	char *label;
 	void (*irq_config_func)(const struct device *dev);
 	/* SPI alternate configuration */
-    const struct csk6_pinctrl_cfg *pinctrl_list;
-    uint8_t pinctrl_list_size;
+	const struct pinctrl_dev_config *pcfg;
 };
 
 static void *spi_csk_get_ctx(const struct device *dev)
@@ -112,24 +106,31 @@ static int csk_spi_configure(const struct device *dev, const struct spi_config *
 	spi_dma_en_mask |= CSK_SPI_RXIO_DMA;
 #endif
 
-	SPI_Control(data->driver_context, spi_op_mode | spi_sample_mode | spi_word_size_mask |
+	int r = SPI_Control(data->driver_context, spi_op_mode | spi_sample_mode | spi_word_size_mask |
                 spi_bits_order | spi_dma_en_mask, spi_cfg->frequency);
 
 	data->ctx.config = spi_cfg;
-    spi_context_cs_configure(&data->ctx);
+
+
+	if (r != 0) {
+		LOG_ERR("SPI_Control failed. r:%d.", r);
+		return -EIO;
+	}
+
     return 0;
 }
 
-static void csk_spi_hal_transceive(const struct device *dev)
+static int32_t csk_spi_hal_transceive(const struct device *dev)
 {
 	struct csk_spi_data *data = dev->data;
 	struct spi_context *ctx = &data->ctx;
 	size_t chunk_len = spi_context_max_continuous_chunk(ctx);
+	int32_t r = -EIO;
 
 	if (chunk_len == 0) {
         spi_context_cs_control(&data->ctx, false);
 		spi_context_complete(ctx, 0);
-		return;
+		return 0;
 	}
 
 	/* Resize the transaction item num since spi driver limitation */
@@ -142,15 +143,26 @@ static void csk_spi_hal_transceive(const struct device *dev)
     uint32_t key = irq_lock();
     data->current_transfer_len = real_trans_size;
 	if (ctx->tx_buf != NULL && ctx->rx_buf != NULL) {
-		SPI_Transfer(data->driver_context, ctx->tx_buf, ctx->rx_buf, real_trans_size);
+		r = SPI_Transfer(data->driver_context, ctx->tx_buf, ctx->rx_buf, real_trans_size);
+		if (r != 0) {
+			LOG_ERR("SPI_Transfer failed. r:%d", r);
+		}
 	} else if (ctx->tx_buf != NULL) {
-		SPI_Send(data->driver_context, ctx->tx_buf, real_trans_size);
+		r = SPI_Send(data->driver_context, ctx->tx_buf, real_trans_size);
+		if (r != 0) {
+			LOG_ERR("SPI_Send failed. r:%d", r);
+		}
 	} else if (ctx->rx_buf != NULL) {
-		SPI_Receive(data->driver_context, ctx->rx_buf, real_trans_size);
+		r = SPI_Receive(data->driver_context, ctx->rx_buf, real_trans_size);
+		if (r != 0) {
+			LOG_ERR("SPI_Receive failed. r:%d", r);
+		}
 	} else {
         /* should not go into here */
 	}
 	irq_unlock(key);
+
+	return r != 0 ? -EIO : 0;
 }
 
 static int transceive(const struct device *dev,
@@ -161,13 +173,68 @@ static int transceive(const struct device *dev,
 		      struct k_poll_signal *signal)
 {
 	struct csk_spi_data *data = dev->data;
+	uint8_t dw = SPI_WORD_SIZE_GET(spi_cfg->operation);
+
+	if (dw != 8 && dw != 16 && dw != 32) {
+		LOG_ERR("Unsupported data width(%d bit).", dw);
+		return -ENOTSUP;
+	}
+
+	if (spi_cfg->operation & (SPI_LINES_DUAL | SPI_LINES_QUAD | SPI_LINES_OCTAL)) {
+		LOG_ERR("Unsupported line config.");
+		return -ENOTSUP;
+	}
+
+	dw /= 8;
+
+#if CONFIG_ASSERT == 1 || defined(CONFIG_SPI_LOG_LEVEL_DBG)
+	if (tx_bufs != NULL) {
+		size_t c = tx_bufs->count;
+		const struct spi_buf *buf = tx_bufs->buffers;
+		while (buf && c) {
+#if CONFIG_ASSERT == 1
+			__ASSERT(buf->len % dw == 0,
+				 "tx buffer len(%d) is not match data width(%d byte)", buf->len,
+				 dw);
+#else
+			if (buf->len % dw != 0) {
+				LOG_ERR("tx buffer len(%d) is not match data width(%d byte)",
+					buf->len, dw);
+				return -EINVAL;
+			}
+#endif
+			buf++;
+			c--;
+		}
+	}
+
+	if (rx_bufs != NULL) {
+		size_t c = rx_bufs->count;
+		const struct spi_buf *buf = rx_bufs->buffers;
+		while (buf && c) {
+#if CONFIG_ASSERT == 1
+			__ASSERT(buf->len % dw == 0,
+				 "rx buffer len(%d) is not match data width(%d byte)", buf->len,
+				 dw);
+#else
+			if (buf->len % dw != 0) {
+				LOG_ERR("rx buffer len(%d) is not match data width(%d byte)",
+					buf->len, dw);
+				return -EINVAL;
+			}
+#endif
+			buf++;
+			c--;
+		}
+	}
+#endif
 
 	spi_context_lock(&data->ctx, asynchronous, signal, spi_cfg);
 	int ret = csk_spi_configure(dev, spi_cfg);
 	if (ret) {
 		goto out;
 	}
-	spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, 1);
+	spi_context_buffers_setup(&data->ctx, tx_bufs, rx_bufs, dw);
     spi_context_cs_control(&data->ctx, true);
 	csk_spi_hal_transceive(dev);
 	ret = spi_context_wait_for_completion(&data->ctx);
@@ -207,16 +274,18 @@ static void csk_spi_isr_callback(uint32_t event, uint32_t usr_param)
 {
 	const struct device *dev = (const struct device *)usr_param;
 	struct csk_spi_data *data = dev->data;
+	const struct spi_config *config = data->ctx.config;
 
+	uint8_t dw = SPI_WORD_SIZE_GET(config->operation) / 8;
 	if (event & CSK_SPI_EVENT_TRANSFER_COMPLETE) {
-		spi_context_update_tx(&data->ctx, 1, data->current_transfer_len);
-		spi_context_update_rx(&data->ctx, 1, data->current_transfer_len);
+		spi_context_update_tx(&data->ctx, dw, data->current_transfer_len);
+		spi_context_update_rx(&data->ctx, dw, data->current_transfer_len);
 		csk_spi_hal_transceive(dev);
 	}
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
     else if (event & CSK_SPI_EVENT_DMA_COMPLETE){
-		spi_context_update_tx(&data->ctx, 1, data->current_transfer_len);
-		spi_context_update_rx(&data->ctx, 1, data->current_transfer_len);
+		spi_context_update_tx(&data->ctx, dw, data->current_transfer_len);
+		spi_context_update_rx(&data->ctx, dw, data->current_transfer_len);
 		csk_spi_hal_transceive(dev);		
 	}
 #endif /* end of CONFIG_SOC_LS_ADSP_CSK6 */
@@ -252,17 +321,22 @@ static int spi_csk_init(const struct device *dev)
 	data->driver_context = spi_csk_get_ctx(dev);
              
 	/* Fixme: rework the SPI_Initialize(), let the user parameter become void* type */  
-	SPI_Initialize(data->driver_context, csk_spi_isr_callback, (uint32_t)dev);                    
-	SPI_PowerControl(data->driver_context, CSK_POWER_FULL);                                        
+	SPI_Initialize(data->driver_context, csk_spi_isr_callback, (uint32_t)dev);
+	SPI_PowerControl(data->driver_context, CSK_POWER_FULL);
 
-	PINCTRL_CONFIG_PINS(config->pinctrl_list, config->pinctrl_list_size);   
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	/* IRQ_CONNECT and irq_enable */
 	config->irq_config_func(dev);
 
-	spi_context_unlock_unconditionally(&data->ctx);		
+	int err = spi_context_cs_configure_all(&data->ctx);
+	if (err < 0) {
+		return err;
+	}
 
-	return 0;	
+	spi_context_unlock_unconditionally(&data->ctx);
+
+	return 0;
 }
 
 #define SPI_DEVICE_INIT(n)                                                 	\
@@ -276,20 +350,18 @@ static int spi_csk_init(const struct device *dev)
 		irq_enable(DT_INST_IRQN(n));                                                       \
 	}																			\
 																				\
-	static const struct csk6_pinctrl_cfg                                        \
-        spi_alts_##n[DT_INST_NUM_PINCTRLS_BY_IDX(n, 0)] =               \
-            CSK6_DT_ALT_ITEMS_LIST(n);                                      \
+	PINCTRL_DT_INST_DEFINE(n);                                              \
 									               								\
 	static const struct csk_spi_config csk_spi_config_##n = {      			\
 		.label = DT_INST_LABEL(n),											\
 		.irq_config_func = spi_csk_config_func_##n,                             \
-        .pinctrl_list = spi_alts_##n,                   					\
-		.pinctrl_list_size = ARRAY_SIZE(spi_alts_##n),                      \
+        .pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),                              \
 	};                                                                     		\
 																				\
 	static struct csk_spi_data csk_spi_data_##n = {	     					\
 		SPI_CONTEXT_INIT_LOCK(csk_spi_data_##n, ctx),		 					\
 		SPI_CONTEXT_INIT_SYNC(csk_spi_data_##n, ctx),		 					\
+		SPI_CONTEXT_CS_GPIOS_INITIALIZE(DT_DRV_INST(n), ctx)					\
 	};																			\
 																				\
 	DEVICE_DT_INST_DEFINE(n, &spi_csk_init, NULL,                    		\
@@ -299,7 +371,3 @@ static int spi_csk_init(const struct device *dev)
 			    &csk_spi_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(SPI_DEVICE_INIT)
-
-#ifdef CONFIG_SOC_CSK6
-#pragma GCC pop_options
-#endif

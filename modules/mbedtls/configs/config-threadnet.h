@@ -83,6 +83,7 @@
 #define MBEDTLS_OID_C
 #define MBEDTLS_PK_C
 #define MBEDTLS_PK_PARSE_C
+#define MBEDTLS_SHA224_C
 #define MBEDTLS_SHA256_C
 #define MBEDTLS_SSL_COOKIE_C
 #define MBEDTLS_SSL_CLI_C
@@ -101,6 +102,11 @@
 
 /* Save ROM and a few bytes of RAM by specifying our own ciphersuite list */
 #define MBEDTLS_SSL_CIPHERSUITES MBEDTLS_TLS_ECJPAKE_WITH_AES_128_CCM_8
+
+/* CSK6 config file */
+#ifdef CONFIG_CSK_MBEDTLS_HARDWARE_AES
+#include CONFIG_CSK_MBEDTLS_CONFIG_FILE
+#endif
 
 #include "mbedtls/check_config.h"
 

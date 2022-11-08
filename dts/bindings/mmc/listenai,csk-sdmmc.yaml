@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: csk sdmmc disk access
+
+compatible: "listenai,csk-sdmmc"
+
+include: [mmc.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  label:
+    required: true
+
+  interrupts:
+    required: true
+
+  pinctrl-0:
+    required: true
+
+  pinctrl-names:
+    required: true
+
+  bit-bus:
+    type: int
+    required: true
+    default: 4
+    enum:
+      - 1
+      - 4
+    description: SDMMC bit bus "4bit or 1bit" 

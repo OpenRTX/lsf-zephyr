@@ -8,6 +8,7 @@ choice
 		bool "ListenAI CSK6 SoC"
 		depends on SOC_SERIES_LS_CSK6
 		select HAS_CSK6
+		select PINCTRL
 
 endchoice
 

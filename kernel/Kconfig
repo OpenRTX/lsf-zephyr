@@ -110,7 +110,7 @@ config NUM_METAIRQ_PRIORITIES
 	  from application code.
 
 config SCHED_DEADLINE
-	bool "Enable earliest-deadline-first scheduling"
+	bool "Earliest-deadline-first scheduling"
 	help
 	  This enables a simple "earliest deadline first" scheduling
 	  mode where threads can set "deadline" deltas measured in
@@ -119,7 +119,7 @@ config SCHED_DEADLINE
 	  not simply the least recently added thread.
 
 config SCHED_CPU_MASK
-	bool "Enable CPU mask affinity/pinning API"
+	bool "CPU mask affinity/pinning API"
 	depends on SCHED_DUMB
 	help
 	  When true, the application will have access to the
@@ -135,6 +135,23 @@ config SCHED_CPU_MASK
 	  makes sense as an application API only where there is more than one
 	  CPU.  With one CPU, it's just a higher overhead version of
 	  k_thread_start/stop().
+
+config SCHED_CPU_MASK_PIN_ONLY
+	bool "CPU mask variant with single-CPU pinning only"
+	depends on SMP && SCHED_CPU_MASK
+	help
+	  When true, enables a variant of SCHED_CPU_MASK where only
+	  one CPU may be specified for every thread.  Effectively, all
+	  threads have a single "assigned" CPU and they will never be
+	  scheduled symmetrically.  In general this is not helpful,
+	  but some applications have a carefully designed threading
+	  architecture and want to make their own decisions about how
+	  to assign work to CPUs.  In that circumstance, some moderate
+	  optimizations can be made (e.g. having a separate run queue
+	  per CPU, keeping the list length shorter). When selected,
+	  the CPU mask becomes an immutable thread attribute. It can
+	  only be modified before a thread is started.  Most
+	  applications don't want this.
 
 config MAIN_STACK_SIZE
 	int "Size of stack for initialization and main thread"
@@ -187,8 +204,14 @@ config THREAD_USERSPACE_LOCAL_DATA
 	depends on USERSPACE
 	default y if ERRNO && !ERRNO_IN_TLS
 
+config LIBC_ERRNO
+	bool
+	help
+	  Use external libc errno, not the internal one. This eliminates any
+	  locally allocated errno storage and usage.
+
 config ERRNO
-	bool "Enable errno support"
+	bool "Errno support"
 	default y
 	help
 	  Enable per-thread errno in the kernel. Application and library code must
@@ -198,7 +221,7 @@ config ERRNO
 
 config ERRNO_IN_TLS
 	bool "Store errno in thread local storage (TLS)"
-	depends on ERRNO && THREAD_LOCAL_STORAGE
+	depends on ERRNO && THREAD_LOCAL_STORAGE && !LIBC_ERRNO
 	default y
 	help
 	  Use thread local storage to store errno instead of storing it in
@@ -348,12 +371,12 @@ config INSTRUMENT_THREAD_SWITCHING
 
 menuconfig THREAD_RUNTIME_STATS
 	bool "Thread runtime statistics"
-	select INSTRUMENT_THREAD_SWITCHING
 	help
 	  Gather thread runtime statistics.
 
 	  For example:
 	    - Thread total execution cycles
+	    - System total execution cycles
 
 if THREAD_RUNTIME_STATS
 
@@ -365,6 +388,39 @@ config THREAD_RUNTIME_STATS_USE_TIMING_FUNCTIONS
 
 	  Note that timing functions may use a different timer than
 	  the default timer for OS timekeeping.
+
+config SCHED_THREAD_USAGE
+	bool "Collect thread runtime usage"
+	default y
+	select INSTRUMENT_THREAD_SWITCHING if !USE_SWITCH
+	help
+	  Collect thread runtime info at context switch time
+
+config SCHED_THREAD_USAGE_ANALYSIS
+	bool "Analyze the collected thread runtime usage statistics"
+	default n
+	depends on SCHED_THREAD_USAGE
+	select INSTRUMENT_THREAD_SWITCHING if !USE_SWITCH
+	help
+	  Collect additional timing information related to thread scheduling
+	  for analysis purposes. This includes the total time that a thread
+	  has been scheduled, the longest time for which it was scheduled and
+	  others.
+
+config SCHED_THREAD_USAGE_ALL
+	bool "Collect total system runtime usage"
+	default y if SCHED_THREAD_USAGE
+	depends on SCHED_THREAD_USAGE
+	help
+	  Maintain a sum of all non-idle thread cycle usage.
+
+config SCHED_THREAD_USAGE_AUTO_ENABLE
+	bool "Automatically enable runtime usage statistics"
+	default y
+	depends on SCHED_THREAD_USAGE
+	help
+	  When set, this option automatically enables the gathering of both
+	  the thread and CPU usage statistics.
 
 endif # THREAD_RUNTIME_STATS
 
@@ -452,6 +508,14 @@ config TIMESLICE_PRIORITY
 	  takes effect; threads having a higher priority than this ceiling are
 	  not subject to time slicing.
 
+config TIMESLICE_PER_THREAD
+	bool "Support per-thread timeslice values"
+	depends on TIMESLICING
+	help
+	  When set, this enables an API for setting timeslice values on
+	  a per-thread basis, with an application callback invoked when
+	  a thread reaches the end of its timeslice.
+
 config POLL
 	bool "Async I/O Framework"
 	help
@@ -465,7 +529,7 @@ endmenu
 menu "Other Kernel Object Options"
 
 config MEM_SLAB_TRACE_MAX_UTILIZATION
-	bool "Enable getting maximum slab utilization"
+	bool "Getting maximum slab utilization"
 	help
 	  This adds variable to the k_mem_slab structure to hold
 	  maximum utilization of the slab.
@@ -481,16 +545,15 @@ config NUM_MBOX_ASYNC_MSGS
 	  Setting this option to 0 disables support for asynchronous
 	  mailbox messages.
 
-config NUM_PIPE_ASYNC_MSGS
-	int "Maximum number of in-flight asynchronous pipe messages"
-	default 10
+config EVENTS
+	bool "Event objects"
 	help
-	  This option specifies the total number of asynchronous pipe
-	  messages that can exist simultaneously, across all pipes in
-	  the system.
+	  This option enables event objects. Threads may wait on event
+	  objects for specific events, but both threads and ISRs may deliver
+	  events to event objects.
 
-	  Setting this option to 0 disables support for asynchronous
-	  pipe messages.
+	  Note that setting this option slightly increases the size of the
+	  thread structure.
 
 config EVENTS
 	bool "Enable event objects"
@@ -607,6 +670,17 @@ config TIMEOUT_64BIT
 	  availability of absolute timeout values (which require the
 	  extra precision).
 
+config SYS_CLOCK_MAX_TIMEOUT_DAYS
+	int "Max timeout (in days) used in conversions"
+	default 365
+	help
+	  Value is used in the time conversion static inline function to determine
+	  at compile time which algorithm to use. One algorithm is faster, takes
+	  less code but may overflow if multiplication of source and target
+	  frequency exceeds 64 bits. Second algorithm prevents that. Faster
+	  algorithm is selected for conversion if maximum timeout represented in
+	  source frequency domain multiplied by target frequency fits in 64 bits.
+
 config XIP
 	bool "Execute in place"
 	help
@@ -670,7 +744,7 @@ config STACK_CANARIES
 	  will occur at build time.
 
 config EXECUTE_XOR_WRITE
-	bool "Enable W^X for memory partitions"
+	bool "W^X for memory partitions"
 	depends on USERSPACE
 	depends on ARCH_HAS_EXECUTABLE_PAGE_BIT
 	default y
@@ -704,7 +778,7 @@ config STACK_POINTER_RANDOM
 	  grow towards lower memory addresses.
 
 config BOUNDS_CHECK_BYPASS_MITIGATION
-	bool "Enable bounds check bypass mitigations for speculative execution"
+	bool "Bounds check bypass mitigations for speculative execution"
 	depends on USERSPACE
 	help
 	  Untrusted parameters from user mode may be used in system calls to
@@ -767,6 +841,13 @@ config ARCH_MEM_DOMAIN_SYNCHRONOUS_API
 
 menu "SMP Options"
 
+config SMP
+	bool "Symmetric multiprocessing support"
+	depends on USE_SWITCH
+	help
+	  When true, kernel will be built with SMP support, allowing
+	  more than one CPU to schedule Zephyr tasks at a time.
+
 config USE_SWITCH
 	bool "Use new-style _arch_switch instead of arch_swap"
 	depends on USE_SWITCH_SUPPORTED
@@ -784,13 +865,6 @@ config USE_SWITCH_SUPPORTED
 	  Indicates whether _arch_switch() API is supported by the
 	  currently enabled platform. This option should be selected by
 	  platforms that implement it.
-
-config SMP
-	bool "Enable symmetric multithreading support"
-	depends on USE_SWITCH
-	help
-	  When true, kernel will be built with SMP support, allowing
-	  more than one CPU to schedule Zephyr tasks at a time.
 
 config SMP_BOOT_DELAY
 	bool "Delay booting secondary cores"
@@ -820,7 +894,7 @@ config SCHED_IPI_SUPPORTED
 	  future).
 
 config TRACE_SCHED_IPI
-	bool "Enable Test IPI"
+	bool "Test IPI"
 	help
 	  When true, it will add a hook into z_sched_ipi(), in order
 	  to check if schedule IPI has called or not, for testing
@@ -871,3 +945,15 @@ config THREAD_LOCAL_STORAGE
 	  This option enables thread local storage (TLS) support in kernel.
 
 endmenu
+
+menu "Device Options"
+
+config HAS_DYNAMIC_DEVICE_HANDLES
+	bool
+	help
+	  Hidden option that makes possible to manipulate device handles at
+	  runtime.
+
+endmenu
+
+rsource "Kconfig.vm"

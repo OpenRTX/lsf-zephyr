@@ -4,22 +4,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(net_ieee802154, CONFIG_NET_L2_IEEE802154_LOG_LEVEL);
 
-#include <net/net_core.h>
-#include <net/net_l2.h>
-#include <net/net_if.h>
-#include <net/capture.h>
-
-#include "ipv6.h"
+#include <zephyr/net/net_core.h>
+#include <zephyr/net/net_l2.h>
+#include <zephyr/net/net_if.h>
+#include <zephyr/net/capture.h>
 
 #include <errno.h>
 
-#include "ieee802154_fragment.h"
+#ifdef CONFIG_NET_6LO
+#include <ipv6.h>
 #include <6lo.h>
+#include "ieee802154_6lo.h"
 
-#include <net/ieee802154_radio.h>
+#ifdef CONFIG_NET_L2_IEEE802154_FRAGMENT
+#include "ieee802154_fragment.h"
+#endif /* CONFIG_NET_L2_IEEE802154_FRAGMENT */
+#endif /* CONFIG_NET_6LO */
+
+#include <zephyr/net/ieee802154_radio.h>
 
 #include "ieee802154_frame.h"
 #include "ieee802154_mgmt_priv.h"
@@ -29,15 +34,7 @@ LOG_MODULE_REGISTER(net_ieee802154, CONFIG_NET_L2_IEEE802154_LOG_LEVEL);
 
 #define BUF_TIMEOUT K_MSEC(50)
 
-/* No need to hold space for the FCS */
-static uint8_t frame_buffer_data[IEEE802154_MTU - 2];
-
-static struct net_buf frame_buf = {
-	.data = frame_buffer_data,
-	.size = IEEE802154_MTU - 2,
-	.frags = NULL,
-	.__buf = frame_buffer_data,
-};
+NET_BUF_POOL_DEFINE(frame_buf_pool, 1, IEEE802154_MTU - 2, 8, NULL);
 
 #define PKT_TITLE      "IEEE 802.15.4 packet content:"
 #define TX_PKT_TITLE   "> " PKT_TITLE
@@ -153,7 +150,7 @@ static bool ieeee802154_check_dst_addr(struct net_if *iface,
 	if (mhr->fs->fc.dst_addr_mode == IEEE802154_ADDR_MODE_SHORT) {
 		/*
 		 * d.1. A short destination address is included in the frame,
-		 * and it matches either macShortAddress orthe broadcast
+		 * and it matches either macShortAddress or the broadcast
 		 * address.
 		 */
 		if (!(dst_plain->addr.short_addr == IEEE802154_BROADCAST_ADDRESS ||
@@ -178,50 +175,6 @@ static bool ieeee802154_check_dst_addr(struct net_if *iface,
 
 	return true;
 }
-
-#ifdef CONFIG_NET_6LO
-static inline
-enum net_verdict ieee802154_manage_recv_packet(struct net_if *iface,
-					       struct net_pkt *pkt,
-					       size_t hdr_len)
-{
-	enum net_verdict verdict = NET_CONTINUE;
-
-	/* Upper IP stack expects the link layer address to be in
-	 * big endian format so we must swap it here.
-	 */
-	if (net_pkt_lladdr_src(pkt)->addr &&
-	    net_pkt_lladdr_src(pkt)->len == IEEE802154_EXT_ADDR_LENGTH) {
-		sys_mem_swap(net_pkt_lladdr_src(pkt)->addr,
-			     net_pkt_lladdr_src(pkt)->len);
-	}
-
-	if (net_pkt_lladdr_dst(pkt)->addr &&
-	    net_pkt_lladdr_dst(pkt)->len == IEEE802154_EXT_ADDR_LENGTH) {
-		sys_mem_swap(net_pkt_lladdr_dst(pkt)->addr,
-			     net_pkt_lladdr_dst(pkt)->len);
-	}
-
-#ifdef CONFIG_NET_L2_IEEE802154_FRAGMENT
-	verdict = ieee802154_reassemble(pkt);
-	if (verdict != NET_CONTINUE) {
-		goto out;
-	}
-#else
-	if (!net_6lo_uncompress(pkt)) {
-		NET_DBG("Packet decompression failed");
-		verdict = NET_DROP;
-		goto out;
-	}
-#endif
-
-	pkt_hexdump(RX_PKT_TITLE, pkt, true);
-out:
-	return verdict;
-}
-#else /* CONFIG_NET_6LO */
-#define ieee802154_manage_recv_packet(...) NET_CONTINUE
-#endif /* CONFIG_NET_6LO */
 
 static enum net_verdict ieee802154_recv(struct net_if *iface,
 					struct net_pkt *pkt)
@@ -278,78 +231,80 @@ static enum net_verdict ieee802154_recv(struct net_if *iface,
 	hdr_len = (uint8_t *)mpdu.payload - net_pkt_data(pkt);
 	net_buf_pull(pkt->buffer, hdr_len);
 
-	return ieee802154_manage_recv_packet(iface, pkt, hdr_len);
+#ifdef CONFIG_NET_6LO
+	enum net_verdict verdict = ieee802154_6lo_decode_pkt(iface, pkt);
 
+	pkt_hexdump(RX_PKT_TITLE, pkt, true);
+	return verdict;
+#else
+	return NET_CONTINUE;
+#endif /* CONFIG_NET_6LO */
 }
 
 static int ieee802154_send(struct net_if *iface, struct net_pkt *pkt)
 {
-	struct ieee802154_context *ctx = net_if_l2_data(iface);
+	static struct net_buf *frame_buf;
+	if (frame_buf == NULL) {
+		frame_buf = net_buf_alloc(&frame_buf_pool, K_FOREVER);
+	}
+
+	struct net_linkaddr *ll_addr_dst = net_pkt_lladdr_dst(pkt);
+	uint8_t ll_hdr_len = ieee802154_compute_header_and_authtag_size(iface, ll_addr_dst);
+
+#ifdef CONFIG_NET_6LO
+#ifdef CONFIG_NET_L2_IEEE802154_FRAGMENT
 	struct ieee802154_fragment_ctx f_ctx;
-	struct net_buf *buf;
-	uint8_t ll_hdr_size;
-	bool fragment;
-	int len;
-
-	if (net_pkt_family(pkt) != AF_INET6) {
-		return -EINVAL;
-	}
-
-	ll_hdr_size = ieee802154_compute_header_size(iface,
-						     &NET_IPV6_HDR(pkt)->dst);
-
-	/* len will hold the hdr size difference on success */
-	len = net_6lo_compress(pkt, true);
-	if (len < 0) {
-		return len;
-	}
+	bool requires_fragmentation =
+		ieee802154_6lo_encode_pkt(iface, pkt, &f_ctx, ll_hdr_len);
+#else
+	ieee802154_6lo_encode_pkt(iface, pkt, NULL, ll_hdr_len);
+#endif /* CONFIG_NET_L2_IEEE802154_FRAGMENT */
+#endif /* CONFIG_NET_6LO */
 
 	net_capture_pkt(iface, pkt);
 
-	fragment = ieee802154_fragment_is_needed(pkt, ll_hdr_size);
-	ieee802154_fragment_ctx_init(&f_ctx, pkt, len, true);
-
-	len = 0;
-	frame_buf.len = 0U;
-	buf = pkt->buffer;
-
+	int len = 0;
+	struct ieee802154_context *ctx = net_if_l2_data(iface);
+	struct net_buf *buf = pkt->buffer;
 	while (buf) {
 		int ret;
 
-		net_buf_add(&frame_buf, ll_hdr_size);
+		/* Reinitializing frame_buf */
+		net_buf_reset(frame_buf);
+		net_buf_add(frame_buf, ll_hdr_len);
 
-		if (fragment) {
-			ieee802154_fragment(&f_ctx, &frame_buf, true);
-			buf = f_ctx.buf;
+#ifdef CONFIG_NET_L2_IEEE802154_FRAGMENT
+		if (requires_fragmentation) {
+			buf = ieee802154_fragment(&f_ctx, frame_buf, true);
 		} else {
-			memcpy(frame_buf.data + frame_buf.len,
-			       buf->data, buf->len);
-			net_buf_add(&frame_buf, buf->len);
+			net_buf_add_mem(frame_buf, buf->data, buf->len);
 			buf = buf->frags;
 		}
+#else
+		net_buf_add_mem(frame_buf, buf->data, buf->len);
+		buf = buf->frags;
+#endif /* CONFIG_NET_L2_IEEE802154_FRAGMENT */
 
-		if (!ieee802154_create_data_frame(ctx, net_pkt_lladdr_dst(pkt),
-						  &frame_buf, ll_hdr_size)) {
+		if (!ieee802154_create_data_frame(ctx, ll_addr_dst, frame_buf, ll_hdr_len)) {
 			return -EINVAL;
 		}
 
 		if (IS_ENABLED(CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA) &&
 		    ieee802154_get_hw_capabilities(iface) &
 		    IEEE802154_HW_CSMA) {
+			/* CSMA in hardware */
 			ret = ieee802154_tx(iface, IEEE802154_TX_MODE_CSMA_CA,
-					    pkt, &frame_buf);
+					    pkt, frame_buf);
 		} else {
-			ret = ieee802154_radio_send(iface, pkt, &frame_buf);
+			/* Media access (direct, CSMA, ALOHA, ...) in software */
+			ret = ieee802154_radio_send(iface, pkt, frame_buf);
 		}
 
 		if (ret) {
 			return ret;
 		}
 
-		len += frame_buf.len;
-
-		/* Reinitializing frame_buf */
-		frame_buf.len = 0U;
+		len += frame_buf->len;
 	}
 
 	net_pkt_unref(pkt);

@@ -83,6 +83,7 @@
 #define MBEDTLS_PK_PARSE_C
 #define MBEDTLS_RSA_C
 #define MBEDTLS_SHA1_C
+#define MBEDTLS_SHA224_C
 #define MBEDTLS_SHA256_C
 #define MBEDTLS_SSL_CLI_C
 #define MBEDTLS_SSL_SRV_C
@@ -97,6 +98,11 @@
 
 /* For testing with compat.sh */
 #define MBEDTLS_FS_IO
+
+/* CSK6 config file */
+#ifdef CONFIG_CSK_MBEDTLS_HARDWARE_AES
+#include CONFIG_CSK_MBEDTLS_CONFIG_FILE
+#endif
 
 #include "mbedtls/check_config.h"
 

@@ -8,3 +8,9 @@ config WDT_CSK6
 	default y
 	help
 	  Enable WDT driver for Microchip CSK MCU series.
+
+config WDT_CSK_SOURCE_NUM_PER_MS
+	int
+	default 32
+	help
+		Set the number of wdt register value per ms

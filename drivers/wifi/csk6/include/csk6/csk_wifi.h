@@ -12,7 +12,20 @@ extern "C" {
 #define CSK_WIFI_BSSID_LEN      17
 #define CSK_WIFI_PWD_LEN        64
 
+#define CSK_WIFI_STATUS_STA_CONNECTED       0
+#define CSK_WIFI_STATUS_STA_DISCONNECTED    2
+#define CSK_WIFI_STATUS_STA_UNKNOWN         3
+
 /* TODO: Add WIFI state machine transition diagram */
+
+/**
+ * @brief CSK WiFi mode
+ */
+typedef enum {
+    CSK_WIFI_MODE_STA,              /* WiFi Station */
+    CSK_WIFI_MODE_AP,               /* WiFi SoftAP */
+    CSK_WIFI_MODE_MAX,
+} csk_wifi_mode_t;
 
 /**
  * @brief CSK WiFi encryption mode
@@ -89,13 +102,16 @@ typedef enum {
  * @brief CSK WiFi events structure
  */
 typedef enum {
-    CSK_WIFI_EVT_STA_CONNECTED =        BIT(0),     /* WIFI-Station connected event bit */
-    CSK_WIFI_EVT_STA_DISCONNECTED =     BIT(1),     /* WIFI-Station disconnected event bit */
-    CSK_WIFI_EVT_AP_STARTED =           BIT(2),     /* WIFI-SoftAP stared event bit */
-    CSK_WIFI_EVT_AP_STOPPED =           BIT(3),     /* WIFI-SoftAP stopped event bit */
-    CSK_WIFI_EVT_AP_STACONNECTED =      BIT(4),     /* WIFI-SoftAP station connected event bit */
-    CSK_WIFI_EVT_AP_STADISCONNECTED =   BIT(5),     /* WIFI-SoftAP station disconnected event bit */
-    CSK_WIFI_EVT_SCAN_DONE =            BIT(6),     /* WIFI-SoftAP scan done event bit */
+    CSK_WIFI_EVT_STA_CONNECTED =            BIT(0),     /* WIFI-Station connected event bit */
+    CSK_WIFI_EVT_STA_DISCONNECTED =         BIT(1),     /* WIFI-Station disconnected event bit */
+    CSK_WIFI_EVT_AP_STARTED =               BIT(2),     /* WIFI-SoftAP stared event bit */
+    CSK_WIFI_EVT_AP_STOPPED =               BIT(3),     /* WIFI-SoftAP stopped event bit */
+    CSK_WIFI_EVT_AP_STACONNECTED =          BIT(4),     /* WIFI-SoftAP station connected event bit */
+    CSK_WIFI_EVT_AP_STADISCONNECTED =       BIT(5),     /* WIFI-SoftAP station disconnected event bit */
+    CSK_WIFI_EVT_SCAN_DONE =                BIT(6),     /* WIFI-SoftAP scan done event bit */
+    CSK_WIFI_EVT_STA_CONNECTING =           BIT(7),     /* WIFI-Station connecting event bit */
+    CSK_WIFI_EVT_STA_CONNECTION_FAILED =    BIT(8),     /* WIFI-Station connection failed event bit */
+    CSK_WIFI_EVT_SCAN_FAILED =              BIT(9),     /* WIFI-Station scan failed event bit */
 } csk_wifi_event_t;
 
 /**
@@ -238,7 +254,26 @@ int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *r
  * @retval -EIO(5) errno code if other wifi error reason occured
  */
 int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout);
+
+/**
+ * @brief get station status 
+ * 
+ * @return the WiFi station status. For example, CSK_WIFI_STATUS_STA_CONNECTED
+ */
+int csk_wifi_sta_get_status(void);
+
 #endif
+
+/**
+ * @brief Get WiFi MAC address
+ * 
+ * @param mode[in] WiFi mode 
+ * @param mac_addr[out] WiFi device MAC address
+ * @return 0 if successful, negative errno code on failure.
+ * @retval -EAGAIN(11) invalid state
+ * @retval -EINVAL(22) invalid wifi mode or mac_addr is null
+ */
+int csk_wifi_get_mac(csk_wifi_mode_t mode, uint8_t *mac_addr);
 
 #ifdef CONFIG_CSK_WIFI_SOFTAP
 /**

@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: hal_listenai
       remote: listenai
-      revision: 4cd11f470d3a09d1abea5d1002001611829e7ecd
+      revision: 85f7db566e930b099a827ea8abcfe445148dd0d5
       path: modules/hal/listenai
       groups:
         - hal
@@ -17,10 +17,16 @@ manifest:
       path: modules/hal/libmetal
       groups:
         - hal
+    - name: cmsis
+      url: https://cloud.listenai.com/zephyr-mirror/cmsis
+      revision: b0612c97c1401feeb4160add6462c3627fe90fc7
+      path: modules/hal/cmsis
+      groups:
+        - hal
     - name: sof
       submodules: true
       remote: listenai
-      revision: 1b3f42dbc2a0bb3232c150f535166cdef1fa6b7a
+      revision: aee6555baef4680fbed7f974957b1940f7123e27
       path: modules/audio/sof
     - name: protobuf-c
       remote: listenai
@@ -28,16 +34,20 @@ manifest:
       path: modules/lib/protobuf-c
     - name: esp-hosted
       remote: listenai
-      revision: 27e26f38ce1dc0f8f5433ff3581911a8b77275ab
+      revision: 541ad4fa6d236f722b658e1543c9a890215023e5
       path: modules/lib/esp-hosted
     - name: mcuboot
       remote: listenai
-      revision: 216a8d4eca4c305ea0e7abfbba1f985360b25b5b
+      revision: 800a13229206735951848c69de25094d23725471
       path: bootloader/mcuboot
-    - name: sof_host
+    - name: avf
       remote: listenai
-      revision: 4053418bd5ef4077765c4c6c70c850fcffdb228e
-      path: modules/lib/sof_host
+      revision: e16e867175049361b72e87e3980df8b8a48155cf
+      path: modules/lib/avf
+    - name: licak
+      remote: listenai
+      revision: 7dce682a21cdaab1a8ac32b88aec7f532f6595d2
+      path: modules/lib/licak
     - name: lisa_player
       remote: listenai
       revision: 0c05072250e56642a2354561fbc520ae3db479a6
@@ -48,21 +58,35 @@ manifest:
       path: modules/lib/listenai/zport_sal
     - name: zport_esp
       remote: listenai
-      revision: 5dd893c2554a79f4c40d28f60d6aef7871cca4a3
+      revision: 60e258e642acb303c1f210c0e8ab6e52845e0383
       path: modules/lib/listenai/zport_esp
     - name: wifi_manager
       remote: listenai
-      revision: db7d01b19b920253aee9de2833ded127f13bb541
+      revision: 3452e5ba40beb657d287ff5e86d39f18883568a1
       path: modules/lib/wifi_manager
     - name: xr819s
       remote: listenai
-      revision: 9a2aeaff2b5d5c9ae764b6df197506cf75712bb6
+      revision: cabeb9a91092028adf97d79de487b99cfa9a7d4b
       path: modules/lib/xr819s
+    - name: lvgl
+      remote: listenai
+      revision: 3d5d033b5d90ec2b9fd4985891f73b55a97ab0ea
+      path: modules/lib/gui/lvgl
+      groups:
+        - lvgl
+    - name: csk_sqlite3
+      remote: listenai
+      revision: 5537947a8cb2cc029ba59bf88dbdbc0c68e01dd4
+      path: modules/lib/csk_sqlite3
 
   self:
     import:
       file: west.yml
       name-blocklist:
-        - libmetal
+        - lvgl
         - sof
         - mcuboot
+        - nrf_hw_models
+        - loramac-node
+      path-blocklist:
+        - modules/hal/*

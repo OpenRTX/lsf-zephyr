@@ -9,18 +9,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <zephyr.h>
-#include <init.h>
-#include <drivers/gpio.h>
-#include <drivers/adc.h>
-#include <drivers/sensor.h>
-#include <logging/log.h>
+#include <zephyr/zephyr.h>
+#include <zephyr/init.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/adc.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/logging/log.h>
 
 #include "battery.h"
 
 LOG_MODULE_REGISTER(BATTERY, CONFIG_ADC_LOG_LEVEL);
 
 #define VBATT DT_PATH(vbatt)
+#define ZEPHYR_USER DT_PATH(zephyr_user)
 
 #ifdef CONFIG_BOARD_THINGY52_NRF52832
 /* This board uses a divider that reduces max voltage to
@@ -71,7 +72,7 @@ static const struct divider_config divider_config = {
 	.full_ohm = DT_PROP(VBATT, full_ohms),
 #else /* /vbatt exists */
 	.io_channel = {
-		DT_LABEL(DT_NODELABEL(adc)),
+		DT_IO_CHANNELS_INPUT(ZEPHYR_USER),
 	},
 #endif /* /vbatt exists */
 };
@@ -84,7 +85,11 @@ struct divider_data {
 	int16_t raw;
 };
 static struct divider_data divider_data = {
+#if DT_NODE_HAS_STATUS(VBATT, okay)
 	.adc = DEVICE_DT_GET(DT_IO_CHANNELS_CTLR(VBATT)),
+#else
+	.adc = DEVICE_DT_GET(DT_IO_CHANNELS_CTLR(ZEPHYR_USER)),
+#endif
 };
 
 static int divider_setup(void)

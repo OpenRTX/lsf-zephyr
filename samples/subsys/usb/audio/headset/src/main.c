@@ -32,9 +32,7 @@ static void data_received(const struct device *dev,
 	/* Check if the device OUT buffer can be used for input */
 	if (size == usb_audio_get_in_frame_size(dev)) {
 		ret = usb_audio_send(dev, buffer, size);
-		if (ret) {
-			net_buf_unref(buffer);
-		}
+		net_buf_unref(buffer);
 	} else {
 		net_buf_unref(buffer);
 	}
@@ -47,6 +45,10 @@ static void feature_update(const struct device *dev,
 		evt->cs, evt->channel);
 	switch (evt->cs) {
 	case USB_AUDIO_FU_MUTE_CONTROL:
+		break;
+	case USB_AUDIO_FU_VOLUME_CONTROL:
+		LOG_INF("[%s] volume: %d, val_len: %d", __FUNCTION__, *((int16_t *)(evt->val)), evt->val_len);
+		break;
 	default:
 		break;
 	}

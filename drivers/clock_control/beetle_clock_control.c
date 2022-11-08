@@ -15,9 +15,9 @@
  */
 
 #include <soc.h>
-#include <drivers/clock_control.h>
-#include <sys/util.h>
-#include <drivers/clock_control/arm_clock_control.h>
+#include <zephyr/drivers/clock_control.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/drivers/clock_control/arm_clock_control.h>
 
 #define MAINCLK_BASE_FREQ 24000000
 
@@ -247,5 +247,5 @@ DEVICE_DEFINE(clock_control_beetle, CONFIG_ARM_CLOCK_CONTROL_DEV_NAME,
 		    NULL,
 		    NULL, &beetle_cc_cfg,
 		    PRE_KERNEL_1,
-		    CONFIG_CLOCK_CONTROL_BEETLE_DEVICE_INIT_PRIORITY,
+		    CONFIG_CLOCK_CONTROL_INIT_PRIORITY,
 		    &beetle_clock_control_api);

@@ -7,7 +7,7 @@
 
 #define LOG_MODULE_NAME mesh_test
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 /* Max number of messages that can be pending on RX at the same time */
@@ -15,7 +15,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 const struct bt_mesh_test_cfg *cfg;
 
-static K_MEM_SLAB_DEFINE(msg_pool, sizeof(struct bt_mesh_test_msg),
+K_MEM_SLAB_DEFINE_STATIC(msg_pool, sizeof(struct bt_mesh_test_msg),
 			 RECV_QUEUE_SIZE, 4);
 static K_QUEUE_DEFINE(recv);
 struct bt_mesh_test_stats test_stats;
@@ -89,6 +89,7 @@ static int ra_rx(struct bt_mesh_model *mod, struct bt_mesh_msg_ctx *ctx,
 static const struct bt_mesh_model_op model_op[] = {
 	{ TEST_MSG_OP_1, 0, msg_rx },
 	{ TEST_MSG_OP_2, 0, ra_rx },
+	BT_MESH_MODEL_OP_END
 };
 
 int __weak test_model_pub_update(struct bt_mesh_model *mod)
@@ -296,14 +297,12 @@ int bt_mesh_test_recv(uint16_t len, uint16_t dst, k_timeout_t timeout)
 	}
 
 	if (len != msg->len) {
-		FAIL("Recv: Invalid message length (%u, expected %u)", msg->len,
-		     len);
+		LOG_ERR("Recv: Invalid message length (%u, expected %u)", msg->len, len);
 		return -EINVAL;
 	}
 
 	if (dst != BT_MESH_ADDR_UNASSIGNED && dst != msg->ctx.recv_dst) {
-		FAIL("Recv: Invalid dst 0x%04x, expected 0x%04x",
-		     msg->ctx.recv_dst, dst);
+		LOG_ERR("Recv: Invalid dst 0x%04x, expected 0x%04x", msg->ctx.recv_dst, dst);
 		return -EINVAL;
 	}
 
@@ -340,10 +339,22 @@ int bt_mesh_test_recv_clear(void)
 	return count;
 }
 
+struct sync_send_ctx {
+	struct k_sem sem;
+	int err;
+};
+
 static void tx_started(uint16_t dur, int err, void *data)
 {
+	struct sync_send_ctx *send_ctx = data;
+
 	if (err) {
-		FAIL("Couldn't start sending (err: %d)", err);
+		LOG_ERR("Couldn't start sending (err: %d)", err);
+
+		send_ctx->err = err;
+		k_sem_give(&send_ctx->sem);
+
+		return;
 	}
 
 	LOG_INF("Sending started");
@@ -351,15 +362,17 @@ static void tx_started(uint16_t dur, int err, void *data)
 
 static void tx_ended(int err, void *data)
 {
-	struct k_sem *sem = data;
+	struct sync_send_ctx *send_ctx = data;
+
+	send_ctx->err = err;
 
 	if (err) {
-		FAIL("Send failed (%d)", err);
+		LOG_ERR("Send failed (%d)", err);
+	} else {
+		LOG_INF("Sending ended");
 	}
 
-	LOG_INF("Sending ended");
-
-	k_sem_give(sem);
+	k_sem_give(&send_ctx->sem);
 }
 
 int bt_mesh_test_send_async(uint16_t addr, size_t len,
@@ -425,19 +438,23 @@ int bt_mesh_test_send(uint16_t addr, size_t len,
 		.end = tx_ended,
 	};
 	int64_t uptime = k_uptime_get();
-	struct k_sem sem;
+	struct sync_send_ctx send_ctx;
 	int err;
 
-	k_sem_init(&sem, 0, 1);
-	err = bt_mesh_test_send_async(addr, len, flags, &send_cb, &sem);
+	k_sem_init(&send_ctx.sem, 0, 1);
+	err = bt_mesh_test_send_async(addr, len, flags, &send_cb, &send_ctx);
 	if (err) {
 		return err;
 	}
 
-	err = k_sem_take(&sem, timeout);
+	err = k_sem_take(&send_ctx.sem, timeout);
 	if (err) {
 		LOG_ERR("Send timed out");
 		return err;
+	}
+
+	if (send_ctx.err) {
+		return send_ctx.err;
 	}
 
 	LOG_INF("Sending completed (%lld ms)", k_uptime_delta(&uptime));

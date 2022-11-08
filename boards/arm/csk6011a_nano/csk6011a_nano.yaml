@@ -1,0 +1,16 @@
+identifier: csk6011a_nano
+name: CSK
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+supported:
+  - gpio
+  - uart
+  - ipm
+  - usb_device
+  - pwm
+ram: 320
+flash: 16000

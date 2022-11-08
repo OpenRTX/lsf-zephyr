@@ -12,13 +12,15 @@
 #define DT_DRV_COMPAT zephyr_i2c_emul_controller
 
 #define LOG_LEVEL CONFIG_I2C_LOG_LEVEL
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(i2c_emul_ctlr);
 
-#include <device.h>
-#include <drivers/emul.h>
-#include <drivers/i2c.h>
-#include <drivers/i2c_emul.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/emul.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/drivers/i2c_emul.h>
+
+#include "i2c-priv.h"
 
 /** Working data for the device */
 struct i2c_emul_data {
@@ -26,14 +28,8 @@ struct i2c_emul_data {
 	sys_slist_t emuls;
 	/* I2C host configuration */
 	uint32_t config;
+	uint32_t bitrate;
 };
-
-uint32_t i2c_emul_get_config(const struct device *dev)
-{
-	struct i2c_emul_data *data = dev->data;
-
-	return data->config;
-}
 
 /**
  * Find an emulator by its I2C address
@@ -65,6 +61,15 @@ static int i2c_emul_configure(const struct device *dev, uint32_t dev_config)
 	struct i2c_emul_data *data = dev->data;
 
 	data->config = dev_config;
+
+	return 0;
+}
+
+static int i2c_emul_get_config(const struct device *dev, uint32_t *dev_config)
+{
+	struct i2c_emul_data *data = dev->data;
+
+	*dev_config = data->config;
 
 	return 0;
 }
@@ -108,6 +113,9 @@ static int i2c_emul_init(const struct device *dev)
 
 	rc = emul_init_for_bus_from_list(dev, list);
 
+	/* Set config to an uninitialized state */
+	data->config = (I2C_MODE_MASTER | i2c_map_dt_bitrate(data->bitrate));
+
 	return rc;
 }
 
@@ -127,6 +135,7 @@ int i2c_emul_register(const struct device *dev, const char *name,
 
 static struct i2c_driver_api i2c_emul_api = {
 	.configure = i2c_emul_configure,
+	.get_config = i2c_emul_get_config,
 	.transfer = i2c_emul_transfer,
 };
 
@@ -142,8 +151,10 @@ static struct i2c_driver_api i2c_emul_api = {
 		.children = emuls_##n, \
 		.num_children = ARRAY_SIZE(emuls_##n), \
 	}; \
-	static struct i2c_emul_data i2c_emul_data_##n; \
-	DEVICE_DT_INST_DEFINE(n, \
+	static struct i2c_emul_data i2c_emul_data_##n = { \
+		.bitrate = DT_INST_PROP(n, clock_frequency), \
+	}; \
+	I2C_DEVICE_DT_INST_DEFINE(n, \
 			    i2c_emul_init, \
 			    NULL, \
 			    &i2c_emul_data_##n, \

@@ -43,8 +43,9 @@ properties:
       description: PWM Peripheral Clock Prescaler.
 
     "#pwm-cells":
-      const: 2
+      const: 3
 
 pwm-cells:
   - channel
+  - period
   - flags

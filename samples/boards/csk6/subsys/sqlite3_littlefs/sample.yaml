@@ -1,0 +1,14 @@
+sample:
+  description: sqlite3_littefs sample, the simplest Zephyr
+    application
+  name: sqlite3_littefs
+tests:
+  sample.board.csk6.subsys.sqlite3_littefs:
+    tags: csk6
+    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6012_c3_nano 6011a_nano
+    harness: console
+    timeout: 20
+    harness_config:
+      type: multi_line
+      regex:
+        - "CSK sqlite3 test complete!"

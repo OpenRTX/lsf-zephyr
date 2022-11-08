@@ -1,6 +1,7 @@
 tests:
   drivers.pwm:
     tags: drivers pwm userspace
+    platform_exclude: csk6002_9s_nano csk6002_c3_nano csk6011a_nano csk6011a_9s_nano csk6011a_c3_nano csk6012_nano csk6012_9s_nano csk6012_c3_nano
     filter: dt_alias_exists("pwm-0") or
             dt_alias_exists("pwm-1") or
             dt_alias_exists("pwm-2") or

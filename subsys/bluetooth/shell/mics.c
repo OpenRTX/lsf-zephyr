@@ -8,9 +8,9 @@
  */
 
 #include <zephyr/types.h>
-#include <bluetooth/conn.h>
-#include <bluetooth/audio/mics.h>
-#include <shell/shell.h>
+#include <zephyr/bluetooth/conn.h>
+#include <zephyr/bluetooth/audio/mics.h>
+#include <zephyr/shell/shell.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -135,7 +135,7 @@ static int cmd_mics_param(const struct shell *sh, size_t argc, char **argv)
 		return result;
 	}
 
-	shell_print(sh, "MICS initialized", result);
+	shell_print(sh, "MICS initialized: %d", result);
 
 	result = bt_mics_included_get(NULL, &mics_included);
 	if (result != 0) {

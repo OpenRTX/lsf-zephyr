@@ -42,6 +42,10 @@ properties:
      - 24
      - 32
 # microphone channel configuration options
+  mic-device-type:
+    type: int
+    required: false
+    description: mic device type.
   mic-channel-l:
     type: boolean
     required: false
@@ -142,6 +146,10 @@ properties:
       Enable Loudness feature.
       Currently not supported.
 # headphones channel configuration options
+  hp-device-type:
+    type: int
+    required: false
+    description: headphone device type.
   hp-channel-l:
     type: boolean
     required: false
@@ -204,7 +212,6 @@ properties:
     required: false
     description: |
       Enable Volume feature.
-      Currently not supported.
   hp-feature-tone-control:
     type: boolean
     required: false

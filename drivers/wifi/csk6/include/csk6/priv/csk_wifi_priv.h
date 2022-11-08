@@ -24,6 +24,9 @@
 
 #include "csk6/csk_wifi.h"
 
+#define MAC_BYTES_LEN  6
+#define MAC_STRING_LEN 18
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -131,26 +134,14 @@ struct csk_wifi_data {
     struct net_if *netif;
     uint8_t mac_addr[6];
     union {
-#if CONFIG_ESP_HOSTED
-        esp_hosted_sta_config_t sta_config;
-        esp_hosted_softap_config_t ap_config;
-#else
         csk_wifi_sta_config_t sta_config;
         csk_wifi_softap_config_t ap_config;
-#endif
     };
-#ifdef CONFIG_ESP_HOSTED
-   hosted_event_callback_t hosted_event_cb;
-#else
     bool sta_is_connected;
+#ifdef CONFIG_CSK_WIFI_XR819S
     csk_wifi_result_t err;
 #endif
 };
-
-typedef enum {
-    CSK_WIFI_MODE_STA,
-    CSK_WIFI_MODE_MAX,
-} csk_wifi_mode_t;
 
 typedef enum {
     WIFI_CMD_INIT,
@@ -165,6 +156,11 @@ typedef enum {
 } wifi_cmd_t;
 
 typedef struct {
+    wifi_cmd_t cmd;
+    bool async_mode;
+} wifi_req_t;
+
+typedef struct {
     int result;
     void *arg;
 } wifi_ret_msg_t;
@@ -174,22 +170,49 @@ typedef struct {
     int count;
 } wifi_scan_list_t;
 
-#if CONFIG_ESP_HOSTED
-const struct device * wifi_get_dev(wifi_mode_t mode);
-#endif
-int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts);
+extern const char *WIFI_STA_SM_STRINGS[];
+
+const struct device * wifi_obj_get_dev(csk_wifi_mode_t mode);
+int wifi_send_command(const struct device *dev, wifi_cmd_t command, k_timeout_t timeouts, bool async_mode);
 int wifi_take_result(wifi_ret_msg_t *ret_msg, k_timeout_t timeout);
 
 void wifi_dispatch_callbacks(csk_wifi_event_t events, void *event_data, uint32_t event_data_len);
-#if CONFIG_ESP_HOSTED
-wifi_auth_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
-#else
-extern const char *WIFI_STA_SM_STRINGS[];
-const struct device * wifi_obj_get_dev(csk_wifi_mode_t mode);
 wifi_sta_state_machine_t wifi_obj_get_sm(void);
+#ifdef CONFIG_CSK_WIFI_XR819S
 csk_wifi_encryption_mode_t wifi_get_encryption_mode(csk_wifi_encryption_mode_t mode);
 const char *wlan_sm_str(wifi_sta_state_machine_t state);
 #endif
+
+static inline int convert_str_to_bytes(uint8_t *out, const char *s)
+{
+    int mac[MAC_BYTES_LEN] = {0};
+    int num_bytes = 0;
+
+    if (!s || (strlen(s) < (MAC_STRING_LEN - 1)))  {
+        return -1;
+    }
+    num_bytes =  sscanf(s, "%2x:%2x:%2x:%2x:%2x:%2x",
+                        &mac[0],&mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
+
+    if ((num_bytes < MAC_BYTES_LEN)  ||
+        (mac[0] > 0xFF) ||
+        (mac[1] > 0xFF) ||
+        (mac[2] > 0xFF) ||
+        (mac[3] > 0xFF) ||
+        (mac[4] > 0xFF) ||
+        (mac[5] > 0xFF)) {
+        return -1;
+    }
+
+    out[0] = mac[0]&0xff;
+    out[1] = mac[1]&0xff;
+    out[2] = mac[2]&0xff;
+    out[3] = mac[3]&0xff;
+    out[4] = mac[4]&0xff;
+    out[5] = mac[5]&0xff;
+
+    return 0;
+}
 
 #ifdef __cplusplus
 }
