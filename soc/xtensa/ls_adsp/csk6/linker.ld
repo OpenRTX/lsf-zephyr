@@ -1115,7 +1115,5 @@ SECTIONS
   {
     KEEP (*(.fw_metadata))
     . = ALIGN(_EXT_MAN_ALIGN_);
-  } >fw_metadata_seg :metadata_entries_phdr
-
-  /DISCARD/ : { *(.note.GNU-stack) }
+  } >fw_metadata_seg
 }
