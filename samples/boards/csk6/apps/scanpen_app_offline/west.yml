@@ -1,0 +1,20 @@
+manifest:
+  remotes:
+    - name: listenai
+      url-base: https://cloud.listenai.com/scanpen/csk6/sdk
+  projects:
+    - name: zephyr
+      remote: listenai
+      revision: 28948c137231ab44253a2e729aa4dbc6e8312f28
+      clone-depth: 1
+      path: zephyr
+      import: true
+    - name: lisa_hal_offline
+      remote: listenai
+      revision: 8da4e160b43e1f5b63ab4238217c529f7e375c9b
+      path: app/lisa_hal
+    - name: scanpen_lisa 
+      remote: listenai
+      revision: 846b871bfbc017d22d0a4b19ea70b61c978e8d3b
+      path: app/scanpen_lisa
+    

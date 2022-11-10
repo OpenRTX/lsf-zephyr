@@ -34,9 +34,6 @@ LOG_MODULE_REGISTER(flash_csk6, CONFIG_FLASH_LOG_LEVEL);
 	__set_PRIMASK(primask);
 #else
 
-#define FLASH_OPT_ENTER() \
-	uint32_t primask = __get_PRIMASK();\
-	__set_PRIMASK(1);
 
 #define FLASH_OPT_EXIT() \
 	__set_PRIMASK(primask);
@@ -47,7 +44,6 @@ typedef struct {
 	FLASH_DEV flash_dev;
 } csk6_flash_config_t;
 
-csk6_flash_config_t csk6_flash_config = { .flash_dev = {
 						  .base_addr = DT_INST_REG_ADDR(0),
 						  .d_width = 4,
 						  .sclk_div = 0xff, // 0xff: special div in chip,indicates that sclk frequency = SPI clock frequency

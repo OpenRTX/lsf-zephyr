@@ -1,0 +1,149 @@
+/*
+ * Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+/delete-node/ &storage_partition;
+
+/ {
+	chosen {
+		/*
+		 * shared memory reserved for the inter-processor communication
+		 */
+		zephyr,ipc_shm = &psram_share;
+		zephyr,ipc = &mailbox0;
+		zephyr,flash_sysfs_storage = &filesystem_part;
+		zephyr,flash_controller = &flash;
+		zephyr,uart-mcumgr = &uart0;
+		zephyr,psramap = &psram_ap;
+		/*
+		 *zephyr,code-partition = &slot0_partition;
+		 */
+		/*
+		 *zephyr,lisa_heap = &psram_region1;
+		 */
+	};
+
+	 aliases {
+		 avf-audio-pwr-amp = &pwr_amp;
+	 };
+
+
+	fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/lfs1";
+			partition = <&filesystem_part>;
+			automount ;
+			no-format;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
+	};
+
+	pwr_amp:audio_pwr_amp{
+		 compatible = "listenai,pwr-amp";
+		 enable-gpios = <&gpioa 0 1>;
+		 label = "audio_pwr_amp";	
+		 status = "okay";
+	 };
+
+};
+
+ 
+&flash0 {
+	reg = <0x18000000 DT_SIZE_M(32)>;
+	write-block-size = <4>;
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+        /* filesystem: 2.625MB */
+        filesystem_part: partition@260000 {
+					label = "filesystem";
+					reg = <0x260000 0x200000>;
+			};
+	};
+};
+
+&i2c0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>; 
+        pinctrl-names = "default";
+
+        bf30a2: bf30a2@6e {
+            compatible = "byd,bf30a2";
+            status = "okay";
+            label = "VIDEO";
+            reg = <0x6e>;
+            pd-gpios = <&gpioa 20 0>;
+            pwr-gpios = <&gpioa 5 0>;
+            product-id = <0x3b02>;
+            spi = <&spi1>;
+			xclk-gpios = <&gpioa 11 0>;
+        };
+};
+
+&gpt0 {
+	status = "okay";
+
+	pwm2: pwm2 {
+        clock-prescaler = <1>;
+        status = "okay";
+        pinctrl-0 = <&pinctrl_pwm2_default>; 
+        pinctrl-names = "default";
+    };
+};
+
+&spi0 {
+	    status = "okay";
+		    spi-max-frequency = <25000000>;
+};
+
+&spi1 {
+    status = "okay";
+    spi-max-frequency = <100000000>;
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>; 
+	pinctrl-names = "default";
+};
+
+
+&csk6012_9s_scanpen_pinctrl {
+
+                pinctrl_pwm2_default: pwm2_default{
+                    pinctrls = <&pinmuxb 6 11>;
+                };
+
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <&pinmuxb 2 8>;
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <&pinmuxb 3 8>;
+                };
+
+				pinctrl_spi1_sclk_default: spi1_sclk_default {
+                    pinctrls = < &pinmuxb 0 7 >;
+                };
+
+                pinctrl_spi1_mosi_default: spi1_mosi_default {
+                    pinctrls = < &pinmuxb 1 7 >;
+                };
+
+                pinctrl_spi1_miso_default: spi1_miso_default {
+                    pinctrls = < &pinmuxa 20 7 >;
+                };
+
+                pinctrl_spi1_cs_default: spi1_cs_default {
+                    pinctrls = < &pinmuxa 9 7 >;
+                };
+};
+
+&uart0 {
+	current-speed = <921600>;
+	status = "okay";
+};

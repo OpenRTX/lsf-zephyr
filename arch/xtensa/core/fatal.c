@@ -104,7 +104,7 @@ void z_xtensa_fatal_error(unsigned int reason, const z_arch_esf_t *esf)
 	z_fatal_error(reason, esf);
 }
 
-#if defined(CONFIG_XTENSA)
+#if defined(CONFIG_EXTERNAL_LIBC) && defined(CONFIG_XTENSA)
 __attribute__((__weak__)) void _exit(int return_code)
 #else
 void exit(int return_code)

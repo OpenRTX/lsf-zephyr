@@ -80,7 +80,24 @@ MEMORY
     {
     FLASH (rx) : ORIGIN = ROM_ADDR, LENGTH = ROM_SIZE
     SRAM  (wx) : ORIGIN = RAM_ADDR, LENGTH = RAM_SIZE
-    LINKER_DT_REGIONS()
+    /* TI CCFG Registers */
+    LINKER_DT_REGION_FROM_NODE(FLASH_CCFG, rwx, DT_NODELABEL(ti_ccfg_partition))
+    /* Data & Instruction Tightly Coupled Memory */
+    LINKER_DT_REGION_FROM_NODE(ITCM, rw, DT_CHOSEN(zephyr_itcm))
+    LINKER_DT_REGION_FROM_NODE(DTCM, rw, DT_CHOSEN(zephyr_dtcm))
+    /* STM32 Core Coupled Memory */
+    LINKER_DT_REGION_FROM_NODE(CCM, rw, DT_CHOSEN(zephyr_ccm))
+    /* STM32WB IPC RAM */
+    LINKER_DT_REGION_FROM_NODE(SRAM1, rw, DT_NODELABEL(sram1))
+    LINKER_DT_REGION_FROM_NODE(SRAM2, rw, DT_NODELABEL(sram2))
+    /* STM32 alternate RAM configurations */
+    LINKER_DT_REGION_FROM_NODE(SRAM3, rw, DT_NODELABEL(sram3))
+    LINKER_DT_REGION_FROM_NODE(SRAM4, rw, DT_NODELABEL(sram4))
+    LINKER_DT_REGION_FROM_NODE(SDRAM1, rw, DT_NODELABEL(sdram1))
+    LINKER_DT_REGION_FROM_NODE(SDRAM2, rw, DT_NODELABEL(sdram2))
+    LINKER_DT_REGION_FROM_NODE(BACKUP_SRAM, rw, DT_NODELABEL(backup_sram))
+	/* CSK6 PSRAM FOR AP PARTITION*/
+    LINKER_DT_REGION_FROM_NODE(PSRAMAP, rw, DT_NODELABEL(psram_ap))
     /* Used by and documented in include/linker/intlist.ld */
     IDT_LIST (wx) : ORIGIN = 0xFFFFF7FF, LENGTH = 2K
     }

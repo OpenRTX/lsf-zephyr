@@ -79,14 +79,18 @@
 #define BUILD_ASSERT(EXPR, MSG...)
 #endif
 
-#ifdef __cplusplus
-#define ZRESTRICT __restrict
-#else
-#define ZRESTRICT restrict
-#endif
+#include <toolchain/common.h>
 
-#include <zephyr/toolchain/common.h>
+#if defined(__ASSEMBLER__) && defined(CONFIG_EXTERNAL_LIBC) && defined(CONFIG_XTENSA)
+#ifndef __cplusplus
+#define bool   _Bool
+#define true   1
+#define false  0
+#endif /* __cplusplus */
+#define __bool_true_false_are_defined  1
+#else
 #include <stdbool.h>
+#endif /* defined(__ASSEMBLER__) && defined(CONFIG_EXTERNAL_LIBC) && defined(CONFIG_XTENSA) */
 
 #define ALIAS_OF(of) __attribute__((alias(#of)))
 

@@ -202,7 +202,8 @@ void z_arm_platform_init(void)
 
 	BootClock_Init();
 	outw(ABB_BASE, inw(ABB_BASE)); //write 0 to bit16
-
+	SCB_EnableICache();
+	SCB_EnableDCache();
 	/*TODO: will rewrite later*/
 	
 #if CONFIG_CSK6_PSRAM

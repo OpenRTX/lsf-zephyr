@@ -1,0 +1,10 @@
+identifier: csk6011b_s3_thzy
+name: CSK6 DSP
+type: mcu
+arch: xtensa
+toolchain:
+  - xcc
+testing:
+  only_tags:
+     - kernel
+     - sof

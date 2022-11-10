@@ -52,8 +52,15 @@ void __memmap_init(void)
 		uint32_t wlen;
 	} __copy_table_t;
 
+	typedef struct {
+		uint32_t *src;
+		uint32_t wlen;
+	} __bss_table_t;
+
 	extern const __copy_table_t __copy_table_start__;
 	extern const __copy_table_t __copy_table_end__;
+	extern const __bss_table_t __bss_table_start__;
+	extern const __bss_table_t __bss_table_end__;
 
 	for (__copy_table_t const *pTable = &__copy_table_start__; pTable < &__copy_table_end__;
 	     ++pTable) {
@@ -62,12 +69,36 @@ void __memmap_init(void)
 		}
 	}
 
+	for (__bss_table_t const *pTable = &__bss_table_start__; pTable < &__bss_table_end__;
+	     ++pTable) {
+		for (uint32_t i = 0u; i < pTable->wlen/4; ++i) {
+			pTable->src[i] = 0;
+		}
+	}
 }
 
-void xtensa_real_exit(int status){
+void xtensa_real_exit(int status)
+{
 	#include <xtensa/simcall.h>
 	register int a2 __asm__ ("a2") = SYS_exit;
 	register int a3 __asm__ ("a3") = status;
 	__asm__ volatile ("simcall"
 			  : : "a" (a2), "a" (a3));
 };
+
+bool ls_adsp_stack_ptr_is_sane(uint32_t sp)
+{
+	// return (ls_adsp_stack_ptr_in_psram(sp) || ls_adsp_stack_ptr_in_dram(sp));
+
+	// FIXME: TODO
+	return true;
+}
+
+bool ls_adsp_stack_ptr__executable(const void *p)
+{
+	// return (ls_adsp_stack_ptr_in_psram(sp) || ls_adsp_stack_ptr_in_dram(sp));
+
+	// FIXME: TODO
+	return true;
+}
+
