@@ -785,6 +785,9 @@ static int csk_uart_init(const struct device *dev)
 #ifdef CONFIG_UART_ASYNC_API
 	if (data->async_data.dma_tx.dma_dev != NULL || data->async_data.dma_rx.dma_dev != NULL) {
 		ctrl |= CSK_UART_Function_CONTROL_Dma;
+		DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
+		/* Set rx fifo to 1/4 full */
+		uart_reg->REG_FCR.bit.RCVR = 0x01;
 	} else {
 		ctrl |= CSK_UART_Function_CONTROL_Int;
 	}
@@ -795,12 +798,6 @@ static int csk_uart_init(const struct device *dev)
 	UART_Control(uart_driver_ctx, ctrl, baud_rate);
 	UART_Control(uart_driver_ctx, CSK_UART_CONTROL_TX, 1);
 	UART_Control(uart_driver_ctx, CSK_UART_CONTROL_RX, 1);
-
-#ifdef CONFIG_UART_ASYNC_API
-	DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
-	/* Set rx fifo to 1/4 full */
-	uart_reg->REG_FCR.bit.RCVR = 0x01;
-#endif
 
 #if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
 	config->irq_config_func(dev);
