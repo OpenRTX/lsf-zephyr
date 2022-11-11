@@ -54,6 +54,7 @@ typedef struct csk_uart_async_data {
 	const struct device *dev;
 	uint8_t *rx_next_buf;
 	uint32_t rx_next_len;
+	uint32_t rx_next_recv_len;
 	uint32_t rx_timeout;
 } csk_uart_async_data_t;
 
@@ -210,6 +211,62 @@ static inline void csk_uart_async_rx_stopped(csk_uart_async_data_t *async_data, 
 	csk_uart_async_notify_user(async_data, &evt);
 }
 
+static inline void csk_uart_async_update_rx_datas(csk_uart_async_data_t *async_data,
+					   DW_UART_RegDef *uart_reg)
+{
+	uint32_t dma_recv_size = dma_channel_get_count(async_data->dma_rx.channel);
+
+	uint32_t dma_recv_new_size = dma_recv_size - async_data->dma_rx.xfer_info.dma_last_recv_len;
+	uint8_t rx_fifo_left_count = 0;
+	uint8_t *rx_buf =
+		async_data->dma_rx.xfer_info.buf + async_data->dma_rx.xfer_info.received_len;
+
+	rx_buf += dma_recv_size;
+	async_data->dma_rx.xfer_info.dma_last_recv_len = dma_recv_size;
+
+	async_data->dma_rx.xfer_info.received_len += dma_recv_new_size;
+
+	int32_t left_len =
+		async_data->dma_rx.xfer_info.expe_len - async_data->dma_rx.xfer_info.received_len;
+
+	uint8_t *next_rx_buf = async_data->rx_next_buf;
+	uint32_t next_rx_expe_len = async_data->rx_next_len;
+	uint8_t next_rx_recv_len = 0;
+
+	/* Read all datas from rx fifo to clear rx timeout interrupt */
+	while ((uart_reg->REG_LSR.all & UARTC_LSR_RDR) &&
+	       (rx_fifo_left_count < (CSK_UART_ASYNC_FIFO_TRIGGER_SIZE - 1))) {
+		char ch = (uint8_t)(uart_reg->REG_RBR.all & 0xFF);
+		if (rx_fifo_left_count < left_len) {
+			/* copy data to current buffer */
+			*rx_buf++ = ch;
+		} else {
+			/* is next rx buffer valid? */
+			if (next_rx_buf) {
+				if (next_rx_recv_len < next_rx_expe_len) {
+					/* copy data to next buffer */
+					*next_rx_buf++ = ch;
+					next_rx_recv_len++;
+				} else {
+					/* next buffer receive complete, drop it */
+				}
+			} else {
+				/* no buffer to rx data, drop it */
+			}
+		}
+		rx_fifo_left_count++;
+	}
+
+	async_data->rx_next_recv_len = next_rx_recv_len;
+
+	async_data->dma_rx.xfer_info.len =
+		((rx_fifo_left_count < left_len) ? rx_fifo_left_count : left_len) + dma_recv_new_size;
+
+	async_data->dma_rx.xfer_info.offset = async_data->dma_rx.xfer_info.received_len - dma_recv_new_size;
+
+	async_data->dma_rx.xfer_info.received_len += ((rx_fifo_left_count < left_len) ? rx_fifo_left_count : left_len);
+}
+
 static void csk_uart_dma_tx_callback(const struct device *dev, void *user_data, uint32_t channel, int status)
 {
 	const struct device *uart_dev = (const struct device *)user_data;
@@ -228,40 +285,63 @@ static void csk_uart_dma_tx_callback(const struct device *dev, void *user_data, 
 static void csk_uart_dma_rx_complete(csk_uart_async_data_t *async_data)
 {
 	csk_uart_async_evt_rx_rdy(async_data, &async_data->dma_rx.xfer_info);
+	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
 
 	if ((async_data->rx_next_buf != NULL) && (async_data->rx_next_len > 0)) {
 		const struct device *uart_dev = (const struct device *)async_data->dev;
 		const struct csk_uart_config *const cfg = uart_dev->config;
 		DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)cfg->reg_addr;
 
-		/* enable rx timeout */
-		uart_reg->REG_IER.bit.ECHT = 0x1;
+		if (async_data->rx_next_recv_len) {
+			struct uart_event evt = {
+				.type = UART_RX_RDY,
+				.data.rx.buf = async_data->rx_next_buf,
+				.data.rx.len = async_data->rx_next_recv_len,
+				.data.rx.offset = 0,
+			};
+			/* callback next buffer received datas */
+			csk_uart_async_notify_user(async_data, &evt);
+		}
 
-		dma_reload(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
-			   (uint32_t)&uart_reg->REG_RBR.all, (uint32_t)async_data->rx_next_buf,
-			   async_data->rx_next_len >= CSK_UART_ASYNC_FIFO_TRIGGER_SIZE
-				   ? async_data->rx_next_len -
-					     (CSK_UART_ASYNC_FIFO_TRIGGER_SIZE - 1)
-				   : 1);
-		dma_start(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+		if (async_data->rx_next_recv_len == async_data->rx_next_len) {
+			/* next buffer rx complete */
+			struct uart_event evt = {0};
 
-		async_data->dma_rx.xfer_info.buf = async_data->rx_next_buf;
-		async_data->dma_rx.xfer_info.expe_len = async_data->rx_next_len;
-		async_data->dma_rx.xfer_info.len = 0;
-		async_data->dma_rx.xfer_info.offset = 0;
-		async_data->dma_rx.xfer_info.received_len = 0;
-		async_data->dma_rx.xfer_info.dma_last_recv_len = 0;
+			evt.type = UART_RX_BUF_RELEASED;
+			evt.data.rx.buf = async_data->rx_next_buf;
+			csk_uart_async_notify_user(async_data, &evt);
+		} else {
+			uint8_t *rx_buf = async_data->rx_next_buf + async_data->rx_next_recv_len;
+			uint32_t rx_len = async_data->rx_next_len - async_data->rx_next_recv_len;
+
+			/* enable rx timeout */
+			uart_reg->REG_IER.bit.ECHT = 0x1;
+
+			dma_reload(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
+				   (uint32_t)&uart_reg->REG_RBR.all, (uint32_t)rx_buf,
+				   rx_len >= CSK_UART_ASYNC_FIFO_TRIGGER_SIZE
+					   ? rx_len - (CSK_UART_ASYNC_FIFO_TRIGGER_SIZE - 1)
+					   : 1);
+			dma_start(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+
+			async_data->dma_rx.xfer_info.buf = async_data->rx_next_buf;
+			async_data->dma_rx.xfer_info.expe_len = async_data->rx_next_len;
+			async_data->dma_rx.xfer_info.len = 0;
+			async_data->dma_rx.xfer_info.offset = async_data->rx_next_recv_len;
+			async_data->dma_rx.xfer_info.received_len = async_data->rx_next_recv_len;
+			async_data->dma_rx.xfer_info.dma_last_recv_len = 0;
+		}
 
 		async_data->rx_next_buf = NULL;
 		async_data->rx_next_len = 0;
+		async_data->rx_next_recv_len = 0;
 
 		/* request next buffer again */
 		csk_uart_async_evt_rx_buf_request(async_data);
-	} else {
+	}
+	else {
 		csk_uart_async_evt_rx_disabled(async_data);
 	}
-
-	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
 }
 
 static void csk_uart_dma_rx_callback(const struct device *dev, void *user_data, uint32_t channel, int status)
@@ -277,26 +357,8 @@ static void csk_uart_dma_rx_callback(const struct device *dev, void *user_data, 
 	uart_reg->REG_IER.bit.ECHT = 0x0;
 
 	if (status == 0) {
-		uint32_t dma_recv_size = dma_channel_get_count(async_data->dma_rx.channel);
-		uint8_t rx_fifo_left_count = 0;
-		uint8_t *rx_buf = async_data->dma_rx.xfer_info.buf +
-				  async_data->dma_rx.xfer_info.received_len;
-
-		rx_buf += dma_recv_size;
-
-		/* Read all datas from rx fifo to clear rx timeout interrupt */
-		while ((uart_reg->REG_LSR.all & UARTC_LSR_RDR) &&
-		       (rx_fifo_left_count < (CSK_UART_ASYNC_FIFO_TRIGGER_SIZE - 1))) {
-			*rx_buf++ = (uint8_t)(uart_reg->REG_RBR.all & 0xFF);
-			rx_fifo_left_count++;
-		}
-
-		uint32_t tmp = async_data->dma_rx.xfer_info.len;
-		async_data->dma_rx.xfer_info.len =
-			async_data->dma_rx.xfer_info.expe_len -
-			(async_data->dma_rx.xfer_info.offset + async_data->dma_rx.xfer_info.len);
-		async_data->dma_rx.xfer_info.offset += tmp;
-
+		dma_stop(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+		csk_uart_async_update_rx_datas(async_data, uart_reg);
 		csk_uart_dma_rx_complete(async_data);
 	} else {
 	}
@@ -383,9 +445,6 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 
 	async_data->rx_timeout = timeout;
 
-	/* enable rx timeout interrupt */
-	uart_reg->REG_IER.bit.ECHT = 0x1;
-
 	block_config.source_address = (uint32_t)&uart_reg->REG_RBR.all;
 	block_config.dest_address = (uint32_t)buf;
 	block_config.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT;
@@ -398,12 +457,39 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 	/* other default config has been configed, see macro @__CSK_UART_DMA_CONFIG_GET */
 	async_data->dma_rx.config.head_block = &block_config;
 
+	memset(&async_data->dma_rx.xfer_info, 0, sizeof(csk_uart_dma_xfer_info_t));
+
 	async_data->dma_rx.xfer_info.buf = buf;
-	async_data->dma_rx.xfer_info.len = 0;
 	async_data->dma_rx.xfer_info.expe_len = len;
-	async_data->dma_rx.xfer_info.offset = 0;
-	async_data->dma_rx.xfer_info.received_len = 0;
-	async_data->dma_rx.xfer_info.dma_last_recv_len = 0;
+
+	uart_reg->REG_IER.bit.ECHT = 0x0;
+
+	/* clear rx fifo */
+	uint8_t rx_fifo_left_count = 0;
+	char ch;
+	while ((uart_reg->REG_LSR.all & UARTC_LSR_RDR)) {
+		ch = (uint8_t)(uart_reg->REG_RBR.all & 0xFF);
+		rx_fifo_left_count++;
+	}
+	ARG_UNUSED(ch);
+
+	/* enable rx timeout interrupt */
+	uart_reg->REG_IER.bit.ECHT = 0x1;
+
+	/* reset rx fifo */
+	uart_reg->REG_FCR.bit.RFIFOR = 0x1;
+
+	/** 
+	 * It seems that RCVR has been cleared after set RFIFOR.
+	 * SO set it again at here.
+	 * Set rx fifo to 1/4 full.
+	 * set dma mode.
+	 */
+	uart_reg->REG_FCR.bit.DMAM = 0x1;
+	uart_reg->REG_FCR.bit.RCVR = 0x01;
+
+	/* let the register configuration take effect */
+	__asm__ __volatile__("" : : : "memory");
 
 	err = dma_config(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
 			 &async_data->dma_rx.config);
@@ -459,27 +545,14 @@ int csk_uart_async_rx_disable(const struct device *dev)
 	struct csk_uart_data *data = DEV_DATA(dev);
 	csk_uart_async_data_t *async_data = &data->async_data;
 
+	/* Disable rx timeout */
+	uart_reg->REG_IER.bit.ECHT = 0x0;
+
+	uint32_t received_len = async_data->dma_rx.xfer_info.received_len;
 	dma_stop(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+	csk_uart_async_update_rx_datas(async_data, uart_reg);
 
-	uint32_t dma_recv_size = dma_channel_get_count(async_data->dma_rx.channel);
-	uint32_t dma_recv_new_size = dma_recv_size - async_data->dma_rx.xfer_info.dma_last_recv_len;
-	uint8_t rx_fifo_left_count = 0;
-	uint8_t *rx_buf =
-		async_data->dma_rx.xfer_info.buf + async_data->dma_rx.xfer_info.received_len;
-
-	rx_buf += dma_recv_size;
-	async_data->dma_rx.xfer_info.dma_last_recv_len = dma_recv_size;
-
-	/* Read all datas from rx fifo to clear rx timeout interrupt */
-	while ((uart_reg->REG_LSR.all & UARTC_LSR_RDR) &&
-	       (rx_fifo_left_count < (CSK_UART_ASYNC_FIFO_TRIGGER_SIZE - 1))) {
-		*rx_buf++ = (uint8_t)(uart_reg->REG_RBR.all & 0xFF);
-		rx_fifo_left_count++;
-	}
-
-	if (rx_fifo_left_count + dma_recv_new_size > 0) {
-		async_data->dma_rx.xfer_info.len = rx_fifo_left_count + dma_recv_new_size;
-		async_data->dma_rx.xfer_info.offset = async_data->dma_rx.xfer_info.received_len;
+	if (async_data->dma_rx.xfer_info.received_len != received_len) {
 		csk_uart_async_evt_rx_rdy(async_data, &async_data->dma_rx.xfer_info);
 	}
 
@@ -497,6 +570,10 @@ void csk_uart_async_rx_dwork_callback(struct k_work *work)
 
 	if (async_data->dma_rx.xfer_info.received_len == async_data->dma_rx.xfer_info.expe_len) {
 		dma_stop(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+		const struct csk_uart_config *config = DEV_CFG(async_data->dev);
+		DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
+		/* Disable rx timeout */
+		uart_reg->REG_IER.bit.ECHT = 0x0;
 		csk_uart_dma_rx_complete(async_data);
 	} else {
 #if !defined(CONFIG_SOC_LS_ADSP_CSK6) && defined(CONFIG_CSK6_DCACHE)
@@ -697,37 +774,19 @@ static void csk_uart_isr(const struct device *dev)
 	uint8_t iid = uart_reg->REG_IIR.all;
 
 	if (iid & UARTC_IIR_RTO) {
+		/* rx timeout */
 		csk_uart_async_data_t *async_data = &data->async_data;
-		uint32_t dma_recv_size = dma_channel_get_count(async_data->dma_rx.channel);
-		uint32_t dma_recv_new_size =
-			dma_recv_size - async_data->dma_rx.xfer_info.dma_last_recv_len;
-		uint8_t rx_fifo_left_count = 0;
-		uint8_t *rx_buf = async_data->dma_rx.xfer_info.buf +
-				  async_data->dma_rx.xfer_info.received_len;
-
-		rx_buf += dma_recv_size;
-		async_data->dma_rx.xfer_info.dma_last_recv_len = dma_recv_size;
 
 		dma_stop(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+		csk_uart_async_update_rx_datas(async_data, uart_reg);
 
-		/* Read all datas from rx fifo to clear rx timeout interrupt */
-		while ((uart_reg->REG_LSR.all & UARTC_LSR_RDR) &&
-		       (rx_fifo_left_count < (CSK_UART_ASYNC_FIFO_TRIGGER_SIZE - 1))) {
-			*rx_buf++ = (uint8_t)(uart_reg->REG_RBR.all & 0xFF);
-			rx_fifo_left_count++;
-		}
-
-		async_data->dma_rx.xfer_info.len = rx_fifo_left_count + dma_recv_new_size;
-		async_data->dma_rx.xfer_info.offset = async_data->dma_rx.xfer_info.received_len;
-
-		async_data->dma_rx.xfer_info.received_len += rx_fifo_left_count + dma_recv_new_size;
-
-		uint32_t left_len = async_data->dma_rx.xfer_info.expe_len -
-				    async_data->dma_rx.xfer_info.received_len;
+		int32_t left_len = async_data->dma_rx.xfer_info.expe_len -
+				   async_data->dma_rx.xfer_info.received_len;
 
 		if (left_len > 0) {
 			async_data->dma_rx.xfer_info.dma_last_recv_len = 0;
-
+			uint8_t *rx_buf = async_data->dma_rx.xfer_info.buf +
+					  async_data->dma_rx.xfer_info.received_len;
 			dma_reload(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
 				   (uint32_t)&uart_reg->REG_RBR.all, (uint32_t)rx_buf,
 				   left_len >= CSK_UART_ASYNC_FIFO_TRIGGER_SIZE
@@ -796,12 +855,6 @@ static int csk_uart_init(const struct device *dev)
 	UART_Control(uart_driver_ctx, CSK_UART_CONTROL_TX, 1);
 	UART_Control(uart_driver_ctx, CSK_UART_CONTROL_RX, 1);
 
-#ifdef CONFIG_UART_ASYNC_API
-	DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
-	/* Set rx fifo to 1/4 full */
-	uart_reg->REG_FCR.bit.RCVR = 0x01;
-#endif
-
 #if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
 	config->irq_config_func(dev);
 #endif
@@ -809,6 +862,13 @@ static int csk_uart_init(const struct device *dev)
 	/* restore interrupt state */
 	irq_unlock(old_level);
 
+#ifdef CONFIG_UART_ASYNC_API
+	if (data->async_data.dma_tx.dma_dev != NULL || data->async_data.dma_rx.dma_dev != NULL) {
+		DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
+		/* Set rx fifo to 1/4 full */
+		uart_reg->REG_FCR.bit.RCVR = 0x01;
+	}
+#endif
 	return 0;
 }
 
