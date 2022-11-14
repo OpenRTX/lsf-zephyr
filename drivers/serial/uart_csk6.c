@@ -774,33 +774,38 @@ static void csk_uart_isr(const struct device *dev)
 	uint8_t iid = uart_reg->REG_IIR.all;
 
 	if (iid & UARTC_IIR_RTO) {
-		/* rx timeout */
-		csk_uart_async_data_t *async_data = &data->async_data;
+		if (data->async_data.dma_tx.dma_dev != NULL ||
+		    data->async_data.dma_rx.dma_dev != NULL) {
+			/* rx timeout */
+			csk_uart_async_data_t *async_data = &data->async_data;
 
-		dma_stop(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
-		csk_uart_async_update_rx_datas(async_data, uart_reg);
+			dma_stop(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+			csk_uart_async_update_rx_datas(async_data, uart_reg);
 
-		int32_t left_len = async_data->dma_rx.xfer_info.expe_len -
-				   async_data->dma_rx.xfer_info.received_len;
+			int32_t left_len = async_data->dma_rx.xfer_info.expe_len -
+					   async_data->dma_rx.xfer_info.received_len;
 
-		if (left_len > 0) {
-			async_data->dma_rx.xfer_info.dma_last_recv_len = 0;
-			uint8_t *rx_buf = async_data->dma_rx.xfer_info.buf +
-					  async_data->dma_rx.xfer_info.received_len;
-			dma_reload(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
-				   (uint32_t)&uart_reg->REG_RBR.all, (uint32_t)rx_buf,
-				   left_len >= CSK_UART_ASYNC_FIFO_TRIGGER_SIZE
-					   ? left_len - (CSK_UART_ASYNC_FIFO_TRIGGER_SIZE - 1)
-					   : 1);
+			if (left_len > 0) {
+				async_data->dma_rx.xfer_info.dma_last_recv_len = 0;
+				uint8_t *rx_buf = async_data->dma_rx.xfer_info.buf +
+						  async_data->dma_rx.xfer_info.received_len;
+				dma_reload(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
+					   (uint32_t)&uart_reg->REG_RBR.all, (uint32_t)rx_buf,
+					   left_len >= CSK_UART_ASYNC_FIFO_TRIGGER_SIZE
+						   ? left_len -
+							     (CSK_UART_ASYNC_FIFO_TRIGGER_SIZE - 1)
+						   : 1);
 
-			dma_start(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
-		}
+				dma_start(async_data->dma_rx.dma_dev, async_data->dma_rx.channel);
+			}
 
-		/* start dwork to notify user */
-		if ((async_data->rx_timeout != SYS_FOREVER_US) && (async_data->rx_timeout != 0)) {
-			/* return value 1 to indicate successfully scheduled. */
-			k_work_reschedule(&async_data->dma_rx.dwork,
-					  K_USEC(async_data->rx_timeout));
+			/* start dwork to notify user */
+			if ((async_data->rx_timeout != SYS_FOREVER_US) &&
+			    (async_data->rx_timeout != 0)) {
+				/* return value 1 to indicate successfully scheduled. */
+				k_work_reschedule(&async_data->dma_rx.dwork,
+						  K_USEC(async_data->rx_timeout));
+			}
 		}
 	}
 #endif
@@ -828,7 +833,7 @@ static int csk_uart_init(const struct device *dev)
 	UART_Initialize(uart_driver_ctx, NULL, NULL);
 	UART_PowerControl(uart_driver_ctx, CSK_POWER_FULL);
 
-	uint32_t ctrl = CSK_UART_MODE_ASYNCHRONOUS_TIMEOUT | CSK_UART_DATA_BITS_8 | CSK_UART_PARITY_NONE |
+	uint32_t ctrl = CSK_UART_DATA_BITS_8 | CSK_UART_PARITY_NONE |
 			CSK_UART_STOP_BITS_1 | CSK_UART_FLOW_CONTROL_NONE |
 			CSK_UART_GPIO_CONTROL_DEFAULT;
 
@@ -844,11 +849,14 @@ static int csk_uart_init(const struct device *dev)
 #ifdef CONFIG_UART_ASYNC_API
 	if (data->async_data.dma_tx.dma_dev != NULL || data->async_data.dma_rx.dma_dev != NULL) {
 		ctrl |= CSK_UART_Function_CONTROL_Dma;
+		ctrl |= CSK_UART_MODE_ASYNCHRONOUS_TIMEOUT;
 	} else {
 		ctrl |= CSK_UART_Function_CONTROL_Int;
+		ctrl |= CSK_UART_MODE_ASYNCHRONOUS;
 	}
 #else
 	ctrl |= CSK_UART_Function_CONTROL_Int;
+	ctrl |= CSK_UART_MODE_ASYNCHRONOUS;
 #endif
 
 	UART_Control(uart_driver_ctx, ctrl, baud_rate);
