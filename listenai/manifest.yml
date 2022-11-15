@@ -42,11 +42,11 @@ manifest:
       path: bootloader/mcuboot
     - name: avf
       remote: listenai
-      revision: e16e867175049361b72e87e3980df8b8a48155cf
+      revision: v1.0.0
       path: modules/lib/avf
     - name: licak
       remote: listenai
-      revision: 7dce682a21cdaab1a8ac32b88aec7f532f6595d2
+      revision: v1.1.1
       path: modules/lib/licak
     - name: lisa_player
       remote: listenai
