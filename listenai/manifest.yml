@@ -88,5 +88,17 @@ manifest:
         - mcuboot
         - nrf_hw_models
         - loramac-node
+        - canopennode
+        - civetweb
+        - chre
+        - liblc3codec
+        - nanopb
+        - openthread
+        - tflite-micro
+        - tinycbor
+        - zcbor
+        - zscilib
+        - tinycrypt
+        - mipi-sys-t
       path-blocklist:
         - modules/hal/*
