@@ -23,12 +23,12 @@
 #define IRAM_BASE	0x5FF00000
 #define IRAM_SIZE	0x2000
 /* FIXME: temp modify, Just to distinguish between mailbox addresses, will re-partition later  */
-#define SDRAM0_BASE	0x60000000 + ISR_VECTOR_SIZE
-#define SDRAM0_SIZE	0x500000 - ISR_VECTOR_SIZE
+#define SDRAM0_BASE	(CONFIG_RAM_BASE_ADDRESS + ISR_VECTOR_SIZE)
+#define SDRAM0_SIZE	(CONFIG_RAM_SIZE - ISR_VECTOR_SIZE)
 
 /* FIXME: temp modify, Just to distinguish between mailbox addresses, will re-partition later  */
-#define SDRAM1_BASE	0x60500000
-#define SDRAM1_SIZE	0x100000
+#define SDRAM1_BASE	CONFIG_SOF_HEAP_ADDRESS
+#define SDRAM1_SIZE	CONFIG_SOF_HEAP_SIZE
 
 /* The reset vector address in SRAM and its size */
 #define MEM_RESET_TEXT_SIZE			0x2e0
