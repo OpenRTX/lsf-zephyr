@@ -40,6 +40,7 @@ struct channel_info {
 	uint32_t direction;
 	uint32_t dst_addr;
 	uint32_t src_addr;
+	uint32_t source_data_size;
 	uint32_t xfer_count;
 	uint32_t reg_ctrl;
 	uint32_t reg_cfg_low;
@@ -135,6 +136,7 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		ch_info->dst_addr = config->head_block->dest_address;
 		ch_info->src_addr = config->head_block->source_address;
 		ch_info->xfer_count = config->head_block->block_size / config->source_data_size;
+		ch_info->source_data_size = config->source_data_size;
 
 		if (config->head_block->fifo_mode_control) {
 			/**
@@ -149,13 +151,6 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 		__ASSERT(config->head_block->block_size % config->dest_data_size == 0,
 			 "block size(%d) is not match data width(%d).",
 			 config->head_block->block_size, config->source_data_size);
-
-		if (ch_info->xfer_count > DMA_CH_MAX_BLOCK_XFER_SIZE) {
-			LOG_ERR("transfer size out of range. Max transfer size is %d in bytes at data with is %d.",
-				DMA_CH_MAX_BLOCK_XFER_SIZE * config->source_data_size,
-				config->source_data_size);
-			return -ENOTSUP;
-		}
 	}
 
 	if (config->dma_callback != NULL) {
@@ -287,7 +282,10 @@ static int csk_dma_reload(const struct device *dev, uint32_t channel, uint32_t s
 
 	ch_info->src_addr = src;
 	ch_info->dst_addr = dst;
-	ch_info->xfer_count = size;
+	ch_info->xfer_count = size / ch_info->source_data_size;
+
+	__ASSERT(size % ch_info->source_data_size == 0, "src size(%d) is not match data width(%d).",
+		 size, ch_info->source_data_size);
 
 	return 0;
 }
