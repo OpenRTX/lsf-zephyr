@@ -5,7 +5,7 @@
 
 #include <zephyr.h>
 #include <avf/framework/avf_platform.h>
-#include <avf/modules/audio/aplay.h>
+#include <licak/modules/audio/aplay.h>
 #include <avf/slogger.h>
 #include "dsp_resource.h"
 
