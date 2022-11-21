@@ -9,7 +9,9 @@
 #ifndef ZEPHYR_INCLUDE_LINKER_SECTION_TAGS_H_
 #define ZEPHYR_INCLUDE_LINKER_SECTION_TAGS_H_
 
+#ifndef CONFIG_EXTERNAL_LIBC
 #include <zephyr/toolchain.h>
+#endif
 
 #if !defined(_ASMLANGUAGE)
 
