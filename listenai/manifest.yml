@@ -20,7 +20,7 @@ manifest:
     - name: sof
       submodules: true
       remote: listenai
-      revision: 04abfac41e0da98bb330ff1387d11bdc09bd283a
+      revision: 99b899b9141afa69b669d95bc615b8fbf038e0ef
       path: modules/audio/sof
     - name: protobuf-c
       remote: listenai
