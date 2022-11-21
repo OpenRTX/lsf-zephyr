@@ -1,0 +1,51 @@
+/*
+ * Copyright (c) 2020 Intel Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr.h>
+#include <logging/log.h>
+// #include <w_pilot_err.h>
+// #include <pilot_app.h>
+#include <venus_cp.h>
+#include <luna_bits.h>
+#include <ClockManager.h>
+
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
+
+
+//CSK star app
+int csp_test();
+
+
+extern void luna_init();
+void sys_init(void)
+{
+    // enable NPU Clock
+	__HAL_CRM_NPU_CLK_ENABLE();
+
+    // release NPU
+    if(IP_SYSCTRL->REG_SW_RESET_NPU.all){
+        IP_SYSCTRL->REG_SW_RESET_NPU.all = 0xCAFE000C;
+    }
+    luna_init();
+
+	uint32_t luna_val = *((volatile uint32_t *)(ADDR_LUNA_MODULE_ST));
+
+	LOG_INF("luna_val: %d", luna_val);
+}
+
+
+extern void dma_init();
+void main(void)
+{
+
+	LOG_INF("pilot app start");
+
+	dma_init();
+	sys_init();
+	// csp_test();
+	wsp_test();
+
+}
