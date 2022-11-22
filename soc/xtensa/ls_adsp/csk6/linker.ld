@@ -634,8 +634,14 @@ SECTIONS
 
     /* ai lib */
     *libluna.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+#if CONFIG_AISOUND_50
     /* *libtts.a:*(.text .text.* .literal .literal.*) */
     *libtts.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+#endif
+
+#if CONFIG_XTTS
+    *libxtts.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+#endif
 
 #if 0
     /* hal_xtensa(can't be copyed) */
@@ -1116,4 +1122,6 @@ SECTIONS
     KEEP (*(.fw_metadata))
     . = ALIGN(_EXT_MAN_ALIGN_);
   } >fw_metadata_seg
+
+  /DISCARD/ : { *(.note.GNU-stack) }
 }
