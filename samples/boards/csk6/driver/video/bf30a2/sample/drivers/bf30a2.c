@@ -141,7 +141,7 @@ void bf30a2_spi_evt_callback(unsigned int event_info, unsigned int xfer_bytes,
 #endif
 #include "hal/IOMuxManager.h"
 
-#define SPI1_CS_PIN 9
+#define SPI1_CS_PIN 4
 
 BF30A2_FAST_CODE static int32_t bf30a2_dev_cs_enable(const struct device *dev, uint8_t cs_state)
 {
@@ -1142,6 +1142,8 @@ static int bf30a2_dev_init(const struct device *dev)
 
 		k_fifo_put(&data->fifo_vbuf_in, vbuf);
 	}
+
+	GPIO_SetDir(GPIOA(), 1 << 15, 1);
 
 	data->flag = BF30A2_STATE_INITED;
 	return 0;
