@@ -19,7 +19,7 @@
 #define LUNA_SHARED_DATA_SIZE 0x20000
 #define LUNA_SHARED_MEM_SIZE 0xA0000
 
-#define ISR_VECTOR_SIZE  0x400 + 0x298
+#define ISR_VECTOR_SIZE  (0x400 + 0x298)
 #define IRAM_BASE	0x5FF00000
 #define IRAM_SIZE	0x4000
 /* FIXME: temp modify, Just to distinguish between mailbox addresses, will re-partition later  */
