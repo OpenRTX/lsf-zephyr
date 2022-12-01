@@ -8,15 +8,15 @@
                 };
 
                 pinctrl_spi1_sclk_default: spi1_sclk_default {
-                    pinctrls = < SPI0_CLK_GPIOA_11 >;
+                    pinctrls = < SPI1_CLK_GPIOA_04 >;
                 };
 
                 pinctrl_spi1_mosi_default: spi1_mosi_default {
-                    pinctrls = < SPI0_MOSI_GPIOA_06 >;
+                    pinctrls = < SPI1_MOSI_GPIOA_11 >;
                 };
 
                 pinctrl_spi1_cs_default: spi1_cs_default {
-                    pinctrls = < SPI0_CS_N_GPIOA_04 >;
+                    pinctrls = < SPI1_CS_N_GPIOA_09 >;
                 };
 };
 
@@ -24,11 +24,11 @@
 	status = "okay";
 };
 
-&spi1 {
+&spi0 {
     status = "disabled";
 };
 
-&spi0 {
+&spi1 {
     status = "okay";
     spi-max-frequency = <100000000>;
     pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>;
@@ -46,7 +46,7 @@
             label = "VIDEO";
             reg = <0x6e>;
             product-id = <0x3b02>;
-            spi = <&spi0>;
+            spi = <&spi1>;
 	        xclk-gpios = <&gpioa 7 0>;
         };
 };

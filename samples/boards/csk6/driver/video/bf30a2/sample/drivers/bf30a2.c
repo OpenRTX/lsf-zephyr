@@ -141,7 +141,7 @@ void bf30a2_spi_evt_callback(unsigned int event_info, unsigned int xfer_bytes,
 #endif
 #include "hal/IOMuxManager.h"
 
-#define SPI1_CS_PIN 4
+#define SPI1_CS_PIN 9
 
 BF30A2_FAST_CODE static int32_t bf30a2_dev_cs_enable(const struct device *dev, uint8_t cs_state)
 {
