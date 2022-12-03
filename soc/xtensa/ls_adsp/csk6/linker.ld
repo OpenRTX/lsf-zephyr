@@ -608,6 +608,7 @@ SECTIONS
     *libhal.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
 
     /* hal_listenai drivers */
+    . = ALIGN (4);
     ClockManager.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
     IOMuxManager.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
     adc_pdm_venus.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
@@ -622,6 +623,7 @@ SECTIONS
     venus_cp.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
 
     /* zephyr drivers */
+    . = ALIGN (4);
     sys_clock_init.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
     xtensa_sys_timer.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
     dma_csk6.c.obj*(.text .text.* .literal .literal.* .rodata .rodata.*)
@@ -633,15 +635,28 @@ SECTIONS
 
 
     /* ai lib */
+    . = ALIGN (4);
     *libluna.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
 #if CONFIG_AISOUND_50
+    . = ALIGN (4);
     /* *libtts.a:*(.text .text.* .literal .literal.*) */
     *libtts.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
 #endif
 
 #if CONFIG_XTTS
+    . = ALIGN (4);
     *libxtts.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
 #endif
+
+    . = ALIGN (4);
+    *libhifi_dsp.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libls_trans.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libthinker.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+
+    . = ALIGN (4);
+    *libistitch.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libls_cutline.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+    *libls_ocr.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
 
 #if 0
     /* hal_xtensa(can't be copyed) */
@@ -652,6 +667,7 @@ SECTIONS
 
     /* arch xtensa core */
 #if 1
+    . = ALIGN (4);
     cpu_idle.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     /* fatal.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*) */
     /* window_vectors.S.obj */
@@ -665,14 +681,17 @@ SECTIONS
 
 #if 1
     /* arch common */
+    . = ALIGN (4);
     sw_isr_common.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
 
     /* libisr_table.a */
+    . = ALIGN (4);
     isr_tables.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
 #endif
 
     /* libzephyr.a */
-#if 0
+#if 1
+    . = ALIGN (4);
     cbprintf.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     cbprintf_packaged.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     crc32c_sw.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
@@ -702,6 +721,7 @@ SECTIONS
 
     /* kernel */
 #if 1
+    . = ALIGN (4);
     sched.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     work.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     pipes.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
@@ -746,7 +766,7 @@ SECTIONS
     edma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     sdma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
 
-#if 0
+#if 1
     dummy-dma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     edma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     sdma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
@@ -969,14 +989,6 @@ SECTIONS
     . = ALIGN (4);
   } >RAMABLE_REGION AT > ROMABLE_REGION
 
-  .noinit : ALIGN(4)
-  {
-    . = ALIGN (4);
-    *(.noinit)
-    *(.noinit.*)
-    . = ALIGN (4);
-  } >RAMABLE_REGION AT > ROMABLE_REGION
-
   .data : ALIGN(4)
   {
     . = ALIGN (4);
@@ -1037,6 +1049,25 @@ SECTIONS
     _bss_end = ABSOLUTE(.);
   } >RAMABLE_REGION
 
+#if 1
+  /* heap */
+  _end = ALIGN (8);
+  PROVIDE(_end = ALIGN (8));
+  _heap_sentry = (_end + 40920);
+
+  .noinit : ALIGN(4)
+  {
+    . = ALIGN (4);
+    *(.noinit)
+    *(.noinit.*)
+    . = ALIGN (4);
+  } >RAMABLE_REGION AT > ROMABLE_REGION
+
+  /* xclib stack */
+  __stack_end = ALIGN (8);
+  __stack = (SDRAM0_BASE + SDRAM0_SIZE);
+#endif
+
   .heap_mem (NOLOAD) : ALIGN(8)
   {
     . = ALIGN (8);
@@ -1045,12 +1076,14 @@ SECTIONS
     _heap_mem_end = ABSOLUTE(.);
   } >sdram1
 
+#if 0
   /* stack */
   _end = ALIGN (8);
   PROVIDE(end = ALIGN (8));
 
   __stack = SDRAM1_BASE + SDRAM1_SIZE;
-  _heap_sentry = __stack - 4096;
+    _heap_sentry = __stack - 4096;
+#endif
   .comment  0 :  { *(.comment) }
   .debug  0 :  { *(.debug) }
   .line  0 :  { *(.line) }
