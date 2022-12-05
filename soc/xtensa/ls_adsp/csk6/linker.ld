@@ -648,6 +648,7 @@ SECTIONS
     *libxtts.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
 #endif
 
+#if CONFIG_AISOUND_50
     . = ALIGN (4);
     *libhifi_dsp.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
     *libls_trans.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
@@ -657,6 +658,7 @@ SECTIONS
     *libistitch.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
     *libls_cutline.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
     *libls_ocr.a:*(.text .text.* .literal .literal.* .rodata .rodata.*)
+#endif
 
 #if 0
     /* hal_xtensa(can't be copyed) */
@@ -690,7 +692,7 @@ SECTIONS
 #endif
 
     /* libzephyr.a */
-#if 1
+#if CONFIG_AISOUND_50
     . = ALIGN (4);
     cbprintf.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     cbprintf_packaged.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
@@ -766,7 +768,7 @@ SECTIONS
     edma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     sdma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
 
-#if 1
+#if CONFIG_AISOUND_50
     dummy-dma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     edma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
     sdma.c.obj*(.text .text.* .rodata .rodata.* .literal .literal.*)
