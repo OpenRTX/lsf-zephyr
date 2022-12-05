@@ -106,6 +106,7 @@ static int csk6_sdmmc_access_ioctl(struct disk_info *disk, uint8_t cmd,
 			*(uint32_t *)buff = erase_size;
 			break;
 		case DISK_IOCTL_CTRL_SYNC:
+			break;
 			/* we use a blocking API, so nothing to do for sync */
 		default:
 			return -EINVAL;
