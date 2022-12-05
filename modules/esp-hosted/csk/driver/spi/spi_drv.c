@@ -50,6 +50,7 @@ static int esp_netdev_close(netdev_handle_t netdev);
 static int esp_netdev_xmit(netdev_handle_t netdev, struct net_pbuf *net_buf);
 
 static struct esp_private *esp_priv[MAX_NETWORK_INTERFACES];
+static char version_info[ESP_FW_VERSION_LEN + 1] = {0};
 
 static struct netdev_ops esp_net_ops = {
 	.netdev_open = esp_netdev_open,
@@ -552,6 +553,15 @@ static void process_rx_task(void *arg)
 				k_msleep(50); // Fixme: remove delay, waiting for esp32 spi slave
 					      // init done
 				if (spi_drv_evt_handler_fp) {
+					if (event->event_len == (ESP_FW_VERSION_LEN + 9)) {
+						memcpy(version_info, &event->event_data[9], ESP_FW_VERSION_LEN);
+						uint8_t major, minor;
+						char commit[8] = {0};
+						hosted_get_fw_version(&major, &minor, commit);
+						printk("Firmware Version: %d.%d, commit: %s\n", major, minor, commit);
+					} else {
+						printk("Firmware Version not found, please update fw\n");
+					}
 					spi_drv_evt_handler_fp(SPI_DRIVER_ACTIVE);
 				}
 			} else {
@@ -625,4 +635,15 @@ done:
 		buf_handle.free_buf_handle(buf_handle.priv_buffer_handle);
 
 	return sendbuf;
+}
+
+int hosted_get_fw_version(uint8_t *major, uint8_t *minor, char commit[7])
+{
+	*major = version_info[0] - '0';
+	*minor = version_info[2] - '0';
+
+	if (commit) {
+		memcpy(commit, &version_info[3], 7);
+	}
+	return 0;
 }

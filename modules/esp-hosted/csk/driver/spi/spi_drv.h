@@ -51,6 +51,7 @@ typedef enum spi_drv_events_s {
 /** Exported Functions **/
 void spi_link_init(void (*spi_drv_evt_handler)(uint8_t));
 stm_ret_t send_to_slave(uint8_t iface_type, uint8_t iface_num, uint8_t *wbuffer, uint16_t wlen);
+int hosted_get_fw_version(uint8_t *major, uint8_t *minor, char commit[7]);
 
 struct esp_private {
 	uint8_t if_type;
