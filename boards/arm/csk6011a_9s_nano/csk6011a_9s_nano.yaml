@@ -14,5 +14,6 @@ supported:
   - csk_wifi
   - usb_device
   - pwm
+  - counter
 ram: 320
 flash: 8000
