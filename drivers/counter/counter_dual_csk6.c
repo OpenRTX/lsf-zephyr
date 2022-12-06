@@ -2,7 +2,7 @@
  * Copyright (c) 2022 .
  */
 
-#define DT_DRV_COMPAT listenai_csk_dual_timer
+#define DT_DRV_COMPAT listenai_csk_counter
 
 
 #include <drivers/counter.h>
