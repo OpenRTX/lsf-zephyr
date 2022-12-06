@@ -10,5 +10,6 @@ supported:
   - gpio
   - uart
   - ipm
+  - counter
 ram: 320
 flash: 8000
