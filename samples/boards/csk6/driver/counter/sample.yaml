@@ -1,0 +1,14 @@
+sample:
+  name: counter
+
+tests:
+  sample.board.csk6.driver.counter:
+    platform_allow: csk6011a_nano
+    tags: csk6
+    timeout: 20
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+        - "^Dul Channel_0 value: \\d*$"
+        - "^Dul Channel_1 value: \\d*$"
