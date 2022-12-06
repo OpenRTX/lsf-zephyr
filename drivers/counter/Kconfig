@@ -70,4 +70,7 @@ source "drivers/counter/Kconfig.mcux_ctimer"
 
 source "drivers/counter/Kconfig.csk6"
 
+source "drivers/counter/Kconfig.csk6_dual_timer"
+
+source "drivers/counter/Kconfig.csk6_gpt_timer"
 endif # COUNTER
