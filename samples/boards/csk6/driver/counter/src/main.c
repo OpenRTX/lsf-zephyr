@@ -42,7 +42,6 @@ void main(void)
 		printk("counter_set_channel_alarm err \n");
 	}
 
-
 	while (1) {
 		k_sleep(K_FOREVER);
 	}
