@@ -12,5 +12,6 @@ supported:
   - ipm
   - usb_device
   - pwm
+  - counter
 ram: 320
 flash: 16000
