@@ -13,7 +13,7 @@ manifest:
         - hal
     - name: libmetal
       remote: listenai
-      revision: 05bdf74c271cceba33385cb8b6793448b25ab4ec
+      revision: 9794f28062a71073f128f58474942ed30b32347c
       path: modules/hal/libmetal
       groups:
         - hal
