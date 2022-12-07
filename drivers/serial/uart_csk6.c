@@ -284,13 +284,16 @@ static void csk_uart_dma_tx_callback(const struct device *dev, void *user_data, 
 
 static void csk_uart_dma_rx_complete(csk_uart_async_data_t *async_data)
 {
+	bool is_enable_timout = false;
+	const struct device *uart_dev = (const struct device *)async_data->dev;
+	const struct csk_uart_config *const cfg = uart_dev->config;
+	DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)cfg->reg_addr;
 	csk_uart_async_evt_rx_rdy(async_data, &async_data->dma_rx.xfer_info);
 	csk_uart_async_evt_rx_buf_released(async_data, &async_data->dma_rx.xfer_info);
 
 	if ((async_data->rx_next_buf != NULL) && (async_data->rx_next_len > 0)) {
-		const struct device *uart_dev = (const struct device *)async_data->dev;
-		const struct csk_uart_config *const cfg = uart_dev->config;
-		DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)cfg->reg_addr;
+
+
 
 		if (async_data->rx_next_recv_len) {
 			struct uart_event evt = {
@@ -314,8 +317,6 @@ static void csk_uart_dma_rx_complete(csk_uart_async_data_t *async_data)
 			uint8_t *rx_buf = async_data->rx_next_buf + async_data->rx_next_recv_len;
 			uint32_t rx_len = async_data->rx_next_len - async_data->rx_next_recv_len;
 
-			/* enable rx timeout */
-			uart_reg->REG_IER.bit.ECHT = 0x1;
 
 			dma_reload(async_data->dma_rx.dma_dev, async_data->dma_rx.channel,
 				   (uint32_t)&uart_reg->REG_RBR.all, (uint32_t)rx_buf,
@@ -330,6 +331,7 @@ static void csk_uart_dma_rx_complete(csk_uart_async_data_t *async_data)
 			async_data->dma_rx.xfer_info.offset = async_data->rx_next_recv_len;
 			async_data->dma_rx.xfer_info.received_len = async_data->rx_next_recv_len;
 			async_data->dma_rx.xfer_info.dma_last_recv_len = 0;
+			is_enable_timout = true;
 		}
 
 		async_data->rx_next_buf = NULL;
@@ -341,6 +343,11 @@ static void csk_uart_dma_rx_complete(csk_uart_async_data_t *async_data)
 	}
 	else {
 		csk_uart_async_evt_rx_disabled(async_data);
+	}
+
+	if(is_enable_timout){
+					/* enable rx timeout */
+			uart_reg->REG_IER.bit.ECHT = 0x1;
 	}
 }
 
@@ -800,8 +807,7 @@ static void csk_uart_isr(const struct device *dev)
 			}
 
 			/* start dwork to notify user */
-			if ((async_data->rx_timeout != SYS_FOREVER_US) &&
-			    (async_data->rx_timeout != 0)) {
+			if (async_data->rx_timeout != SYS_FOREVER_US) {
 				/* return value 1 to indicate successfully scheduled. */
 				k_work_reschedule(&async_data->dma_rx.dwork,
 						  K_USEC(async_data->rx_timeout));
