@@ -111,10 +111,10 @@ static int counter_csk_init(const struct device *dev)
 
 	// Setting irq
 	
-
+	cfg->irq_config();
 	TIMER_Initialize(DUAL_Hander);
 	TIMER_PowerControl(DUAL_Hander, CSK_POWER_FULL);
-	cfg->irq_config();
+	
 	return 0;
 }
 
