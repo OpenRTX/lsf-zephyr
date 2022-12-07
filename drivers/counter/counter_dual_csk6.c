@@ -50,9 +50,9 @@ static void timer_csk_isr(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	TIMER_RESOURCES *DUAL_Hander = data->handle;
-
-	uint32_t status;
-    uint32_t event = 0;
+	uint8_t channel = data->channel;
+	// uint32_t status;
+    // uint32_t event = 0;
 	uint32_t now = csk_get_value(dev);
 
     // Status register hsec set 1 and user enable current interrupt
@@ -83,7 +83,7 @@ static void timer_csk_isr(const struct device *dev)
 	// 	}
     // }
 	if (data->alarm_cfg.callback != NULL) {
-			data->alarm_cfg.callback(dev, 0, now, data->alarm_cfg.user_data);
+			data->alarm_cfg.callback(dev, channel, now, data->alarm_cfg.user_data);
 		}
 
 }
@@ -105,11 +105,15 @@ static int counter_csk_init(const struct device *dev)
 	struct counter_csk_config *cfg = DEV_CFG(dev);
 
 	/* Get device handle */
-	data->handle = timer_csk_get_ctx(dev);
+	data->handle = TIMER0();//timer_csk_get_ctx(dev);//
+
 	void *DUAL_Hander = data->handle;
+
+	// Setting irq
+	
+
 	TIMER_Initialize(DUAL_Hander);
 	TIMER_PowerControl(DUAL_Hander, CSK_POWER_FULL);
-	// Setting irq
 	cfg->irq_config();
 	return 0;
 }
@@ -119,7 +123,7 @@ static int counter_csk_start(const struct device *dev)
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *DUAL_Hander = data->handle;
 	uint8_t channel = data->channel;
-    // RTC_Control(DUAL_Hander, CSK_RTC_CTRL_EN, 1);
+   
 	TIMER_StartTimer(DUAL_Hander, channel);
 	return 0;
 }
@@ -129,7 +133,6 @@ static int counter_csk_stop(const struct device *dev)
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *DUAL_Hander = data->handle;
 	uint8_t channel = data->channel;
-    // RTC_Control(DUAL_Hander, CSK_RTC_CTRL_EN, 0);
 	TIMER_StopTimer(DUAL_Hander, channel);
 	return 0;
 }
@@ -147,23 +150,25 @@ static int counter_csk_get_value(const struct device *dev, uint32_t *ticks)
 static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 				   const struct counter_alarm_cfg *alarm_cfg)
 {
+	printk("counter_csk_set_alarm \r\n");
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *DUAL_Hander = data->handle;
-	uint8_t channel = data->channel;
+	data->channel = chan_id;
 
 	uint32_t alarm_tick = alarm_cfg->ticks;
-
+	printk("counter_csk_set_alarm alarm_tick(%d) \r\n",alarm_tick);
+	printk("counter_csk_set_alarm channel(%d) \r\n",data->channel);
 	data->alarm_cfg.callback = alarm_cfg->callback;
 	data->alarm_cfg.user_data = alarm_cfg->user_data;
 
     TIMER_Control(DUAL_Hander, CSK_TIMER_PRESCALE_Divide_1 | \
                                     CSK_TIMER_SIZE_32Bit | \
                                     CSK_TIMER_MODE_Periodic | \
-                                    CSK_TIMER_INTERRUPT_Enabled, channel);
+                                    CSK_TIMER_INTERRUPT_Enabled, data->channel);
 
-    TIMER_SetTimerCallback(DUAL_Hander, channel, data->alarm_cfg.callback, NULL);
+    TIMER_SetTimerCallback(DUAL_Hander, data->channel, data->alarm_cfg.callback, NULL);
 
-    TIMER_SetTimerPeriodByCount(DUAL_Hander, channel, alarm_tick);
+    TIMER_SetTimerPeriodByCount(DUAL_Hander, data->channel, alarm_tick);
 	return 0;
 }
 
@@ -203,9 +208,9 @@ static const struct counter_driver_api counter_api = {
 	static const struct counter_csk_config counter_config_##n = {		 \
 		.counter_info = {						 	\
 			.max_top_value = UINT32_MAX,			\
-			.freq = 1000, 								\
+			.freq = 1, 								\
 			.flags = TIMER_FLAG_INITIALIZED,			\
-			.channels = 0						 	\
+			.channels = 2						 	\
 		},								 	\
 		.irq_config = timer_csk_irq_config};	    		 \
 	DEVICE_DT_INST_DEFINE(n,						     \
@@ -213,7 +218,6 @@ static const struct counter_driver_api counter_api = {
 			      NULL, &counter_data_##n,				 \
 			      &counter_config_##n, PRE_KERNEL_1,		 \
 			      CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &counter_api);
-
 DT_INST_FOREACH_STATUS_OKAY(CSK_COUNTER_INIT)
 
 

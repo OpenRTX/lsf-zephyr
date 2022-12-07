@@ -27,15 +27,12 @@
 struct counter_alarm_cfg alarm_cfg;
 
 #define TIMER DT_LABEL(DT_NODELABEL(dultim))
-
-static void test_counter_interrupt_fn(const struct device *counter_dev,
-				      uint8_t chan_id, uint32_t ticks,
-				      void *user_data)
+bool level_1 = 0;
+static void test_counter_interrupt_fn(const struct device *counter_dev, uint8_t chan_id,
+				      uint32_t ticks, void *user_data)
 {
 	struct counter_alarm_cfg *config = user_data;
-	uint32_t now_ticks;
-	uint64_t now_usec;
-	int now_sec;
+	uint32_t now_tick;
 	int err;
 
 	err = counter_get_value(counter_dev, &now_ticks);
@@ -43,26 +40,20 @@ static void test_counter_interrupt_fn(const struct device *counter_dev,
 		printk("Failed to read counter value (err %d)", err);
 		return;
 	}
-
-	now_usec = counter_ticks_to_us(counter_dev, now_ticks);
-	now_sec = (int)(now_usec / USEC_PER_SEC);
-
-	printk("!!! Alarm !!!\n");
-	printk("Now: %u\n", now_sec);
-
+	level_1 = !level_1;
+	GPIO_PinWrite(GPIOA(), (1 << 8), level_1);
+	// printk("!!! Alarm !!!\n");
+	// last_data = now_ticks;
 	/* Set a new alarm with a double length duration */
-	config->ticks = config->ticks * 2U;
+	// config->ticks = config->ticks * 2U;
 
-	printk("Set alarm in %u sec (%u ticks)\n",
-	       (uint32_t)(counter_ticks_to_us(counter_dev,
-					   config->ticks) / USEC_PER_SEC),
-	       config->ticks);
-
-	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID,
-					user_data);
+	// err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID,
+	// 				user_data);
 	if (err != 0) {
 		printk("Alarm could not be set\n");
 	}
+	
+	
 }
 
 void main(void)
@@ -75,31 +66,24 @@ void main(void)
 		printk("Device not found\n");
 		return;
 	}
-
-	counter_start(counter_dev);
+	GPIO_SetDir(GPIOA(), (1 << 8), 1);
+	GPIO_PinWrite(GPIOA(), (1 << 8), 0);
+	// counter_start(counter_dev);
 
 	alarm_cfg.flags = 0;
-	alarm_cfg.ticks = counter_us_to_ticks(counter_dev, DELAY);
+	alarm_cfg.ticks = 16000;
 	alarm_cfg.callback = test_counter_interrupt_fn;
 	alarm_cfg.user_data = &alarm_cfg;
 
-	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID,
-					&alarm_cfg);
-
-	// printk("Set alarm in %u sec (%u ticks)\n",
-	//        (uint32_t)(counter_ticks_to_us(counter_dev,
-	// 				   alarm_cfg.ticks) / USEC_PER_SEC),
-	//        alarm_cfg.ticks);
-
-	if (-EINVAL == err) {
-		printk("Alarm settings invalid\n");
-	} else if (-ENOTSUP == err) {
-		printk("Alarm setting request not supported\n");
-	} else if (err != 0) {
-		printk("Error\n");
+	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID, &alarm_cfg);
+	if (err < 0) {
+		printk("counter_set_channel_alarm err \n");
 	}
+	counter_start(counter_dev);
 
+	printk("over\n");
 	while (1) {
 		k_sleep(K_FOREVER);
 	}
 }
+
