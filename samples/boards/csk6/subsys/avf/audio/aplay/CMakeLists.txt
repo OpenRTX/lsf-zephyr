@@ -37,17 +37,6 @@ project(sample_aplay)
 target_sources(app PRIVATE src/main.c)
 
 set(gen_dir ${ZEPHYR_BINARY_DIR}/include/generated)
-generate_inc_file_for_target(
-  app
-  resource/zephyr.bin
-  ${gen_dir}/dsp_firmware.inc
-)
-
-generate_inc_file_for_target(
-  app
-  resource/csk6_default.tplg
-  ${gen_dir}/dsp_tplg.inc
-)
 
 generate_inc_file_for_target(
   app
