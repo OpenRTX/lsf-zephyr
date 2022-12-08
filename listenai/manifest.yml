@@ -46,7 +46,7 @@ manifest:
       path: modules/lib/avf
     - name: licak
       remote: listenai
-      revision: v1.2.0
+      revision: v1.2.1-alpha.2
       path: modules/lib/licak
     - name: lisa_player
       remote: listenai
