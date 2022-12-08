@@ -17,3 +17,23 @@ config HAS_CSK6
 	bool
 	depends on SOC_LS_ADSP_CSK6
 	
+
+DT_NODE_SRAM := $(dt_nodelabel_path,sram0)
+DT_NODE_SOF := $(dt_nodelabel_path,sram1)
+
+config RAM_SIZE
+	int
+	default $(dt_node_reg_size_int,$(DT_NODE_SRAM))
+
+config RAM_BASE_ADDRESS
+	hex
+	default $(dt_node_reg_addr_hex,$(DT_NODE_SRAM))
+
+
+config SOF_HEAP_SIZE
+	int
+	default $(dt_node_reg_size_int,$(DT_NODE_SOF))
+
+config SOF_HEAP_ADDRESS
+	hex
+	default $(dt_node_reg_addr_hex,$(DT_NODE_SOF))

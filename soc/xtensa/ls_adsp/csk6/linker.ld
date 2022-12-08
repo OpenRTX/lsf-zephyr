@@ -358,7 +358,7 @@ SECTIONS
   {
     _stext = .;
     _iram_text_start = ABSOLUTE(.);
-    *(.iram0.literal .iram.literal .iram.text.literal .iram0.text .iram.text)
+    *(.iram0.literal .iram.literal .iram.text.literal .iram0.text .iram.text .iram1.literal .iram1)
     _iram_text_end = ABSOLUTE(.);
   } >iram_text_start AT > sdram0 :iram_text_start_phdr
 
@@ -544,6 +544,7 @@ SECTIONS
   {
     _sharedmem_text_start = ABSOLUTE(.);
     *(.sharedmem.literal .sharedmem.text)
+    *(.sharedmem.text.*)
     . = ALIGN (4);
     _sharedmem_text_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > sdram0 :luna_sharedmem_data_phdr
@@ -552,6 +553,7 @@ SECTIONS
   {
     _sharedmem_rodata_start = ABSOLUTE(.);
     *(.sharedmem.rodata)
+    *(.sharedmem.rodata.*)
     . = ALIGN (4);
     _sharedmem_rodata_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > sdram0 :luna_sharedmem_data_phdr
@@ -560,6 +562,7 @@ SECTIONS
   {
     _sharedmem_data_start = ABSOLUTE(.);
     *(.sharedmem.data)
+    *(.sharedmem.data.*)
     . = ALIGN (4);
     _sharedmem_data_end = ABSOLUTE(.);
   } >luna_sharedmem_data AT > sdram0 :luna_sharedmem_data_phdr
@@ -569,6 +572,7 @@ SECTIONS
     . = ALIGN (8);
     _sharedmem_bss_start = ABSOLUTE(.);
     *(.sharedmem.bss)
+    *(.sharedmem.bss.*)
     . = ALIGN (8);
     _sharedmem_bss_end = ABSOLUTE(.);
     _memmap_seg_sharedmem1_end = ALIGN(0x8);
