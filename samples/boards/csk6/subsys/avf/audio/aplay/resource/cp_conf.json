@@ -1,0 +1,10 @@
+[
+  {
+    "name": "cp",
+    "file": "zephyr.bin"
+  },
+  {
+    "name": "tplg",
+    "file": "csk6_default.tplg"
+  }
+]

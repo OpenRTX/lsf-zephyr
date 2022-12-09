@@ -5,9 +5,9 @@
 
 #include <zephyr.h>
 #include <avf/framework/avf_platform.h>
-#include <avf/modules/audio/acapture.h>
+#include <licak/modules/audio/acapture.h>
+#include <licak/licak.h>
 #include <avf/slogger.h>
-#include "dsp_resource.h"
 
 #define ACAPTURE_DATA_EVENT_THRES (1024)
 #define ACAPTURE_DATA_TOTAL_LENGTH (1024 * 100)
@@ -64,8 +64,7 @@ void main(void)
 	static char buffer[sizeof(msgq_data_t) * ACAPTURE_MSGQ_NUMBER];
 	msgq_data_t msgq_data;
 
-	avf_stream_platform_register(dsp_firmware, sizeof(dsp_firmware), dsp_tplg,
-				     sizeof(dsp_tplg));
+	licak_init();
 
 	k_msgq_init(&acapture_msgq, buffer, sizeof(msgq_data_t), ACAPTURE_MSGQ_NUMBER);
 
