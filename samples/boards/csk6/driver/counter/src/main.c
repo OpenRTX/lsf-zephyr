@@ -19,7 +19,6 @@ struct counter_alarm_cfg alarm_cfg;
 static void test_counter_interrupt_fn(const struct device *counter_dev, uint8_t chan_id,
 				      uint32_t ticks, void *user_data)
 {
-	struct counter_alarm_cfg *config = user_data;
 	uint32_t now_tick;
 	int err;
 

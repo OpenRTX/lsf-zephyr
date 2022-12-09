@@ -11,7 +11,7 @@
 #define DEV_CFG(dev)  ((struct counter_csk_config *)(dev)->config)
 #define DEV_DATA(dev) ((struct counter_csk_data *)(dev)->data)
 
-static TIMER_INFO info = {0};
+// TIMER_RESOURCES TIMER_RESOURCES_1
 struct counter_csk_config {
 	struct counter_config_info counter_info;
 	void (*irq_config)(void);
@@ -150,7 +150,7 @@ static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 			      CSK_TIMER_INTERRUPT_Enabled,
 		      data->channel);
 
-	TIMER_SetTimerCallback(DUAL_Hander, data->channel, data->alarm_cfg.callback, NULL);
+	TIMER_SetTimerCallback(DUAL_Hander, data->channel, (CSK_TIMER_SignalEvent_t)data->alarm_cfg.callback, NULL);
 
 	TIMER_SetTimerPeriodByCount(DUAL_Hander, data->channel, alarm_tick);
 	return 0;
@@ -169,8 +169,6 @@ static int counter_csk_cancel_alarm(const struct device *dev, uint8_t chan_id)
 
 static uint32_t counter_csk_get_top_value(const struct device *dev)
 {
-	struct counter_csk_data *data = DEV_DATA(dev);
-	void *DUAL_Hander = data->handle;
 
 	return 0;
 }
@@ -196,7 +194,8 @@ static const struct counter_driver_api counter_api = {.start = counter_csk_start
 				VENUS_TIMER0,                                                      \
 				IRQ_TIMER_VECTOR,                                                  \
 				NULL,                                                              \
-				&info,                                                             \
+				{{0},{0}},                                                            \
+				0,\
 			},                                                                         \
 		.irq_config = timer_csk_irq_config};                                               \
 	DEVICE_DT_INST_DEFINE(n, counter_csk_init, NULL, &counter_data_##n, &counter_config_##n,   \
