@@ -1,5 +1,5 @@
 sample:
-  name: rtc 
+  name: counter
 
 tests:
   sample.board.csk6.driver.counter:
