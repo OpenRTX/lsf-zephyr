@@ -16,6 +16,35 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
  */
 int sof_main(int argc, char *argv[]);
 
+int __wrap_printf(const char * fmt, ...)
+{
+	static char buf[4*1024] = { 0 };
+	va_list ap;
+
+	va_start(ap, fmt);
+	uint32_t n = vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	if(n > 0) LOG_INF("[luna_err]%s", buf);
+
+	return n;
+}
+
+void *__wrap_calloc(size_t nmemb, size_t size)
+{
+	return memset(k_malloc(nmemb * size), 0, nmemb * size);
+}
+
+void * __wrap_malloc(int size)
+{
+	return k_malloc(size);
+}
+
+void __wrap_free(void *ptr)
+{
+    k_free(ptr);
+}
+
 /**
  * TODO: Here comes SOF initialization
  */

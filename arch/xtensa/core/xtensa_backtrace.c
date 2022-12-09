@@ -9,10 +9,27 @@
 #include "sys/printk.h"
 #if defined(CONFIG_SOC_ESP32)
 #include "soc/soc_memory_layout.h"
-#elif defined(SOC_SERIES_LS_CSK6)
-#include "soc.h"
+#elif defined(CONFIG_SOC_SERIES_LS_CSK6)
 #endif
 static int mask, cause;
+
+#if CONFIG_SOC_SERIES_LS_CSK6
+bool ls_adsp_stack_ptr_is_sane(uint32_t sp)
+{
+	// return (ls_adsp_stack_ptr_in_psram(sp) || ls_adsp_stack_ptr_in_dram(sp));
+
+	// FIXME: TODO
+	return true;
+}
+
+bool ls_adsp_stack_ptr_executable(const void *p)
+{
+	// return (ls_adsp_stack_ptr_in_psram(sp) || ls_adsp_stack_ptr_in_dram(sp));
+
+	// FIXME: TODO
+	return true;
+}
+#endif
 
 static inline uint32_t z_xtensa_cpu_process_stack_pc(uint32_t pc)
 {
@@ -36,7 +53,7 @@ static inline bool z_xtensa_stack_ptr_is_sane(uint32_t sp)
 {
 #if defined(CONFIG_SOC_ESP32)
 	return esp_stack_ptr_is_sane(sp);
-#elif defined(SOC_SERIES_LS_CSK6)
+#elif defined(CONFIG_SOC_SERIES_LS_CSK6)
 	return ls_adsp_stack_ptr_is_sane(sp);
 #else
 #warning "z_xtensa_stack_ptr_is_sane is not defined for this platform"
@@ -47,7 +64,7 @@ static inline bool z_xtensa_ptr_executable(const void *p)
 {
 #if defined(CONFIG_SOC_ESP32)
 	return esp_ptr_executable(p);
-#elif defined(SOC_SERIES_LS_CSK6)
+#elif defined(CONFIG_SOC_SERIES_LS_CSK6)
 	return ls_adsp_stack_ptr_executable(p);
 #else
 #warning "z_xtensa_ptr_executable is not defined for this platform"

@@ -86,19 +86,4 @@ void xtensa_real_exit(int status)
 			  : : "a" (a2), "a" (a3));
 };
 
-bool ls_adsp_stack_ptr_is_sane(uint32_t sp)
-{
-	// return (ls_adsp_stack_ptr_in_psram(sp) || ls_adsp_stack_ptr_in_dram(sp));
-
-	// FIXME: TODO
-	return true;
-}
-
-bool ls_adsp_stack_ptr__executable(const void *p)
-{
-	// return (ls_adsp_stack_ptr_in_psram(sp) || ls_adsp_stack_ptr_in_dram(sp));
-
-	// FIXME: TODO
-	return true;
-}
 

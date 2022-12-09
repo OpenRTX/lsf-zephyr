@@ -16,6 +16,8 @@ target_sources(app PRIVATE
     src/main.c
   )
 
+zephyr_ld_options(-Wl,--wrap,calloc -Wl,--wrap,malloc -Wl,--wrap,free -Wl,--wrap,printf)
+
 zephyr_interface_library_named(sof_lib)
 
 zephyr_library_include_directories(app PUBLIC
