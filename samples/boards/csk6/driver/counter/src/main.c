@@ -23,6 +23,7 @@ static void test_counter_interrupt_fn(const struct device *counter_dev, uint8_t 
 	int err;
 	if(chan_id == 0){
 		err = counter_get_value(counter_dev, &now_tick);
+		printk("Dul Channel_0 value: %d\n", now_tick);
 		if (err) {
 			printk("Failed to read counter value (err %d)", err);
 			return;
@@ -30,6 +31,7 @@ static void test_counter_interrupt_fn(const struct device *counter_dev, uint8_t 
 	}
 	else if(chan_id == 1){
 		err = counter_get_value(counter_dev, &now_tick);
+		printk("Dul Channel_1 value: %d\n", now_tick);
 		if (err) {
 			printk("Failed to read counter value (err %d)", err);
 			return;
@@ -62,13 +64,7 @@ void main(void)
 	if (err < 0) {
 		printk("counter_set_channel_alarm err \n");
 	}
-	
 
-	counter_stop(counter_dev);
-	
-	/*KILL all dual timer*/
-	counter_cancel_channel_alarm(counter_dev,ALARM_CHANNEL_ID);
-	printk("over\n");
 	while (1) {
 		k_sleep(K_FOREVER);
 	}
