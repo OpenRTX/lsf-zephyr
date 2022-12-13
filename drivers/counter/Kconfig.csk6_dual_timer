@@ -3,7 +3,7 @@
 # Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
 # SPDX-License-Identifier: Apache-2.0
 
-config DUAL_TIMER_CSK6
+config COUNTER_CSK6_DUL
 	bool "listenai CSK6 embedded controller dual timer driver"
 
 

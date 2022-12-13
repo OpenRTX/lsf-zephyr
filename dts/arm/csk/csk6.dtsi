@@ -270,11 +270,10 @@
 			status = "disabled";
 			label = "RTC_1";
 		};
-		dultim: dul@44100000 {
-			compatible = "listenai,csk-counter";
+		dul_tim: dul@44100000 {
+			compatible = "listenai,csk-dul";
 			reg = <0x44100000 0x1000000>;
 			interrupts = <6 0>;
-			status = "okay";
 			label = "DUL_TIM";
 		};
 		adc0: adc0@45b00000 {

@@ -12,22 +12,29 @@
 
 #define TICKS 16000
 #define ALARM_CHANNEL_ID 0
-
+#define ALARM_CHANNEL_ID_1 1
 struct counter_alarm_cfg alarm_cfg;
 
-#define TIMER DT_LABEL(DT_NODELABEL(dultim))
+#define TIMER DT_LABEL(DT_NODELABEL(dul_tim))
 static void test_counter_interrupt_fn(const struct device *counter_dev, uint8_t chan_id,
 				      uint32_t ticks, void *user_data)
 {
 	uint32_t now_tick;
 	int err;
-
-	err = counter_get_value(counter_dev, &now_tick);
-	if (err) {
-		printk("Failed to read counter value (err %d)", err);
-		return;
+	if(chan_id == 0){
+		err = counter_get_value(counter_dev, &now_tick);
+		if (err) {
+			printk("Failed to read counter value (err %d)", err);
+			return;
+		}
 	}
-
+	else if(chan_id == 1){
+		err = counter_get_value(counter_dev, &now_tick);
+		if (err) {
+			printk("Failed to read counter value (err %d)", err);
+			return;
+		}
+	}
 }
 
 void main(void)
@@ -46,12 +53,16 @@ void main(void)
 	alarm_cfg.ticks = TICKS;
 	alarm_cfg.callback = test_counter_interrupt_fn;
 	alarm_cfg.user_data = &alarm_cfg;
-
+	counter_start(counter_dev);
 	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID, &alarm_cfg);
 	if (err < 0) {
 		printk("counter_set_channel_alarm err \n");
 	}
-	counter_start(counter_dev);
+	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID_1, &alarm_cfg);
+	if (err < 0) {
+		printk("counter_set_channel_alarm err \n");
+	}
+	
 
 	counter_stop(counter_dev);
 	

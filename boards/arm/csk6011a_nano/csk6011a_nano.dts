@@ -130,9 +130,7 @@
         status = "okay";
 };
 
-&dultim{
-        status = "okay";
-};
+
 &flash0 {
         /*
          * For more information, see:
