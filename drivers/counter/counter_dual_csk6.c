@@ -15,7 +15,6 @@
 struct counter_csk_config {
 	struct counter_config_info counter_info;
 	void (*irq_config)(void);
-	TIMER_RESOURCES TIME_RESOURCES;
 };
 struct counter_csk_data {
 	struct counter_alarm_cfg alarm_cfg;
@@ -27,7 +26,7 @@ struct counter_csk_data {
 
 static void *timer_csk_get_ctx(const struct device *dev)
 {
-	DUAL_TIMER_RegDef *base = DEV_CFG(dev)->TIME_RESOURCES.reg;
+	DUAL_TIMER_RegDef *base =   (DUAL_TIMER_RegDef *) DT_INST_REG_ADDR(0);
 	if (base == VENUS_TIMER0) {
 		return TIMER0();
 	} else {
@@ -90,7 +89,7 @@ static int counter_csk_init(const struct device *dev)
 	struct counter_csk_data *data = DEV_DATA(dev);
 	struct counter_csk_config *cfg = DEV_CFG(dev);
 	/* Get device handle */
-	data->handle = timer_csk_get_ctx(dev); 
+	data->handle = timer_csk_get_ctx(dev);
 	data->freq = MAX_FREQ;
 	cfg->irq_config();
 
@@ -212,14 +211,6 @@ static const struct counter_driver_api counter_api = {.start = counter_csk_start
 				 .freq = MAX_FREQ,                                                        \
 				 .flags = TIMER_FLAG_INITIALIZED,                                  \
 				 .channels = CSK_TIMER_MAX_CHANNEL_NUM},                                                   \
-		.TIME_RESOURCES =                                                                  \
-			{                                                                          \
-				VENUS_TIMER0,                                                      \
-				IRQ_TIMER_VECTOR,                                                  \
-				NULL,                                                              \
-				{{0},{0}},                                                            \
-				0,\
-			},                                                                         \
 		.irq_config = timer_csk_irq_config};                                               \
 	DEVICE_DT_INST_DEFINE(n, counter_csk_init, NULL, &counter_data_##n, &counter_config_##n,   \
 			      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &counter_api);
