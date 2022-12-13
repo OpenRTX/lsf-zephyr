@@ -52,8 +52,7 @@ static void timer_csk_isr(const struct device *dev)
 	struct counter_csk_data *data = DEV_DATA(dev);
 	extern void TIMER_IRQ_Handler(TIMER_RESOURCES * timer);
 	TIMER_RESOURCES *DUAL_Hander = data->handle;
-	
-	uint8_t channel = data->channel;
+
 	uint32_t now = csk_get_value(dev);
 	uint32_t ret0, ret1;
 	ret0 = DUAL_Hander->reg->REG_MIS0.all;
@@ -69,7 +68,6 @@ static void timer_csk_isr(const struct device *dev)
 			;
 	}
 
-	event = 0;
 
 	if (ret1) {
 		DUAL_Hander->reg->REG_INTCLR1.all = CSK_TIMER_CLR_INT;
@@ -93,7 +91,6 @@ static int counter_csk_init(const struct device *dev)
 	struct counter_csk_config *cfg = DEV_CFG(dev);
 	/* Get device handle */
 	data->handle = timer_csk_get_ctx(dev); 
-	void *DUAL_Hander = data->handle;
 	data->freq = MAX_FREQ;
 	cfg->irq_config();
 
@@ -176,10 +173,9 @@ static int counter_csk_cancel_alarm(const struct device *dev, uint8_t chan_id)
 	TIMER_Uninitialize(DUAL_Hander);
 	return 0;
 }
-static uint32_t counter_csk_set_top_value(const struct device *dev,
+static int counter_csk_set_top_value(const struct device *dev,
 					 const struct counter_top_cfg *cfg)
 {
-	struct counter_csk_data *data = DEV_DATA(dev);
 	if (cfg->ticks != UINT32_MAX) {
 		return -ENOTSUP;
 	} else {
