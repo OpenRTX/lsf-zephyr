@@ -56,16 +56,14 @@ static void timer_csk_isr(const struct device *dev)
 	uint8_t channel = data->channel;
 	uint32_t now = csk_get_value(dev);
 	uint32_t ret0, ret1;
-	uint32_t event = 0;
 	ret0 = DUAL_Hander->reg->REG_MIS0.all;
 	ret1 = DUAL_Hander->reg->REG_MIS1.all;
 
 	if (ret0) {
 		// clear interrupt status
 		DUAL_Hander->reg->REG_INTCLR0.all = CSK_TIMER_CLR_INT;
-		event = CSK_TIMER_EVENT_ONESTEP_COMPLETE_CH0;
 		if (data->alarm_cfg.callback != NULL) {
-			data->alarm_cfg.callback(dev, 0, now, data->alarm_cfg.user_data);
+			data->alarm_cfg.callback(dev, CSK_TIMER_CHANNEL_0, now, data->alarm_cfg.user_data);
 		}
 		while (DUAL_Hander->reg->REG_MIS0.all)
 			;
@@ -75,9 +73,8 @@ static void timer_csk_isr(const struct device *dev)
 
 	if (ret1) {
 		DUAL_Hander->reg->REG_INTCLR1.all = CSK_TIMER_CLR_INT;
-		event = CSK_TIMER_EVENT_ONESTEP_COMPLETE_CH1;
 		if (data->alarm_cfg.callback != NULL) {
-			data->alarm_cfg.callback(dev, 1, now, data->alarm_cfg.user_data);
+			data->alarm_cfg.callback(dev, CSK_TIMER_CHANNEL_1, now, data->alarm_cfg.user_data);
 		}
 		while (DUAL_Hander->reg->REG_MIS1.all)
 			;
@@ -139,7 +136,7 @@ static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *DUAL_Hander = data->handle;
 	data->channel = chan_id;
-	
+
 	uint32_t alarm_tick = alarm_cfg->ticks;
 	data->alarm_cfg.callback = alarm_cfg->callback;
 	data->alarm_cfg.user_data = alarm_cfg->user_data;
