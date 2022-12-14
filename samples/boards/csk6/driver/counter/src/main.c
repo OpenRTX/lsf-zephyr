@@ -15,7 +15,7 @@
 #define ALARM_CHANNEL_ID_1 1
 struct counter_alarm_cfg alarm_cfg;
 
-#define TIMER DT_LABEL(DT_NODELABEL(dul_tim))
+#define TIMER DT_LABEL(DT_NODELABEL(dual_tim))
 static void test_counter_interrupt_fn(const struct device *counter_dev, uint8_t chan_id,
 				      uint32_t ticks, void *user_data)
 {

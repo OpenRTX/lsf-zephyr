@@ -2,7 +2,7 @@
  * Copyright (c) 2022 .
  */
 
-#define DT_DRV_COMPAT listenai_csk_dul
+#define DT_DRV_COMPAT listenai_csk_dual
 
 #include "hal/Driver_DUAL_TIMER.h"
 #include "hal/dual_timer.h"
@@ -11,7 +11,7 @@
 #define DEV_CFG(dev)  ((struct counter_csk_config *)(dev)->config)
 #define DEV_DATA(dev) ((struct counter_csk_data *)(dev)->data)
 #define MAX_FREQ 32000
-// TIMER_RESOURCES TIMER_RESOURCES_1
+
 struct counter_csk_config {
 	struct counter_config_info counter_info;
 	void (*irq_config)(void);
@@ -80,7 +80,7 @@ static void timer_csk_isr(const struct device *dev)
 
 static void timer_csk_irq_config(void)
 {
-	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), timer_csk_isr, DEVICE_DT_GET(DT_NODELABEL(dul_tim)), 0);
+	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), timer_csk_isr, DEVICE_DT_GET(DT_NODELABEL(dual_tim)), 0);
 	irq_enable(IRQ_TIMER_VECTOR);
 }
 

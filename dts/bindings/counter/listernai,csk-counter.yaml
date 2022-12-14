@@ -3,7 +3,7 @@
 
 description: CSK counters
 
-compatible: "listenai,csk-dul"
+compatible: "listenai,csk-dual"
 
 include: base.yaml
 
