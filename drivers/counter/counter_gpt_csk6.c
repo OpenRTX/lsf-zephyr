@@ -4,14 +4,14 @@
 
 #define DT_DRV_COMPAT listenai_csk_gpt
 
-#include "hal/Driver_DUAL_TIMER.h"
-#include "hal/dual_timer.h"
+#include "hal/Driver_GPT_TIMER.h"
+#include "hal/gpt_timer.h"
+#include "hal/gpt.h"
 
 #include <drivers/counter.h>
 #define DEV_CFG(dev)  ((struct counter_csk_config *)(dev)->config)
 #define DEV_DATA(dev) ((struct counter_csk_data *)(dev)->data)
 #define MAX_FREQ 200000000
-#define MAX_GPT_CHANNELS 8
 struct counter_csk_config {
 	struct counter_config_info counter_info;
 	void (*irq_config)(void);
@@ -41,7 +41,7 @@ static uint32_t csk_get_value(const struct device *dev)
 	void *GPT_TIM_Hander = data->handle;
 	uint8_t channel = data->channel;
 
-	TIMER_ReadTimerCount(GPT_TIM_Hander, channel, &now);
+	HAL_GPT_ReadTimerCount(GPT_TIM_Hander, channel, &now);
 
 	return now;
 }
@@ -50,38 +50,96 @@ static void timer_csk_isr(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	extern void TIMER_IRQ_Handler(TIMER_RESOURCES * timer);
-	TIMER_RESOURCES *GPT_TIM_Hander = data->handle;
+	TIMER_RESOURCES *pGpt_Temp = data->handle;
 
 	uint32_t now = csk_get_value(dev);
 	uint32_t ret0, ret1;
-	ret0 = GPT_TIM_Hander->reg->REG_MIS0.all;
-	ret1 = GPT_TIM_Hander->reg->REG_MIS1.all;
 
-	if (ret0) {
-		// clear interrupt status
-		GPT_TIM_Hander->reg->REG_INTCLR0.all = CSK_TIMER_CLR_INT;
-		if (data->alarm_cfg.callback != NULL) {
-			data->alarm_cfg.callback(dev, CSK_TIMER_CHANNEL_0, now, data->alarm_cfg.user_data);
+	uint32_t ch, intflag_timer, intflag_ch;
+
+	//get interrupt status and clear interrupt flag
+	intflag_timer = pGpt_Temp->reg->ISR_TIMER;
+	//wirte 1 to clear interrupt flag
+	pGpt_Temp->reg->ICR_TIMER = intflag_timer;
+
+	//input capture and ledc interrupt status
+	intflag_ch = pGpt_Temp->reg->ISR_CH;
+	pGpt_Temp->reg->ICR_CH = intflag_ch;
+
+	for(ch = 0; ch < GPT_NUMBER_OF_CHANNELS; ch++)
+	{
+		//timer overflow interrupt handle
+		if((pGpt_Temp->hardware->channel_stat[ch] == HARDWARE_CHANNEL_STAT_USED_BY_TIM)
+			&&(intflag_timer & (0x01010101 << ch)))
+		{
+			data->alarm_cfg.callback(dev, ch, now, data->alarm_cfg.user_data);
+			// pGpt_Temp->info->cb_event[ch](CSK_GPT_EVENT_OVERFLOW, pGpt_Temp->user_param);
 		}
-		while (GPT_TIM_Hander->reg->REG_MIS0.all)
-			;
-	}
 
-
-	if (ret1) {
-		GPT_TIM_Hander->reg->REG_INTCLR1.all = CSK_TIMER_CLR_INT;
-		if (data->alarm_cfg.callback != NULL) {
-			data->alarm_cfg.callback(dev, CSK_TIMER_CHANNEL_1, now, data->alarm_cfg.user_data);
+		//input capture rx interrupt handle
+		if((pGpt_Temp->hardware->channel_stat[ch] == HARDWARE_CHANNEL_STAT_USED_BY_IC)
+			&&(intflag_ch & (0x1 << ch)))
+		{
+			//rx fifo is not empty
+			while((pGpt_Temp->reg->FIFO_STATUS_1 & (0x01<<ch)) == 0){
+				*pGpt_Temp->ic_capture_info->ic_buf[ch]++ = pGpt_Temp->reg->CHx_RX_FIFO[ch];
+				pGpt_Temp->ic_capture_info->ic_cnt[ch]++;
+				if(pGpt_Temp->ic_capture_info->ic_cnt[ch] >= pGpt_Temp->ic_capture_info->ic_num[ch]){
+					//input capture interrupt disable
+					pGpt_Temp->reg->IMR_CH |= 0x01 << ch;
+					pGpt_Temp->ic_capture_info->ic_cnt[ch] = 0;
+					data->alarm_cfg.callback(dev, ch, now, data->alarm_cfg.user_data);
+					// pGpt_Temp->info->cb_event[ch](CSK_GPT_EVENT_INPUTCAPTURE, pGpt_Temp->user_param);
+					break;
+				}
+			}
 		}
-		while (GPT_TIM_Hander->reg->REG_MIS1.all)
-			;
+
+		//ledc tx interrupt handle
+		if((pGpt_Temp->hardware->channel_stat[ch] == HARDWARE_CHANNEL_STAT_USED_BY_LEDC)
+			&&(intflag_ch & (0x100 << ch))){
+			//write fifo is empty and data count is equal to data number total number datas transmitted
+			if((pGpt_Temp->ledc_transmit_info->ledc_tx_cnt[ch] == pGpt_Temp->ledc_transmit_info->ledc_tx_num[ch]) &&
+				 (pGpt_Temp->reg->FIFO_STATUS_2 & (0x01<<16<<ch))){
+				//disable tx done interrupt
+				pGpt_Temp->reg->IMR_CH |= 0x01 << 8 << ch;
+				data->alarm_cfg.callback(dev, ch, now, data->alarm_cfg.user_data);
+				// pGpt_Temp->info->cb_event[ch](CSK_GPT_EVENT_LEDC_TX_DONE, pGpt_Temp->user_param);
+			}
+
+			//transimit through : tx fifo is not full flag, full flag is clear and cnt != num
+			while(((pGpt_Temp->reg->FIFO_STATUS_2 & (0x01<<24<<ch)) == 0) &&
+						 (pGpt_Temp->ledc_transmit_info->ledc_tx_cnt[ch] != pGpt_Temp->ledc_transmit_info->ledc_tx_num[ch])){
+					pGpt_Temp->reg->CHxLEDC_TX_FIFO[ch] = *pGpt_Temp->ledc_transmit_info->ledc_tx_buf[ch]++;
+					pGpt_Temp->ledc_transmit_info->ledc_tx_cnt[ch]++;
+			}
+		}
 	}
+	// if (ret0) {
+	// 	// clear interrupt status
+	// 	GPT_TIM_Hander->reg->REG_INTCLR0.all = CSK_TIMER_CLR_INT;
+	// 	if (data->alarm_cfg.callback != NULL) {
+	// 		data->alarm_cfg.callback(dev, CSK_TIMER_CHANNEL_0, now, data->alarm_cfg.user_data);
+	// 	}
+	// 	while (GPT_TIM_Hander->reg->REG_MIS0.all)
+	// 		;
+	// }
+
+
+	// if (ret1) {
+	// 	GPT_TIM_Hander->reg->REG_INTCLR1.all = CSK_TIMER_CLR_INT;
+	// 	if (data->alarm_cfg.callback != NULL) {
+	// 		data->alarm_cfg.callback(dev, CSK_TIMER_CHANNEL_1, now, data->alarm_cfg.user_data);
+	// 	}
+	// 	while (GPT_TIM_Hander->reg->REG_MIS1.all)
+	// 		;
+	// }
 }
 
 static void timer_csk_irq_config(void)
 {
 	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), timer_csk_isr, DEVICE_DT_GET(DT_NODELABEL(dual_tim)), 0);
-	irq_enable(IRQ_TIMER_VECTOR);
+	irq_enable(IRQ_GPT_VECTOR);
 }
 
 static int counter_csk_init(const struct device *dev)
@@ -133,14 +191,14 @@ static int counter_csk_get_value(const struct device *dev, uint32_t *ticks)
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
 	uint8_t channel = data->channel;
-	TIMER_ReadTimerCount(GPT_TIM_Hander, channel, ticks);
+	HAL_GPT_ReadTimerCount(GPT_TIM_Hander, channel, ticks);
 	return 0;
 }
 
 static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 				 const struct counter_alarm_cfg *alarm_cfg)
 {
-	int err = 0;
+	int ret = 0;
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
 	data->channel = chan_id;
@@ -148,29 +206,43 @@ static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 	uint32_t alarm_tick = alarm_cfg->ticks;
 	data->alarm_cfg.callback = alarm_cfg->callback;
 	data->alarm_cfg.user_data = alarm_cfg->user_data;
-	if(data->channel >= MAX_GPT_CHANNELS)
+	if(data->channel >= MGPT_NUMBER_OF_CHANNELS)
 	{
 		return -ENOTSUP;
 	}
-	err = TIMER_Control(GPT_TIM_Hander,
-		      CSK_TIMER_PRESCALE_Divide_1 | CSK_TIMER_SIZE_32Bit | CSK_TIMER_MODE_OneShot |
-			      CSK_TIMER_INTERRUPT_Enabled,
-		      data->channel);
-	if(err < 0){
+	// err = TIMER_Control(GPT_TIM_Hander,
+	// 	      CSK_TIMER_PRESCALE_Divide_1 | CSK_TIMER_SIZE_32Bit | CSK_TIMER_MODE_OneShot |
+	// 		      CSK_TIMER_INTERRUPT_Enabled,
+	// 	      data->channel);
+	// if(err < 0){
+	// 	return -ENOTSUP;
+	// }
+	// err = TIMER_SetTimerCallback(GPT_TIM_Hander, data->channel, (CSK_TIMER_SignalEvent_t)data->alarm_cfg.callback, NULL);
+	// if(err < 0){
+	// 	return -ENOTSUP;
+	// }
+	// err = TIMER_SetTimerPeriodByCount(GPT_TIM_Hander, data->channel, alarm_tick);
+	// if(err < 0){
+	// 	return -ENOTSUP;
+	// }
+	// err = TIMER_StartTimer(GPT_TIM_Hander, data->channel);
+	// if(err < 0){
+	// 	return -ENOTSUP;
+	// }
+	ret = HAL_GPT_TimerControl(GPT_TIM_Hander, CSK_GPT_TIMER_32_BIT_TIMER | CSK_GPT_TIMER_CLKSRC_PCLK | CSK_GPT_TIMER_CLKDIV_2 |
+							   CSK_GPT_TIMER_RUNMODE_SINGLE | CSK_GPT_TIMER_COUNTER_UP, data->channel);
+	if(ret != CSK_DRIVER_OK)
 		return -ENOTSUP;
-	}
-	err = TIMER_SetTimerCallback(GPT_TIM_Hander, data->channel, (CSK_TIMER_SignalEvent_t)data->alarm_cfg.callback, NULL);
-	if(err < 0){
+
+	ret = HAL_GPT_RegisterTimerCallback(GPT_TIM_Hander, data->channel, (CSK_TIMER_SignalEvent_t)data->alarm_cfg.callback);
+	if(ret != CSK_DRIVER_OK)
 		return -ENOTSUP;
-	}
-	err = TIMER_SetTimerPeriodByCount(GPT_TIM_Hander, data->channel, alarm_tick);
-	if(err < 0){
+
+	ret = HAL_GPT_SetTimerPeriodByCount(GPT_TIM_Hander, data->channel, GPT_PERIOD_32BIT);
+	if(ret != CSK_DRIVER_OK)
 		return -ENOTSUP;
-	}
-	err = TIMER_StartTimer(GPT_TIM_Hander, data->channel);
-	if(err < 0){
-		return -ENOTSUP;
-	}
+
+	HAL_GPT_StartTimer(GPT_TIM_Hander, data->channel);	
 	return 0;
 }
 
@@ -220,7 +292,7 @@ static const struct counter_driver_api counter_api = {.start = counter_csk_start
 		.counter_info = {.max_top_value = UINT32_MAX,                                      \
 				 .freq = MAX_FREQ,                                                        \
 				 .flags = GPT_FLAG_INITIALIZED,                                  \
-				 .channels = MAX_GPT_CHANNELS},                                                   \
+				 .channels = MGPT_NUMBER_OF_CHANNELS},                                                   \
 		.irq_config = timer_csk_irq_config};                                               \
 	DEVICE_DT_INST_DEFINE(n, counter_csk_init, NULL, &counter_data_##n, &counter_config_##n,   \
 			      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &counter_api);
