@@ -80,7 +80,7 @@ static int pwm_csk_get_cycles_per_sec(const struct device *dev,
 static int pwm_csk_pin_set(const struct device *dev, uint32_t pwm,
 			     uint32_t period_cycles, uint32_t pulse_cycles,
 			     pwm_flags_t flags)
-{	
+{
 	uint8_t duty_cycle;
 	int32_t freq;
 	uint64_t cycles_per_sec;
@@ -97,25 +97,24 @@ static int pwm_csk_pin_set(const struct device *dev, uint32_t pwm,
 		return (ret == CSK_DRIVER_OK) ? 0 : -EIO;
 	}
 
-	if((pulse_cycles == period_cycles) || (pulse_cycles ==  0u)) {
-		LOG_ERR("not support the output duty cycle of 0 or 100\n");
-		return -EINVAL;		
-	}
-
 	duty_cycle = 100.0 * pulse_cycles / period_cycles;
 	/* period_cycles to period */
 	pwm_csk_get_cycles_per_sec(dev, pwm, &cycles_per_sec);
 	/* period to freq */
 	freq = cycles_per_sec / period_cycles;
 
-	HAL_GPT_PWMControl(GPT0_PWM(), CSK_GPT_PWM_MODE | get_clock_prescaler(cfg->clock_prescaler) << CSK_GPT_PWM_CLKDIV_Pos | 
-		get_clock_source(cfg->clock_source) | get_polarity(flags) | get_mode(cfg->mode) | 
+	HAL_GPT_PWMControl(GPT0_PWM(), CSK_GPT_PWM_MODE | get_clock_prescaler(cfg->clock_prescaler) << CSK_GPT_PWM_CLKDIV_Pos |
+		get_clock_source(cfg->clock_source) | get_polarity(flags) | get_mode(cfg->mode) |
 		CSK_GPT_PWM_OPERATION_MODE_PWM, pwm);
 	ret = HAL_GPT_SetPWMFreqDuty(GPT0_PWM(), pwm, freq, duty_cycle);
 	if (ret != CSK_DRIVER_OK){
 		return -EIO;
 	}
-
+	// Note: When the PWM duty cycle is set to 0% or 100%, HAL_GPT_SetPWMFreq Duty does not reset the PWM reload value,
+	// and directly disable the PWM output, so return here and cannot turn on the PWM.
+	if((pulse_cycles == period_cycles) || (pulse_cycles ==  0u)) {
+		return 0;
+	}
 	ret = HAL_GPT_EnablePWM(GPT0_PWM(), pwm);
 	if (ret != CSK_DRIVER_OK){
 		return -EIO;
@@ -137,7 +136,7 @@ static int pwm_csk_init(const struct device *dev)
 	HAL_GPT_PWMPowerControl(GPT0_PWM(), CSK_POWER_FULL);
 
 	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
-	
+
 	return 0;
 }
 
