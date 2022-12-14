@@ -12,6 +12,9 @@
 #define DEV_CFG(dev)  ((struct counter_csk_config *)(dev)->config)
 #define DEV_DATA(dev) ((struct counter_csk_data *)(dev)->data)
 #define MAX_FREQ 200000000
+#define GPT_PERIOD_32BIT 	  (0xE3600)
+#define GPT_PERIOD_16BIT 	  (0x55558888)
+#define GPT_PERIOD_8BIT 	  (0x3388BBFF)
 struct counter_csk_config {
 	struct counter_config_info counter_info;
 	void (*irq_config)(void);
@@ -49,11 +52,10 @@ static uint32_t csk_get_value(const struct device *dev)
 static void timer_csk_isr(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
-	extern void TIMER_IRQ_Handler(TIMER_RESOURCES * timer);
-	TIMER_RESOURCES *pGpt_Temp = data->handle;
+	// extern void TIMER_IRQ_Handler(GPT_TIMER_RESOURCES * timer);
+	GPT_RESOURCES *pGpt_Temp = data->handle;
 
 	uint32_t now = csk_get_value(dev);
-	uint32_t ret0, ret1;
 
 	uint32_t ch, intflag_timer, intflag_ch;
 
@@ -115,30 +117,12 @@ static void timer_csk_isr(const struct device *dev)
 			}
 		}
 	}
-	// if (ret0) {
-	// 	// clear interrupt status
-	// 	GPT_TIM_Hander->reg->REG_INTCLR0.all = CSK_TIMER_CLR_INT;
-	// 	if (data->alarm_cfg.callback != NULL) {
-	// 		data->alarm_cfg.callback(dev, CSK_TIMER_CHANNEL_0, now, data->alarm_cfg.user_data);
-	// 	}
-	// 	while (GPT_TIM_Hander->reg->REG_MIS0.all)
-	// 		;
-	// }
 
-
-	// if (ret1) {
-	// 	GPT_TIM_Hander->reg->REG_INTCLR1.all = CSK_TIMER_CLR_INT;
-	// 	if (data->alarm_cfg.callback != NULL) {
-	// 		data->alarm_cfg.callback(dev, CSK_TIMER_CHANNEL_1, now, data->alarm_cfg.user_data);
-	// 	}
-	// 	while (GPT_TIM_Hander->reg->REG_MIS1.all)
-	// 		;
-	// }
 }
 
 static void timer_csk_irq_config(void)
 {
-	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), timer_csk_isr, DEVICE_DT_GET(DT_NODELABEL(dual_tim)), 0);
+	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), timer_csk_isr, DEVICE_DT_GET(DT_NODELABEL(gpt0)), 0);
 	irq_enable(IRQ_GPT_VECTOR);
 }
 
@@ -154,7 +138,7 @@ static int counter_csk_init(const struct device *dev)
 	return 0;
 }
 
-static int counter_csk_start(const struct device *dev)
+static int counter_csk_gpt_start(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
@@ -175,7 +159,7 @@ static int counter_csk_start(const struct device *dev)
 	return 0;
 }
 
-static int counter_csk_stop(const struct device *dev)
+static int counter_csk_gpt_stop(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
@@ -185,7 +169,7 @@ static int counter_csk_stop(const struct device *dev)
 	return 0;
 }
 
-static int counter_csk_get_value(const struct device *dev, uint32_t *ticks)
+static int counter_csk_gpt_get_value(const struct device *dev, uint32_t *ticks)
 {
 	// *ticks = csk_get_value(dev);
 	struct counter_csk_data *data = DEV_DATA(dev);
@@ -195,7 +179,7 @@ static int counter_csk_get_value(const struct device *dev, uint32_t *ticks)
 	return 0;
 }
 
-static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
+static int counter_csk_gpt_set_alarm(const struct device *dev, uint8_t chan_id,
 				 const struct counter_alarm_cfg *alarm_cfg)
 {
 	int ret = 0;
@@ -206,7 +190,7 @@ static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 	uint32_t alarm_tick = alarm_cfg->ticks;
 	data->alarm_cfg.callback = alarm_cfg->callback;
 	data->alarm_cfg.user_data = alarm_cfg->user_data;
-	if(data->channel >= MGPT_NUMBER_OF_CHANNELS)
+	if(data->channel >= GPT_NUMBER_OF_CHANNELS)
 	{
 		return -ENOTSUP;
 	}
@@ -234,11 +218,11 @@ static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 	if(ret != CSK_DRIVER_OK)
 		return -ENOTSUP;
 
-	ret = HAL_GPT_RegisterTimerCallback(GPT_TIM_Hander, data->channel, (CSK_TIMER_SignalEvent_t)data->alarm_cfg.callback);
+	ret = HAL_GPT_RegisterTimerCallback(GPT_TIM_Hander, data->channel, (CSK_GPT_SignalEvent_t)data->alarm_cfg.callback);
 	if(ret != CSK_DRIVER_OK)
 		return -ENOTSUP;
 
-	ret = HAL_GPT_SetTimerPeriodByCount(GPT_TIM_Hander, data->channel, GPT_PERIOD_32BIT);
+	ret = HAL_GPT_SetTimerPeriodByCount(GPT_TIM_Hander, data->channel, alarm_tick);
 	if(ret != CSK_DRIVER_OK)
 		return -ENOTSUP;
 
@@ -246,7 +230,7 @@ static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 	return 0;
 }
 
-static int counter_csk_cancel_alarm(const struct device *dev, uint8_t chan_id)
+static int counter_csk_gpt_cancel_alarm(const struct device *dev, uint8_t chan_id)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
@@ -254,7 +238,7 @@ static int counter_csk_cancel_alarm(const struct device *dev, uint8_t chan_id)
 	HAL_GPT_TimerUninitialize(GPT_TIM_Hander);	
 	return 0;
 }
-static int counter_csk_set_top_value(const struct device *dev,
+static int counter_csk_gpt_set_top_value(const struct device *dev,
 					 const struct counter_top_cfg *cfg)
 {
 	if (cfg->ticks != UINT32_MAX) {
@@ -264,25 +248,26 @@ static int counter_csk_set_top_value(const struct device *dev,
 	}
 	return 0;
 }
-static uint32_t counter_csk_get_top_value(const struct device *dev)
+static uint32_t counter_csk_gpt_get_top_value(const struct device *dev)
 {
 	return 0;
 }
-static uint32_t counter_csk_get_freq(const struct device *dev)
+static uint32_t counter_csk_gpt_get_freq(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 
 	return data->freq;
 }
 
-static const struct counter_driver_api counter_api = {.start = counter_csk_start,
-						      .stop = counter_csk_stop,
-						      .get_value = counter_csk_get_value,
-						      .set_alarm = counter_csk_set_alarm,
-						      .cancel_alarm = counter_csk_cancel_alarm,
-							  .set_top_value = counter_csk_set_top_value,
-							  .get_freq = counter_csk_get_freq,
-						      .get_top_value = counter_csk_get_top_value};
+static const struct counter_driver_api counter_api = {
+							  .start = counter_csk_gpt_start,
+						      .stop = counter_csk_gpt_stop,
+						      .get_value = counter_csk_gpt_get_value,
+						      .set_alarm = counter_csk_gpt_set_alarm,
+						      .cancel_alarm = counter_csk_gpt_cancel_alarm,
+							  .set_top_value = counter_csk_gpt_set_top_value,
+							  .get_freq = counter_csk_gpt_get_freq,
+						      .get_top_value = counter_csk_gpt_get_top_value};
 
 #define CSK_COUNTER_INIT(n)                                                                        \
                                                                                                    \
@@ -292,7 +277,7 @@ static const struct counter_driver_api counter_api = {.start = counter_csk_start
 		.counter_info = {.max_top_value = UINT32_MAX,                                      \
 				 .freq = MAX_FREQ,                                                        \
 				 .flags = GPT_FLAG_INITIALIZED,                                  \
-				 .channels = MGPT_NUMBER_OF_CHANNELS},                                                   \
+				 .channels = GPT_NUMBER_OF_CHANNELS},                                                   \
 		.irq_config = timer_csk_irq_config};                                               \
 	DEVICE_DT_INST_DEFINE(n, counter_csk_init, NULL, &counter_data_##n, &counter_config_##n,   \
 			      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &counter_api);
