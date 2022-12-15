@@ -2,13 +2,24 @@
  * Copyright (c) 2022 .
  */
 
-#define DT_DRV_COMPAT listenai_csk_gpt
+#define DT_DRV_COMPAT listenai_gpttimer
+// #define DT_DRV_COMPAT listenai_csk_gpttmr
 
 #include "hal/Driver_GPT_TIMER.h"
 #include "hal/gpt_timer.h"
 #include "hal/gpt.h"
 
 #include <drivers/counter.h>
+#define GPTTIMER_MAX_CHANNELS  (8)
+#define GPTIMER_NODEID DT_INST(0, listenai_gpttimer)
+#define PWM_CHANNELS DT_PROP(GPTIMER_NODEID, pwm_channels)
+
+#if (PWM_CHANNELS > GPTTIMER_MAX_CHANNELS)
+#error "The number of pwm channels exceeds the maximum(8) limit"
+#endif
+
+#define GPTTMR_CHANNEL(ch)  (ch + PWM_CHANNELS)
+
 #define DEV_CFG(dev)  ((struct counter_csk_config *)(dev)->config)
 #define DEV_DATA(dev) ((struct counter_csk_data *)(dev)->data)
 #define MAX_FREQ 200000000
@@ -29,12 +40,7 @@ struct counter_csk_data {
 
 static void *timer_csk_get_ctx(const struct device *dev)
 {
-	GPT_RegDef *base =   (GPT_RegDef *) DT_INST_REG_ADDR(0);
-	if (base == CSK6001_GPT0) {
-		return GPT0_TIMER();
-	} else {
-		return NULL;
-	}
+	return GPT0_TIMER();
 }
 
 static uint32_t csk_get_value(const struct device *dev)
@@ -42,7 +48,7 @@ static uint32_t csk_get_value(const struct device *dev)
 	uint32_t now;
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
-	uint8_t channel = data->channel;
+	uint8_t channel = GPTTMR_CHANNEL(data->channel);
 
 	HAL_GPT_ReadTimerCount(GPT_TIM_Hander, channel, &now);
 
