@@ -69,15 +69,12 @@ static void timer_csk_isr(const struct device *dev)
 
 	for(ch = 0; ch < GPT_NUMBER_OF_CHANNELS; ch++)
 	{
-
 		//timer overflow interrupt handle
 		if((pGpt_Temp->gpt_resources->hardware->channel_stat[ch] == HARDWARE_CHANNEL_STAT_USED_BY_TIM)
-		&&(intflag_timer & (0x01010101 << ch)))
+		&&(intflag_timer & (0x01010101 << ch)) && now == 0)
 		{
 			data->alarm_cfg.callback(dev, ch, now, data->alarm_cfg.user_data);
-			// pGpt_Temp->gpt_resources->info->cb_event[ch](CSK_GPT_EVENT_OVERFLOW, pGpt_Temp->gpt_resources->user_param);
 		}
-
 	}
 
 }
@@ -151,8 +148,8 @@ static int counter_csk_gpt_set_alarm(const struct device *dev, uint8_t chan_id,
 		return -ENOTSUP;
 	}
 
-	ret = HAL_GPT_TimerControl(GPT_TIM_Hander, CSK_GPT_TIMER_32_BIT_TIMER | CSK_GPT_TIMER_CLKSRC_PCLK | CSK_GPT_TIMER_CLKDIV_1 |
-							   CSK_GPT_TIMER_RUNMODE_REPEAT | CSK_GPT_TIMER_COUNTER_DOWN, data->channel);
+	ret = HAL_GPT_TimerControl(GPT_TIM_Hander, CSK_GPT_TIMER_32_BIT_TIMER | CSK_GPT_TIMER_CLKSRC_PCLK | CSK_GPT_TIMER_CLKDIV_2 |
+							   CSK_GPT_TIMER_RUNMODE_SINGLE | CSK_GPT_TIMER_COUNTER_DOWN, data->channel);
 	if(ret != CSK_DRIVER_OK){
 		printk(" HAL_GPT_TimerControl err %d\n",ret);
 		return -ENOTSUP;
