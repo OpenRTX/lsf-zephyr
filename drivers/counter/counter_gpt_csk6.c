@@ -30,9 +30,12 @@ struct counter_csk_config {
 	struct counter_config_info counter_info;
 	void (*irq_config)(void);
 };
-struct counter_csk_data {
+typedef struct {
 	struct counter_alarm_cfg alarm_cfg;
-	uint32_t ticks;
+	
+}T_Config_E;
+struct counter_csk_data {
+	T_Config_E config[GPTTIMER_MAX_CHANNELS];
 	uint8_t channel;
 	void *handle;
 	uint32_t freq;
@@ -43,37 +46,41 @@ static void *timer_csk_get_ctx(const struct device *dev)
 	return GPT0_TIMER();
 }
 
+void counter_alarm_callback_wrap(const struct device *dev,
+					 uint8_t chan_id, uint32_t ticks,
+					 void *user_data){
 
+}
+
+#define CSK_GPT_HANDER_ISR(n) \
+static inline void CSK_GPT_SignalEvent_wrap##n(uint32_t event, void *param){\
+	const struct device *dev = device_get_binding(DT_LABEL(DT_NODELABEL(gpt0)));\
+	struct counter_csk_data *data = DEV_DATA(dev);\
+	data->config[n].alarm_cfg.callback(dev, n, 0, data->config[n].alarm_cfg.user_data);}\
+
+CSK_GPT_HANDER_ISR(0)
+CSK_GPT_HANDER_ISR(1)
+CSK_GPT_HANDER_ISR(2)
+CSK_GPT_HANDER_ISR(3)
+CSK_GPT_HANDER_ISR(4)
+CSK_GPT_HANDER_ISR(5)
+CSK_GPT_HANDER_ISR(6)
+CSK_GPT_HANDER_ISR(7)
+
+void (*hander_isr[GPTTIMER_MAX_CHANNELS])(uint32_t event, void *param) = {
+	CSK_GPT_SignalEvent_wrap0,
+	CSK_GPT_SignalEvent_wrap1,
+	CSK_GPT_SignalEvent_wrap2,
+	CSK_GPT_SignalEvent_wrap3,
+	CSK_GPT_SignalEvent_wrap4,
+	CSK_GPT_SignalEvent_wrap5,
+	CSK_GPT_SignalEvent_wrap6,
+	CSK_GPT_SignalEvent_wrap7};
 static void timer_csk_isr(const struct device *dev)
 {
-	struct counter_csk_data *data = DEV_DATA(dev);
-	GPT_TIMER_RESOURCES *pGpt_Temp = (GPT_TIMER_RESOURCES *)data->handle;
-	
+	extern void gpt0_irq_handler(void);
+	gpt0_irq_handler();
 
-	uint32_t ch, intflag_timer, intflag_ch;
-
-	//get interrupt status and clear interrupt flag
-	intflag_timer = pGpt_Temp->gpt_resources->reg->ISR_TIMER;
-	//wirte 1 to clear interrupt flag
-	pGpt_Temp->gpt_resources->reg->ICR_TIMER = intflag_timer;
-
-	//input capture and ledc interrupt status
-	intflag_ch = pGpt_Temp->gpt_resources->reg->ISR_CH;
-	pGpt_Temp->gpt_resources->reg->ICR_CH = intflag_ch;
-
-	for(ch = 0; ch < GPT_NUMBER_OF_CHANNELS; ch++)
-	{
-		uint32_t now =0;
-		HAL_GPT_ReadTimerCount(pGpt_Temp, ch, &now);
-		//timer overflow interrupt handle
-		if((pGpt_Temp->gpt_resources->hardware->channel_stat[ch] == HARDWARE_CHANNEL_STAT_USED_BY_TIM)
-		&&(intflag_timer & (0x01010101 << ch)) && now == 0)
-		{
-			uint32_t channel = USR2GPT_CHANNEL(ch);
-			data->alarm_cfg.callback(dev, channel, now, data->alarm_cfg.user_data);
-		}
-
-	}
 }
 
 static void timer_csk_irq_config(void)
@@ -121,9 +128,10 @@ static int counter_csk_gpt_stop(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
-	uint8_t channel = data->channel;
-
-	HAL_GPT_StopTimer(GPT_TIM_Hander, channel);
+	for(int ii = PWM_CHANNELS; ii< GPTTIMER_MAX_CHANNELS;ii ++){
+		HAL_GPT_StopTimer(GPT_TIM_Hander, ii);
+	}
+	
 	return 0;
 }
 
@@ -136,6 +144,7 @@ static int counter_csk_gpt_get_value(const struct device *dev, uint32_t *ticks)
 	HAL_GPT_ReadTimerCount(GPT_TIM_Hander, channel, ticks);
 	return 0;
 }
+#define TESTER_FUNC(prefix,number)  prefix##number
 
 static int counter_csk_gpt_set_alarm(const struct device *dev, uint8_t chan_id,
 				 const struct counter_alarm_cfg *alarm_cfg)
@@ -146,15 +155,16 @@ static int counter_csk_gpt_set_alarm(const struct device *dev, uint8_t chan_id,
 
 	data->channel = USR2GPT_CHANNEL(chan_id);
 	uint32_t alarm_tick = alarm_cfg->ticks;
-	data->alarm_cfg.callback = alarm_cfg->callback;
-	data->alarm_cfg.user_data = alarm_cfg->user_data;
+	data->config[data->channel].alarm_cfg.callback = alarm_cfg->callback;
+	data->config[data->channel].alarm_cfg.user_data = alarm_cfg->user_data;
 	if(data->channel >= GPT_NUMBER_OF_CHANNELS)
 	{
 		return -ENOTSUP;
 	}
 
 	HAL_GPT_StopTimer(GPT_TIM_Hander, data->channel);	
-	ret = HAL_GPT_RegisterTimerCallback(GPT_TIM_Hander, data->channel, (CSK_GPT_SignalEvent_t)data->alarm_cfg.callback);
+	
+	ret = HAL_GPT_RegisterTimerCallback(GPT_TIM_Hander, data->channel, (CSK_GPT_SignalEvent_t)hander_isr[data->channel]);
 	if(ret != CSK_DRIVER_OK){
 		printk(" HAL_GPT_RegisterTimerCallback err %d\n",ret);
 		return -ENOTSUP;
