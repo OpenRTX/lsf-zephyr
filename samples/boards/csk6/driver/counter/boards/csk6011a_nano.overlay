@@ -1,0 +1,6 @@
+&gpt0 {
+        compatible = "listenai,gpttimer"; 
+        pwm-channels = <6>;
+
+
+}; 
