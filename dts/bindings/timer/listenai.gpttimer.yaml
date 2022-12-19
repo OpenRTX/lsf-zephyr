@@ -1,0 +1,40 @@
+# Copyright (c) 2022 LISTENAI (ShenZhen) Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+description: listenai gptimer peripheral
+
+compatible: "listenai,csk-gpt"
+
+include: base.yaml
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true
+
+    label:
+      required: true
+      
+    gptfreq:
+      type: int
+      required: true
+      description: gpt frequences
+
+    pwm-channels:
+      required: true
+      type: int
+      description: |
+        Number of channels occupied by pwm. The timer has a total of eight channels,which can be shared by PWM and the timer. 
+        This field defines the number of channels used for PWM, and the remaining channels are all used as csk-gpttmr.
+      enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8 

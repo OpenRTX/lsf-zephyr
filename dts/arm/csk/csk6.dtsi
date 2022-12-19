@@ -165,11 +165,14 @@
 		};
 
 		gpt0: gpt@45800000 {
-			compatible = "listenai,csk-gpt";
+			compatible = "listenai,csk-gpt"; 
 			reg = <0x45800000 0x100000>;
 			interrupts = <16 2>;
+			interrupt-names = "csk6gptisr";
 			gptfreq = <25000000>;
+			pwm-channels = <4>;
 			label = "GPT0";
+			
 
 			pwm0 {
 				compatible = "listenai,csk-pwm";
@@ -226,6 +229,7 @@
 				label = "PWM_7";
 				#pwm-cells = <3>;
 			};
+
 		};
 
 		i2c0: i2c@45600000 {
