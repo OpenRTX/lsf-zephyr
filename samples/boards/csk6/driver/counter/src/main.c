@@ -41,3 +41,4 @@ void main(void)
 	if (err < 0) {
 		printk("counter_set_channel_alarm err \n");
 	}
+}
