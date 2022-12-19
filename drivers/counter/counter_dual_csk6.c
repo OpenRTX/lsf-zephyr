@@ -80,7 +80,7 @@ static void timer_csk_isr(const struct device *dev)
 
 static void timer_csk_irq_config(void)
 {
-	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), timer_csk_isr, DEVICE_DT_GET(DT_NODELABEL(dual_tim)), 0);
+	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority), timer_csk_isr, DEVICE_DT_GET(DT_NODELABEL(dual_timer)), 0);
 	irq_enable(IRQ_TIMER_VECTOR);
 }
 

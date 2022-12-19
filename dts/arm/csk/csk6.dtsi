@@ -270,7 +270,7 @@
 			status = "disabled";
 			label = "RTC_1";
 		};
-		dual_tim: dual@44100000 {
+		dual_timer: dual@44100000 {
 			compatible = "listenai,csk-dual";
 			reg = <0x44100000 0x1000000>;
 			interrupts = <6 0>;
