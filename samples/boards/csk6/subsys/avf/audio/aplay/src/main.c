@@ -5,7 +5,8 @@
 
 #include <zephyr.h>
 #include <avf/framework/avf_platform.h>
-#include <avf/modules/audio/aplay.h>
+#include <licak/modules/audio/aplay.h>
+#include <licak/licak.h>
 #include <avf/slogger.h>
 #include "dsp_resource.h"
 
@@ -98,8 +99,8 @@ void main(void)
 	const char *pcm_data;
 	uint32_t buffer_end;
 
-	avf_stream_platform_register(dsp_firmware, sizeof(dsp_firmware), dsp_tplg,
-				     sizeof(dsp_tplg));
+	licak_init();
+
 	memset(&fmt, 0, sizeof(amedia_fmt_t));
 	pcm_data = prase_wav_fmt(test_audio, sizeof(test_audio), &fmt);
 	if (pcm_data == NULL) {

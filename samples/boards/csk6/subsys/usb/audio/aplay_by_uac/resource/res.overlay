@@ -1,0 +1,19 @@
+/ {
+  chosen {
+    licak,res=&algo_res_partition;
+    licak,cp=&algo_cp_partition;
+  };
+};
+
+&flash0 {
+  partitions {
+    algo_cp_partition: partition@400000 {
+      label = "algo_cp";
+      reg = <0x400000 0x100000>;
+    };
+    algo_res_partition: partition@500000 {
+      label = "algo_res";
+      reg = <0x500000 0x1ee000>;
+    };
+  };
+};

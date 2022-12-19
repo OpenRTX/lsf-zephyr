@@ -18,9 +18,9 @@
 #include <usb/usb_device.h>
 #include <usb/class/usb_audio.h>
 #include <avf/framework/avf_platform.h>
-#include <avf/modules/audio/aplay.h>
+#include <licak/modules/audio/aplay.h>
+#include <licak/licak.h>
 #include <avf/slogger.h>
-#include "dsp_resource.h"
 #include "pwr_amp.c"
 #define PERIOD_BYTES(fmt) amedia_frames_to_bytes(fmt, 1000)
 
@@ -165,8 +165,7 @@ static void init_sof(void)
 	int iret;
 	amedia_fmt_t fmt;
 
-	avf_stream_platform_register(dsp_firmware, sizeof(dsp_firmware), dsp_tplg,
-				     sizeof(dsp_tplg));
+	licak_init();
 	memset(&fmt, 0, sizeof(amedia_fmt_t));
 
 	fmt.channels = UAC_CHANNEL_SUM;
@@ -190,7 +189,7 @@ static void init_sof(void)
 		return;
 	}
 	printk("Set audio fmt to aplay success\n");
-	
+
 	/*Enable audio power-amp*/
 	audio_pwr_amp_init();
     audio_pwr_amp_enbale();
