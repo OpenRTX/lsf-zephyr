@@ -46,6 +46,10 @@ LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 #define DISPLAY_KSAN_DEV_NAME DT_LABEL(DT_INST(0, betterlife_bl6xxx))
 #endif
 
+#if DT_NODE_HAS_STATUS(DT_INST(0, focaltech_ft5336), okay)
+#define DISPLAY_KSAN_DEV_NAME DT_LABEL(DT_INST(0, focaltech_ft5336))
+#endif
+
 #ifdef CONFIG_SDL_DISPLAY_DEV_NAME
 #define DISPLAY_DEV_NAME CONFIG_SDL_DISPLAY_DEV_NAME
 #endif
@@ -239,6 +243,8 @@ void main(void)
 	struct display_buffer_descriptor buf_desc;
 	size_t buf_size = 0;
 	fill_buffer fill_buffer_fnc = NULL;
+
+	printk("display sample start \n");
 
 	LOG_INF("Display sample for %s", DISPLAY_DEV_NAME);
 
