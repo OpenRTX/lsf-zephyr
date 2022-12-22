@@ -94,12 +94,12 @@ static int counter_csk_init(const struct device *dev)
 	struct counter_csk_data *data = DEV_DATA(dev);
 	struct counter_csk_config *cfg = DEV_CFG(dev);
 	/* Get device handle */
-
 	data->handle = timer_csk_get_ctx(dev);
 	data->freq = BOARD_BOOTCLOCKRUN_AP_CMN_CFG_PCLK_CLK;
 
 	cfg->irq_config();
-
+	void *GPT_TIM_Hander = data->handle;
+	HAL_GPT_TimerInitialize(GPT_TIM_Hander,NULL);
 	return 0;
 }
 
@@ -116,7 +116,6 @@ static int counter_csk_gpt_start(const struct device *dev)
 		ret = HAL_GPT_TimerControl(GPT_TIM_Hander, CSK_GPT_TIMER_32_BIT_TIMER | CSK_GPT_TIMER_CLKSRC_PCLK | CSK_GPT_TIMER_CLKDIV_1 |
 							   CSK_GPT_TIMER_RUNMODE_SINGLE | CSK_GPT_TIMER_COUNTER_DOWN, ii);
 		if(ret != CSK_DRIVER_OK){
-			printk(" HAL_GPT_TimerControl err %d\n",ret);
 			return -ENOTSUP;
 		}
 
@@ -128,9 +127,8 @@ static int counter_csk_gpt_stop(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
-	for(int ii = PWM_CHANNELS; ii< GPTTIMER_MAX_CHANNELS;ii ++){
-		HAL_GPT_StopTimer(GPT_TIM_Hander, ii);
-	}
+	HAL_GPT_TimerUninitialize(GPT_TIM_Hander);
+
 	
 	return 0;
 }
@@ -168,19 +166,16 @@ static int counter_csk_gpt_set_alarm(const struct device *dev, uint8_t chan_id,
 	
 	ret = HAL_GPT_RegisterTimerCallback(GPT_TIM_Hander, data->channel, (CSK_GPT_SignalEvent_t)hander_isr[data->channel]);
 	if(ret != CSK_DRIVER_OK){
-		printk(" HAL_GPT_RegisterTimerCallback err %d\n",ret);
 		return -ENOTSUP;
 	}
 
 	ret = HAL_GPT_SetTimerPeriodByCount(GPT_TIM_Hander, data->channel, alarm_tick);
 	if(ret != CSK_DRIVER_OK){
-		printk(" HAL_GPT_SetTimerPeriodByCount err %d\n",ret);
 		return -ENOTSUP;
 	}
 
 	ret = HAL_GPT_StartTimer(GPT_TIM_Hander, data->channel);	
 	if(ret != CSK_DRIVER_OK){
-		printk(" HAL_GPT_StartTimer err %d\n",ret);
 		return -ENOTSUP;
 	}
 
@@ -191,8 +186,10 @@ static int counter_csk_gpt_cancel_alarm(const struct device *dev, uint8_t chan_i
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
-
-	HAL_GPT_TimerUninitialize(GPT_TIM_Hander);
+	
+	HAL_GPT_StopTimer(GPT_TIM_Hander, chan_id);
+	
+	
 	return 0;
 }
 static int counter_csk_gpt_set_top_value(const struct device *dev,
@@ -237,5 +234,5 @@ static const struct counter_driver_api counter_api = {
 				 .channels = GPT_NUMBER_OF_CHANNELS - PWM_CHANNELS},                                                   \
 		.irq_config = timer_csk_irq_config};                                               \
 	DEVICE_DT_INST_DEFINE(n, counter_csk_init, NULL, &counter_data_##n, &counter_config_##n,   \
-			      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &counter_api);
+			      PRE_KERNEL_1, 90, &counter_api);
 DT_INST_FOREACH_STATUS_OKAY(CSK_COUNTER_INIT)
