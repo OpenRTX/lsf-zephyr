@@ -13,12 +13,16 @@
 #define DELAY_US 1000000
 #define ALARM_CHANNEL_ID 0
 struct counter_alarm_cfg alarm_cfg;
+#ifdef CONFIG_COUNTER_CSK6_GPT
+	#define TIMER DT_LABEL(DT_NODELABEL(gpt0))
+#elif CONFIG_COUNTER_CSK6_DUAL
+	#define TIMER DT_LABEL(DT_NODELABEL(dual_timer))
+#endif
 
-#define TIMER DT_LABEL(DT_NODELABEL(gpt0))
 static void test_counter_interrupt_fn(const struct device *counter_dev, uint8_t chan_id,
 				      uint32_t ticks, void *user_data)
 {
-	printk("Dul Channel channel: %d\n", chan_id);
+	printk("counter Channel is: %d\n", chan_id);
 
 }
 

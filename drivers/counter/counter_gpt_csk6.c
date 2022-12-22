@@ -140,7 +140,9 @@ static int counter_csk_gpt_get_value(const struct device *dev, uint32_t *ticks)
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *GPT_TIM_Hander = data->handle;
 	uint8_t channel = data->channel;
-	
+	if(channel >= GPTTIMER_MAX_CHANNELS || channel <PWM_CHANNELS){
+		return -ENOTSUP;
+	}
 	HAL_GPT_ReadTimerCount(GPT_TIM_Hander, channel, ticks);
 	return 0;
 }
