@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 config COUNTER_CSK6_GPT
-	bool "listenai CSK6 embedded controller dual timer driver"
+	bool "listenai CSK6 embedded controller gpt timer driver"
 
 
 	  
