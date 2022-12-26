@@ -11,7 +11,8 @@
 #include <drivers/counter.h>
 
 #define DELAY_US 1000000
-#define ALARM_CHANNEL_ID 0
+#define ALARM_CHANNEL_ID_0 0
+#define ALARM_CHANNEL_ID_1 1
 struct counter_alarm_cfg alarm_cfg;
 #ifdef CONFIG_COUNTER_CSK6_GPT
 	#define TIMER DT_LABEL(DT_NODELABEL(gpt0))
@@ -41,8 +42,13 @@ void main(void)
 	alarm_cfg.callback = test_counter_interrupt_fn;
 	alarm_cfg.user_data = &alarm_cfg;
 	counter_start(counter_dev);
-	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID, &alarm_cfg);
+	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID_0, &alarm_cfg);
 	if (err < 0) {
 		printk("counter_set_channel_alarm err \n");
 	}
+	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID_1, &alarm_cfg);
+	if (err < 0) {
+		printk("counter_set_channel_alarm err \n");
+	}
+
 }

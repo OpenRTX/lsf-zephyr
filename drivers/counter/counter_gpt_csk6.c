@@ -56,7 +56,7 @@ void counter_alarm_callback_wrap(const struct device *dev,
 static inline void CSK_GPT_SignalEvent_wrap##n(uint32_t event, void *param){\
 	const struct device *dev = device_get_binding(DT_LABEL(DT_NODELABEL(gpt0)));\
 	struct counter_csk_data *data = DEV_DATA(dev);\
-	data->config[n].alarm_cfg.callback(dev, n, 0, data->config[n].alarm_cfg.user_data);}\
+	data->config[n].alarm_cfg.callback(dev, n-PWM_CHANNELS, 0, data->config[n].alarm_cfg.user_data);}\
 
 CSK_GPT_HANDER_ISR(0)
 CSK_GPT_HANDER_ISR(1)

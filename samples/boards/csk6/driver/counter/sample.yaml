@@ -11,3 +11,4 @@ tests:
       type: multi_line
       regex:
         - "^counter Channel is: \\d*$"
+        - "^counter Channel is: \\d*$"
