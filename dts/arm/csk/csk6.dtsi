@@ -223,6 +223,13 @@
 				#pwm-cells = <3>;
 			};
 
+			pwm7 {
+				compatible = "listenai,csk-pwm";
+				status = "disabled";
+				label = "PWM_7";
+				#pwm-cells = <3>;
+			};
+
 			gpttmr0 {
 				compatible = "listenai,csk-gpttmr";
 				label = "GPTTMR_0";
