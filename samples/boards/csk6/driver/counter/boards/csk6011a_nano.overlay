@@ -1,0 +1,6 @@
+&gpt0 {
+        compatible = "listenai,csk-gpt"; 
+        pwm-channels = <6>;
+
+
+}; 
