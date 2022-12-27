@@ -230,7 +230,7 @@
 				#pwm-cells = <3>;
 			};
 			gpttmr0 {
-				compatible = "listenai,csk-gpttmr";
+				compatible = "listenai,csk-gpttimer";
 				label = "GPTTMR_0";
 			};
 
