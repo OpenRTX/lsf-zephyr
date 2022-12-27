@@ -226,7 +226,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				for (index = 0; index < msgs->len; index++) {
 					/* master receive byte count must less or equal than 256 bytes, because driver max transfer limit; in case
 					index is bigger than msgs->len, user msgs->len must bigger or equal than master receive byte counter */
-					I2C_SlaveTransmit(I2C_Handler, &msgs->buf[index++], 1);
+					I2C_SlaveTransmit(I2C_Handler, &msgs->buf[index], 1);
 
 					/* wait until TRANSFER_INCOMPLETE, or TRANSFER_COMPLETE */
 					evt = k_event_wait(
