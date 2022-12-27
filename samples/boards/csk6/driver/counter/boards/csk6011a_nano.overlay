@@ -1,5 +1,5 @@
 &gpt0 {
-        compatible = "listenai,gpttimer"; 
+        compatible = "listenai,csk-gpt"; 
         pwm-channels = <6>;
 
 

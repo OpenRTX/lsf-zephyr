@@ -2,7 +2,7 @@
  * Copyright (c) 2022 .
  */
 
-#define DT_DRV_COMPAT listenai_gpttimer
+#define DT_DRV_COMPAT listenai_csk_gpt
 
 #include "hal/Driver_GPT_TIMER.h"
 #include "hal/gpt_timer.h"
@@ -10,7 +10,7 @@
 
 #include <drivers/counter.h>
 #define GPTTIMER_MAX_CHANNELS  (8)
-#define GPTIMER_NODEID DT_INST(0, listenai_gpttimer)
+#define GPTIMER_NODEID DT_INST(0, listenai_csk_gpt)
 #define PWM_CHANNELS DT_PROP(GPTIMER_NODEID, pwm_channels)
 
 #if (PWM_CHANNELS > GPTTIMER_MAX_CHANNELS)

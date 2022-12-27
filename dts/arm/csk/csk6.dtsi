@@ -229,6 +229,10 @@
 				label = "PWM_7";
 				#pwm-cells = <3>;
 			};
+			gpttmr0 {
+				compatible = "listenai,csk-gpttmr";
+				label = "GPTTMR_0";
+			};
 
 		};
 
