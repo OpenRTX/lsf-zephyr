@@ -194,7 +194,7 @@ static int counter_csk_gpt_cancel_alarm(const struct device *dev, uint8_t chan_i
 }
 static int counter_csk_gpt_set_top_value(const struct device *dev,
 					 const struct counter_top_cfg *cfg)
-{
+{//not support
 	if (cfg->ticks != UINT32_MAX) {
 		return -ENOTSUP;
 	} else {
@@ -203,7 +203,7 @@ static int counter_csk_gpt_set_top_value(const struct device *dev,
 	return 0;
 }
 static uint32_t counter_csk_gpt_get_top_value(const struct device *dev)
-{
+{//not support
 	return 0;
 }
 static uint32_t counter_csk_gpt_get_freq(const struct device *dev)
