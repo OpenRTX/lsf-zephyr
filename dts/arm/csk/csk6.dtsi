@@ -170,7 +170,7 @@
 			interrupts = <16 2>;
 			interrupt-names = "csk6gptisr";
 			gptfreq = <25000000>;
-			pwm-channels = <7>;
+			pwm-channels = <4>;
 			label = "GPT0";
 			
 
