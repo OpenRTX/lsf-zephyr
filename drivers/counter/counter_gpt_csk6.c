@@ -198,7 +198,7 @@ static int counter_csk_gpt_set_top_value(const struct device *dev,
 	if (cfg->ticks != UINT32_MAX) {
 		return -ENOTSUP;
 	} else {
-		return 0;
+		return UINT32_MAX;
 	}
 	return 0;
 }
