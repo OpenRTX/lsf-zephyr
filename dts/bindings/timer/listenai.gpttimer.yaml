@@ -3,7 +3,7 @@
 
 description: listenai gptimer peripheral
 
-compatible: "listenai,gpttimer"
+compatible: "listenai,csk-gpt"
 
 include: base.yaml
 

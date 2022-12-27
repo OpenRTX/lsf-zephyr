@@ -165,7 +165,7 @@
 		};
 
 		gpt0: gpt@45800000 {
-			compatible = "listenai,gpttimer"; 
+			compatible = "listenai,csk-gpt"; 
 			reg = <0x45800000 0x100000>;
 			interrupts = <16 2>;
 			interrupt-names = "csk6gptisr";
