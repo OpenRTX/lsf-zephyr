@@ -230,10 +230,6 @@
 				#pwm-cells = <3>;
 			};
 
-			gpttmr0 {
-				compatible = "listenai,csk-gpttmr";
-				label = "GPTTMR_0";
-			};
 		};
 
 		i2c0: i2c@45600000 {
