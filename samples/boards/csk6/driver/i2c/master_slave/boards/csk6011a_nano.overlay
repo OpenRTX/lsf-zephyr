@@ -6,19 +6,19 @@
 &csk6011a_nano_pinctrl{
                 /* I2C alternate function */
                 pinctrl_i2c0_scl_default: i2c0_scl_default{
-                        pinctrls = <I2C0_SCL_GPIOA_04>;
+                        pinctrls = <I2C0_SCL_GPIOA_10>;
                 };
                 
                 pinctrl_i2c0_sda_default: i2c0_sda_default{
-                        pinctrls = <I2C0_SDA_GPIOA_05>;
+                        pinctrls = <I2C0_SDA_GPIOA_11>;
                 };
 
                 pinctrl_i2c1_scl_default: i2c1_scl_default{
-                        pinctrls = <I2C1_SCL_GPIOA_07>;
+                        pinctrls = <I2C1_SCL_GPIOA_13>;
                 };
                 
                 pinctrl_i2c1_sda_default: i2c1_sda_default{
-                        pinctrls = <I2C1_SDA_GPIOA_06>;
+                        pinctrls = <I2C1_SDA_GPIOA_12>;
                 };
 
 };

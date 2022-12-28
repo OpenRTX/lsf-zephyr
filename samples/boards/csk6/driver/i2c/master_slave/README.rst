@@ -10,8 +10,10 @@ This sample demonstrates how to use CSK6 i2c peripheral to transimit/recieve dat
 Requirements
 ************
 
-This sample use two group i2c pins which i2c0(GPIO_A_04, GPIO_A_05) is as master, i2c1(GPIO_A_06, GPIO_A_07) 
-as slave. make sure to connect GPIO_A_04 to GPIO_A_07, GPIO_A_05 to GPIO_A_06 all with pull-up resistor.
+This sample use two group i2c pins which i2c0(GPIO_A_10, GPIO_A_11) is as master, 
+i2c1(GPIO_A_13, GPIO_A_12) as slave. 
+
+make sure to connect GPIO_A_10 to GPIO_A_13, GPIO_A_11 to GPIO_A_12 all with pull-up resistor.
 
 Building and Running
 ********************
