@@ -45,55 +45,27 @@ K_SEM_DEFINE(i2c_sem_s2m, 0, 1);
 void i2c_master_thread(void *v1, void *v2, void *v3);
 void i2c_slave_thread(void *v1, void *v2, void *v3);
 
-int i2c_master_init(void)
+int i2c_dev_init(const struct device **pdev, const char *dev_name, uint32_t i2c_config)
 {
-	i2c0_dev = device_get_binding(I2C0_DEV_NAME);
-	if (i2c0_dev == NULL)
-	{
-		printk("I2C0: Device is not found.\n");
+	*pdev = device_get_binding(dev_name);
+	if (*pdev == NULL) {
+		printk("%s: Device is not found.\n", dev_name);
 		return -ENODEV;
 	}
 
-	if (!device_is_ready(i2c0_dev))
-	{
-		printk("I2C0: Device is not ready.\n");
+	if (!device_is_ready(*pdev)) {
+		printk("%s: Device is not ready.\n", dev_name);
 		return -ENODEV;
 	}
 
-	/* i2c master configure */
-	if (i2c_configure(i2c0_dev, i2c0_cfg))
-	{
-		printk("I2C0 config failed\n");
+	if (i2c_configure(*pdev, i2c_config)) {
+		printk("%s: config failed\n", dev_name);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-int i2c_slave_init(void)
-{
-	i2c1_dev = device_get_binding(I2C1_DEV_NAME);
-	if (i2c1_dev == NULL)
-	{
-		printk("I2C1: Device is not found.\n");
-		return -ENODEV;
-	}
-
-	if (!device_is_ready(i2c1_dev))
-	{
-		printk("I2C1: Device is not ready.\n");
-		return -ENODEV;
-	}
-
-	/* i2c slave configure */
-	if (i2c_configure(i2c1_dev, i2c1_cfg))
-	{
-		printk("I2C1 config failed\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
 
 void main(void)
 {
@@ -101,15 +73,13 @@ void main(void)
 	printk("I2C START TEST\n");
 
 	/* i2c master and slave initialize */
-	ret = i2c_master_init();
-	if (ret != 0)
-	{
+	ret = i2c_dev_init(&i2c0_dev, I2C0_DEV_NAME, i2c0_cfg);
+	if (ret != 0) {
 		return;
 	}
-
-	ret = i2c_slave_init();
-	if (ret != 0)
-	{
+	
+	ret = i2c_dev_init(&i2c1_dev, I2C1_DEV_NAME, i2c1_cfg);
+	if (ret != 0) {
 		return;
 	}
 
@@ -126,8 +96,7 @@ void main(void)
 
 	printk("I2C Thread creaeted\n");
 
-	while (1)
-	{
+	while (1) {
 		k_msleep(10);
 	}
 }
@@ -144,15 +113,13 @@ void i2c_master_thread(void *v1, void *v2, void *v3)
 	int ret = 0;
 	printk("I2C0:Master Write, I2C1:Slave Read\n");
 #ifdef TEST_MASTER_WRITE_SLAVE_READ
-	for (int i = 0; i < sizeof(master_buf); i++)
-	{
+	for (int i = 0; i < sizeof(master_buf); i++) {
 		master_buf[i] = i + 5;
 	}
 	// 1.Taking a Semaphore, I2C_Slave_Thread notifies I2C_Master_Thread that it can write data
 	k_sem_take(&i2c_sem_s2m, K_FOREVER);
 	ret = i2c_write(i2c0_dev, master_buf, sizeof(master_buf), SLAVE_ADDRESS);
-	if (ret != 0)
-	{
+	if (ret != 0) {
 		printk("[%d:%s]i2c_write ret:%d\n", __LINE__, __FUNCTION__, ret);
 	}
 	// 2.Go to the next test
@@ -167,17 +134,20 @@ void i2c_master_thread(void *v1, void *v2, void *v3)
 
 	// 3.Giving a Semaphore, I2C_Master_Thread notifies I2C_Slave_Thread that data can be written
 	k_sem_give(&i2c_sem_m2s);
-	k_msleep(30); //Wait
+
+	/**
+	 * k_msleep() must be added in this Sample.
+	 * Make sure the Master can read the data sent by the Slave, otherwise the Master Read will time out
+	*/
+	k_msleep(30);
 	memset(master_buf, 0, sizeof(master_buf));
 	ret = i2c_read(i2c0_dev, master_buf, sizeof(master_buf), SLAVE_ADDRESS);
-	if (ret != 0)
-	{
+	if (ret != 0) {
 		printk("[%d:%s]i2c_read ret:%d\n", __LINE__, __FUNCTION__, ret);
 	}
 
 	printk("I2C0:Master Read data");
-	for (int i = 0; i < sizeof(master_buf); i++)
-	{
+	for (int i = 0; i < sizeof(master_buf); i++) {
 		if (i % 16 == 0)
 			printk("\n[0x%06X] | ", i);
 		printk("  %02X", master_buf[i]);
@@ -189,10 +159,9 @@ void i2c_master_thread(void *v1, void *v2, void *v3)
 #endif
 
 	printk("I2C Master_Thread Done\n");
-	
+
 	printk("I2C TEST DONE\n");
-	while (1)
-	{
+	while (1) {
 		k_msleep(10);
 	}
 }
@@ -206,15 +175,13 @@ void i2c_slave_thread(void *v1, void *v2, void *v3)
 	// 1.Giving a Semaphore, I2C_Slave_Thread notifies I2C_Master_Thread that data can be written
 	k_sem_give(&i2c_sem_s2m);
 	ret = i2c_read(i2c1_dev, slave_buf, sizeof(slave_buf), SLAVE_ADDRESS);
-	if (ret != 0)
-	{
+	if (ret != 0) {
 		printk("[%d:%s]i2c_read ret:%d\n", __LINE__, __FUNCTION__, ret);
 	}
 
 	/* data compare */
 	printk("I2C1:Slave Read data:");
-	for (int i = 0; i < sizeof(slave_buf); i++)
-	{
+	for (int i = 0; i < sizeof(slave_buf); i++) {
 		if (i % 16 == 0)
 			printk("\n[0x%06X] | ", i);
 		printk("  %02X", slave_buf[i]);
@@ -232,22 +199,19 @@ void i2c_slave_thread(void *v1, void *v2, void *v3)
 	printk("[%d:%s]2.I2C1:Slave Write, I2C0:Master Read\n", __LINE__, __FUNCTION__);
 	/* reset data value */
 	memset(slave_buf, 0, sizeof(slave_buf));
-	for (int i = 0; i < sizeof(slave_buf); i++)
-	{
+	for (int i = 0; i < sizeof(slave_buf); i++) {
 		slave_buf[i] = i;
 	}
 
 	// 3.Taking a Semaphore, I2C_Master_Thread notifies I2C_Slave_Thread that data can be written
 	k_sem_take(&i2c_sem_m2s, K_FOREVER);
 	ret = i2c_write(i2c1_dev, slave_buf, sizeof(slave_buf),  0);
-	if (ret != 0)
-	{
+	if (ret != 0) {
 		printk("[%d:%s]i2c_write ret:%d\n", __LINE__, __FUNCTION__, ret);
 	}
 #endif 
 	printk("I2C Salve_Thread Done\n");
-	while (1)
-	{
+	while (1) {
 		k_msleep(10);
 	}
 }
