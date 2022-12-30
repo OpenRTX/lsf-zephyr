@@ -46,6 +46,10 @@ LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 #define DISPLAY_KSAN_DEV_NAME DT_LABEL(DT_INST(0, betterlife_bl6xxx))
 #endif
 
+#if DT_NODE_HAS_STATUS(DT_INST(0, focaltech_ft5336), okay)
+#define DISPLAY_KSAN_DEV_NAME DT_LABEL(DT_INST(0, focaltech_ft5336))
+#endif
+
 #ifdef CONFIG_SDL_DISPLAY_DEV_NAME
 #define DISPLAY_DEV_NAME CONFIG_SDL_DISPLAY_DEV_NAME
 #endif
