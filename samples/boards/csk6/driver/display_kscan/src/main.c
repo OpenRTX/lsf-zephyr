@@ -244,8 +244,6 @@ void main(void)
 	size_t buf_size = 0;
 	fill_buffer fill_buffer_fnc = NULL;
 
-	printk("display sample start \n");
-
 	LOG_INF("Display sample for %s", DISPLAY_DEV_NAME);
 
 	kscan_init();
