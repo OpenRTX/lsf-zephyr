@@ -7,6 +7,7 @@
 #include "hal/reg/cmn_sysctrl_reg_venus.h"
 #include "hal/gpio.h"
 #include "hal/IOMuxManager.h"
+#include <kernel_internal.h>
 
 #define SYSTEM_CLK ((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)
 
@@ -94,6 +95,26 @@ static int csk6_init(const struct device *arg)
 
 	return 0;
 }
+
+#ifdef CONFIG_CSK6_PSRAM
+static void psram_relocate_copy(void)
+{
+	extern char __psramdata_section_start[];
+	extern char __psramdata_section_load_start[];
+	extern char __psramdata_section_size[];
+
+	extern char __psramfunc_section_start[];
+	extern char __psramfunc_section_load_start[];
+	extern char __psramfunc_section_size[];
+
+	z_early_memcpy(&__psramdata_section_start, &__psramdata_section_load_start,
+	           (size_t) &__psramdata_section_size);
+
+	z_early_memcpy(&__psramfunc_section_start, &__psramfunc_section_load_start,
+	           (size_t) &__psramfunc_section_size);
+
+}
+#endif
 
 
 #if defined(CONFIG_CPU_HAS_FPU)
@@ -208,6 +229,9 @@ void z_arm_platform_init(void)
 #if CONFIG_CSK6_PSRAM
 	extern int32_t PSRAM_Initialize(void);
 	PSRAM_Initialize();
+
+	psram_relocate_copy();
+
 #endif
 }
 
