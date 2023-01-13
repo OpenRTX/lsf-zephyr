@@ -14,6 +14,7 @@
 
 LOG_MODULE_REGISTER(csk6_sdmmc, CONFIG_SDMMC_LOG_LEVEL);
 
+K_MUTEX_DEFINE(sdmmc_mutex);
 struct sdmmc_csk_config {
 	void (*irq_config_func)(const struct device *dev);
 	const struct pinctrl_dev_config *pcfg;
@@ -56,13 +57,15 @@ static int csk6_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
 
 	LOG_DBG("%s start_sector=%d num_sector=%d", __FUNCTION__, start_sector, num_sector);
 
+	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 	err = gm_sdc_api_sdcard_sector_read(SD_0, start_sector, num_sector, data_buf);
 
 	if (err != ERR_SD_NO_ERROR) {
+		k_mutex_unlock(&sdmmc_mutex);
 		LOG_ERR("sd read block failed %d", err);
 		return -EIO;
 	}
-
+	k_mutex_unlock(&sdmmc_mutex);
 	return 0;
 }
 
@@ -74,13 +77,16 @@ static int csk6_sdmmc_access_write(struct disk_info *disk,
 
 	LOG_DBG("%s start_sector=%d num_sector=%d", __FUNCTION__, start_sector, num_sector);
 
+	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 	err = gm_sdc_api_sdcard_sector_write(SD_0, start_sector, num_sector, (void *)data_buf);
 	
 	if (err != ERR_SD_NO_ERROR) {
+		k_mutex_unlock(&sdmmc_mutex);
 		LOG_ERR("sd write block failed %d", err);
 		return -EIO;
 	}
 
+	k_mutex_unlock(&sdmmc_mutex);
 	return 0;
 }
 
@@ -90,11 +96,13 @@ static int csk6_sdmmc_access_ioctl(struct disk_info *disk, uint8_t cmd,
 	uint32_t blk_len, blk_num, erase_size;
 	uint32_t err;
 
+	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 	err = lib_sdc_get_card_info(SD_0, &blk_len, &blk_num, &erase_size);
 	if (err != ERR_SD_NO_ERROR) {
+		k_mutex_unlock(&sdmmc_mutex);
 		return -EIO;
 	}
-
+	k_mutex_unlock(&sdmmc_mutex);
 	switch (cmd) {
 		case DISK_IOCTL_GET_SECTOR_COUNT:
 			*(uint32_t *)buff = blk_num;
@@ -132,11 +140,13 @@ int csk6_sdmmc_bus_probe(const struct device *dev)
 {
 	uint32_t err;
 	const struct sdmmc_csk_config *cfg = dev->config;
+	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 	gm_api_sdc_platform_init((SDC_OPTION_ENABLE | SDC_OPTION_CD_INVERT), 0, NullSetting, (uint32_t) sdcard_buf);
 	gm_sdc_api_action(SD_0, GM_SDC_ACTION_REG_SDIO_APP_INIT, (void*)NULL, NULL);
 
 	err = gm_sdc_api_action(SD_0, GM_SDC_ACTION_CARD_DETECTION, NULL, NULL);
     if (err != ERR_SD_NO_ERROR) {
+		k_mutex_unlock(&sdmmc_mutex);
 		LOG_ERR(" NO sdcard detect!! %d\r\n", err);
         return -EIO;
     }
@@ -144,13 +154,14 @@ int csk6_sdmmc_bus_probe(const struct device *dev)
 	uint32_t card_type = 0;
     err = gm_sdc_api_action(SD_0, GM_SDC_ACTION_GET_CARD_TYPE, NULL, &card_type);
     if (err != ERR_SD_NO_ERROR || (card_type != MEMORY_CARD_TYPE_SD && card_type != MEMORY_CARD_TYPE_MMC)) {
+		k_mutex_unlock(&sdmmc_mutex);
         LOG_ERR(" NOT sd/mmc card (card_type = %u)!! \r\n", card_type);
         return -EIO;
     }
 
     uint32_t bus_width = cfg->bit_bus; 
     gm_sdc_api_action(SD_0, GM_SDC_ACTION_SET_BUS_WIDTH, &bus_width, NULL);
-
+	k_mutex_unlock(&sdmmc_mutex);
 	return 0;
 }
 
