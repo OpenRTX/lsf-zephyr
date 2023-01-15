@@ -107,17 +107,13 @@ static int counter_csk_init(const struct device *dev)
 	struct counter_csk_data *data = DEV_DATA(dev);
 	struct counter_csk_config *cfg = DEV_CFG(dev);
 
-    CSK_RTC_TIME stime = {0, 0, 0, 0};
 
 	/* Get device handle */
 	data->handle = rtc_csk_get_ctx(dev);
 	void *RTC_Handler = data->handle;
 
-    RTC_Initialize(RTC_Handler, NULL, NULL);
+	RTC_Initialize(RTC_Handler, NULL, NULL);
 	RTC_PowerControl(RTC_Handler, CSK_POWER_OFF);
-	RTC_PowerControl(RTC_Handler, CSK_POWER_FULL);
-	RTC_SetTime(RTC_Handler, &stime);
-    RTC_Control(RTC_Handler, CSK_RTC_CTRL_EN, 0);
 
 	// Setting irq
 	cfg->irq_config();
@@ -128,7 +124,7 @@ static int counter_csk_start(const struct device *dev)
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *RTC_Handler = data->handle;
-    RTC_Control(RTC_Handler, CSK_RTC_CTRL_EN, 1);
+	RTC_PowerControl(RTC_Handler, CSK_POWER_FULL);
 
 	return 0;
 }
@@ -153,7 +149,11 @@ static int counter_csk_set_alarm(const struct device *dev, uint8_t chan_id,
 {
 	struct counter_csk_data *data = DEV_DATA(dev);
 	void *RTC_Handler = data->handle;
+	CSK_RTC_TIME stime = {0, 0, 0, 0};
 
+	RTC_SetTime(RTC_Handler, &stime);
+    RTC_Control(RTC_Handler, CSK_RTC_CTRL_EN, 0);
+	RTC_Control(RTC_Handler, CSK_RTC_CTRL_EN, 1);
 	// alarm time setting
 	CSK_RTC_ALARM alarm_time;
 	uint32_t alarm_tick = alarm_cfg->ticks;
@@ -192,6 +192,18 @@ static uint32_t counter_csk_get_top_value(const struct device *dev)
             (RTC_SET_TIME_MIN_MARGIN << 6) |\
             (RTC_SET_TIME_SEC_MARGIN));
 }
+static uint32_t counter_csk_set_top_value(const struct device *dev,
+					 const struct counter_top_cfg *cfg)
+{
+	return -ENOTSUP;
+}
+
+static uint32_t counter_csk_get_freq(const struct device *dev)
+{
+	struct counter_csk_data *data = DEV_DATA(dev);
+	struct counter_csk_config *cfg = DEV_CFG(dev);
+	return cfg->counter_info.freq;
+}
 
 static const struct counter_driver_api counter_api = {
 	.start = counter_csk_start,
@@ -199,7 +211,9 @@ static const struct counter_driver_api counter_api = {
 	.get_value = counter_csk_get_value,
 	.set_alarm = counter_csk_set_alarm,
 	.cancel_alarm = counter_csk_cancel_alarm,
-	.get_top_value = counter_csk_get_top_value
+	.get_top_value = counter_csk_get_top_value,
+	.get_freq = counter_csk_get_freq,
+	.set_top_value = counter_csk_set_top_value
 };
 
 
