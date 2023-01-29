@@ -21,7 +21,7 @@
 #include "adc_context.h"
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(csk6_adc, LOG_LEVEL_WRN);
+LOG_MODULE_REGISTER(csk6_adc, LOG_LEVEL_DBG);
 
 #define DEV_DATA(dev) ((struct adc_csk6_data * const)(dev)->data)
 #define DEV_CFG(dev) ((struct adc_csk6_cfg * const)(dev)->config)
