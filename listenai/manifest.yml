@@ -100,7 +100,6 @@ manifest:
         - tinycbor
         - zcbor
         - zscilib
-        - tinycrypt
         - mipi-sys-t
       path-blocklist:
         - modules/hal/*
