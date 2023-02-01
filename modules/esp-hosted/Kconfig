@@ -42,4 +42,16 @@ config HOSTED_NETIF_QUEUE_LEN
 	int "Hosted Net if queue len"
 	default 50
 
+config HOSTED_PSRAM_BUFFER
+    bool "Hosted PSRAM Buffer"
+    default n
+    depends on  CSK6_PSRAM
+
+config HOSTED_BUFFER_HEAP_SIZE
+    int "Hosted buffer heap size"
+    default 48000
+    help
+        The size should be multiple times of 1600, when the times is equal to
+        HOSTED_RX_QUEUE_LEN / HOSTED_TX_QUEUE_LEN, it could get a better performance.
+
 endif # ESP_HOSTED
