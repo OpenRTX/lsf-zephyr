@@ -1,23 +1,23 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
-
-#include <zephyr.h>
 #include <device.h>
-
 #include <drivers/video.h>
+#include <zephyr.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(main);
 
-#define VIDEO_DEV DT_LABEL(DT_NODELABEL(dvp))
-#define VBUF_NUM 2
-#define IMAGE_HEIGHT  480
-#define IMAGE_WIDTH   640
-#define IMAGE_SIZE	  (IMAGE_WIDTH * IMAGE_HEIGHT * 2)
+#define VIDEO_DEV    DT_LABEL(DT_NODELABEL(dvp))
+#define VBUF_NUM     2
+#define IMAGE_HEIGHT 480
+#define IMAGE_WIDTH  640
+#define IMAGE_SIZE   (IMAGE_WIDTH * IMAGE_HEIGHT * 2)
 
-#define USE_SERIAL_PROTOCOL   (0)
+#define USE_SERIAL_PROTOCOL (0)
 
 const struct device *video;
 
@@ -28,13 +28,11 @@ int calculate_fps(struct video_buffer *vbuf)
 	static uint32_t last_timestamp = 0;
 	int fps;
 
-	fps = vbuf->timestamp - last_timestamp ?
-					      1000 / (vbuf->timestamp - last_timestamp) :
-					      0;
+	fps = vbuf->timestamp - last_timestamp ? 1000 / (vbuf->timestamp - last_timestamp) : 0;
 
 	last_timestamp = vbuf->timestamp;
 
-	return fps; 
+	return fps;
 }
 
 void main(void)
@@ -46,14 +44,15 @@ void main(void)
 	size_t bsize;
 	int i = 0;
 
-    video = device_get_binding(VIDEO_DEV);
+	video = device_get_binding(VIDEO_DEV);
 
-    if (video == NULL) {
-        LOG_ERR("Video device %s not found, "
-            "fallback to software generator.", VIDEO_DEV);
+	if (video == NULL) {
+		LOG_ERR("Video device %s not found, "
+			"fallback to software generator.",
+			VIDEO_DEV);
 
 		return;
-    } 
+	}
 
 	printk("- Device name: %s\n", VIDEO_DEV);
 
@@ -68,12 +67,10 @@ void main(void)
 		const struct video_format_cap *fcap = &caps.format_caps[i];
 		/* fourcc to string */
 		printk("  %c%c%c%c width [%u; %u; %u] height [%u; %u; %u]\n",
-		       (char)fcap->pixelformat,
-		       (char)(fcap->pixelformat >> 8),
-		       (char)(fcap->pixelformat >> 16),
-		       (char)(fcap->pixelformat >> 24),
-		       fcap->width_min, fcap->width_max, fcap->width_step,
-		       fcap->height_min, fcap->height_max, fcap->height_step);
+		       (char)fcap->pixelformat, (char)(fcap->pixelformat >> 8),
+		       (char)(fcap->pixelformat >> 16), (char)(fcap->pixelformat >> 24),
+		       fcap->width_min, fcap->width_max, fcap->width_step, fcap->height_min,
+		       fcap->height_max, fcap->height_step);
 		i++;
 	}
 
@@ -117,19 +114,18 @@ void main(void)
 			LOG_ERR("Unable to dequeue video buf");
 			return;
 		}
-		
+
 #if USE_SERIAL_PROTOCOL
 		frame_send(vbuf->buffer, fmt.width, fmt.height, 0);
 #endif
 
-		LOG_INF("\rGot frame %u! size: %u; timestamp %u ms fps %d\n",
-		       frame++, vbuf->bytesused, vbuf->timestamp, calculate_fps(vbuf));
+		LOG_INF("\rGot frame %u! size: %u; timestamp %u ms fps %d\n", frame++,
+			vbuf->bytesused, vbuf->timestamp, calculate_fps(vbuf));
 
 		err = video_enqueue(video, VIDEO_EP_OUT, vbuf);
 		if (err) {
 			LOG_ERR("Unable to requeue video buf");
 			return;
 		}
-
 	}
 }

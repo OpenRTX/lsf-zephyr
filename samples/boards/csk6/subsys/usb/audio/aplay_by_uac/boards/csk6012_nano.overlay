@@ -1,7 +1,8 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
-
 #define MICROPHONE    0x0201
 #define DESKTOP_MIC   0x0202
 #define PERSONAL_MIC  0x0203
@@ -25,15 +26,14 @@
 	};
 };
 
- / {
-	 chosen {
-		 /*
-		  * shared memory reserved for the inter-processor communication
-		  */
-		 zephyr,ipc_shm = &psram_share;
-		 zephyr,ipc = &mailbox0;
-	 };
- 
- };
- 
- 
+/ {
+	chosen {
+		/*
+		 * shared memory reserved for the inter-processor communication
+		 */
+		zephyr,ipc_shm = &psram_share;
+		zephyr,ipc = &mailbox0;
+	};
+
+};
+

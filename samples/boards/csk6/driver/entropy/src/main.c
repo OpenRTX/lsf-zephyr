@@ -1,9 +1,11 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
 #include <drivers/entropy.h>
+#include <zephyr.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <logging/log.h>
@@ -16,10 +18,10 @@ static void dump_entropy(const char *entropy_buf, uint32_t len)
 {
 	printk("entropy buf dump: \n");
 
-	for(uint32_t cnt = 0; cnt < len; cnt++) {
+	for (uint32_t cnt = 0; cnt < len; cnt++) {
 
 		printk("%.2x  ", entropy_buf[cnt]);
-		if(0 == ((cnt + 1) % 16)){
+		if (0 == ((cnt + 1) % 16)) {
 			printk("\n");
 		}
 	}
@@ -41,7 +43,7 @@ void main(void)
 	printk("start get entropy sample \r\n");
 
 	ret = entropy_get_entropy(dev, entropy_buf, ENTROPY_LEN_MAX);
-	if(ret != 0){
+	if (ret != 0) {
 		printk("error: get entropy failed %d\r\n", ret);
 		return;
 	}

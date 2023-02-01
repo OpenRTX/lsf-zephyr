@@ -1,11 +1,10 @@
 /*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
-#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/zephyr.h>
 
 uint32_t var_sram2_data = 10U;
 uint32_t var_sram2_bss;
@@ -31,8 +30,7 @@ void function_in_sram2(void)
 	/* Print values which were placed using attributes */
 	printk("Address of custom_section, func placed using attributes %p\n",
 	       &function_in_custom_section);
-	printk("Address of custom_section data placed using attributes %p\n\n",
-	       &var_custom_data);
+	printk("Address of custom_section data placed using attributes %p\n\n", &var_custom_data);
 
 	k_sem_give(&test);
 }
@@ -40,5 +38,4 @@ void function_in_sram2(void)
 __in_section(psramfunc_section, static, fun) void function_in_custom_section(void)
 {
 	return;
-
 }

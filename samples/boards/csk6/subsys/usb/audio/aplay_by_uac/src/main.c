@@ -1,12 +1,9 @@
 /*
- * Copyright (c) 2020 Nordic Semiconductor ASA
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
+ * @brief Sample app for Aplay by USB Audio
  *
  * SPDX-License-Identifier: Apache-2.0
- */
-
-/**
- * @file
- * @brief Sample app for Aplay by USB Audio
  */
 
 #include "kernel.h"

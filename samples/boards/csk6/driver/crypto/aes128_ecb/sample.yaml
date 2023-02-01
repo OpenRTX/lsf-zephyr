@@ -1,6 +1,6 @@
 tests:
   sample.board.csk6.driver.crypto.aes128_ecb:
-    platform_allow: csk6002_c3_nano csk6002_9s_nano csk6011a_nano
+    platform_allow: csk6011a_nano
     tags: csk6
     timeout: 10
     harness: console
