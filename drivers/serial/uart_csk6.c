@@ -266,7 +266,7 @@ static inline void csk_uart_async_update_rx_datas(csk_uart_async_data_t *async_d
 
 	async_data->dma_rx.xfer_info.received_len += ((rx_fifo_left_count < left_len) ? rx_fifo_left_count : left_len);
 }
-
+#if 0 // deprecated  CSK_UART_ASYNC API
 static void csk_uart_dma_tx_callback(const struct device *dev, void *user_data, uint32_t channel, int status)
 {
 	const struct device *uart_dev = (const struct device *)user_data;
@@ -278,10 +278,10 @@ static void csk_uart_dma_tx_callback(const struct device *dev, void *user_data, 
 		async_data->dma_tx.xfer_info.len = async_data->dma_tx.xfer_info.expe_len;
 		csk_uart_async_evt_tx_done(async_data);
 	} else {
-		
+
 	}
 }
-
+#endif
 static void csk_uart_dma_rx_complete(csk_uart_async_data_t *async_data)
 {
 	csk_uart_async_evt_rx_rdy(async_data, &async_data->dma_rx.xfer_info);
@@ -343,7 +343,7 @@ static void csk_uart_dma_rx_complete(csk_uart_async_data_t *async_data)
 		csk_uart_async_evt_rx_disabled(async_data);
 	}
 }
-
+#if 0 // deprecated  CSK_UART_ASYNC API
 static void csk_uart_dma_rx_callback(const struct device *dev, void *user_data, uint32_t channel, int status)
 {
 	const struct device *uart_dev = (const struct device *)user_data;
@@ -363,7 +363,7 @@ static void csk_uart_dma_rx_callback(const struct device *dev, void *user_data, 
 	} else {
 	}
 }
-
+#endif
 static int csk_uart_callback_set(const struct device *dev, uart_callback_t callback, void *user_data)
 {
 	struct csk_uart_data *data = DEV_DATA(dev);
@@ -479,7 +479,7 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 	/* reset rx fifo */
 	uart_reg->REG_FCR.bit.RFIFOR = 0x1;
 
-	/** 
+	/**
 	 * It seems that RCVR has been cleared after set RFIFOR.
 	 * SO set it again at here.
 	 * Set rx fifo to 1/4 full.
@@ -503,7 +503,7 @@ int csk_uart_async_rx_enable(const struct device *dev, uint8_t *buf, size_t len,
 	}
 
 	csk_uart_async_evt_rx_buf_request(async_data);
-	
+
 	return 0;
 }
 
