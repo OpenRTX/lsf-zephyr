@@ -1,22 +1,16 @@
 /*
- * Copyright (c) 2019 Jan Van Winkel <jan.van_winkel@dxplore.eu>
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
- * Based on ST7789V sample:
- * Copyright (c) 2019 Marc Reilly
- *
- * Add kscan demo:
- * Copyright (c) 2022 Listenai
- * 
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 
-#include <zephyr.h>
 #include <device.h>
 #include <drivers/display.h>
 #include <drivers/kscan.h>
+#include <zephyr.h>
 
 #if DT_NODE_HAS_STATUS(DT_INST(0, ilitek_ili9340), okay)
 #define DISPLAY_DEV_NAME DT_LABEL(DT_INST(0, ilitek_ili9340))
@@ -75,9 +69,7 @@ enum corner {
 	BOTTOM_LEFT
 };
 
-typedef void (*fill_buffer)(enum corner corner, uint8_t grey, uint8_t *buf,
-			    size_t buf_size);
-
+typedef void (*fill_buffer)(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size);
 
 #ifdef CONFIG_ARCH_POSIX
 static void posix_exit_main(int exit_code)
@@ -93,8 +85,7 @@ static void posix_exit_main(int exit_code)
 }
 #endif
 
-static void k_callback(const struct device *dev, uint32_t row, uint32_t col,
-		       bool pressed)
+static void k_callback(const struct device *dev, uint32_t row, uint32_t col, bool pressed)
 {
 	ARG_UNUSED(dev);
 	printk("row = %u col = %u, pressed:%s\n", row, col, pressed ? "TRUE" : "FLASE");
@@ -113,8 +104,7 @@ void kscan_init(void)
 	kscan_enable_callback(kscan_dev);
 }
 
-static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf,
-				 size_t buf_size)
+static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint32_t color = 0;
 
@@ -138,8 +128,7 @@ static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_rgb888(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_rgb888(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint32_t color = 0;
 
@@ -189,8 +178,7 @@ static uint16_t get_rgb565_color(enum corner corner, uint8_t grey)
 	return color;
 }
 
-static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color = get_rgb565_color(corner, grey);
 
@@ -200,8 +188,7 @@ static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color = get_rgb565_color(corner, grey);
 
@@ -210,8 +197,7 @@ static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf,
-			     size_t buf_size)
+static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color;
 
@@ -251,8 +237,7 @@ void main(void)
 	display_dev = device_get_binding(DISPLAY_DEV_NAME);
 
 	if (display_dev == NULL) {
-		LOG_ERR("Device %s not found. Aborting sample.",
-			DISPLAY_DEV_NAME);
+		LOG_ERR("Device %s not found. Aborting sample.", DISPLAY_DEV_NAME);
 		RETURN_FROM_MAIN(1);
 	}
 
