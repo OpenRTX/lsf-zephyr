@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/zephyr.h>
 
 void function_in_sram(int32_t value)
 {

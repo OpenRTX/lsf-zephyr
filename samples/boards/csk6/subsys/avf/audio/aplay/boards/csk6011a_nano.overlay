@@ -1,7 +1,9 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
- / {
+/ {
 	chosen {
 		/*
 		 * shared memory reserved for the inter-processor communication
@@ -13,10 +15,10 @@
 	aliases {
 		avf-audio-pwr-amp = &pwr_amp;
 	};
-	pwr_amp:audio_pwr_amp{
+	pwr_amp: audio_pwr_amp{
 		compatible = "listenai,pwr-amp";
 		enable-gpios = <&gpioa 4 1>;
-		label = "audio_pwr_amp";	
+		label = "audio_pwr_amp";
 		status = "okay";
 	};
 

@@ -1,14 +1,15 @@
 /*
- * Based on ili9488 sample:
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 
-#include <zephyr.h>
 #include <device.h>
 #include <drivers/display.h>
+#include <zephyr.h>
 
 #define DISPLAY_DEV_NAME DT_LABEL(DT_INST(0, ilitek_ili9488))
 
@@ -19,12 +20,9 @@ enum corner {
 	BOTTOM_LEFT
 };
 
-typedef void (*fill_buffer)(enum corner corner, uint8_t grey, uint8_t *buf,
-			    size_t buf_size);
+typedef void (*fill_buffer)(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size);
 
-
-static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf,
-				 size_t buf_size)
+static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint32_t color = 0;
 
@@ -48,8 +46,7 @@ static void fill_buffer_argb8888(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_rgb888(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_rgb888(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint32_t color = 0;
 
@@ -99,8 +96,7 @@ static uint16_t get_rgb565_color(enum corner corner, uint8_t grey)
 	return color;
 }
 
-static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color = get_rgb565_color(corner, grey);
 
@@ -110,8 +106,7 @@ static void fill_buffer_rgb565(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color = get_rgb565_color(corner, grey);
 
@@ -120,8 +115,7 @@ static void fill_buffer_bgr565(enum corner corner, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf,
-			     size_t buf_size)
+static void fill_buffer_mono(enum corner corner, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color;
 
@@ -159,8 +153,7 @@ void main(void)
 	display_dev = device_get_binding(DISPLAY_DEV_NAME);
 
 	if (display_dev == NULL) {
-		LOG_ERR("Device %s not found. Aborting sample.",
-			DISPLAY_DEV_NAME);
+		LOG_ERR("Device %s not found. Aborting sample.", DISPLAY_DEV_NAME);
 		return;
 	}
 
