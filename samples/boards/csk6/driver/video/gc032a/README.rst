@@ -13,6 +13,20 @@ Building and Running
    lisa zep build -b csk6012_nano
    lisa zep flash -r jlink
 
+.. note:: The project only support board:
+
+   - csk6011a_nano
+   - csk6011a_c3_nano
+   - csk6012_nano
+   - csk6012_c3_nano
+
+.. note:: Preview camera images using a PC Tools:
+   toos/show_image.py
+
+   * 1. Change main.c to enable serial port protocol ``#define USE_SERIAL_PROTOCOL   (1)``
+   * 2. Use an additional USB-to-serial adapter to connect to the TX pin of the target board
+   * 3. PC Tools See tools.md for help
+
 Sample Output
 =============
 
