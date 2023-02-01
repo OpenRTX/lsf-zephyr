@@ -1,98 +1,100 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdlib.h>
+
+#include <net/net_context.h>
+#include <net/net_core.h>
+#include <net/net_if.h>
+#include <net/net_mgmt.h>
 #include <sys/printk.h>
 #include <sys/sys_heap.h>
-
-#include <net/net_if.h>
-#include <net/net_core.h>
-#include <net/net_context.h>
-#include <net/net_mgmt.h>
-
 
 #include "csk6/csk_wifi.h"
 
 static csk_wifi_event_cb_t wifi_event_cb;
 static struct net_mgmt_event_callback dhcp_cb;
-static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
+static void handler_cb(struct net_mgmt_event_callback *cb, uint32_t mgmt_event,
+		       struct net_if *iface)
 {
-    if (mgmt_event != NET_EVENT_IPV4_DHCP_BOUND) {
-        return;
-    }
+	if (mgmt_event != NET_EVENT_IPV4_DHCP_BOUND) {
+		return;
+	}
 
-    char buf[NET_IPV4_ADDR_LEN];
+	char buf[NET_IPV4_ADDR_LEN];
 
-    printk("Your address: %s\n", net_addr_ntop(AF_INET, &iface->config.dhcpv4.requested_ip, buf, sizeof(buf)));
-    printk("Lease time: %u seconds\n", iface->config.dhcpv4.lease_time);
-    printk("Subnet: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
-    printk("Router: %s\n", net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
+	printk("Your address: %s\n",
+	       net_addr_ntop(AF_INET, &iface->config.dhcpv4.requested_ip, buf, sizeof(buf)));
+	printk("Lease time: %u seconds\n", iface->config.dhcpv4.lease_time);
+	printk("Subnet: %s\n",
+	       net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
+	printk("Router: %s\n",
+	       net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
 }
 
-static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32_t data_len, void *arg)
+static void wifi_event_handler(csk_wifi_event_t events, void *event_data, uint32_t data_len,
+			       void *arg)
 {
-    if (events & CSK_WIFI_EVT_STA_CONNECTED) {
-        printk("[WiFi sta] connected\n");
-    } else if (events & CSK_WIFI_EVT_STA_DISCONNECTED) {
-        printk("[WiFi sta] disconnected\n");
-    } else {
-        abort();
-    }
+	if (events & CSK_WIFI_EVT_STA_CONNECTED) {
+		printk("[WiFi sta] connected\n");
+	} else if (events & CSK_WIFI_EVT_STA_DISCONNECTED) {
+		printk("[WiFi sta] disconnected\n");
+	} else {
+		abort();
+	}
 }
 
 void main(void)
 {
-    int ret;
-    csk_wifi_init();
-    uint8_t mac_addr[6] = {0};
-    ret = csk_wifi_get_mac(CSK_WIFI_MODE_STA, mac_addr);
-    if (ret != 0) {
-        printk("wifi get mac failed, ret: %d\n", ret);
-        return;
-    }
-    printk("wifi station mac addr: %x:%x:%x:%x:%x:%x\n", 
-            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3],
-            mac_addr[4], mac_addr[5]);
-    wifi_event_cb.handler = &wifi_event_handler;
-    wifi_event_cb.events = CSK_WIFI_EVT_STA_CONNECTED | CSK_WIFI_EVT_STA_DISCONNECTED;
-    wifi_event_cb.arg = NULL;
-    csk_wifi_add_callback(&wifi_event_cb);
+	int ret;
+	csk_wifi_init();
+	uint8_t mac_addr[6] = {0};
+	ret = csk_wifi_get_mac(CSK_WIFI_MODE_STA, mac_addr);
+	if (ret != 0) {
+		printk("wifi get mac failed, ret: %d\n", ret);
+		return;
+	}
+	printk("wifi station mac addr: %x:%x:%x:%x:%x:%x\n", mac_addr[0], mac_addr[1], mac_addr[2],
+	       mac_addr[3], mac_addr[4], mac_addr[5]);
+	wifi_event_cb.handler = &wifi_event_handler;
+	wifi_event_cb.events = CSK_WIFI_EVT_STA_CONNECTED | CSK_WIFI_EVT_STA_DISCONNECTED;
+	wifi_event_cb.arg = NULL;
+	csk_wifi_add_callback(&wifi_event_cb);
 
-    csk_wifi_sta_config_t sta_config = {
-        .ssid = CONFIG_EXAMPLE_WIFI_SSID,
-        .pwd = CONFIG_EXAMPLE_WIFI_PASSWORD,
-        .encryption_mode = CSK_WIFI_AUTH_WPA2_PSK
-    };
+	csk_wifi_sta_config_t sta_config = {.ssid = CONFIG_EXAMPLE_WIFI_SSID,
+					    .pwd = CONFIG_EXAMPLE_WIFI_PASSWORD,
+					    .encryption_mode = CSK_WIFI_AUTH_WPA2_PSK};
 
-    int retry_count = 0;
-    csk_wifi_result_t wifi_result;
-    do {
-        printk("connecting to wifi: %s ...\n", sta_config.ssid);
-        ret = csk_wifi_sta_connect(&sta_config, &wifi_result, K_FOREVER);
-        if (ret == 0) {
-            break;
-        } else {
-            if (wifi_result == CSK_WIFI_ERR_STA_FAILED) {
-                retry_count++;
-                printk("retry to connecting wifi ... %d\n", retry_count);
-            } else {
-                printk("AP not found or invalid password\n");
-                return;
-            }
-        }
-    } while (retry_count < 10);
-    printk("--------------------------Current AP info-------------------------------\n");
-    printk("ssid: %s  pwd: %s  bssid: %s  channel: %d  rssi: %d\n",
-        sta_config.ssid, sta_config.pwd, sta_config.bssid, sta_config.channel,
-        sta_config.rssi);
-    printk("------------------------------------------------------------------------\n");
-    net_mgmt_init_event_callback(&dhcp_cb, handler_cb, NET_EVENT_IPV4_DHCP_BOUND);
-    net_mgmt_add_event_callback(&dhcp_cb);
-    struct net_if *iface = net_if_get_default();
-    if (!iface) {
-        printk("wifi interface not available");
-        return;
-    }
-    net_dhcpv4_start(iface);
+	int retry_count = 0;
+	csk_wifi_result_t wifi_result;
+	do {
+		printk("connecting to wifi: %s ...\n", sta_config.ssid);
+		ret = csk_wifi_sta_connect(&sta_config, &wifi_result, K_FOREVER);
+		if (ret == 0) {
+			break;
+		} else {
+			if (wifi_result == CSK_WIFI_ERR_STA_FAILED) {
+				retry_count++;
+				printk("retry to connecting wifi ... %d\n", retry_count);
+			} else {
+				printk("AP not found or invalid password\n");
+				return;
+			}
+		}
+	} while (retry_count < 10);
+	printk("--------------------------Current AP info-------------------------------\n");
+	printk("ssid: %s  pwd: %s  bssid: %s  channel: %d  rssi: %d\n", sta_config.ssid,
+	       sta_config.pwd, sta_config.bssid, sta_config.channel, sta_config.rssi);
+	printk("------------------------------------------------------------------------\n");
+	net_mgmt_init_event_callback(&dhcp_cb, handler_cb, NET_EVENT_IPV4_DHCP_BOUND);
+	net_mgmt_add_event_callback(&dhcp_cb);
+	struct net_if *iface = net_if_get_default();
+	if (!iface) {
+		printk("wifi interface not available");
+		return;
+	}
+	net_dhcpv4_start(iface);
 }
