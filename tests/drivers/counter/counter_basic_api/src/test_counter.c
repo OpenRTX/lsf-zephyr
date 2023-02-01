@@ -37,11 +37,15 @@ struct counter_alarm_cfg alarm_cfg2;
 			    INST_DT_COMPAT_LABEL, (,), compat),), ())
 
 static const char * const devices[] = {
-#ifdef CONFIG_COUNTER_CSK6_DUAL
-	DT_LABEL(DT_NODELABEL(dual_timer)),
-#endif
 #ifdef CONFIG_COUNTER_CSK6_GPT
-	DT_LABEL(DT_NODELABEL(gpt0)),
+	DT_LABEL(DT_NODELABEL(timer0)),
+	DT_LABEL(DT_NODELABEL(timer1)),
+	DT_LABEL(DT_NODELABEL(timer2)),
+	DT_LABEL(DT_NODELABEL(timer3)),
+	DT_LABEL(DT_NODELABEL(timer4)),
+	DT_LABEL(DT_NODELABEL(timer5)),
+	DT_LABEL(DT_NODELABEL(timer6)),
+	DT_LABEL(DT_NODELABEL(timer7)),
 #endif
 #ifdef CONFIG_COUNTER_TIMER0
 	/* Nordic TIMER0 may be reserved for Bluetooth */

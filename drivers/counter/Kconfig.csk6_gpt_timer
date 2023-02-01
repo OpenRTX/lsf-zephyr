@@ -5,6 +5,10 @@
 
 config COUNTER_CSK6_GPT
 	bool "listenai CSK6 embedded controller gpt timer driver"
-
+	depends on HAS_CSK6
+	select HAS_CSK6_GPT
+	default n
+	help
+	  This option enables the gpt counter driver for CSK6. Say y if you wish to use gpt counter on CSK6.
 
 	  

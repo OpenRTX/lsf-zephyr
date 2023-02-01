@@ -1,0 +1,12 @@
+
+&timer0 {
+    status = "okay";
+    
+    pwm0 {
+        /*
+        * if timer0 status is "okay", pwm0 status must be "disabled".
+        */
+        status = "disabled";
+    };
+};
+
