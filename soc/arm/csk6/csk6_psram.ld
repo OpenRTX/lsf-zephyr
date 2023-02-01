@@ -36,4 +36,12 @@ GROUP_START(PSRAMAP)
 GROUP_END(PSRAMAP)
 #endif
 
+#ifdef CONFIG_CSK_NET_POOL_PSRAM
+SECTION_PROLOGUE(csk_psram_net_pool,(NOLOAD),)
+{
+    *(.csk_psram_net_pool)
+    *(".csk_psram_net_pool.*")
+} GROUP_LINK_IN(PSRAMAP)
+#endif
+
 #endif

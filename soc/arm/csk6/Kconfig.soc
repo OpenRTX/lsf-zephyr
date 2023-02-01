@@ -41,4 +41,11 @@ if SOC_CSK6
 		help
 			Enable CSK6 PSRAM
 
+	config CSK_NET_POOL_PSRAM
+	    bool "Enable CSK PSRAM Net Pool"
+	    default n
+	    depends on CSK6_PSRAM
+	    help
+	        Put the net pool buffer into psram
+
 endif # SOC_CSK6
