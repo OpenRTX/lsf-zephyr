@@ -39,4 +39,6 @@ zephyr_library_sources_ifdef(CONFIG_ESP_HOSTED
     csk/os/src/csk_os_timer.c
 )
 
+zephyr_linker_sources(SECTIONS hosted_buffer.ld)
+
 endif()
