@@ -1,4 +1,8 @@
-
+/*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 &pinctrl {
     pinctrl_uart1_rx_default: uart1_rx_default{
         pinctrls = <UART1_RXD_GPIOA_05>;
@@ -9,6 +13,11 @@
     };
 };
 
+&dma0 {
+    status = "okay";
+};
+
+
 &uart1 {
     pinctrl-0 = <&pinctrl_uart1_rx_default &pinctrl_uart1_tx_default>;
     pinctrl-names = "default";
@@ -16,8 +25,4 @@
     dma-names = "tx", "rx";
     status = "okay";
     current-speed = <115200>;
-};
-
-&dma0 {
-    status = "okay";
 };
