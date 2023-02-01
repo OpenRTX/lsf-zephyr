@@ -376,7 +376,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t *txbuff)
 	uint16_t rx_checksum = 0, checksum = 0;
 
 	/* Allocate rx buffer */
-	rxbuff = (uint8_t *)csk_os_malloc(MAX_SPI_BUFFER_SIZE);
+	rxbuff = (uint8_t *)csk_buffer_malloc(MAX_SPI_BUFFER_SIZE);
 	hosted_assert(rxbuff);
 	memset(rxbuff, 0, MAX_SPI_BUFFER_SIZE);
 
@@ -384,7 +384,8 @@ static stm_ret_t spi_transaction_esp32(uint8_t *txbuff)
 		/* Even though, there is nothing to send,
 		 * valid resetted txbuff is needed for SPI driver
 		 */
-		txbuff = (uint8_t *)csk_os_malloc(MAX_SPI_BUFFER_SIZE);
+        /* Fixme: remove this buffer since spi driver does not need it */
+		txbuff = (uint8_t *)csk_buffer_malloc(MAX_SPI_BUFFER_SIZE);
 		hosted_assert(txbuff);
 		memset(txbuff, 0, MAX_SPI_BUFFER_SIZE);
 	}
@@ -407,7 +408,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t *txbuff)
 			 * wrong header/bit packing?
 			 * */
 			if (rxbuff) {
-				csk_os_free(rxbuff);
+                csk_buffer_free(rxbuff);
 				rxbuff = NULL;
 			}
 			/* Give chance to other tasks */
@@ -419,7 +420,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t *txbuff)
 			checksum = compute_checksum(rxbuff, len + offset);
 			if (checksum == rx_checksum) {
 				buf_handle.priv_buffer_handle = rxbuff;
-				buf_handle.free_buf_handle = csk_os_free;
+				buf_handle.free_buf_handle = csk_buffer_free;
 				buf_handle.payload_len = len;
 				buf_handle.if_type = payload_header->if_type;
 				buf_handle.if_num = payload_header->if_num;
@@ -434,7 +435,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t *txbuff)
 				}
 			} else {
 				if (rxbuff) {
-					csk_os_free(rxbuff);
+                    csk_buffer_free(rxbuff);
 					rxbuff = NULL;
 				}
 			}
@@ -442,7 +443,7 @@ static stm_ret_t spi_transaction_esp32(uint8_t *txbuff)
 
 		/* Free input TX buffer */
 		if (txbuff) {
-			csk_os_free(txbuff);
+			csk_buffer_free(txbuff);
 			txbuff = NULL;
 		}
 		break;
@@ -458,12 +459,12 @@ static stm_ret_t spi_transaction_esp32(uint8_t *txbuff)
 done:
 	/* error cases, abort */
 	if (txbuff) {
-		csk_os_free(txbuff);
+        csk_buffer_free(txbuff);
 		txbuff = NULL;
 	}
 
 	if (rxbuff) {
-		csk_os_free(rxbuff);
+        csk_buffer_free(rxbuff);
 		rxbuff = NULL;
 	}
 	return STM_FAIL;
@@ -596,7 +597,7 @@ static uint8_t *get_tx_buffer(uint8_t *is_valid_tx_buf)
 
 	if (len) {
 
-		sendbuf = (uint8_t *)csk_os_malloc(MAX_SPI_BUFFER_SIZE);
+		sendbuf = (uint8_t *)csk_buffer_malloc(MAX_SPI_BUFFER_SIZE);
 		if (!sendbuf) {
 			printk("malloc failed\n\r");
 			goto done;
