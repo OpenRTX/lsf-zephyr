@@ -170,70 +170,123 @@
 			interrupts = <16 2>;
 			interrupt-names = "csk6gptisr";
 			gptfreq = <25000000>;
-			pwm-channels = <4>;
 			label = "GPT0";
-			
 
-			pwm0 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_0";
-				#pwm-cells = <3>;
-			};
-
-			pwm1 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_1";
-				#pwm-cells = <3>;
-			};
-
-			pwm2 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_2";
-				#pwm-cells = <3>;
-			};
-
-			pwm3 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_3";
-				#pwm-cells = <3>;
-			};
-
-			pwm4 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_4";
-				#pwm-cells = <3>;
-			};
-
-			pwm5 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_5";
-				#pwm-cells = <3>;
-			};
-
-			pwm6 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_6";
-				#pwm-cells = <3>;
-			};
-
-			pwm7 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_7";
-				#pwm-cells = <3>;
-			};
-			gpttmr0 {
+			timer0:timerchannel0 {
 				compatible = "listenai,csk-gpttimer";
-				label = "GPTTMR_0";
+				channel-id = <0>;
+				label = "GPTTMER_0";
+
+				/*
+				* timerX and pwmX can not both be "okay" at the same time".
+				*/
+				status = "disabled";
+
+				pwm0 {
+					compatible = "listenai,csk-pwm";
+					status = "disabled";
+					label = "PWM_0";
+					#pwm-cells = <3>;
+					};
 			};
 
+			timer1:timerchannel1 {
+				compatible = "listenai,csk-gpttimer";
+				channel-id = <1>;
+				label = "GPTTMER_1";
+				status = "disabled";
+
+				pwm1 {
+					compatible = "listenai,csk-pwm";
+					status = "disabled";
+					label = "PWM_1";
+					#pwm-cells = <3>;
+				};
+			};
+
+			timer2:timerchannel2 {
+				compatible = "listenai,csk-gpttimer";
+				channel-id = <2>;
+				label = "GPTTMER_2";
+				status = "disabled";
+
+				pwm2 {
+					compatible = "listenai,csk-pwm";
+					status = "disabled";
+					label = "PWM_2";
+					#pwm-cells = <3>;
+				};
+			};
+
+			timer3:timerchannel3 {
+				compatible = "listenai,csk-gpttimer";
+				channel-id = <3>;
+				label = "GPTTMER_3";
+				status = "disabled";
+
+				pwm3 {
+					compatible = "listenai,csk-pwm";
+					status = "disabled";
+					label = "PWM_3";
+					#pwm-cells = <3>;
+				};	
+			};
+
+			timer4:timerchannel4 {
+				compatible = "listenai,csk-gpttimer";
+				channel-id = <4>;
+				label = "GPTTMER_4";
+				status = "disabled";
+
+				pwm4 {
+					compatible = "listenai,csk-pwm";
+					status = "disabled";
+					label = "PWM_4";
+					#pwm-cells = <3>;
+				};
+			};
+
+			timer5:timerchannel5 {
+				compatible = "listenai,csk-gpttimer";
+				channel-id = <5>;
+				label = "GPTTMER_5";
+				status = "disabled";
+
+				pwm5 {
+					compatible = "listenai,csk-pwm";
+					status = "disabled";
+					label = "PWM_5";
+					#pwm-cells = <3>;
+				};
+			};
+
+			timer6:timerchannel6 {
+				compatible = "listenai,csk-gpttimer";
+				channel-id = <6>;
+				label = "GPTTMER_6";
+				status = "disabled";
+
+				pwm6 {
+					compatible = "listenai,csk-pwm";
+					status = "disabled";
+					label = "PWM_6";
+					#pwm-cells = <3>;
+				};
+			};
+
+			timer7:timerchannel7 {
+				compatible = "listenai,csk-gpttimer";
+				channel-id = <7>;
+				label = "GPTTMER_7";
+				status = "disabled";
+
+				pwm7 {
+					compatible = "listenai,csk-pwm";
+					status = "disabled";
+					label = "PWM_7";
+					#pwm-cells = <3>;
+				};
+			};
 		};
 
 		i2c0: i2c@45600000 {

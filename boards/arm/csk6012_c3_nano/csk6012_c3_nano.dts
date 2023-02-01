@@ -61,13 +61,21 @@
 };
 
 &gpt0 {
-	status = "okay";
+        status = "okay";
+};
 
-	pwm2: pwm2 {
+&timer2 {
+        /*
+        * if pwm status is "okay", timer2 status must be "disabled".
+        */
+        status = "disabled";
+        
+        pwm2: pwm2 {
                 clock-prescaler = <128>;
+                pinctrl-0 = <&pinctrl_pwm2_default>;
+                pinctrl-names = "default";
                 status = "okay";
-	};
-
+        };
 };
 
 &gpioa {
@@ -79,12 +87,6 @@
 };
 
 &wdt {
-        status = "okay";
-};
-
-&pwm2 {
-        pinctrl-0 = <&pinctrl_pwm2_default>; 
-        pinctrl-names = "default";
         status = "okay";
 };
 

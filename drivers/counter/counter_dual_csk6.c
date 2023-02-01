@@ -213,5 +213,5 @@ static const struct counter_driver_api counter_api = {.start = counter_csk_start
 				 .channels = CSK_TIMER_MAX_CHANNEL_NUM},                                                   \
 		.irq_config = timer_csk_irq_config};                                               \
 	DEVICE_DT_INST_DEFINE(n, counter_csk_init, NULL, &counter_data_##n, &counter_config_##n,   \
-			      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &counter_api);
+			      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &counter_api);
 DT_INST_FOREACH_STATUS_OKAY(CSK_COUNTER_INIT)

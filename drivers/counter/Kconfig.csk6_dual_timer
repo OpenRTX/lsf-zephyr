@@ -5,6 +5,8 @@
 
 config COUNTER_CSK6_DUAL
 	bool "listenai CSK6 embedded controller dual timer driver"
-
+	default n
+	help
+	  	  This option enables the dual counter driver for CSK6. Say y if you wish to use dual counter on CSK6.
 
 	  
