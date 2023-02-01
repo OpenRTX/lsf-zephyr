@@ -1,26 +1,25 @@
 /*
- * SPDX-License-Identifier: Apache-2.0
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
- * Copyright (c) 2021 STMicroelectronics
+ * SPDX-License-Identifier: Apache-2.0
  */
-
 &keysense {
-    status = "okay";
+	status = "okay";
 
 	//keysense use adc channel 6 to sample
-    io-channels = <&adc0 6>;
+	io-channels = <&adc0 6>;
 
-    //Trigger voltage of each analog key (mV)
-    analogkey-trigger = <1100 1890 2570>;
+	//Trigger voltage of each analog key (mV)
+	analogkey-trigger = <1100 1890 2570>;
 };
 
 
 / {
-     aliases {
-        analogkey = &keysense;
-     };
+	aliases {
+		analogkey = &keysense;
+	};
 };
 
 &adc0 {
-        status = "okay";
+	status = "okay";
 };

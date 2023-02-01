@@ -1,19 +1,19 @@
 /*
- * Copyright (c) 2019 Peter Bigot Consulting, LLC
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
 /* Sample which uses the filesystem API with littlefs */
+
+#include "sqlite3.h"
 
 #include <stdio.h>
 
-#include <zephyr.h>
 #include <device.h>
 #include <fs/fs.h>
 #include <fs/littlefs.h>
 #include <storage/flash_map.h>
-#include "sqlite3.h"
+#include <zephyr.h>
 
 /* Matches LFS_NAME_MAX */
 #define MAX_PATH_LEN 255
@@ -22,7 +22,7 @@
 
 #if DT_NODE_EXISTS(PARTITION_NODE)
 FS_FSTAB_DECLARE_ENTRY(PARTITION_NODE);
-#else /* PARTITION_NODE */
+#else  /* PARTITION_NODE */
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(storage);
 static struct fs_mount_t lfs_storage_mnt = {
 	.type = FS_LITTLEFS,

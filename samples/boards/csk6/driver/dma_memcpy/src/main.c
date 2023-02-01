@@ -1,93 +1,98 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <kernel.h>
-#include <string.h>
 #include <errno.h>
-#include <zephyr.h>
-#include <sys/printk.h>
-#include <device.h>
-#include <drivers/spi.h>
-#include <drivers/dma.h>
+#include <string.h>
 
-#define BUFFER_SIZE (1024 * 10)
+#include <device.h>
+#include <drivers/dma.h>
+#include <drivers/spi.h>
+#include <kernel.h>
+#include <sys/printk.h>
+#include <zephyr.h>
+
+#define BUFFER_SIZE		    (1024 * 10)
 #define CONFIG_TEST_DMA_CHANNEL_NUN (1)
 
 K_SEM_DEFINE(dma_sem, 0, 1);
 
 void dma_callback(const struct device *dev, void *user_data, uint32_t channel, int status)
 {
-    if (status == 0) {
-        k_sem_give(&dma_sem);
-    }
+	if (status == 0) {
+		k_sem_give(&dma_sem);
+	}
 }
 
 void test_std_memcpy(void *src, void *dst, size_t size)
 {
-    printk("\nSTD memcpy start\n");
-    uint32_t start = k_cycle_get_32();
-    memcpy(dst, src, size);
-    uint32_t time = (double)(k_cycle_get_32() - start) / sys_clock_hw_cycles_per_sec() * 1000 * 1000;
-    printk("STD memecpy cost time: %d us\n", time);
-    printk("STD memcpy finish\n");
+	printk("\nSTD memcpy start\n");
+	uint32_t start = k_cycle_get_32();
+	memcpy(dst, src, size);
+	uint32_t time =
+		(double)(k_cycle_get_32() - start) / sys_clock_hw_cycles_per_sec() * 1000 * 1000;
+	printk("STD memecpy cost time: %d us\n", time);
+	printk("STD memcpy finish\n");
 }
 
 void test_dma_copy(const struct device *dma, void *src, void *dst, size_t size)
 {
-    int32_t r;
+	int32_t r;
 
-    struct dma_block_config block_config = {
-        .source_address = (uint32_t)src,
-        .dest_address = (uint32_t)dst,
-        .block_size = size,
-        .dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
-        .source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
-    };
+	struct dma_block_config block_config = {
+		.source_address = (uint32_t)src,
+		.dest_address = (uint32_t)dst,
+		.block_size = size,
+		.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+		.source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+	};
 
-    struct dma_config dma_cfg = {
-        .channel_direction = MEMORY_TO_MEMORY,
-        .dma_callback = dma_callback,
-        .user_data = NULL,
-        .block_count = 1,
-        .head_block = &block_config,
-        .source_data_size = 4,
-        .dest_data_size = 1,
-        .channel_priority = 1,
-    };
+	struct dma_config dma_cfg = {
+		.channel_direction = MEMORY_TO_MEMORY,
+		.dma_callback = dma_callback,
+		.user_data = NULL,
+		.block_count = 1,
+		.head_block = &block_config,
+		.source_data_size = 4,
+		.dest_data_size = 1,
+		.channel_priority = 1,
+	};
 
-    memset(dst, 0, size);
+	memset(dst, 0, size);
 
-    printk("\nDMA copy start\n");
-    uint32_t start = k_cycle_get_32();
-    r = dma_config(dma, 1, &dma_cfg);
-    if (r != 0) {
-        printk("\nDMA config failed, return value:%d\n", r);
-        return;
-    }
-    r = dma_start(dma, 1);
-    if (r != 0) {
-        printk("\nDMA start failed.\n");
-        return;
-    }
-    k_sem_take(&dma_sem, K_FOREVER);
-    uint32_t time = (double)(k_cycle_get_32() - start) / sys_clock_hw_cycles_per_sec() * 1000 * 1000;
-    printk("DMA copy cost time: %d us\n", time);
-    printk("DMA copy finish\n");
+	printk("\nDMA copy start\n");
+	uint32_t start = k_cycle_get_32();
+	r = dma_config(dma, 1, &dma_cfg);
+	if (r != 0) {
+		printk("\nDMA config failed, return value:%d\n", r);
+		return;
+	}
+	r = dma_start(dma, 1);
+	if (r != 0) {
+		printk("\nDMA start failed.\n");
+		return;
+	}
+	k_sem_take(&dma_sem, K_FOREVER);
+	uint32_t time =
+		(double)(k_cycle_get_32() - start) / sys_clock_hw_cycles_per_sec() * 1000 * 1000;
+	printk("DMA copy cost time: %d us\n", time);
+	printk("DMA copy finish\n");
 }
 
 #ifdef CONFIG_NOCACHE_MEMORY
-static uint8_t src_buffer[BUFFER_SIZE] __attribute__((__section__(".nocache"))) = { 0 };
-static uint8_t dst_buffer[BUFFER_SIZE] __attribute__((__section__(".nocache"))) = { 0 };
+static uint8_t src_buffer[BUFFER_SIZE] __attribute__((__section__(".nocache"))) = {0};
+static uint8_t dst_buffer[BUFFER_SIZE] __attribute__((__section__(".nocache"))) = {0};
 #else
-static uint8_t src_buffer[BUFFER_SIZE] __attribute__((__aligned__(32))) = { 0 };
-static uint8_t dst_buffer[BUFFER_SIZE] __attribute__((__aligned__(32))) = { 0 };
+static uint8_t src_buffer[BUFFER_SIZE] __attribute__((__aligned__(32))) = {0};
+static uint8_t dst_buffer[BUFFER_SIZE] __attribute__((__aligned__(32))) = {0};
 #endif
 
 void dump(void *datas, uint32_t len)
 {
 	uint32_t c = 0;
-    char *ch = datas;
+	char *ch = datas;
 
 	while (len--) {
 		printk("%02X ", *ch++);
@@ -358,29 +363,29 @@ int32_t sample_dma_source_data_width(const struct device *dma, void *src, void *
 
 void main(void)
 {
-    const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
+	const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
 
-    if (src_buffer == NULL || dst_buffer == NULL) {
-        printk("no memory");
-        return;
-    }
+	if (src_buffer == NULL || dst_buffer == NULL) {
+		printk("no memory");
+		return;
+	}
 
-    for (int i = 0; i < BUFFER_SIZE; i++) {
-        src_buffer[i] = i % UINT8_MAX;
-    }
+	for (int i = 0; i < BUFFER_SIZE; i++) {
+		src_buffer[i] = i % UINT8_MAX;
+	}
 
-    while (1) {
-        sample_dma_scatter(dma, src_buffer, dst_buffer, 16);
-        sample_dma_gather(dma, src_buffer, dst_buffer, 16);
+	while (1) {
+		sample_dma_scatter(dma, src_buffer, dst_buffer, 16);
+		sample_dma_gather(dma, src_buffer, dst_buffer, 16);
 
-        sample_dma_dest_decrement(dma, src_buffer, dst_buffer, 16);
-        sample_dma_source_decrement(dma, src_buffer, dst_buffer, 16);
+		sample_dma_dest_decrement(dma, src_buffer, dst_buffer, 16);
+		sample_dma_source_decrement(dma, src_buffer, dst_buffer, 16);
 
-        sample_dma_dest_data_width(dma, src_buffer, dst_buffer, 16);
-        sample_dma_source_data_width(dma, src_buffer, dst_buffer, 16);
+		sample_dma_dest_data_width(dma, src_buffer, dst_buffer, 16);
+		sample_dma_source_data_width(dma, src_buffer, dst_buffer, 16);
 
-        test_dma_copy(dma, src_buffer, dst_buffer, BUFFER_SIZE);
-        test_std_memcpy(src_buffer, dst_buffer, BUFFER_SIZE);
-        k_msleep(1000);
-    }
+		test_dma_copy(dma, src_buffer, dst_buffer, BUFFER_SIZE);
+		test_std_memcpy(src_buffer, dst_buffer, BUFFER_SIZE);
+		k_msleep(1000);
+	}
 }

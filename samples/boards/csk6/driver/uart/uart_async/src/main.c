@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -24,12 +24,8 @@ static void uart_async_callback(const struct device *dev, struct uart_event *evt
 	ARG_UNUSED(dev);
 
 	const uint8_t *events_name[] = {
-		"tx done",
-		"tx abort",
-		"rx ready",
-		"rx buf request",
-		"rx buf released",
-		"rx disabled",
+		"tx done",	  "tx abort",	     "rx ready",
+		"rx buf request", "rx buf released", "rx disabled",
 	};
 
 	printk("evt type: %d, event name:%s\n", evt->type, events_name[evt->type]);
