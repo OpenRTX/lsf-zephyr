@@ -1,17 +1,18 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
 #include <avf/framework/avf_platform.h>
-#include <licak/modules/audio/acapture.h>
-#include <licak/licak.h>
 #include <avf/slogger.h>
+#include <licak/licak.h>
+#include <licak/modules/audio/acapture.h>
+#include <zephyr.h>
 
-#define ACAPTURE_DATA_EVENT_THRES (1024)
+#define ACAPTURE_DATA_EVENT_THRES  (1024)
 #define ACAPTURE_DATA_TOTAL_LENGTH (1024 * 100)
-#define ACAPTURE_MSGQ_NUMBER (10)
+#define ACAPTURE_MSGQ_NUMBER	   (10)
 typedef struct {
 	char *pdata;
 	int datalen;
@@ -80,7 +81,7 @@ void main(void)
 	if (0 != (iret = acap_event_register(acapture, AVF_STREAM_EVENT_THRES_NOTIFY,
 					     acapture_data_process, acapture,
 					     ACAPTURE_DATA_EVENT_THRES))) {
-		printk("Register data event callback failed,iret %d\n",iret);
+		printk("Register data event callback failed,iret %d\n", iret);
 		return;
 	}
 	printk("Register data event callback success.\n");

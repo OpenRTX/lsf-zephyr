@@ -1,28 +1,30 @@
 /*
- * Based on ili9488 sample:
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 
-#include <zephyr.h>
 #include <device.h>
 #include <drivers/display.h>
+#include <zephyr.h>
 
 #if CONFIG_FRAME_MEM_PSRAM
-#define K_HEAP_CUSTOM_SECTION_DEFINE(name, bytes) \
-    Z_HEAP_DEFINE_IN_SECT(name, bytes, __attribute__((section(".psram_section"))))
+#define K_HEAP_CUSTOM_SECTION_DEFINE(name, bytes)                                                  \
+	Z_HEAP_DEFINE_IN_SECT(name, bytes, __attribute__((section(".psram_section"))))
 
-K_HEAP_CUSTOM_SECTION_DEFINE(display_buffer_pool, CONFIG_DISPLAY_X_RES * CONFIG_DISPLAY_Y_RES * 3 + 128);
+K_HEAP_CUSTOM_SECTION_DEFINE(display_buffer_pool,
+			     CONFIG_DISPLAY_X_RES *CONFIG_DISPLAY_Y_RES * 3 + 128);
 #elif CONFIG_FRAME_MEM_SRAM
 #define K_HEAP_CUSTOM_SECTION_DEFINE(name, bytes) K_HEAP_DEFINE(name, bytes)
 
-K_HEAP_CUSTOM_SECTION_DEFINE(display_buffer_pool, CONFIG_DISPLAY_X_RES * CONFIG_DISPLAY_Y_RES * 3 + 128);
+K_HEAP_CUSTOM_SECTION_DEFINE(display_buffer_pool,
+			     CONFIG_DISPLAY_X_RES *CONFIG_DISPLAY_Y_RES * 3 + 128);
 #else
-	#error "Must select the memory in which image data is stored" 
+#error "Must select the memory in which image data is stored"
 #endif
-
 
 enum color {
 	COLOR_RED,
@@ -31,13 +33,9 @@ enum color {
 	COLOR_CUSTOM
 };
 
+typedef void (*fill_buffer)(enum color rgb, uint8_t grey, uint8_t *buf, size_t buf_size);
 
-typedef void (*fill_buffer)(enum color rgb, uint8_t grey, uint8_t *buf,
-			    size_t buf_size);
-
-
-static void fill_buffer_argb8888(enum color rgb, uint8_t grey, uint8_t *buf,
-				 size_t buf_size)
+static void fill_buffer_argb8888(enum color rgb, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint32_t color = 0;
 
@@ -61,8 +59,7 @@ static void fill_buffer_argb8888(enum color rgb, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_rgb888(enum color rgb, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_rgb888(enum color rgb, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint32_t color = 0;
 
@@ -112,8 +109,7 @@ static uint16_t get_rgb565_color(enum color rgb, uint8_t grey)
 	return color;
 }
 
-static void fill_buffer_rgb565(enum color rgb, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_rgb565(enum color rgb, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color = get_rgb565_color(rgb, grey);
 
@@ -123,8 +119,7 @@ static void fill_buffer_rgb565(enum color rgb, uint8_t grey, uint8_t *buf,
 	}
 }
 
-static void fill_buffer_bgr565(enum color rgb, uint8_t grey, uint8_t *buf,
-			       size_t buf_size)
+static void fill_buffer_bgr565(enum color rgb, uint8_t grey, uint8_t *buf, size_t buf_size)
 {
 	uint16_t color = get_rgb565_color(rgb, grey);
 
@@ -136,8 +131,8 @@ static void fill_buffer_bgr565(enum color rgb, uint8_t grey, uint8_t *buf,
 int calculate_fps(uint32_t in, uint32_t out)
 {
 	uint32_t time_us;
-	time_us = (out - in) * 33 / 10000;	
-	return 1000000 / time_us; 
+	time_us = (out - in) * 33 / 10000;
+	return 1000000 / time_us;
 }
 
 void main(void)
@@ -147,7 +142,7 @@ void main(void)
 	struct display_capabilities capabilities;
 	struct display_buffer_descriptor buf_desc;
 	size_t buf_size = 0;
-	uint32_t x_res,y_res,depth;
+	uint32_t x_res, y_res, depth;
 	fill_buffer fill_buffer_fnc = NULL;
 
 	LOG_INF("Display sample for %s", CONFIG_DISPLAY_DEV_NAME);
@@ -155,46 +150,46 @@ void main(void)
 	display_dev = device_get_binding(CONFIG_DISPLAY_DEV_NAME);
 
 	if (display_dev == NULL) {
-		LOG_ERR("Device %s not found. Aborting sample.",
-			CONFIG_DISPLAY_DEV_NAME);
+		LOG_ERR("Device %s not found. Aborting sample.", CONFIG_DISPLAY_DEV_NAME);
 		return;
 	}
 
 	display_get_capabilities(display_dev, &capabilities);
-	LOG_INF("display capabilities: x_resolution %d  y_resolution %d  format %d\n", 
-				capabilities.x_resolution, 
-				capabilities.y_resolution, 
-				capabilities.current_pixel_format);
+	LOG_INF("display capabilities: x_resolution %d  y_resolution %d  format %d\n",
+		capabilities.x_resolution, capabilities.y_resolution,
+		capabilities.current_pixel_format);
 
-	x_res = (CONFIG_DISPLAY_X_RES > capabilities.x_resolution)?(capabilities.x_resolution):(CONFIG_DISPLAY_X_RES);
-	y_res = (CONFIG_DISPLAY_Y_RES > capabilities.y_resolution)?(capabilities.y_resolution):(CONFIG_DISPLAY_Y_RES);
+	x_res = (CONFIG_DISPLAY_X_RES > capabilities.x_resolution) ? (capabilities.x_resolution)
+								   : (CONFIG_DISPLAY_X_RES);
+	y_res = (CONFIG_DISPLAY_Y_RES > capabilities.y_resolution) ? (capabilities.y_resolution)
+								   : (CONFIG_DISPLAY_Y_RES);
 
 	buf_size = x_res * y_res;
 
 	switch (capabilities.current_pixel_format) {
-		case PIXEL_FORMAT_ARGB_8888:
-			fill_buffer_fnc = fill_buffer_argb8888;
-			buf_size *= 4;
-			depth = 4;
-			break;
-		case PIXEL_FORMAT_RGB_888:
-			fill_buffer_fnc = fill_buffer_rgb888;
-			buf_size *= 3;
-			depth = 3;
-			break;
-		case PIXEL_FORMAT_RGB_565:
-			fill_buffer_fnc = fill_buffer_rgb565;
-			buf_size *= 2;
-			depth = 2; 
-			break;
-		case PIXEL_FORMAT_BGR_565:
-			fill_buffer_fnc = fill_buffer_bgr565;
-			buf_size *= 2;
-			depth = 2;
-			break;
-		default:
-			LOG_ERR("Unsupported pixel format. Aborting sample.");
-			return;
+	case PIXEL_FORMAT_ARGB_8888:
+		fill_buffer_fnc = fill_buffer_argb8888;
+		buf_size *= 4;
+		depth = 4;
+		break;
+	case PIXEL_FORMAT_RGB_888:
+		fill_buffer_fnc = fill_buffer_rgb888;
+		buf_size *= 3;
+		depth = 3;
+		break;
+	case PIXEL_FORMAT_RGB_565:
+		fill_buffer_fnc = fill_buffer_rgb565;
+		buf_size *= 2;
+		depth = 2;
+		break;
+	case PIXEL_FORMAT_BGR_565:
+		fill_buffer_fnc = fill_buffer_bgr565;
+		buf_size *= 2;
+		depth = 2;
+		break;
+	default:
+		LOG_ERR("Unsupported pixel format. Aborting sample.");
+		return;
 	}
 
 	buf = k_heap_alloc(&display_buffer_pool, buf_size, K_FOREVER);
@@ -211,9 +206,9 @@ void main(void)
 	display_blanking_off(display_dev);
 
 	uint8_t cnt = 0;
-	uint32_t timestamp_in,timestamp_out;
+	uint32_t timestamp_in, timestamp_out;
 	while (1) {
-		if(0 == (cnt % 3)){
+		if (0 == (cnt % 3)) {
 			cnt = 0;
 		}
 		fill_buffer_fnc(cnt++, 0, buf, buf_size);
@@ -221,12 +216,9 @@ void main(void)
 		timestamp_in = k_cycle_get_32();
 		display_write(display_dev, 0, 0, &buf_desc, buf);
 		timestamp_out = k_cycle_get_32();
-		LOG_INF("display frame: xy (%d %d) depth %d byte, period: %d us, write fps: %d \n", 
-				x_res, 
-				y_res,
-				depth,
-				((timestamp_out - timestamp_in) * 33) / 10000, 
-				calculate_fps(timestamp_in, timestamp_out));
+		LOG_INF("display frame: xy (%d %d) depth %d byte, period: %d us, write fps: %d \n",
+			x_res, y_res, depth, ((timestamp_out - timestamp_in) * 33) / 10000,
+			calculate_fps(timestamp_in, timestamp_out));
 
 		k_msleep(1000);
 	}

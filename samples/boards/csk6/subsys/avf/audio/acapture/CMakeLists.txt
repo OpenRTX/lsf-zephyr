@@ -2,9 +2,16 @@
 
 cmake_minimum_required(VERSION 3.20.0)
 
-set(CONF_FILE
-  prj.conf
-)
+set(SUPPORT_BOARDS csk6012_nano csk6011a_nano)
+if(NOT ${BOARD} IN_LIST SUPPORT_BOARDS)
+    message("Please choose one of the following boards:")
+    foreach(item ${SUPPORT_BOARDS})
+        message(STATUS ${item})
+    endforeach()
+    message(FATAL_ERROR "\nThe project does not support the ${BOARD}")
+endif()
+
+set(CONF_FILE prj.conf)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/boards/${BOARD}.conf")
   list(APPEND CONF_FILE

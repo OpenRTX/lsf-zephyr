@@ -1,28 +1,29 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <sys/printk.h>
 #include <drivers/adc.h>
+#include <sys/printk.h>
+#include <zephyr.h>
 
-#if !DT_NODE_EXISTS(DT_PATH(zephyr_user)) || \
-	!DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
+#if !DT_NODE_EXISTS(DT_PATH(zephyr_user)) || !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
 #error "No suitable devicetree overlay specified"
 #endif
 
-#define ADC_NUM_CHANNELS	DT_PROP_LEN(DT_PATH(zephyr_user), io_channels)
+#define ADC_NUM_CHANNELS DT_PROP_LEN(DT_PATH(zephyr_user), io_channels)
 
 #if ADC_NUM_CHANNELS > 3
 #error "Currently only 1 or 2 channels supported in this sample"
 #endif
 
-#define ADC_NODE		DT_PHANDLE(DT_PATH(zephyr_user), io_channels)
+#define ADC_NODE DT_PHANDLE(DT_PATH(zephyr_user), io_channels)
 
 /* Common settings supported by most ADCs */
-#define ADC_RESOLUTION		11
-#define ADC_GAIN		ADC_GAIN_1
-#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_RESOLUTION 11
+#define ADC_GAIN       ADC_GAIN_1
+#define ADC_REFERENCE  ADC_REF_INTERNAL
 
 /* Get the numbers of up to two channels */
 static uint8_t channel_ids[ADC_NUM_CHANNELS] = {
@@ -32,7 +33,7 @@ static uint8_t channel_ids[ADC_NUM_CHANNELS] = {
 #endif
 
 #if ADC_NUM_CHANNELS == 3
-	DT_IO_CHANNELS_INPUT_BY_IDX(DT_PATH(zephyr_user), 1),
+		DT_IO_CHANNELS_INPUT_BY_IDX(DT_PATH(zephyr_user), 1),
 	DT_IO_CHANNELS_INPUT_BY_IDX(DT_PATH(zephyr_user), 2)
 #endif
 };
@@ -47,11 +48,11 @@ struct adc_channel_cfg channel_cfg = {
 
 struct adc_sequence sequence = {
 	/* individual channels will be added below */
-	.channels    = 0,
-	.buffer      = sample_buffer,
+	.channels = 0,
+	.buffer = sample_buffer,
 	/* buffer size in bytes, not number of samples */
 	.buffer_size = sizeof(sample_buffer),
-	.resolution  = ADC_RESOLUTION,
+	.resolution = ADC_RESOLUTION,
 };
 
 void main(void)
@@ -101,8 +102,8 @@ void main(void)
 				 */
 				int32_t mv_value = raw_value - 2048;
 
-				adc_raw_to_millivolts(adc_vref, ADC_GAIN_1,
-					ADC_RESOLUTION, &mv_value);
+				adc_raw_to_millivolts(adc_vref, ADC_GAIN_1, ADC_RESOLUTION,
+						      &mv_value);
 				printk(" adc(%d)= %d mV  ", raw_value, mv_value);
 			}
 		}
