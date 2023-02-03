@@ -10,8 +10,8 @@
 #include <device.h>
 #include <drivers/counter.h>
 
-#ifdef CONFIG_COUNTER_CSK6_GPT
-	#define DEVICE_NAME  DT_LABEL(DT_NODELABEL(timer0))
+#ifdef CONFIG_COUNTER_CSK6_GPTCHANNEL
+	#define DEVICE_NAME  DT_LABEL(DT_NODELABEL(gptchannel0))
 #elif CONFIG_COUNTER_CSK6_DUAL
 	#define DEVICE_NAME "DUL_TIM"
 #endif

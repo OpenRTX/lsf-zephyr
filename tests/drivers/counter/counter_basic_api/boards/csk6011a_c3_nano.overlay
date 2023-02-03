@@ -1,5 +1,5 @@
 &gpt0 {
-    timer0:timerchannel0 {
+    gptchannel0:gptchannel0 {
         status = "okay";
         
         pwm0 {
@@ -7,7 +7,7 @@
         };
     };
 
-    timer1:timerchannel1 {
+    gptchannel1:gptchannel1 {
         status = "okay";
         
         pwm1 {
@@ -15,7 +15,7 @@
         };
     };
 
-    timer2:timerchannel2 {
+    gptchannel2:gptchannel2 {
         status = "okay";
         
         pwm2 {
@@ -23,7 +23,7 @@
         };
     };
 
-    timer3:timerchannel3 {
+    gptchannel3:gptchannel3 {
         status = "okay";
         
         pwm3 {
@@ -31,7 +31,7 @@
         };
     };
 
-    timer4:timerchannel4 {
+    gptchannel4:gptchannel4 {
         status = "okay";
         
         pwm4 {
@@ -39,7 +39,7 @@
         };
     };
 
-    timer5:timerchannel5 {
+    gptchannel5:gptchannel5 {
         status = "okay";
         
         pwm5 {
@@ -47,7 +47,7 @@
         };
     };
 
-    timer6:timerchannel6 {
+    gptchannel6:gptchannel6 {
         status = "okay";
         
         pwm6 {
@@ -55,7 +55,7 @@
         };
     };
     
-    timer7:timerchannel7 {
+    gptchannel7:gptchannel7 {
         status = "okay";
         
         pwm7 {

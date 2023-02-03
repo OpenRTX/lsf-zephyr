@@ -168,17 +168,17 @@
 			compatible = "listenai,csk-gpt";
 			reg = <0x45800000 0x100000>;
 			interrupts = <16 2>;
-			interrupt-names = "csk6gptisr";
+			interrupt-names = "csk_gpt_isr";
 			gptfreq = <25000000>;
 			label = "GPT0";
 
-			timer0:timerchannel0 {
-				compatible = "listenai,csk-gpttimer";
+			gptchannel0:gptchannel0 {
+				compatible = "listenai,csk-gptchannel";
 				channel-id = <0>;
-				label = "GPTTMER_0";
+				label = "GPTCHANNEL_0";
 
 				/*
-				* timerX and pwmX can not both be "okay" at the same time".
+				* gptchannelX and pwmX can not both be "okay" at the same time".
 				*/
 				status = "disabled";
 
@@ -190,10 +190,10 @@
 					};
 			};
 
-			timer1:timerchannel1 {
-				compatible = "listenai,csk-gpttimer";
+			gptchannel1:gptchannel1 {
+				compatible = "listenai,csk-gptchannel";
 				channel-id = <1>;
-				label = "GPTTMER_1";
+				label = "GPTCHANNEL_1";
 				status = "disabled";
 
 				pwm1 {
@@ -204,10 +204,10 @@
 				};
 			};
 
-			timer2:timerchannel2 {
-				compatible = "listenai,csk-gpttimer";
+			gptchannel2:gptchannel2 {
+				compatible = "listenai,csk-gptchannel";
 				channel-id = <2>;
-				label = "GPTTMER_2";
+				label = "GPTCHANNEL_2";
 				status = "disabled";
 
 				pwm2 {
@@ -218,10 +218,10 @@
 				};
 			};
 
-			timer3:timerchannel3 {
-				compatible = "listenai,csk-gpttimer";
+			gptchannel3:gptchannel3 {
+				compatible = "listenai,csk-gptchannel";
 				channel-id = <3>;
-				label = "GPTTMER_3";
+				label = "GPTCHANNEL_3";
 				status = "disabled";
 
 				pwm3 {
@@ -232,10 +232,10 @@
 				};	
 			};
 
-			timer4:timerchannel4 {
-				compatible = "listenai,csk-gpttimer";
+			gptchannel4:gptchannel4 {
+				compatible = "listenai,csk-gptchannel";
 				channel-id = <4>;
-				label = "GPTTMER_4";
+				label = "GPTCHANNEL_4";
 				status = "disabled";
 
 				pwm4 {
@@ -246,10 +246,10 @@
 				};
 			};
 
-			timer5:timerchannel5 {
-				compatible = "listenai,csk-gpttimer";
+			gptchannel5:gptchannel5 {
+				compatible = "listenai,csk-gptchannel";
 				channel-id = <5>;
-				label = "GPTTMER_5";
+				label = "GPTCHANNEL_5";
 				status = "disabled";
 
 				pwm5 {
@@ -260,10 +260,10 @@
 				};
 			};
 
-			timer6:timerchannel6 {
-				compatible = "listenai,csk-gpttimer";
+			gptchannel6:gptchannel6 {
+				compatible = "listenai,csk-gptchannel";
 				channel-id = <6>;
-				label = "GPTTMER_6";
+				label = "GPTCHANNEL_6";
 				status = "disabled";
 
 				pwm6 {
@@ -274,10 +274,10 @@
 				};
 			};
 
-			timer7:timerchannel7 {
-				compatible = "listenai,csk-gpttimer";
+			gptchannel7:gptchannel7 {
+				compatible = "listenai,csk-gptchannel";
 				channel-id = <7>;
-				label = "GPTTMER_7";
+				label = "GPTCHANNEL_7";
 				status = "disabled";
 
 				pwm7 {
