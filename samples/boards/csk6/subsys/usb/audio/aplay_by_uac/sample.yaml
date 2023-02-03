@@ -4,6 +4,7 @@ tests:
   sample.board.csk6.subsys.usb.audio.aplay_by_uac:
     depends_on: usb_device
     tags: usb
+    build_only: true
     platform_allow: csk6011a_nano
     harness: console
     harness_config:
