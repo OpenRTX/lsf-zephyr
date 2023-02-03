@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2021 LISTENAI Co., Ltd.
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 &trng {
-        status = "okay";
+	status = "okay";
 };

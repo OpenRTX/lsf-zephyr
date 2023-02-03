@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2021 LISTENAI Co., Ltd.
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
- /delete-node/ &storage_partition;
+/delete-node/ &storage_partition;
 / {
 
 };
@@ -24,7 +24,5 @@
 			label = "storage";
 			reg = <0x760000 0x00a0000>;
 		};
-
-
 	};
 };

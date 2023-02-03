@@ -1,15 +1,16 @@
 /*
- * Copyright (c) 2018 Jan Van Winkel <jan.van_winkel@dxplore.eu>
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <stdio.h>
+#include <string.h>
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/display.h>
-#include <lvgl.h>
-#include <stdio.h>
-#include <string.h>
 #include <zephyr/zephyr.h>
+
+#include <lvgl.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <zephyr/logging/log.h>
@@ -50,7 +51,7 @@ void main(void)
 
 	while (1) {
 		if ((count % 100) == 0U) {
-			sprintf(count_str, "%d", count/100U);
+			sprintf(count_str, "%d", count / 100U);
 			lv_label_set_text(count_label, count_str);
 		}
 		lv_task_handler();

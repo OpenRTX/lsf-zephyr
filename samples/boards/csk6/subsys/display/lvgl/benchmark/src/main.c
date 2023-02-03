@@ -1,12 +1,14 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <stdio.h>
+#include <string.h>
 
 #include <device.h>
 #include <drivers/display.h>
 #include <lvgl.h>
-#include <stdio.h>
-#include <string.h>
 #include <zephyr.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
@@ -27,7 +29,7 @@ void main(void)
 
 	extern void lv_demo_benchmark(void);
 	lv_demo_benchmark();
-	
+
 	while (1) {
 		lv_task_handler();
 		k_sleep(K_MSEC(10));

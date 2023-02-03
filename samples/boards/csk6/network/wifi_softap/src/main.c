@@ -1,7 +1,8 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
-
 #include <stdlib.h>
 #include <zephyr.h>
 #include <sys/printk.h>
