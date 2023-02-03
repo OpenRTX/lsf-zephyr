@@ -3,7 +3,7 @@
 
 description: CSK counters
 
-compatible: "listenai,csk-gpttimer"
+compatible: "listenai,csk-gptchannel"
 
 include: base.yaml
 
