@@ -10,6 +10,8 @@ supported:
   - gpio
   - uart
   - ipm
+  - usb_device
+  - pwm
   - counter
 ram: 320
-flash: 8000
+flash: 16000

@@ -1,0 +1,42 @@
+&gpt0 {
+    gptchannel0:gptchannel0 {
+        status = "okay";
+        channel_mode = <0>;  /* 0: timer; 1:pwm */
+    };
+
+    gptchannel1:gptchannel1 {
+        status = "okay";
+        channel_mode = <0>;  /* 0: timer; 1:pwm */
+    };
+
+    gptchannel2:gptchannel2 {
+        status = "okay";
+        channel_mode = <0>;  /* 0: timer; 1:pwm */
+    };
+
+    gptchannel3:gptchannel3 {
+        status = "okay";
+        channel_mode = <0>;  /* 0: timer; 1:pwm */
+    };
+
+    gptchannel4:gptchannel4 {
+        status = "okay";
+        channel_mode = <0>;  /* 0: timer; 1:pwm */
+    };
+
+    gptchannel5:gptchannel5 {
+        status = "okay";
+        channel_mode = <0>;  /* 0: timer; 1:pwm */
+    };
+
+    gptchannel6:gptchannel6 {
+        status = "okay";
+        channel_mode = <0>;  /* 0: timer; 1:pwm */
+    };
+    
+    gptchannel7:gptchannel7 {
+        status = "okay";
+        channel_mode = <0>;  /* 0: timer; 1:pwm */
+    };
+
+};

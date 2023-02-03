@@ -168,70 +168,88 @@
 			compatible = "listenai,csk-gpt";
 			reg = <0x45800000 0x100000>;
 			interrupts = <16 2>;
-			interrupt-names = "csk6gptisr";
+			interrupt-names = "csk_gpt_isr";
 			gptfreq = <25000000>;
-			pwm-channels = <4>;
 			label = "GPT0";
+
+			gptchannel0:gptchannel0 {
+				compatible = "listenai,csk-gptchannel";
+				channel-id = <0>;
+				label = "GPTCHANNEL_0";
+				channel_mode = <0>;  /* 0: timer; 1:pwm */
+
+				status = "disabled";
+				#pwm-cells = <3>;
+			};
+
+			gptchannel1:gptchannel1 {
+				compatible = "listenai,csk-gptchannel";
+				channel-id = <1>;
+				label = "GPTCHANNEL_1";
+				channel_mode = <0>;  /* 0: timer; 1:pwm */
+
+				status = "disabled";
+				#pwm-cells = <3>;
+			};
 			
+			gptchannel2:gptchannel2 {
+				compatible = "listenai,csk-gptchannel";
+				channel-id = <2>;
+				label = "GPTCHANNEL_2";
+				channel_mode = <0>;  /* 0: timer; 1:pwm */
 
-			pwm0 {
-				compatible = "listenai,csk-pwm";
 				status = "disabled";
-				label = "PWM_0";
+				#pwm-cells = <3>;
+			};
+			
+			gptchannel3:gptchannel3 {
+				compatible = "listenai,csk-gptchannel";
+				channel-id = <3>;
+				label = "GPTCHANNEL_3";
+				channel_mode = <0>;  /* 0: timer; 1:pwm */
+
+				status = "disabled";
 				#pwm-cells = <3>;
 			};
 
-			pwm1 {
-				compatible = "listenai,csk-pwm";
+			gptchannel4:gptchannel4 {
+				compatible = "listenai,csk-gptchannel";
+				channel-id = <4>;
+				label = "GPTCHANNEL_4";
+				channel_mode = <0>;  /* 0: timer; 1:pwm */
+
 				status = "disabled";
-				label = "PWM_1";
+				#pwm-cells = <3>;
+			};
+			
+			gptchannel5:gptchannel5 {
+				compatible = "listenai,csk-gptchannel";
+				channel-id = <6>;
+				label = "GPTCHANNEL_6";
+				channel_mode = <0>;  /* 0: timer; 1:pwm */
+
+				status = "disabled";
 				#pwm-cells = <3>;
 			};
 
-			pwm2 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_2";
-				#pwm-cells = <3>;
-			};
+			gptchannel6:gptchannel6 {
+				compatible = "listenai,csk-gptchannel";
+				channel-id = <6>;
+				label = "GPTCHANNEL_6";
+				channel_mode = <0>;  /* 0: timer; 1:pwm */
 
-			pwm3 {
-				compatible = "listenai,csk-pwm";
 				status = "disabled";
-				label = "PWM_3";
 				#pwm-cells = <3>;
 			};
+			
+			gptchannel7:gptchannel7 {
+				compatible = "listenai,csk-gptchannel";
+				channel-id = <7>;
+				label = "GPTCHANNEL_7";
+				channel_mode = <0>;  /* 0: timer; 1:pwm */
 
-			pwm4 {
-				compatible = "listenai,csk-pwm";
 				status = "disabled";
-				label = "PWM_4";
 				#pwm-cells = <3>;
-			};
-
-			pwm5 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_5";
-				#pwm-cells = <3>;
-			};
-
-			pwm6 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_6";
-				#pwm-cells = <3>;
-			};
-
-			pwm7 {
-				compatible = "listenai,csk-pwm";
-				status = "disabled";
-				label = "PWM_7";
-				#pwm-cells = <3>;
-			};
-			gpttmr0 {
-				compatible = "listenai,csk-gpttimer";
-				label = "GPTTMR_0";
 			};
 
 		};

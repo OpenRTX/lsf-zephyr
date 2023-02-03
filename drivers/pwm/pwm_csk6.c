@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT listenai_csk_pwm
+#define DT_DRV_COMPAT listenai_csk_gptchannel
 
 #include <errno.h>
 
@@ -23,6 +23,8 @@
 LOG_MODULE_REGISTER(pwm_csk6, CONFIG_PWM_LOG_LEVEL);
 
 #define MAX_PWM_CHANNEL  8
+#define MODE_TIMER  (0)
+#define MODE_PWM  (1)
 
 
 /** PWM configuration. */
@@ -30,6 +32,7 @@ struct pwm_csk_config {
 	uint8_t clock_source;
 	uint8_t clock_prescaler;
 	uint8_t mode;
+	uint8_t channel_mode;
 	/* PWM alternate configuration */
     const struct pinctrl_dev_config *pcfg;
 };
@@ -132,6 +135,9 @@ static const struct pwm_driver_api pwm_csk_driver_api = {
 static int pwm_csk_init(const struct device *dev)
 {
 	const struct pwm_csk_config *config = dev->config;
+	if(config->channel_mode != MODE_PWM){
+		return -EPERM;
+	}
 	HAL_GPT_PWMInitialize(GPT0_PWM(), NULL);
 	HAL_GPT_PWMPowerControl(GPT0_PWM(), CSK_POWER_FULL);
 
@@ -148,6 +154,7 @@ static int pwm_csk_init(const struct device *dev)
 		.clock_source = DT_INST_PROP(index, clock_source),                		\
 		.clock_prescaler = DT_INST_PROP(index, clock_prescaler),           		\
 		.mode = DT_INST_PROP(index, mode),           							\
+		.channel_mode = DT_INST_PROP(index, channel_mode),						\
         .pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                          \
 	};                                                                     		\
 																				\

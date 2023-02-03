@@ -1,0 +1,14 @@
+sample:
+  name: counter_timer
+
+tests:
+  sample.board.csk6.driver.counter:
+    platform_allow: csk6011a_nano
+    tags: csk6
+    timeout: 20
+    harness: console
+    harness_config:
+      type: multi_line
+      regex:
+        - "^g_counter: \\d*$"
+        - "^g_counter: \\d*$"
