@@ -13,6 +13,9 @@
 #define DEV_CFG(dev)  ((struct counter_csk_config *)(dev)->config)
 #define DEV_DATA(dev) ((struct counter_csk_data *)(dev)->data)
 
+#define MODE_TIMER  (0)
+#define MODE_PWM  (1)
+
 #define GPTCHANNEL_MAX_CHANNELS  (8)
 uint8_t g_gpt0_init_flag = 0;
 
@@ -21,6 +24,7 @@ struct counter_csk_config {
 	uint32_t gpt0_bits;
 	uint32_t gpt0_clkdiv;
 	uint8_t gptchannel;
+	uint8_t channel_mode;
 	void (*irq_event_func)(uint32_t event, void *param);
 };
 
@@ -65,6 +69,9 @@ static int counter_csk_init(const struct device *dev)
 
 	struct counter_csk_data *data = DEV_DATA(dev);
 	struct counter_csk_config *cfg = DEV_CFG(dev);
+	if(cfg->channel_mode != MODE_TIMER){
+		return -EPERM;
+	}
 	/* Get device handle */
 	data->handle = GPT0_TIMER();
 	data->gptchannel = cfg->gptchannel;
@@ -247,6 +254,7 @@ static const struct counter_driver_api counter_api = {
 		.gpt0_bits = CSK_GPT_TIMER_32_BIT_TIMER,                                             \
 		.gpt0_clkdiv = CSK_GPT_TIMER_CLKDIV_1,                                             \
 		.gptchannel = DT_INST_PROP(index, channel_id),                                         \
+		.channel_mode = DT_INST_PROP(index, channel_mode),                                                          \
 		CSK_GPTCHANNEL_IRQ_CFG_FUNC_CONF(index)                                         \
 	};                                                                                               \
 	DEVICE_DT_INST_DEFINE(index, counter_csk_init, NULL, &counter_data_##index, &counter_config_##index,   \
