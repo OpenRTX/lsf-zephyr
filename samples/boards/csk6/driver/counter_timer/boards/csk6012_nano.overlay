@@ -1,0 +1,12 @@
+
+&gptchannel0 {
+    status = "okay";
+    
+    pwm0 {
+        /*
+        * if gptchannel0 status is "okay", pwm0 status must be "disabled".
+        */
+        status = "disabled";
+    };
+};
+

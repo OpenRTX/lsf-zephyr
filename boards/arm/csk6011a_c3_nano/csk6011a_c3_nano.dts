@@ -64,9 +64,9 @@
         status = "okay";
 };
 
-&timer2 {
+&gptchannel2 {
         /*
-        * if pwm status is "okay", timer2 status must be "disabled".
+        * if pwm status is "okay", gptchannel2 status must be "disabled".
         */
         status = "disabled";
         
