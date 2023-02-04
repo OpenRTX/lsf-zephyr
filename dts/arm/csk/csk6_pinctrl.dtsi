@@ -79,6 +79,9 @@
         pinctrl_adc0_ch2_default: adc0_ch2_default{
         };
 
+        pinctrl_adc0_ch3_default: adc0_ch3_default{
+        };
+
         /* PWM alternate function*/
         pinctrl_pwm0_default: pwm0_default{
         };

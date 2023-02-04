@@ -36,6 +36,8 @@
 #define UART0_TXD_GPIOB_07     CSK6_PINMUX(b, 7, 2)
 #define UART0_RXD_GPIOB_08     CSK6_PINMUX(b, 8, 2)
 #define UART0_TXD_GPIOB_09     CSK6_PINMUX(b, 9, 2)
+#define UART0_RXD_GPIOB_10     CSK6_PINMUX(b, 10, 2)
+#define UART0_TXD_GPIOB_11     CSK6_PINMUX(b, 11, 2)
 // uart1
 #define UART1_TXD_GPIOA_00     CSK6_PINMUX(a, 0, 3)
 #define UART1_RXD_GPIOA_01     CSK6_PINMUX(a, 1, 3)
@@ -69,6 +71,8 @@
 #define UART2_RXD_GPIOB_07     CSK6_PINMUX(b, 7, 3)
 #define UART2_TXD_GPIOB_08     CSK6_PINMUX(b, 8, 3)
 #define UART2_RXD_GPIOB_09     CSK6_PINMUX(b, 9, 3)
+#define UART2_TXD_GPIOB_10     CSK6_PINMUX(b, 10, 3)
+#define UART2_RTS_N_GPIOB_11     CSK6_PINMUX(b, 11, 3)
 // uart3
 #define UART3_TXD_GPIOA_00     CSK6_PINMUX(a, 0, 4)
 #define UART3_RXD_GPIOA_00     CSK6_PINMUX(a, 0, 5)
@@ -126,6 +130,8 @@
 #define SPI0_MISO_GPIOB_07     CSK6_PINMUX(b, 7, 6)
 #define SPI0_CS_N_GPIOB_08     CSK6_PINMUX(b, 8, 6)
 #define SPI0_CLK_GPIOB_09     CSK6_PINMUX(b, 9, 6)
+#define SPI0_MOSI_GPIOB_10     CSK6_PINMUX(b, 10, 6)
+#define SPI0_MISO_GPIOB_11     CSK6_PINMUX(b, 11, 6)
 // spi1
 #define SPI1_CLK_GPIOA_00     CSK6_PINMUX(a, 0, 7)
 #define SPI1_CS_N_GPIOA_01     CSK6_PINMUX(a, 1, 7)
@@ -158,6 +164,8 @@
 #define SPI1_CS_N_GPIOB_07     CSK6_PINMUX(b, 7, 7)
 #define SPI1_CLK_GPIOB_08     CSK6_PINMUX(b, 8, 7)
 #define SPI1_MOSI_GPIOB_09     CSK6_PINMUX(b, 9, 7)
+#define SPI1_MISO_GPIOB_10     CSK6_PINMUX(b, 10, 7)
+#define SPI1_CS_N_GPIOB_11     CSK6_PINMUX(b, 11, 7)
 // i2c0
 #define I2C0_SCL_GPIOA_00     CSK6_PINMUX(a, 0, 8)
 #define I2C0_SDA_GPIOA_01     CSK6_PINMUX(a, 1, 8)
@@ -190,6 +198,8 @@
 #define I2C0_SDA_GPIOB_07     CSK6_PINMUX(b, 7, 8)
 #define I2C0_SCL_GPIOB_08     CSK6_PINMUX(b, 8, 8)
 #define I2C0_SDA_GPIOB_09     CSK6_PINMUX(b, 9, 8)
+#define I2C0_SCL_GPIOB_10     CSK6_PINMUX(b, 10, 8)
+#define I2C0_SDA_GPIOB_11     CSK6_PINMUX(b, 11, 8)
 // i2c1
 #define I2C1_SDA_GPIOA_00     CSK6_PINMUX(a, 0, 9)
 #define I2C1_SCL_GPIOA_01     CSK6_PINMUX(a, 1, 9)
@@ -222,6 +232,8 @@
 #define I2C1_SCL_GPIOB_07     CSK6_PINMUX(b, 7, 9)
 #define I2C1_SDA_GPIOB_08     CSK6_PINMUX(b, 8, 9)
 #define I2C1_SCL_GPIOB_09     CSK6_PINMUX(b, 9, 9)
+#define I2C1_SDA_GPIOB_10     CSK6_PINMUX(b, 10, 9)
+#define I2C1_SCL_GPIOB_11     CSK6_PINMUX(b, 11, 9)
 // i2s0
 #define I2S0_ADCDAT_GPIOA_20     CSK6_PINMUX(a, 20, 15)
 #define I2S0_ADCDAT_GPIOB_00     CSK6_PINMUX(b, 0, 15)
@@ -234,6 +246,8 @@
 #define I2S0_LRCK_GPIOB_07     CSK6_PINMUX(b, 7, 15)
 #define I2S0_BCK_GPIOB_08     CSK6_PINMUX(b, 8, 15)
 #define I2S0_ADCDAT_GPIOB_09     CSK6_PINMUX(b, 9, 15)
+#define I2S0_LRCK_GPIOB_10     CSK6_PINMUX(b, 10, 15)
+#define I2S0_BCK_GPIOB_11     CSK6_PINMUX(b, 11, 15)
 // i2s1
 #define I2S1_MCLK_GPIOA_01     CSK6_PINMUX(a, 1, 14)
 #define I2S1_BCK_GPIOA_02     CSK6_PINMUX(a, 2, 14)
@@ -265,6 +279,8 @@
 #define I2S1_LRCK_GPIOB_07     CSK6_PINMUX(b, 7, 14)
 #define I2S1_BCK_GPIOB_08     CSK6_PINMUX(b, 8, 14)
 #define I2S1_LRCK_GPIOB_09     CSK6_PINMUX(b, 9, 14)
+#define I2S1_DACDAT_GPIOB_10     CSK6_PINMUX(b, 10, 14)
+#define I2S1_ADCDAT_GPIOB_11     CSK6_PINMUX(b, 11, 14)
 // i2s2
 #define I2S2_MCLK_GPIOA_00     CSK6_PINMUX(a, 0, 15)
 #define I2S2_BCK_GPIOA_01     CSK6_PINMUX(a, 1, 15)
@@ -318,6 +334,8 @@
 #define GPT_PWM_1_GPIOB_07     CSK6_PINMUX(b, 7, 11)
 #define GPT_PWM_0_GPIOB_08     CSK6_PINMUX(b, 8, 11)
 #define GPT_PWM_7_GPIOB_09     CSK6_PINMUX(b, 9, 11)
+#define GPT_PWM_6_GPIOB_10     CSK6_PINMUX(b, 10, 11)
+#define GPT_PWM_5_GPIOB_11     CSK6_PINMUX(b, 11, 11)
 // ir
 #define IR_DATOUT_GPIOA_02     CSK6_PINMUX(a, 2, 4)
 #define IR_DATIN_GPIOA_02     CSK6_PINMUX(a, 2, 5)
@@ -357,6 +375,10 @@
 #define IR_DATIN_GPIOB_08     CSK6_PINMUX(b, 8, 5)
 #define IR_DATIN_GPIOB_09     CSK6_PINMUX(b, 9, 4)
 #define IR_DATOUT_GPIOB_09     CSK6_PINMUX(b, 9, 5)
+#define IR_DATOUT_GPIOB_10     CSK6_PINMUX(b, 10, 4)
+#define IR_DATIN_GPIOB_10     CSK6_PINMUX(b, 10, 5)
+#define IR_DATIN_GPIOB_11     CSK6_PINMUX(b, 11, 4)
+#define IR_DATOUT_GPIOB_11     CSK6_PINMUX(b, 11, 5)
 // gpt_trigger
 #define GPT_TRIGGER_0_GPIOA_00     CSK6_PINMUX(a, 0, 10)
 #define GPT_TRIGGER_1_GPIOA_01     CSK6_PINMUX(a, 1, 10)
@@ -389,6 +411,8 @@
 #define GPT_TRIGGER_1_GPIOB_07     CSK6_PINMUX(b, 7, 10)
 #define GPT_TRIGGER_0_GPIOB_08     CSK6_PINMUX(b, 8, 10)
 #define GPT_TRIGGER_7_GPIOB_09     CSK6_PINMUX(b, 9, 10)
+#define GPT_TRIGGER_6_GPIOB_10     CSK6_PINMUX(b, 10, 10)
+#define GPT_TRIGGER_5_GPIOB_11     CSK6_PINMUX(b, 11, 10)
 // io_sd
 #define IO_SD_CMD_GPIOA_00     CSK6_PINMUX(a, 0, 13)
 #define IO_SD_DAT0_GPIOA_01     CSK6_PINMUX(a, 1, 13)
@@ -421,6 +445,8 @@
 #define IO_SD_CMD_GPIOB_07     CSK6_PINMUX(b, 7, 13)
 #define IO_SD_CLK_GPIOB_08     CSK6_PINMUX(b, 8, 13)
 #define IO_SD_DAT3_GPIOB_09     CSK6_PINMUX(b, 9, 13)
+#define IO_SD_DAT2_GPIOB_10     CSK6_PINMUX(b, 10, 13)
+#define IO_SD_DAT1_GPIOB_11     CSK6_PINMUX(b, 11, 13)
 // GPADC
 #define GPADC_0_GPIOB_06     CSK6_PINMUX(b, 6, 16)
 #define GPADC_1_GPIOB_07     CSK6_PINMUX(b, 7, 16)
@@ -457,6 +483,8 @@
 #define DMIC01_DAT_GPIOB_07     CSK6_PINMUX(b, 7, 17)
 #define DMIC01_CLK_GPIOB_08     CSK6_PINMUX(b, 8, 17)
 #define DMIC01_DAT_GPIOB_09     CSK6_PINMUX(b, 9, 17)
+#define DMIC01_CLK_GPIOB_10     CSK6_PINMUX(b, 10, 17)
+#define DMIC01_DAT_GPIOB_11     CSK6_PINMUX(b, 11, 17)
 // clkp
 #define CLKP_OUT_GPIOA_07     CSK6_PINMUX(a, 7, 20)
 #define CLKP_OUT_GPIOA_11     CSK6_PINMUX(a, 11, 20)
@@ -509,6 +537,7 @@
 #define GPT_PAUSE_GPIOB_04     CSK6_PINMUX(b, 4, 12)
 #define GPT_PAUSE_GPIOB_06     CSK6_PINMUX(b, 6, 12)
 #define GPT_PAUSE_GPIOB_08     CSK6_PINMUX(b, 8, 12)
+#define GPT_PAUSE_GPIOB_10     CSK6_PINMUX(b, 10, 12)
 // gpt_clk_t1
 #define GPT_CLK_T1_GPIOA_01     CSK6_PINMUX(a, 1, 12)
 #define GPT_CLK_T1_GPIOA_03     CSK6_PINMUX(a, 3, 12)
@@ -525,6 +554,7 @@
 #define GPT_CLK_T1_GPIOB_05     CSK6_PINMUX(b, 5, 12)
 #define GPT_CLK_T1_GPIOB_07     CSK6_PINMUX(b, 7, 12)
 #define GPT_CLK_T1_GPIOB_09     CSK6_PINMUX(b, 9, 12)
+#define GPT_CLK_T1_GPIOB_11     CSK6_PINMUX(b, 11, 12)
 // sw
 #define STAR_SWCLKTCK_GPIOA_00     CSK6_PINMUX(a, 0, 0)
 #define STAR_SWDTMS_GPIOA_01     CSK6_PINMUX(a, 1, 0)
@@ -548,6 +578,8 @@
 #define CP_JTAG_TCK_GPIOA_18     CSK6_PINMUX(a, 18, 1)
 #define CP_JTAG_TDI_GPIOA_19     CSK6_PINMUX(a, 19, 1)
 #define CP_JTAG_TDO_GPIOA_20     CSK6_PINMUX(a, 20, 1)
+#define CP_JTAG_TRST_GPIOB_10     CSK6_PINMUX(b, 10, 1)
+#define CP_JTAG_TMS_GPIOB_11     CSK6_PINMUX(b, 11, 1)
 // cbt_guard
 #define CBT_GUARD_O_GPIOA_10     CSK6_PINMUX(a, 10, 16)
 #define CBT_GUARD_O_GPIOA_11     CSK6_PINMUX(a, 11, 16)
