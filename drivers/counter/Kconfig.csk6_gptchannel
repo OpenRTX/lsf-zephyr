@@ -1,0 +1,14 @@
+# CSK GPT TIMER driver configuration options
+
+# Copyright (c) 2021 listenai Intelligent Technology (anhui) Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+config COUNTER_CSK6_GPTCHANNEL
+	bool "listenai CSK6 embedded controller gptchannel driver"
+	depends on HAS_CSK6
+	select HAS_CSK6_GPT
+	default n
+	help
+	  This option enables the gptchannel counter driver for CSK6. Say y if you wish to use gptchannel counter on CSK6.
+
+	  

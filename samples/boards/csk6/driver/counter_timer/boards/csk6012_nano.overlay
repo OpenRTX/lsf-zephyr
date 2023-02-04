@@ -1,0 +1,5 @@
+
+&gptchannel0 {
+    status = "okay";
+    channel_mode = <0>;  /* 0: timer; 1:pwm */
+};
