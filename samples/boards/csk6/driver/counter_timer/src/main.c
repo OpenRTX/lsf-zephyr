@@ -22,7 +22,7 @@
 uint32_t g_counter = 0;
 static void test_counter_interrupt_fn(const struct device *counter_dev, void *user_data)
 {
-	printk("g_counter %d\n",g_counter);
+	printk("g_counter: %d\n",g_counter);
 	if(g_counter>=10){
 		counter_stop(counter_dev);
 	}

@@ -16,10 +16,10 @@
 	};
 
 	pinctrl_uart1_rx_default: uart1_rx_default{
-		pinctrls = <UART0_RXD_GPIOA_10>;              //rx pin
+		pinctrls = <UART1_RXD_GPIOA_11>;              //rx pin
 	};
 
 	pinctrl_uart1_tx_default: uart1_tx_default{
-		pinctrls = <UART0_TXD_GPIOA_11>;              //tx pin
+		pinctrls = <UART1_TXD_GPIOA_10>;              //tx pin
 	};
     };
