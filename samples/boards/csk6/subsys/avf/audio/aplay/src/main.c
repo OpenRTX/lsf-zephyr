@@ -1,20 +1,21 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <avf/framework/avf_platform.h>
-#include <licak/modules/audio/aplay.h>
-#include <licak/licak.h>
-#include <avf/slogger.h>
 #include "dsp_resource.h"
 
 #include "pwr_amp.c"
+#include <avf/framework/avf_platform.h>
+#include <avf/slogger.h>
+#include <licak/licak.h>
+#include <licak/modules/audio/aplay.h>
+#include <zephyr.h>
 
 #define ID_RIFF 0x46464952
 #define ID_WAVE 0x45564157
-#define ID_FMT 0x20746d66
+#define ID_FMT	0x20746d66
 #define ID_DATA 0x61746164
 struct riff_wave_header {
 	uint32_t riff_id;
@@ -139,9 +140,9 @@ void main(void)
 	buffer_end = (uint32_t)test_audio + sizeof(test_audio);
 	pstart = pcm_data;
 	while ((uint32_t)pcm_data < buffer_end) {
-		write_bytes = buffer_end - (uint32_t)pcm_data > PERIOD_BYTES(&fmt) ?
-				      PERIOD_BYTES(&fmt) :
-				      buffer_end - (uint32_t)pcm_data;
+		write_bytes = buffer_end - (uint32_t)pcm_data > PERIOD_BYTES(&fmt)
+				      ? PERIOD_BYTES(&fmt)
+				      : buffer_end - (uint32_t)pcm_data;
 		/*step4: write data to aplayer*/
 		iret = aplay_writei(aplay, (char *)pcm_data, write_bytes);
 		if (iret != write_bytes) {

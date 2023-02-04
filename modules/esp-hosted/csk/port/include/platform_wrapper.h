@@ -4,11 +4,11 @@
 #ifndef __PLATFORM_WRAPPER_H
 #define __PLATFORM_WRAPPER_H
 
-#include <signal.h>
+#include <zephyr/posix/signal.h>
 #include "csk_os_common/csk_os_thread.h"
 #include "csk_os_common/csk_os_semaphore.h"
 #include "csk_os_common/csk_os_timer.h"
-#include <unistd.h>
+#include <zephyr/posix/unistd.h>
 #include <sys/types.h>
 
 #define TIMEOUT_PSERIAL_RESP 30

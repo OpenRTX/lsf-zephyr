@@ -21,7 +21,8 @@ extern "C" {
 #endif
 
 /** Includes **/
-#include "stdio.h"
+#include <stdio.h>
+#include <stdint.h>
 
 /** constants/macros **/
 #define DEBUG_HEX_STREAM_PRINT 0

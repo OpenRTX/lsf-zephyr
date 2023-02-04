@@ -1,18 +1,20 @@
 /*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr.h>
-#include <drivers/flash.h>
-#include <storage/flash_map.h>
-#include <device.h>
 #include <stdio.h>
 #include <string.h>
 
+#include <device.h>
+#include <drivers/flash.h>
+#include <storage/flash_map.h>
+#include <zephyr.h>
+
 #if DT_NODE_HAS_STATUS(DT_INST(0, listenai_csk_flash_controller), okay)
 #define FLASH_DEVICE DT_LABEL(DT_INST(0, listenai_csk_flash_controller))
-#define FLASH_NAME "LISTENAI INN-FLASH"
+#define FLASH_NAME   "LISTENAI INN-FLASH"
 #else
 #error Unsupported flash driver
 #endif
@@ -23,13 +25,13 @@
 #define FLASH_TEST_OFFSET FLASH_AREA_OFFSET(storage)
 #endif
 
-#define FLASH_PAGE_SIZE 4096
+#define FLASH_PAGE_SIZE	 4096
 #define TEST_DATA_WORD_0 0x1122
 #define TEST_DATA_WORD_1 0xaabb
 #define TEST_DATA_WORD_2 0xabcd
 #define TEST_DATA_WORD_3 0x1234
 
-#define FLASH_TEST_OFFSET2 0x41234
+#define FLASH_TEST_OFFSET2  0x41234
 #define FLASH_TEST_PAGE_IDX 37
 
 #define FLASH_WRITE_DATA_STORE_INTERNAL_FLASH (1)
@@ -37,13 +39,13 @@
 void main(void)
 {
 	const struct device *flash_dev;
-	uint32_t buf_array_1[4] = { TEST_DATA_WORD_0, TEST_DATA_WORD_1, TEST_DATA_WORD_2,
-				    TEST_DATA_WORD_3 };
-	uint32_t buf_array_2[4] = { TEST_DATA_WORD_3, TEST_DATA_WORD_1, TEST_DATA_WORD_2,
-				    TEST_DATA_WORD_0 };
-	uint32_t buf_array_3[8] = { TEST_DATA_WORD_0, TEST_DATA_WORD_1, TEST_DATA_WORD_2,
-				    TEST_DATA_WORD_3, TEST_DATA_WORD_0, TEST_DATA_WORD_1,
-				    TEST_DATA_WORD_2, TEST_DATA_WORD_3 };
+	uint32_t buf_array_1[4] = {TEST_DATA_WORD_0, TEST_DATA_WORD_1, TEST_DATA_WORD_2,
+				   TEST_DATA_WORD_3};
+	uint32_t buf_array_2[4] = {TEST_DATA_WORD_3, TEST_DATA_WORD_1, TEST_DATA_WORD_2,
+				   TEST_DATA_WORD_0};
+	uint32_t buf_array_3[8] = {TEST_DATA_WORD_0, TEST_DATA_WORD_1, TEST_DATA_WORD_2,
+				   TEST_DATA_WORD_3, TEST_DATA_WORD_0, TEST_DATA_WORD_1,
+				   TEST_DATA_WORD_2, TEST_DATA_WORD_3};
 	uint32_t buf_word = 0U;
 	uint32_t i, offset;
 
@@ -184,7 +186,8 @@ void main(void)
 
 #if defined(FLASH_WRITE_DATA_STORE_INTERNAL_FLASH)
 	char flashStr[128];
-	const char* pstring = "This is a string stored in the internal Flash space that will be further written to the internal Flash";
+	const char *pstring = "This is a string stored in the internal Flash space that will be "
+			      "further written to the internal Flash";
 	printf("\nTest 9: Write data form internal flash address area\n");
 	if (flash_erase(flash_dev, FLASH_TEST_OFFSET, FLASH_PAGE_SIZE) != 0) {
 		printf("   Flash erase failed!\n");
@@ -194,7 +197,7 @@ void main(void)
 	}
 
 	offset = FLASH_TEST_OFFSET;
-	if (flash_write(flash_dev, offset, pstring, strlen(pstring)+1) != 0) {
+	if (flash_write(flash_dev, offset, pstring, strlen(pstring) + 1) != 0) {
 		printf("   Flash write failed!\n");
 		return;
 	}
@@ -204,10 +207,9 @@ void main(void)
 		return;
 	}
 
-	if(0 == strcmp(pstring,flashStr)){
+	if (0 == strcmp(pstring, flashStr)) {
 		printf("   Data read matches data written. Good!\n");
-	}
-	else{
+	} else {
 		printf("   Data read does not match data written!\n");
 	}
 #endif

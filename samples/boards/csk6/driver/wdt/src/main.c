@@ -1,14 +1,14 @@
 /*
- * Copyright (c) 2022 listenai
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <stdbool.h>
 
-#include <zephyr.h>
 #include <device.h>
 #include <drivers/watchdog.h>
 #include <sys/printk.h>
-#include <stdbool.h>
+#include <zephyr.h>
 
 #define WDT_FEED_TRIES 1
 
@@ -27,7 +27,7 @@ static void wdt_callback(const struct device *wdt_dev, int channel_id)
 		is_handled = !is_handled;
 		wdt_feed(wdt_dev, channel_id);
 		printk("Handled watchdog interrupt and feed the dog.System will reset after %ds.\n",
-			WDT_MAX_WINDOW / 1000);
+		       WDT_MAX_WINDOW / 1000);
 	} else {
 		printk("Handled watchdog interrupt again, wait for reset.\n");
 	}
@@ -58,7 +58,7 @@ void main(void)
 	/* Set up watchdog callback. */
 	wdt_config.callback = wdt_callback;
 	printk("Attempting to test pre-reset callback, %p\n", wdt_config.callback);
-#else /* WDT_ALLOW_CALLBACK */
+#else  /* WDT_ALLOW_CALLBACK */
 	printk("Callback in RESET_SOC disabled for this platform\n");
 #endif /* WDT_ALLOW_CALLBACK */
 
