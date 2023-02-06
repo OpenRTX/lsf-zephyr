@@ -27,7 +27,11 @@ static int pinmux_set(const struct device *dev, uint32_t pin_num, uint32_t func)
 	if (IOMuxManager_PinConfigure(pad, pin_num, func)) {
 		return -EINVAL;
 	}
-
+	if (func == 0x100) {
+		// PAD_B 0~5,PB0~PB5
+		// CSK_AON_IOMUX_PAD_B
+		AON_IOMuxManager_PinConfigure(pad, pin_num, CSK_IOMUX_FUNC_DEFAULT);
+	}
 	return 0;
 }
 
@@ -57,7 +61,7 @@ static int pinmux_pullup(const struct device *dev, uint32_t pin_num, uint8_t fun
 		return -EINVAL;
 	}
 
-	//If necessary, can add PULLDOWN_MODE 
+	//If necessary, can add PULLDOWN_MODE
 	switch (func) {
 	case PINMUX_PULLUP_DISABLE:
 		return IOMuxManager_ModeConfigure(pad, pin_num, HAL_IOMUX_NONE_MODE);
