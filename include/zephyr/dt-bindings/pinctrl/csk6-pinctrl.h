@@ -592,3 +592,11 @@
 #define CBT_GUARD_O_GPIOB_03     CSK6_PINMUX(b, 3, 16)
 #define CBT_GUARD_O_GPIOB_04     CSK6_PINMUX(b, 4, 16)
 #define CBT_GUARD_O_GPIOB_05     CSK6_PINMUX(b, 5, 16)
+// AON_PINMUX(AON: Always on)
+#define AON_WKUP0_GPIOB_00       CSK6_PINMUX(b, 0, 0x100)
+#define AON_WKUP1_GPIOB_01       CSK6_PINMUX(b, 1, 0x100)
+#define AON_WKUP2_GPIOB_02       CSK6_PINMUX(b, 2, 0x100)
+#define AON_LXT_IN_GPIOB_03      CSK6_PINMUX(b, 3, 0x100)
+#define AON_LXT_OUT_GPIOB_04     CSK6_PINMUX(b, 4, 0x100)
+#define AON_KEY_GPIOB_05         CSK6_PINMUX(b, 5, 0x100)
+
