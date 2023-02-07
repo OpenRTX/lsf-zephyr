@@ -1,0 +1,19 @@
+/*
+ * Copyright (c) 2021-2022 listenai Intelligent Technology (anhui) Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/{
+    aliases {
+        led0 = &green_led;
+    };
+    
+    leds {
+        compatible = "gpio-leds";
+        green_led: led1 {
+                gpios = <&gpiob 6 GPIO_ACTIVE_LOW>;
+                label = "User LED1";
+        };
+    };
+};
