@@ -47,7 +47,7 @@ struct channel_info {
 	uint32_t reg_cfg_high;
 	uint32_t reg_scatter;
 	uint32_t reg_gather;
-	bool busy;
+	volatile bool busy;
 };
 
 struct csk_dma_data {
@@ -91,7 +91,7 @@ static int csk_dma_configure(const struct device *dev, uint32_t channel, struct 
 	ch_info = &data->channels_info[channel];
 
 	if (ch_info->busy) {
-		LOG_ERR("channel channel is busy");
+		LOG_ERR("channel %d is busy %d", channel, ch_info->busy);
 		return -EBUSY;
 	}
 
@@ -373,16 +373,16 @@ static int csk_dma_start(const struct device *dev, uint32_t channel)
 		return -EINVAL;
 	}
 
+	ch_info->busy = true;
 	int ret = dma_channel_configure(channel, ch_info->src_addr, ch_info->dst_addr,
 					ch_info->xfer_count, ch_info->reg_ctrl,
 					ch_info->reg_cfg_low, ch_info->reg_cfg_high,
 					ch_info->reg_gather, ch_info->reg_scatter);
 
 	if (ret != 0) {
+		ch_info->busy = false;
 		return -EIO;
 	}
-
-	ch_info->busy = true;
 
 	return 0;
 }
@@ -456,6 +456,7 @@ DMA_CSK6_RAM_FUNC static void csk_dma_event_callback(uint32_t event_ctx, uint32_
 		break;
 	default:
 		/* No callback required */
+		LOG_ERR("Unknown event type %d, channel %d", event_type, channel);
 		return;
 	}
 
