@@ -5,11 +5,11 @@
  */
 &pinctrl {
 	pinctrl_uart1_rx_default: uart1_rx_default{
-		pinctrls = <UART1_RXD_GPIOA_11>;
+		pinctrls = <UART1_RXD_GPIOA_13>;
 	};
 
 	pinctrl_uart1_tx_default: uart1_tx_default{
-		pinctrls = <UART1_TXD_GPIOA_10>;
+		pinctrls = <UART1_TXD_GPIOA_12>;
 	};
 };
 

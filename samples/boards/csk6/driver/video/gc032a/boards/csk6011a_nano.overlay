@@ -24,7 +24,7 @@
 
 &csk6011a_nano_pinctrl {
 	pinctrl_uart1_tx_default: uart1_tx_default{
-		pinctrls = <UART1_TXD_GPIOA_10>;
+		pinctrls = <UART1_TXD_GPIOA_12>;
 	};
 
 	pinctrl_i2c0_scl_default: i2c0_scl_default{
