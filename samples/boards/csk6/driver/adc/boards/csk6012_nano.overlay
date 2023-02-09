@@ -1,32 +1,31 @@
 /*
- * SPDX-License-Identifier: Apache-2.0
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
  *
- * Copyright (c) 2021 STMicroelectronics
+ * SPDX-License-Identifier: Apache-2.0
  */
-
-&pinctrl {
+ &pinctrl {
 	/* ADC alternate function */
 	pinctrl_adc0_ch0_default: adc0_ch0_default{
-
+		pinctrls = <GPADC_0_GPIOB_06>;
 	};
-
+	
 	pinctrl_adc0_ch1_default: adc0_ch1_default{
 		pinctrls = <GPADC_1_GPIOB_07>;
 	};
 
 	pinctrl_adc0_ch2_default: adc0_ch2_default{
+		pinctrls = <GPADC_2_GPIOB_08>;
 	};
-
 };
 
 / {
 	zephyr,user {
-		io-channels = <&adc0 1>, <&adc0 5>, <&adc0 6>;
+		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>;
 	};
 };
 
 &adc0 {
-	pinctrl-0 = <&pinctrl_adc0_ch1_default>;
+	pinctrl-0 = <&pinctrl_adc0_ch0_default &pinctrl_adc0_ch1_default &pinctrl_adc0_ch2_default>; 
 	pinctrl-names = "default";
 	status = "okay";
 };

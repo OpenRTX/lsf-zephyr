@@ -5,7 +5,7 @@ description: csk6 keysense driver
 
 compatible: "listenai,csk-keysense"
 
-include: kscan.yaml
+include: [kscan.yaml, pinctrl-device.yaml]
 
 properties:
     reg:
