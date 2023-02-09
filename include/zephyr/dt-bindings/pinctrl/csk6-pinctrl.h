@@ -592,3 +592,53 @@
 #define CBT_GUARD_O_GPIOB_03     CSK6_PINMUX(b, 3, 16)
 #define CBT_GUARD_O_GPIOB_04     CSK6_PINMUX(b, 4, 16)
 #define CBT_GUARD_O_GPIOB_05     CSK6_PINMUX(b, 5, 16)
+
+// AON_PINMUX(AON: Always on) Function0
+#define AON_GPIO_WKUP0_GPIOB_00     CSK6_PINMUX(b, 0, 0x80)
+#define AON_GPIO_WKUP1_GPIOB_01     CSK6_PINMUX(b, 1, 0x80)
+#define AON_GPIO_WKUP2_GPIOB_02     CSK6_PINMUX(b, 2, 0x80)
+#define AON_LXT_IN_GPIOB_03         CSK6_PINMUX(b, 3, 0x80)
+#define AON_LXT_OUT_GPIOB_04        CSK6_PINMUX(b, 4, 0x80)
+#define AON_KEY_GPIOB_05            CSK6_PINMUX(b, 5, 0x80)
+
+// AON_PINMUX(AON: Always on) Function1
+#define AON_DMIC01_DAT_GPIOB_00     CSK6_PINMUX(b, 0, (0x80 | 0x01))
+#define AON_DMIC01_CLK_GPIOB_01     CSK6_PINMUX(b, 1, (0x80 | 0x01))
+#define AON_DMIC01_DAT_GPIOB_02     CSK6_PINMUX(b, 2, (0x80 | 0x01))
+#define AON_DMIC01_CLK_GPIOB_03     CSK6_PINMUX(b, 3, (0x80 | 0x01))
+#define AON_DMIC01_DAT_GPIOB_04     CSK6_PINMUX(b, 4, (0x80 | 0x01))
+#define AON_DMIC01_CLK_GPIOB_05     CSK6_PINMUX(b, 5, (0x80 | 0x01))
+
+// AON_PINMUX(AON: Always on) Function2
+#define AON_GPIO_WKUP_GPIOB_00     CSK6_PINMUX(b, 0, (0x80 | 0x02))
+#define AON_GPIO_WKUP_GPIOB_01     CSK6_PINMUX(b, 1, (0x80 | 0x02))
+#define AON_GPIO_WKUP_GPIOB_02     CSK6_PINMUX(b, 2, (0x80 | 0x02))
+#define AON_GPIO_WKUP_GPIOB_03     CSK6_PINMUX(b, 3, (0x80 | 0x02))
+#define AON_GPIO_WKUP_GPIOB_04     CSK6_PINMUX(b, 4, (0x80 | 0x02))
+#define AON_GPIO_WKUP_GPIOB_05     CSK6_PINMUX(b, 5, (0x80 | 0x02))
+
+// AON_PINMUX(AON: Always on) Function3
+#define AON_DMIC01_DAT_GPIOB_00     CSK6_PINMUX(b, 0, (0x80 | 0x03))
+#define AON_DMIC01_CLK_GPIOB_01     CSK6_PINMUX(b, 1, (0x80 | 0x03))
+#define AON_DMIC01_DAT_GPIOB_02     CSK6_PINMUX(b, 2, (0x80 | 0x03))
+#define AON_DMIC01_CLK_GPIOB_03     CSK6_PINMUX(b, 3, (0x80 | 0x03))
+#define AON_DMIC01_DAT_GPIOB_04     CSK6_PINMUX(b, 4, (0x80 | 0x03))
+#define AON_DMIC01_CLK_GPIOB_05     CSK6_PINMUX(b, 5, (0x80 | 0x03))
+
+// AON_PINMUX(AON: Always on) Function4
+#define AON_CBT0_GPIOB_00           CSK6_PINMUX(b, 0, (0x80 | 0x04))
+#define AON_CBT1_GPIOB_01           CSK6_PINMUX(b, 1, (0x80 | 0x04))
+#define AON_CBT2_GPIOB_02           CSK6_PINMUX(b, 2, (0x80 | 0x04))
+#define AON_CBT3_GPIOB_03           CSK6_PINMUX(b, 3, (0x80 | 0x04))
+#define AON_CBT4_GPIOB_04           CSK6_PINMUX(b, 4, (0x80 | 0x04))
+#define AON_CBT5_GPIOB_05           CSK6_PINMUX(b, 5, (0x80 | 0x04))
+
+// AON_PINMUX(AON: Always on) Function5
+#define AON_NORMAL_GPIOB_00         CSK6_PINMUX(b, 0, (0x80 | 0x05))
+#define AON_NORMAL_GPIOB_01         CSK6_PINMUX(b, 1, (0x80 | 0x05))
+#define AON_NORMAL_GPIOB_02         CSK6_PINMUX(b, 2, (0x80 | 0x05))
+#define AON_NORMAL_GPIOB_03         CSK6_PINMUX(b, 3, (0x80 | 0x05))
+#define AON_NORMAL_GPIOB_04         CSK6_PINMUX(b, 4, (0x80 | 0x05))
+#define AON_NORMAL_GPIOB_05         CSK6_PINMUX(b, 5, (0x80 | 0x05))
+
+

@@ -4,8 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+ &pinctrl {
+	printctl_aon_iomux_keysense_default: aon_iomux_keysense_default {
+		pinctrls = <AON_KEY_GPIOB_05>;
+	};
+};
+
 &keysense {
 	status = "okay";
+	pinctrl-0 = <&printctl_aon_iomux_keysense_default>;
+	pinctrl-names = "default";
 
 	//keysense use adc channel 6 to sample
 	io-channels = <&adc0 6>;

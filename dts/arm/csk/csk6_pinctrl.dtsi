@@ -82,6 +82,20 @@
         pinctrl_adc0_ch3_default: adc0_ch3_default{
         };
 
+        /* AON_IOMUX (IO function configuration of the Always-ON domain)*/
+        printctl_aon_iomux_wkup0_default: aon_iomux_wkup0_default {
+        };
+        printctl_aon_iomux_wkup1_default: aon_iomux_wkup1_default {
+        };
+        printctl_aon_iomux_wkup2_default: aon_iomux_wkup2_default {
+        };
+        printctl_aon_iomux_lxt_in_default: aon_iomux_lxt_in_default {
+        };
+        printctl_aon_iomux_lxt_out_default: aon_iomux_lxt_out_default {
+        };
+        printctl_aon_iomux_keysense_default: aon_iomux_keysense_default {
+        };
+
         /* PWM alternate function*/
         pinctrl_pwm0_default: pwm0_default{
         };
