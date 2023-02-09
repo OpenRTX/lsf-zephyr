@@ -9,7 +9,7 @@
 #include <zephyr.h>
 #include <drivers/kscan.h>
 #include <drivers/adc.h>
-
+#include <zephyr/drivers/pinctrl.h>
 #include "Driver_KEYSENSE.h"
 #include "keysense.h"
 #include "AON_IOMuxManager.h"
@@ -54,6 +54,7 @@ struct keysense_csk6_cfg {
 	uint8_t ch;
 	uint32_t *analog_key_voltage;
 	uint8_t analog_key_num;
+	const struct pinctrl_dev_config *pcfg;
 };
 
 struct keysense_csk6_data {
@@ -174,9 +175,7 @@ static int kscan_csk6_config(const struct device *dev,
 	DEV_CB(dev) = callback;
 
 	LOG_DBG("analog key trigger %d %d %d \n", config->analog_key_voltage[0], config->analog_key_voltage[1], config->analog_key_voltage[2]);
-
-	AON_IOMuxManager_PinConfigure(CSK_AON_IOMUX_PAD_B, 5, CSK_IOMUX_FUNC_DEFAULT);
-
+ 
     HAL_KEYSENSE_RegisterCallback(DEV_HANDLER(dev), CSK_KEYSENSE_RELEASE, keysense_release_event);
     HAL_KEYSENSE_RegisterCallback(DEV_HANDLER(dev), CSK_KEYSENSE_PRESS, keysense_press_event);
 	HAL_KEYSENSE_InterruptEnable(DEV_HANDLER(dev), CSK_KEYSENSE_INTERRUPT_MODE_RELEASE |\
@@ -190,13 +189,15 @@ static int kscan_csk6_config(const struct device *dev,
 static int kscan_csk6_init(const struct device *dev)
 {
     DEV_HANDLER(dev) = KEYSENSE();
-
+	struct keysense_csk6_cfg *config = DEV_CFG(dev);
+	
 	HAL_KEYSENSE_Initialize(DEV_HANDLER(dev));
 	HAL_KEYSENSE_Control(DEV_HANDLER(dev), 0x00200040);
 
 	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority),
 		    keysense_csk6_isr, DEVICE_DT_INST_GET(0), 0);
 
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 	return 0;
 }
 
@@ -214,17 +215,20 @@ static uint32_t key_voltage_level[] = DT_PROP(DT_NODELABEL(keysense), analogkey_
 
 static struct keysense_csk6_data keysense_csk6_data_0;
 
+PINCTRL_DT_INST_DEFINE(0);
+
 static const struct keysense_csk6_cfg keysense_csk6_cfg_0 = {
 	.adc_dev = DEVICE_DT_GET(DT_PHANDLE(DT_NODELABEL(keysense), io_channels)),
 	.ch = DT_IO_CHANNELS_INPUT_BY_IDX(DT_NODELABEL(keysense), 0),
 	.analog_key_voltage = key_voltage_level,
+	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
 	.analog_key_num = DT_PROP_LEN(DT_NODELABEL(keysense), analogkey_trigger)
 };
 
 DEVICE_DT_INST_DEFINE(0, kscan_csk6_init,
 		      NULL,
 		      &keysense_csk6_data_0,
-		      &keysense_csk6_cfg_0, PRE_KERNEL_1,
+		      &keysense_csk6_cfg_0, POST_KERNEL,
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
 		      &kscan_csk6_api);
 
