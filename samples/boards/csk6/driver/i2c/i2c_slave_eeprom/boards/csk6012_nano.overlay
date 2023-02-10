@@ -23,21 +23,10 @@
 
 };
 
-
-&i2c1 {
-	status = "okay";
-	pinctrl-0 = <&pinctrl_i2c1_scl_default &pinctrl_i2c1_sda_default>;
-	pinctrl-names = "default";
-};
-
 &i2c0 {
 	status = "okay";
 	pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
 	pinctrl-names = "default";
-};
-
-&i2c0 {
-	status = "okay";
 	eeprom0: eeprom@54 {
 		compatible = "atmel,at24";
 		reg = <0x54>;
@@ -52,6 +41,8 @@
 
 &i2c1 {
 	status = "okay";
+	pinctrl-0 = <&pinctrl_i2c1_scl_default &pinctrl_i2c1_sda_default>;
+	pinctrl-names = "default";
 	eeprom1: eeprom@56 {
 		compatible = "atmel,at24";
 		reg = <0x56>;

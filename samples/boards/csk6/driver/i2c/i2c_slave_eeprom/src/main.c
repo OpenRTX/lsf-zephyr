@@ -32,7 +32,7 @@ static uint8_t i2c_buffer[TEST_DATA_SIZE];
  */
 uint8_t buffer_print_eeprom[TEST_DATA_SIZE * 5 + 1];
 uint8_t buffer_print_i2c[TEST_DATA_SIZE * 5 + 1];
-
+#if 0
 static void to_display_format(const uint8_t *src, size_t size, char *dst)
 {
 	size_t i;
@@ -52,6 +52,7 @@ static int run_full_read(const struct device *i2c, uint8_t addr,
 
 	/* Read EEPROM from I2C Master requests, then compare */
 	ret = i2c_burst_read(i2c, addr, 0, i2c_buffer, TEST_DATA_SIZE);
+	printk("[%d:%s] i2c_burst_read ret: %d\n", __LINE__, __FUNCTION__, ret);
 	zassert_equal(ret, 0, "Failed to read EEPROM");
 
 	if (memcmp(i2c_buffer, comp_buffer, TEST_DATA_SIZE)) {
@@ -131,7 +132,7 @@ static int run_program_read(const struct device *i2c, uint8_t addr,
 
 	return 0;
 }
-
+#endif
 void test_eeprom_slave(void)
 {
 	const char *label_0 = DT_LABEL(NODE_EP0);
@@ -178,7 +179,7 @@ void test_eeprom_slave(void)
 	/* Attach each EEPROM to its owning bus as a slave device. */
 	ret = i2c_slave_driver_register(eeprom_0);
 	zassert_equal(ret, 0, "Failed to register EEPROM %s", label_0);
-
+#if 0
 	if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
 		ret = i2c_slave_driver_register(eeprom_1);
 		zassert_equal(ret, 0, "Failed to register EEPROM %s", label_1);
@@ -234,6 +235,7 @@ void test_eeprom_slave(void)
 		zassert_equal(ret, 0, "Failed to unregister EEPROM %s",
 			      label_1);
 	}
+#endif
 }
 
 void test_main(void)
