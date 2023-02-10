@@ -66,6 +66,7 @@ static int eeprom_slave_write_requested(struct i2c_slave_config *config)
 						config);
 
 	LOG_DBG("eeprom: write req");
+	printk("[%d:%s] eprom: write req\n", __LINE__, __FUNCTION__);
 
 	data->first_write = true;
 
@@ -96,6 +97,7 @@ static int eeprom_slave_write_received(struct i2c_slave_config *config,
 						config);
 
 	LOG_DBG("eeprom: write done, val=0x%x", val);
+	printk("[%d:%s] eeprom: write done, val=0x%x\n", __LINE__, __FUNCTION__, val);
 
 	/* In case EEPROM wants to be R/O, return !0 here could trigger
 	 * a NACK to the I2C controller, support depends on the
