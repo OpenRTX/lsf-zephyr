@@ -20,6 +20,7 @@
 uint8_t g_gpt0_init_flag = 0;
 
 struct counter_csk_config {
+	struct counter_config_info counter_info;
 	uint32_t gpt0_freq;
 	uint32_t gpt0_bits;
 	uint32_t gpt0_clkdiv;
@@ -169,15 +170,15 @@ static int counter_csk_gptchannel_set_top_value(const struct device *dev,
 	data->top_cfg.user_data = top_cfg->user_data;
 	if(data->is_running){
 		HAL_GPT_StopTimer(data->handle, data->gptchannel);
-		ret = HAL_GPT_SetTimerPeriodByCount(data->handle, data->gptchannel, data->top_tick);
+		ret = HAL_GPT_SetTimerPeriodDirectByCount(data->handle, data->gptchannel, data->top_tick);
 		HAL_GPT_StartTimer(data->handle, data->gptchannel);
 
 	}else{
-		ret = HAL_GPT_SetTimerPeriodByCount(data->handle, data->gptchannel, data->top_tick);
+		ret = HAL_GPT_SetTimerPeriodDirectByCount(data->handle, data->gptchannel, data->top_tick);
 	}
 
 	if(ret != CSK_DRIVER_OK){
-		printk("HAL_GPT_SetTimerPeriodByCount Error = %d \n", ret);
+		printk("HAL_GPT_SetTimerPeriodDirectByCount Error = %d \n", ret);
 		return -EBUSY;
 	}
 	return 0;
@@ -246,16 +247,22 @@ static const struct counter_driver_api counter_api = {
 						      .set_guard_period = counter_csk_gptchannel_set_guard_period,
 							  .get_freq = counter_csk_gptchannel_get_freq};
 
-#define CSK_GPTCHANNEL_COUNTER_INIT(index)                                                                        \
+#define CSK_GPTCHANNEL_COUNTER_INIT(index)                                                           \
 	CSK_GPT_HANDER_ISR(index)                                                                        \
-	static struct counter_csk_data counter_data_##index;                                           \
-	static const struct counter_csk_config counter_config_##index = {                              \
-		.gpt0_freq = BOARD_BOOTCLOCKRUN_AP_CMN_CFG_PCLK_CLK,                                   \
-		.gpt0_bits = CSK_GPT_TIMER_32_BIT_TIMER,                                             \
-		.gpt0_clkdiv = CSK_GPT_TIMER_CLKDIV_1,                                             \
-		.gptchannel = DT_INST_PROP(index, channel_id),                                         \
-		.channel_mode = DT_INST_PROP(index, channel_mode),                                                          \
-		CSK_GPTCHANNEL_IRQ_CFG_FUNC_CONF(index)                                         \
+	static struct counter_csk_data counter_data_##index;                                             \
+	static const struct counter_csk_config counter_config_##index = {                                \
+		.counter_info = {                                                                            \
+			.max_top_value = UINT32_MAX,                                                             \
+			.freq = 0,                                                                               \
+			.flags = 0,                                                                              \
+			.channels = 0                                                                            \
+		},                                                                                           \
+		.gpt0_freq = BOARD_BOOTCLOCKRUN_AP_CMN_CFG_PCLK_CLK,                                         \
+		.gpt0_bits = CSK_GPT_TIMER_32_BIT_TIMER,                                                     \
+		.gpt0_clkdiv = CSK_GPT_TIMER_CLKDIV_1,                                                       \
+		.gptchannel = DT_INST_PROP(index, channel_id),                                               \
+		.channel_mode = DT_INST_PROP(index, channel_mode),                                           \
+		CSK_GPTCHANNEL_IRQ_CFG_FUNC_CONF(index),                                                     \
 	};                                                                                               \
 	DEVICE_DT_INST_DEFINE(index, counter_csk_init, NULL, &counter_data_##index, &counter_config_##index,   \
 			      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &counter_api);
