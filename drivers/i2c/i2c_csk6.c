@@ -54,6 +54,7 @@ static void i2c_cmpl_handler(const struct device *dev, I2C_RESOURCES *i2c)
 	printk("[%d:%s]\n", __LINE__, __FUNCTION__);
 	uint32_t Tmp_S = 0, Tmp_S1 = 0, Tmp_C = 0;
 	struct i2c_csk_data *data = DEV_DATA(dev);
+	void *I2C_Handler = DEV_HANDLER(dev);
 	const struct i2c_slave_callbacks *slave_cb = data->slave_cfg->callbacks;
 	Tmp_S = i2c->reg->REG_SETUP.all;
 
@@ -150,18 +151,27 @@ static void i2c_cmpl_handler(const struct device *dev, I2C_RESOURCES *i2c)
 
 				// clear & set driver state to slave tx complete
 				i2c->info->Driver_State = I2C_DRV_SLAVE_TX_CMPL;
+				
+				uint8_t val;
+				if (slave_cb->read_requested) {
+					slave_cb->read_requested(data->slave_cfg, &val);
+				}
+				printk("[%d:%s]I2C_SlaveTransmit: %X\n", __LINE__, __FUNCTION__, val);
+				I2C_SlaveTransmit(I2C_Handler, &val, 1);
 			}
 
 			if (i2c->info->Driver_State & I2C_DRV_SLAVE_RX) {
 				i2cx_csk_slave_fifo_read(i2c, 0);
-				// printk("[%d:%s]i2c->info->last_rx_data_count:%d\n", __LINE__, __FUNCTION__, i2c->info->last_rx_data_count);
-				// uint8_t val;
-				// uint16_t data_len = i2c->info->last_rx_data_count;
-				// while (data_len--)
-				// {
-				// 	val = i2c->info->Xfer_Data_Rd_Buf[i2c->info->Xfered_Data_Rd_Ptr-data_len];
-				// 	slave_cb->write_received(data->slave_cfg, val);
-				// }
+				printk("[%d:%s]i2c->info->last_rx_data_count:%d\n", __LINE__, __FUNCTION__,
+					i2c->info->last_rx_data_count);
+				uint8_t val;
+				uint16_t data_len = i2c->info->last_rx_data_count;
+				while (data_len>0)
+				{
+					val = i2c->info->Xfer_Data_Rd_Buf[i2c->info->Xfered_Data_Rd_Ptr-data_len];
+					slave_cb->write_received(data->slave_cfg, val);
+					data_len--;
+				}
 	
 				// I2C Disable the FIFO Full Interrupt in the Interrupt Enable
 				// Register
@@ -418,12 +428,14 @@ static void i2cx_csk_slave_fifo_read(I2C_RESOURCES *i2c, uint8_t is_fifo_full)
 
 	// I2C read a patch of data(FIFO_Depth) from FIFO,
 	// it will be consumed empty if data is actually read out by driver */
-	uint32_t val;
+	// uint32_t val;
 	for (i = 0; i < read_fifo_count; i++) {
 		// I2C read data from FIFO through data port register
-		val = (i2c->reg->REG_DATA.all );
-		printk("[%d:%s]REG_DATA.all: %X\n", __LINE__, __FUNCTION__, val);
-		i2c->info->Xfer_Data_Rd_Buf[i2c->info->Xfered_Data_Rd_Ptr] = val& (BITSET_0X020_DATA_MASK);
+        i2c->info->Xfer_Data_Rd_Buf[i2c->info->Xfered_Data_Rd_Ptr] =
+                (i2c->reg->REG_DATA.all & (BITSET_0X020_DATA_MASK));
+		
+        // printk("[%d:%s]  i2c->info->Xfer_Data_Rd_Buf[%d]: 0x%X\n", __LINE__, __FUNCTION__,
+        //     i2c->info->Xfered_Data_Rd_Ptr, i2c->info->Xfer_Data_Rd_Buf[i2c->info->Xfered_Data_Rd_Ptr]);
 		i2c->info->Xfered_Data_Rd_Ptr++;
 
 		if (i2c->info->Xfered_Data_Rd_Ptr == MAX_XFER_SZ) {
@@ -554,12 +566,6 @@ static void i2cx_slave_addr_hit_handler(const struct device *dev, I2C_RESOURCES 
 			Tmp_C |= BITSET_0X014_BYTETRANS;
 			i2c->reg->REG_INTEN.all = Tmp_C;
 			
-			uint8_t val;
-			if (slave_cb->read_requested) {
-				slave_cb->read_requested(data->slave_cfg, &val);
-			}
-			printk("[%d:%s]I2C_SlaveTransmit: %X\n", __LINE__, __FUNCTION__, val);
-			I2C_SlaveTransmit(I2C_Handler, &val, 1);
 		}
 	}
 }
@@ -577,6 +583,7 @@ static void i2cx_signalevent(uint32_t event, I2C_RESOURCES *i2c)
 static void i2c_csk_event_cb(uint32_t event, void *user_arg)
 {
 	struct i2c_csk_data *data = (struct i2c_csk_data *)user_arg;
+	// printk("[%d:%s] printk->event:0x%04X, mode:%d", __LINE__, __FUNCTION__, event, data->mode);
 	LOG_INF("[%d:%s]event:0x%04X, mode:%d", __LINE__, __FUNCTION__, event, data->mode);
 	// LOG_INF("[%d:%s]slave address:0x%04X", __LINE__, __FUNCTION__, data->slave->address);
 	k_event_post(data->evt, event);
@@ -585,6 +592,7 @@ static void i2c_csk_event_cb(uint32_t event, void *user_arg)
 
 void i2c_csk6_irq_handler(const struct device *dev, I2C_RESOURCES *i2c)
 {
+	printk("[%d:%s]\n", __LINE__, __FUNCTION__);
 	uint32_t Tmp_S = 0, Tmp_S1 = 0, Tmp_W = 0, Tmp_C = 0, Evt_Id = 0;
 
 	Tmp_W = Tmp_S = i2c->reg->REG_STATUS.all;
@@ -1005,12 +1013,12 @@ static int i2c_csk6_slave_unregister(const struct device *dev, struct i2c_slave_
 
 static void i2c_csk_isr(const struct device *dev)
 {
-	// void *I2C_Handler = DEV_HANDLER(dev);
-	// i2c_csk6_irq_handler(dev, I2C_Handler);
-	extern void i2c_irq_handler(I2C_RESOURCES * i2c);
-
 	void *I2C_Handler = DEV_HANDLER(dev);
-	i2c_irq_handler(I2C_Handler);
+	i2c_csk6_irq_handler(dev, I2C_Handler);
+	// extern void i2c_irq_handler(I2C_RESOURCES * i2c);
+
+	// void *I2C_Handler = DEV_HANDLER(dev);
+	// i2c_irq_handler(I2C_Handler);
 }
 
 static const struct i2c_driver_api i2c_csk_driver_api = {
