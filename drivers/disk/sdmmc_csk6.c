@@ -24,10 +24,25 @@ struct sdmmc_csk_config {
 struct sdmmc_csk_data {
 	/* driver handle */
 	void *handle; 
+
+	uint32_t blk_num;
+	uint32_t blk_size;
+	uint32_t erase_size;
 };
 
 
 static uint8_t sdcard_buf[sizeof(SDCardInfo)]     __attribute__ ((aligned(4)));
+
+//SDIO驱动需要32字节对齐
+#define _ALIGEN		(32)
+
+/*
+	目前上海SDIO驱动只支持sector为512字节的读写
+	后期可能优化至支持1024字节的block size
+*/
+static uint8_t sdcard_w_buf[1024]     __attribute__((aligned(_ALIGEN)));
+
+static uint8_t sdcard_r_buf[1024]     __attribute__((aligned(_ALIGEN)));
 
 static void NullSetting()
 {
@@ -54,17 +69,38 @@ static int csk6_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
 				   uint32_t start_sector, uint32_t num_sector)
 {
 	uint32_t err;
+	uint8_t *p = data_buf;
+	const struct device *dev = disk->dev;
+	struct sdmmc_csk_data *data = dev->data;
 
 	LOG_DBG("%s start_sector=%d num_sector=%d", __FUNCTION__, start_sector, num_sector);
 
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
-	err = gm_sdc_api_sdcard_sector_read(SD_0, start_sector, num_sector, data_buf);
 
-	if (err != ERR_SD_NO_ERROR) {
-		k_mutex_unlock(&sdmmc_mutex);
-		LOG_ERR("sd read block failed %d", err);
-		return -EIO;
+	if(((uint32_t)p % _ALIGEN) != 0){
+		for(uint32_t i = start_sector; i < start_sector + num_sector; i++){
+			err = gm_sdc_api_sdcard_sector_read(SD_0, i, 1, sdcard_r_buf);
+			if (err != ERR_SD_NO_ERROR) {
+				k_mutex_unlock(&sdmmc_mutex);
+				LOG_ERR("sd read single block failed %d", err);
+				return -EIO;
+			}
+
+			memcpy(p, sdcard_r_buf, data->blk_size);
+
+			p += data->blk_size;
+		}
+
+	}else{
+		err = gm_sdc_api_sdcard_sector_read(SD_0, start_sector, num_sector, data_buf);
+
+		if (err != ERR_SD_NO_ERROR) {
+			k_mutex_unlock(&sdmmc_mutex);
+			LOG_ERR("sd read block failed %d", err);
+			return -EIO;
+		}
 	}
+
 	k_mutex_unlock(&sdmmc_mutex);
 	return 0;
 }
@@ -74,16 +110,33 @@ static int csk6_sdmmc_access_write(struct disk_info *disk,
 				    uint32_t start_sector, uint32_t num_sector)
 {
 	uint32_t err;
+	uint8_t *p = (uint8_t *)data_buf;
+	const struct device *dev = disk->dev;
+	struct sdmmc_csk_data *data = dev->data;
 
 	LOG_DBG("%s start_sector=%d num_sector=%d", __FUNCTION__, start_sector, num_sector);
 
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
-	err = gm_sdc_api_sdcard_sector_write(SD_0, start_sector, num_sector, (void *)data_buf);
-	
-	if (err != ERR_SD_NO_ERROR) {
-		k_mutex_unlock(&sdmmc_mutex);
-		LOG_ERR("sd write block failed %d", err);
-		return -EIO;
+
+	if(((uint32_t)p % _ALIGEN) != 0){
+		for(uint32_t i = start_sector; i < start_sector + num_sector; i++){
+			memcpy(sdcard_w_buf, p, data->blk_size);
+			err = gm_sdc_api_sdcard_sector_write(SD_0, i, 1, sdcard_w_buf);
+			if (err != ERR_SD_NO_ERROR) {
+				k_mutex_unlock(&sdmmc_mutex);
+				LOG_ERR("sd write single block failed %d", err);
+				return -EIO;
+			}
+			p += data->blk_size;
+		}
+	}else{
+		err = gm_sdc_api_sdcard_sector_write(SD_0, start_sector, num_sector, (void *)data_buf);
+		
+		if (err != ERR_SD_NO_ERROR) {
+			k_mutex_unlock(&sdmmc_mutex);
+			LOG_ERR("sd write block failed %d", err);
+			return -EIO;
+		}
 	}
 
 	k_mutex_unlock(&sdmmc_mutex);
@@ -140,6 +193,7 @@ int csk6_sdmmc_bus_probe(const struct device *dev)
 {
 	uint32_t err;
 	const struct sdmmc_csk_config *cfg = dev->config;
+	struct sdmmc_csk_data *data = dev->data;
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 	gm_api_sdc_platform_init((SDC_OPTION_ENABLE | SDC_OPTION_CD_INVERT), 0, NullSetting, (uint32_t) sdcard_buf);
 	gm_sdc_api_action(SD_0, GM_SDC_ACTION_REG_SDIO_APP_INIT, (void*)NULL, NULL);
@@ -161,6 +215,13 @@ int csk6_sdmmc_bus_probe(const struct device *dev)
 
     uint32_t bus_width = cfg->bit_bus; 
     gm_sdc_api_action(SD_0, GM_SDC_ACTION_SET_BUS_WIDTH, &bus_width, NULL);
+
+	err = lib_sdc_get_card_info(SD_0, &data->blk_size, &data->blk_num, &data->erase_size);
+	if (err != ERR_SD_NO_ERROR) {
+		k_mutex_unlock(&sdmmc_mutex);
+		return -EIO;
+	}
+
 	k_mutex_unlock(&sdmmc_mutex);
 	return 0;
 }
