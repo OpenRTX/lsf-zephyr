@@ -9,6 +9,10 @@
 #include <drivers/pinmux.h>
 #include <hal/IOMuxManager.h>
 
+#if !(CONFIG_BOARD_LS_ADSP_CSK6)
+#include <hal/AON_IOMuxManager.h>
+#endif
+
 #define DEV_CFG(dev) ((const struct pinmux_csk_config *const)(dev)->config)
 
 struct pinmux_csk_config {
@@ -27,7 +31,15 @@ static int pinmux_set(const struct device *dev, uint32_t pin_num, uint32_t func)
 	if (IOMuxManager_PinConfigure(pad, pin_num, func)) {
 		return -EINVAL;
 	}
-
+#if !(CONFIG_BOARD_LS_ADSP_CSK6)
+	// Alway on domain: CSK_AON_IOMUX_PAD_B, PB0~PB5
+	if (func & 0x80) {
+		// printk("[%d:%s] pin_num: %d, func: 0x%X\n", __LINE__, __FUNCTION__, pin_num, func);
+		if (AON_IOMuxManager_PinConfigure(pad, pin_num, func & 0x7F)) {
+			return -EINVAL;
+		}
+	}
+#endif
 	return 0;
 }
 

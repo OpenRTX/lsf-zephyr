@@ -80,7 +80,7 @@ static int adc_csk6_start_read(const struct device *dev,
 	struct adc_csk6_data *data = DEV_DATA(dev);
 
 	if (sequence->resolution != CSK6_ADC_RES) {
-		LOG_ERR("ADC resolution must be %d \n", CSK6_ADC_RES);
+		LOG_ERR("ADC resolution must be %d", CSK6_ADC_RES);
 		return -EINVAL;
 	}
 
@@ -119,20 +119,13 @@ static int adc_csk6_channel_setup(const struct device *dev,
 		LOG_ERR("Invalid ADC channel reference");
 		return -EINVAL;
 	}
-
-	//TODO: aon_pinmux
-	if(6 == channel_cfg->channel_id)
-	{
-		AON_IOMuxManager_PinConfigure(CSK_AON_IOMUX_PAD_B, 5, CSK_IOMUX_FUNC_DEFAULT);
-		LOG_DBG("keysense pinmux set\n");
-	}
-
+	
 	data->channels |= CSK_ADC_CHANNEL_SEL(channel_cfg->channel_id);
 	HAL_GPADC_Control(DEV_HANDLER(dev), CSK_GPADC_SAMPLETIME_8 | CSK_GPADC_CLKFREQ_12M |	\
 	 					data->channels | \
 					  	CSK_GPADC_INPUT_MODE_Single | CSK_GPADC_VREF_SEL_1_25V | CSK_GPADC_DMA_DISABLE);
-
-	LOG_DBG("channels(0x%x) setup\n", data->channels);
+	
+	LOG_DBG("channels(0x%x) setup", data->channels);
 
 	return 0;
 }
@@ -180,7 +173,7 @@ static void adc_csk6_get_sample(const struct device *dev)
 		for(uint8_t i = 0; i < data->triggernum; i++)
 		{
 			adc_value = HAL_GPADC_GetValue(DEV_HANDLER(dev),CSK_ADC_CHANNEL_SEL(ch));
-			LOG_DBG("channel(%d) get adc_value:%d\n", ch, adc_value);
+			LOG_DBG("channel(%d) get adc_value:%d", ch, adc_value);
 		}
 
 		//take the last sample value
@@ -196,7 +189,7 @@ static void adc_context_start_sampling(struct adc_context *ctx)
 	uint32_t channel_mask = ctx->sequence.channels;
 	const struct device *dev = DEVICE_DT_INST_GET(0);
 
-	LOG_DBG("start_sampling channel_mask: 0x%x\n", channel_mask);
+	LOG_DBG("start_sampling channel_mask: 0x%x", channel_mask);
 
 	//The previous two sample data was inaccurate,so need sample three times
 	data->triggernum = ADC_TRIGGER_NUM;
