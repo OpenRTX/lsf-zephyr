@@ -238,6 +238,12 @@ static int transceive(const struct device *dev,
     spi_context_cs_control(&data->ctx, true);
 	csk_spi_hal_transceive(dev);
 	ret = spi_context_wait_for_completion(&data->ctx);
+#ifdef CONFIG_SPI_SLAVE
+	SPI_DEV *hal_spi = data->driver_context;
+	if (spi_context_is_slave(&data->ctx)) {
+		ret = hal_spi->info->xfer.rx_cnt;
+	}
+#endif /* CONFIG_SPI_SLAVE */
 
 out:
 	spi_context_release(&data->ctx, ret);
