@@ -284,7 +284,13 @@ static int i2c_csk_init(const struct device *dev)
 	/* Initialize i2c */
 	I2C_Initialize(I2C_Handler, i2c_csk_event_cb, data);
 	I2C_PowerControl(I2C_Handler, CSK_POWER_FULL);
-
+	// Initialization needs to be configured as I2C_MASTER_MODE and I2C_SPEED_STANDARD
+	// i2c_csk_runtime_configure(I2C_Handler, I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER);
+	I2C_Control(I2C_Handler, CSK_I2C_BUS_SPEED, CSK_I2C_BUS_SPEED_STANDARD);
+	I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0);
+	I2C_Control(I2C_Handler, CSK_I2C_BUS_CLEAR, 0);
+	data->mode = true; // Set I2C Master mode.
+	
 	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	/* IRQ_CONNECT and irq_enable */
