@@ -23,11 +23,65 @@
 LOG_MODULE_REGISTER(flash_csk6, CONFIG_FLASH_LOG_LEVEL);
 
 
+#define AP_DMAC_BASE               	   (0x40000000) // size=1MB // AP DMA
+#define AP_DMAC_SAR_CH0_REG            (*(volatile uint32_t*)(AP_DMAC_BASE + 0))
+#define AP_DMAC_SAR_CH1_REG            (*(volatile uint32_t*)(AP_DMAC_BASE + 0x58))
+#define AP_DMAC_SAR_CH2_REG            (*(volatile uint32_t*)(AP_DMAC_BASE + 0xb0))
+#define AP_DMAC_SAR_CH3_REG            (*(volatile uint32_t*)(AP_DMAC_BASE + 0x108))
+#define AP_DMAC_SAR_CH4_REG            (*(volatile uint32_t*)(AP_DMAC_BASE + 0x160))
+#define AP_DMAC_SAR_CH5_REG            (*(volatile uint32_t*)(AP_DMAC_BASE + 0x1b8))
+#define AP_DMAC_SAR_CH6_REG            (*(volatile uint32_t*)(AP_DMAC_BASE + 0x210))
+#define AP_DMAC_SAR_CH7_REG            (*(volatile uint32_t*)(AP_DMAC_BASE + 0x268))
+#define AP_DMAC_CH_EN_REG              (*(volatile uint32_t*)(AP_DMAC_BASE + 0x3a0))
+
+#define AP_FLASH_SADDR                 (0x18000000)
+#define AP_FLASH_EADDR                 (0x20000000-1)
+#define IS_AP_FLASH_RANGE(address) (((address >= AP_FLASH_SADDR)&&(address <= AP_FLASH_EADDR))?1:0)
+
+#define AP_DMAC_WAIT_BITS()\
+((IS_AP_FLASH_RANGE(AP_DMAC_SAR_CH0_REG)<<0)|\
+(IS_AP_FLASH_RANGE(AP_DMAC_SAR_CH1_REG)<<1)|\
+(IS_AP_FLASH_RANGE(AP_DMAC_SAR_CH2_REG)<<2)|\
+(IS_AP_FLASH_RANGE(AP_DMAC_SAR_CH3_REG)<<3)|\
+(IS_AP_FLASH_RANGE(AP_DMAC_SAR_CH4_REG)<<4)|\
+(IS_AP_FLASH_RANGE(AP_DMAC_SAR_CH5_REG)<<5)|\
+(IS_AP_FLASH_RANGE(AP_DMAC_SAR_CH6_REG)<<6)|\
+(IS_AP_FLASH_RANGE(AP_DMAC_SAR_CH7_REG)<<7))
+
+
+
 #if (CONFIG_CSK6_FLASH_STALL_SECOND_CORE)
+#define CP_DMAC_BASE               	   (0x4A200000) // size=1MB // CP DMA
+#define CP_DMAC_SAR_CH0_REG            (*(volatile uint32_t*)(CP_DMAC_BASE + 0))
+#define CP_DMAC_SAR_CH1_REG            (*(volatile uint32_t*)(CP_DMAC_BASE + 0x58))
+#define CP_DMAC_SAR_CH2_REG            (*(volatile uint32_t*)(CP_DMAC_BASE + 0xb0))
+#define CP_DMAC_SAR_CH3_REG            (*(volatile uint32_t*)(CP_DMAC_BASE + 0x108))
+#define CP_DMAC_SAR_CH4_REG            (*(volatile uint32_t*)(CP_DMAC_BASE + 0x160))
+#define CP_DMAC_SAR_CH5_REG            (*(volatile uint32_t*)(CP_DMAC_BASE + 0x1b8))
+#define CP_DMAC_SAR_CH6_REG            (*(volatile uint32_t*)(CP_DMAC_BASE + 0x210))
+#define CP_DMAC_SAR_CH7_REG            (*(volatile uint32_t*)(CP_DMAC_BASE + 0x268))
+#define CP_DMAC_CH_EN_REG              (*(volatile uint32_t*)(CP_DMAC_BASE + 0x3a0))
+
+#define CP_FLASH_SADDR                 (0x68000000)
+#define CP_FLASH_EADDR                 (0x70000000-1)
+#define IS_CP_FLASH_RANGE(address) (((address >= CP_FLASH_SADDR)&&(address <= CP_FLASH_EADDR))?1:0)
+
+#define CP_DMAC_WAIT_BITS()\
+((IS_CP_FLASH_RANGE(CP_DMAC_SAR_CH0_REG)<<0)|\
+(IS_CP_FLASH_RANGE(CP_DMAC_SAR_CH1_REG)<<1)|\
+(IS_CP_FLASH_RANGE(CP_DMAC_SAR_CH2_REG)<<2)|\
+(IS_CP_FLASH_RANGE(CP_DMAC_SAR_CH3_REG)<<3)|\
+(IS_CP_FLASH_RANGE(CP_DMAC_SAR_CH4_REG)<<4)|\
+(IS_CP_FLASH_RANGE(CP_DMAC_SAR_CH5_REG)<<5)|\
+(IS_CP_FLASH_RANGE(CP_DMAC_SAR_CH6_REG)<<6)|\
+(IS_CP_FLASH_RANGE(CP_DMAC_SAR_CH7_REG)<<7))
+
 #define FLASH_OPT_ENTER() \
 	uint32_t primask = __get_PRIMASK();\
 	__set_PRIMASK(1);\
-	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x1;
+	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x1;\
+	while(AP_DMAC_CH_EN_REG & AP_DMAC_WAIT_BITS());\
+	while(CP_DMAC_CH_EN_REG & CP_DMAC_WAIT_BITS());
 
 #define FLASH_OPT_EXIT() \
 	((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)->REG_CP_CTRL1.bit.CP_HIFI4_RUNSTALL = 0x0;\
@@ -36,7 +90,8 @@ LOG_MODULE_REGISTER(flash_csk6, CONFIG_FLASH_LOG_LEVEL);
 
 #define FLASH_OPT_ENTER() \
 	uint32_t primask = __get_PRIMASK();\
-	__set_PRIMASK(1);
+	__set_PRIMASK(1);\
+	while(AP_DMAC_CH_EN_REG & AP_DMAC_WAIT_BITS());
 
 #define FLASH_OPT_EXIT() \
 	__set_PRIMASK(primask);
