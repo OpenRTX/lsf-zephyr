@@ -65,6 +65,17 @@ static int csk6_sdmmc_access_status(struct disk_info *disk)
 	return DISK_STATUS_OK;
 }
 
+static bool is_addr_in_sdram(uint32_t addr)
+{
+	uint32_t sram_base = DT_REG_ADDR(DT_CHOSEN(zephyr_sram));
+	uint32_t sram_size = DT_REG_SIZE(DT_CHOSEN(zephyr_sram));
+
+	if(addr >= sram_base && addr < sram_base + sram_size){
+		return true;
+	}
+	return false;
+}
+
 static int csk6_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
 				   uint32_t start_sector, uint32_t num_sector)
 {
@@ -77,7 +88,8 @@ static int csk6_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
 
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 
-	if(((uint32_t)p % _ALIGEN) != 0){
+
+	if((((uint32_t)p % _ALIGEN) != 0) || !is_addr_in_sdram((uint32_t)p)){
 		for(uint32_t i = start_sector; i < start_sector + num_sector; i++){
 			err = gm_sdc_api_sdcard_sector_read(SD_0, i, 1, sdcard_r_buf);
 			if (err != ERR_SD_NO_ERROR) {
@@ -118,7 +130,7 @@ static int csk6_sdmmc_access_write(struct disk_info *disk,
 
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 
-	if(((uint32_t)p % _ALIGEN) != 0){
+	if(((uint32_t)p % _ALIGEN) != 0 || !is_addr_in_sdram((uint32_t)p)){
 		for(uint32_t i = start_sector; i < start_sector + num_sector; i++){
 			memcpy(sdcard_w_buf, p, data->blk_size);
 			err = gm_sdc_api_sdcard_sector_write(SD_0, i, 1, sdcard_w_buf);
