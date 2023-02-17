@@ -13,7 +13,7 @@
 #include <string.h>
 #include <zephyr/drivers/i2c/slave/eeprom.h>
 
-#define LOG_LEVEL CONFIG_I2C_LOG_LEVEL
+#define LOG_LEVEL CONFIG_I2C_LOG_DBG
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(i2c_slave);
 
@@ -66,6 +66,7 @@ static int eeprom_slave_write_requested(struct i2c_slave_config *config)
 						config);
 
 	LOG_DBG("eeprom: write req");
+	printk("[%d:%s]eeprom: write req\n", __LINE__, __FUNCTION__);
 
 	data->first_write = true;
 
@@ -82,6 +83,7 @@ static int eeprom_slave_read_requested(struct i2c_slave_config *config,
 	*val = data->buffer[data->buffer_idx];
 
 	LOG_DBG("eeprom: read req, val=0x%x", *val);
+	printk("[%d:%s]eeprom: read req, val=0x%x\n", __LINE__, __FUNCTION__, *val);
 
 	/* Increment will be done in the read_processed callback */
 
@@ -96,7 +98,7 @@ static int eeprom_slave_write_received(struct i2c_slave_config *config,
 						config);
 
 	LOG_DBG("eeprom: write done, val=0x%x", val);
-
+	printk("[%d:%s]eeprom: write done, val=0x%x\n", __LINE__, __FUNCTION__, val);
 	/* In case EEPROM wants to be R/O, return !0 here could trigger
 	 * a NACK to the I2C controller, support depends on the
 	 * I2C controller support
@@ -127,6 +129,7 @@ static int eeprom_slave_read_processed(struct i2c_slave_config *config,
 	*val = data->buffer[data->buffer_idx];
 
 	LOG_DBG("eeprom: read done, val=0x%x", *val);
+	printk("[%d:%s]eeprom: read done, val=0x%x\n", __LINE__, __FUNCTION__, *val);
 
 	/* Increment will be done in the next read_processed callback
 	 * In case of STOP, the byte won't be taken in account
@@ -142,7 +145,7 @@ static int eeprom_slave_stop(struct i2c_slave_config *config)
 						config);
 
 	LOG_DBG("eeprom: stop");
-
+	printk("[%d:%s]eeprom: stop\n", __LINE__, __FUNCTION__);
 	data->first_write = true;
 
 	return 0;
