@@ -8,6 +8,8 @@
 #include <device.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
+#include <drivers/entropy.h>
+#include <random/rand32.h>
 
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 1000
@@ -41,6 +43,15 @@ void main(void)
     while (1) {
         gpio_pin_set(dev, PIN, (int)led_is_on);
         led_is_on = !led_is_on;
-        k_msleep(SLEEP_TIME_MS);
+        uint32_t to_mslepp = sys_rand32_get();
+        to_mslepp = to_mslepp % 1000;
+        to_mslepp = to_mslepp < 50 ? to_mslepp + 50 : to_mslepp;
+        printk("to mslepp:%u\n", to_mslepp);
+        // if (!led_is_on) {
+        //     k_msleep(100);
+        // } else {
+        //     k_msleep(to_mslepp);
+        // }
+        k_msleep(to_mslepp);
     }
 }
