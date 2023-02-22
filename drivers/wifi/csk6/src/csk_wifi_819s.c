@@ -817,9 +817,12 @@ static void wifi_command_handler(const struct device *dev, wifi_req_t req)
             }
             if (ret != 0)   break;
             wifi_scan_list_t scan_list = {0};
+            wifi_scan_list_t *scan_list_temp = k_malloc(sizeof(wifi_scan_list_t));
+            __ASSERT(scan_list_temp, "No memory"); //TODO: add err handling
             scan_list.ap_list = ap_list;
             scan_list.count = aps_num;
-            ret_msg.arg = &scan_list;
+            memcpy(scan_list_temp, &scan_list, sizeof(wifi_scan_list_t));
+            ret_msg.arg = scan_list_temp;
             csk_wifi_scan_info_t csk_ap_list_copy[aps_num];
             memset(csk_ap_list_copy, 0, sizeof(csk_wifi_scan_info_t) * aps_num);
             memcpy(csk_ap_list_copy, ap_list, sizeof(csk_wifi_scan_info_t) * aps_num);
