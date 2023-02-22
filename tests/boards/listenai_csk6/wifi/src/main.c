@@ -6,6 +6,9 @@
 
 #include "test_csk_wifi.h"
 #include "logging/log.h"
+#include <stdbool.h>
+#include <ctype.h>
+#include <wchar.h>
 
 LOG_MODULE_DECLARE(test_csk6_wifi, CONFIG_LOG_DEFAULT_LEVEL);
 
@@ -89,6 +92,46 @@ void test_csk_wifi_get_mac(void)
 			mac_addr[4], mac_addr[5]);
 }
 
+bool is_valid_ssid(const char *ssid)
+{
+	return true; /* TODO */
+}
+
+bool is_valid_bssid(const char* bssid)
+{
+    if (strlen(bssid) != 17) {
+        return false;
+    }
+    for (int i = 0; i < 17; i++) {
+        if (i % 3 == 2) {
+            if (bssid[i] != ':') {
+                return false;
+            }
+        } else {
+            if (!isxdigit((unsigned char)bssid[i])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool is_valid_rssi(int rssi)
+{
+    if (rssi < -100 || rssi > 0) {
+        return false;
+    }
+    return true;
+}
+
+bool is_valid_channel(int channel)
+{
+    if (channel < 1 || channel > 14) {
+        return false;
+    }
+    return true;
+}
+
 void test_csk_wifi_scan(void)
 {
 	int ap_num = 0;
@@ -100,6 +143,15 @@ void test_csk_wifi_scan(void)
 
 	for (int idx = 0; idx < ap_num; idx++) {
 		LOG_DBG("found the target ssid:%s ", aps_info[idx].ssid);
+		bool ret = true;
+		ret = is_valid_ssid(aps_info[idx].ssid);
+		zassert_equal(ret, true, "ssid is invalid");
+		ret = is_valid_bssid(aps_info[idx].bssid);
+		zassert_equal(ret, true, "bssid is invalid");
+		ret = is_valid_rssi(aps_info[idx].rssi);
+		zassert_equal(ret, true, "rssi is invalid");
+		ret = is_valid_channel(aps_info[idx].channel);
+		zassert_equal(ret, true, "channel is invalid");
 	}
 
 	LOG_DBG("result: %d", result);
