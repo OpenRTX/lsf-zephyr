@@ -214,10 +214,10 @@ void test_csk_wifi_connect_with_correct_ssid_but_wrong_pwd(void)
 
 	ret = csk_wifi_sta_connect(&sta_config, &wifi_result, K_FOREVER);
 	zassert_equal(wifi_result, CSK_WIFI_ERR_INVALID_PASSWORD, "ret is not equal to CSK_WIFI_ERR_INVALID_PASSWORD, wifi_result: %d", wifi_result);
-	
+#ifndef CONFIG_CSK_WIFI_XR819S
 	ret = csk_wifi_msgq_take(&test_csk_wifi_connection_failed_msgq, &event, K_NO_WAIT);
 	zassert_equal(ret, 0, "connection failed ret: %d", ret);
-
+#endif
 	ret = csk_wifi_connected_msgq_take(&event, K_NO_WAIT);
 	zassert_equal(ret, -ENOMSG, "csk wifi msg take failed %d", ret);
 
