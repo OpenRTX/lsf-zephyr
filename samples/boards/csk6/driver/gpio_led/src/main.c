@@ -40,18 +40,24 @@ void main(void)
         return;
     }
 
+
+    uint32_t to_mslepp;
     while (1) {
         gpio_pin_set(dev, PIN, (int)led_is_on);
         led_is_on = !led_is_on;
-        uint32_t to_mslepp = sys_rand32_get();
-        to_mslepp = to_mslepp % 1000;
-        to_mslepp = to_mslepp < 50 ? to_mslepp + 50 : to_mslepp;
-        printk("to mslepp:%u\n", to_mslepp);
-        // if (!led_is_on) {
-        //     k_msleep(100);
-        // } else {
-        //     k_msleep(to_mslepp);
-        // }
-        k_msleep(to_mslepp);
+        if (!led_is_on) {
+
+            to_mslepp = sys_rand32_get();
+            to_mslepp = to_mslepp % 30;
+            to_mslepp += 40;
+            printk("to mslepp:%u\n", to_mslepp);
+            k_msleep(to_mslepp);
+        } else {
+            to_mslepp = sys_rand32_get();
+            to_mslepp = to_mslepp % 200;
+            to_mslepp += 800;
+            printk("to mslepp:%u\n", to_mslepp);
+            k_msleep(to_mslepp);
+        }
     }
 }
