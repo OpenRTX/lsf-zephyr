@@ -43,6 +43,7 @@ struct i2c_csk_data {
 	struct k_event *evt;
 	uint32_t status; /* driver event status */
 	bool mode; /* transfer mode: true: master, false: slave */
+	struct i2c_slave_config *slave_cfg;
 };
 
 static void *i2c_csk_get_ctx(const struct device *dev)
@@ -67,7 +68,7 @@ static void i2c_csk_event_cb(uint32_t event, void *user_arg)
 	return;
 }
 
-static int i2c_csk_configure(const struct device *dev, uint32_t dev_config)
+static int i2c_csk_runtime_configure(const struct device *dev, uint32_t dev_config)
 {
 	struct i2c_csk_data *data = DEV_DATA(dev);
 	void *I2C_Handler = DEV_HANDLER(dev);
@@ -269,6 +270,49 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 	return ret;
 }
 
+#if defined(CONFIG_I2C_SLAVE)
+static int i2c_csk_slave_register(const struct device *dev, struct i2c_slave_config *config)
+{
+	int ret = 0;
+	LOG_DBG("[%d:%s], \n", __LINE__, __FUNCTION__);
+	struct i2c_csk_data *data = DEV_DATA(dev);
+
+	/* Get device handle */
+	data->handle = i2c_csk_get_ctx(dev);
+	if (data->handle == NULL) {
+		return -EIO;
+	}
+	void *I2C_Handler = data->handle;
+	LOG_DBG("\t|i2c_slave_config->address: 0x%X\n", config->address);
+
+	data->slave_cfg = config;
+	I2C_Initialize(I2C_Handler, i2c_csk_event_cb, data);
+	I2C_PowerControl(I2C_Handler, CSK_POWER_FULL);
+	I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0);
+	I2C_Control(I2C_Handler, CSK_I2C_OWN_ADDRESS, config->address);
+	data->mode = false; // Set I2C Slave mode.
+
+	LOG_DBG("i2c: slave registered");
+	return ret;
+}
+
+static int i2c_csk_slave_unregister(const struct device *dev, struct i2c_slave_config *config)
+{
+	int ret = 0;
+	LOG_DBG("[%d:%s], \n", __LINE__, __FUNCTION__);
+	
+	struct i2c_csk_data *data = DEV_DATA(dev);
+	void *I2C_Handler = DEV_HANDLER(dev);
+	
+	I2C_Initialize(I2C_Handler, i2c_csk_event_cb, data);
+	I2C_PowerControl(I2C_Handler, CSK_POWER_FULL);
+	I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0);
+	data->mode = true; // Set I2C Master mode.
+
+	LOG_DBG("i2c: slave unregistered");
+	return ret;
+}
+#endif
 static int i2c_csk_init(const struct device *dev)
 {
 	const struct i2c_csk_config *config = DEV_CFG(dev);
@@ -308,10 +352,12 @@ static void i2c_csk_isr(const struct device *dev)
 }
 
 static const struct i2c_driver_api i2c_csk_driver_api = {
-	.configure = i2c_csk_configure,
+	.configure = i2c_csk_runtime_configure,
 	.transfer = i2c_csk_transfer,
-	.slave_register = NULL,
-	.slave_unregister = NULL,
+#if defined(CONFIG_I2C_SLAVE)
+	.slave_register = i2c_csk_slave_register,
+	.slave_unregister = i2c_csk_slave_unregister,
+#endif
 	.recover_bus = NULL,
 };
 
