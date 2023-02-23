@@ -141,9 +141,11 @@ int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, 
         *result = ret_msg.result;
     }
     wifi_scan_list_t *scan_list = ret_msg.arg;
+    int count = scan_list->count;
     *ap_info = scan_list->ap_list;
+    k_free(scan_list);
     k_mutex_unlock(&wifi_api_mutex);
-    return scan_list->count;
+    return count;
 
 __exit:
     k_mutex_unlock(&wifi_api_mutex);

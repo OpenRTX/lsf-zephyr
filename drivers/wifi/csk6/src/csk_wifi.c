@@ -541,7 +541,10 @@ static void wifi_command_handler(const struct device *dev,  wifi_req_t req)
             int count = 0;
             ret_msg.result = wifi_scan_list(&count, &scan_list);
             if (ret_msg.result == CSK_WIFI_SUCCESS) {
-                ret_msg.arg = &scan_list;
+                wifi_scan_list_t *scan_list_temp = k_malloc(sizeof(wifi_scan_list_t));
+                __ASSERT(scan_list_temp, "No memory"); //TODO: add err handling
+                memcpy(scan_list_temp, &scan_list, sizeof(wifi_scan_list_t));
+                ret_msg.arg = scan_list_temp;
                 LOG_DBG("wifi_scan_list scan_list.count = %d", scan_list.count);
                 wifi_dispatch_callbacks(CSK_WIFI_EVT_SCAN_DONE, scan_list.ap_list, 
                     sizeof(csk_wifi_scan_info_t) * scan_list.count);
