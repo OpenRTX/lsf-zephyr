@@ -50,9 +50,9 @@ struct i2c_csk_data {
 static void *i2c_csk_get_ctx(const struct device *dev)
 {
 	I2C_RegDef *base = DEV_BASE(dev);
-	if (base == VENUS_I2C0) {
+	if (base == IP_I2C0) {
 		return I2C0();
-	} else if (base == VENUS_I2C1) {
+	} else if (base == IP_I2C1) {
 		return I2C1();
 	} else {
 		LOG_ERR("i2c reg base[%p] err, default: I2C0", base);
@@ -62,7 +62,7 @@ static void *i2c_csk_get_ctx(const struct device *dev)
 
 static void i2c_csk_event_handler(uint32_t event, void *user_arg)
 {
-#if defined(CONFIG_I2C_SLAVE)
+#if 1//defined(CONFIG_I2C_SLAVE)
 	struct i2c_csk_data *data = (struct i2c_csk_data *)user_arg;
 	void *I2C_Handler = data->handle;
 	I2C_RESOURCES *i2c = (I2C_RESOURCES *)I2C_Handler;
@@ -70,37 +70,42 @@ static void i2c_csk_event_handler(uint32_t event, void *user_arg)
 	if (data->slave_cfg) {
 		struct i2c_slave_callbacks *slave_cb = data->slave_cfg->callbacks;
 		if (event & CSK_I2C_EVENT_SLAVE_RECEIVE) {
+			// Note: 写请求(已验证)
+            printk("[%d:%s] Event:0x%X, Slave Receive operation requested\n", __LINE__, __FUNCTION__, event);
 			if (slave_cb->write_requested) {
 				slave_cb->write_requested(data->slave_cfg);
 			}
-		} else if (event & CSK_I2C_EVENT_SLAVE_TRANSMIT) {
+        }else if (event & CSK_I2C_EVENT_SLAVE_TRANSMIT) {
+			// TODO: 读请求
+            printk("[%d:%s] Event:0x%X, Slave Transmit operation requested\n", __LINE__, __FUNCTION__, event);
 			uint8_t val;
 			if (slave_cb->read_requested) {
-				slave_cb->read_requested(data->slave_cfg, &val);
-				// NOTE(一般用于地址命中中断之后)可选发送数据回 Master
+            	slave_cb->read_requested(data->slave_cfg, &val);
+				// Note: (用于地址命中中断之后)可选发送数据回 Master
+				// printk("[%d:%s] Slave read_requested val:0x%X\n", __LINE__, __FUNCTION__, val);
 			}
+			// TODO: 读取 Slave 处理，Slave 需要发送数据
 			if (slave_cb->read_processed) {
 				slave_cb->read_processed(data->slave_cfg, &val);
+				// TODO: 发送数据回 Master
+				printk("[%d:%s] Slave read_processed val:0x%X\n", __LINE__, __FUNCTION__, val);
 				I2C_SlaveTransmit(I2C_Handler, &val, 1);
 			}
 		}
 		if (event & CSK_I2C_EVENT_TRANSFER_DONE) {
-			// printk("[%d:%s] Event:0x%X, %s %s finished, %s\n", __LINE__,
-			// __FUNCTION__, event, 	 (data->mode)?"Master":"Slave",
-			// 	 (i2c->info->Driver_State & I2C_DRV_SLAVE_RX_CMPL)?"RX":"TX",
-			// 	 (i2c->info->Driver_State &
-			// I2C_DRV_SLAVE_TX_CMPL)?"Transmit":"Receive");
+			printk("[%d:%s] Event:0x%X, %s %s finished, %s\n", __LINE__,
+			__FUNCTION__, event, 	 (data->mode)?"Master":"Slave",
+				 (i2c->info->state & I2C_DRV_SLAVE_RX_CMPL)?"RX":"TX",
+				 (i2c->info->state & I2C_DRV_SLAVE_TX_CMPL)?"Transmit":"Receive");
 
-			if (i2c->info->Driver_State & I2C_DRV_SLAVE_RX_CMPL) {
-				// Note: Slave RX 完成中断处理，字节写处理(已验证)
+			if (i2c->info->state & I2C_DRV_SLAVE_RX_CMPL) {
+				// TODO: Slave RX 完成中断处理，字节写处理
 				if (slave_cb->write_received) {
-					int last_rx_data_count = i2c->info->last_rx_data_count;
+					int last_rx_data_count = i2c->info->trans_info.slave_read_last_rx_data_count;
 					uint8_t val = 0;
 					for (int i = last_rx_data_count; i > 0; i--) {
-						val = i2c->info->Xfer_Data_Rd_Buf
-							      [i2c->info->Xfered_Data_Rd_Ptr - i];
-						// printk("[%d:%s] Slave Receive Data:0x%X\n",
-						// __LINE__, __FUNCTION__, val);
+						val = i2c->info->trans_info.slave_read_mid_buf[i2c->info->trans_info.slave_read_last_rx_data_count-i];
+						printk("[%d:%s] Slave Receive Data:0x%X\n", __LINE__, __FUNCTION__, val);
 						slave_cb->write_received(data->slave_cfg, val);
 					}
 				}
