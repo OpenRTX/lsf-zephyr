@@ -20,7 +20,11 @@ LOG_MODULE_REGISTER(i2c_csk);
 #define DEV_BASE(dev)	 ((I2C_RegDef *)(DEV_CFG(dev))->base)
 #define DEV_HANDLER(dev) ((void *)(DEV_DATA(dev)->handle))
 
-#define I2C_SLAVE_ADDR (0x35) /* csk6 default i2c slave address 0x35 */
+#if defined(CONFIG_I2C_SLAVE)
+#include <zephyr/kernel.h>
+/* Thread stack size */
+#define TASK_STACK_SIZE 1024
+#endif
 
 /** Here we use the lowest rate of 100khz to calculate the timeout
  * 1 * 1000 / (100000) * (256byte * 10(bit) = 25.6ms
@@ -45,6 +49,11 @@ struct i2c_csk_data {
 	uint32_t status; /* driver event status */
 	bool mode;	 /* transfer mode: true: master, false: slave */
 	struct i2c_slave_config *slave_cfg;
+#if defined(CONFIG_I2C_SLAVE)
+	struct k_thread thread;
+	K_KERNEL_STACK_MEMBER(thread_stack, TASK_STACK_SIZE);
+	struct k_event *slave_evt;
+#endif
 };
 
 static void *i2c_csk_get_ctx(const struct device *dev)
@@ -60,52 +69,42 @@ static void *i2c_csk_get_ctx(const struct device *dev)
 	}
 }
 
-static void i2c_csk_event_handler(uint32_t event, void *user_arg)
+static void i2c_csk_slave_event_handler(const struct device *dev, uint32_t event)
 {
-#if 1//defined(CONFIG_I2C_SLAVE)
-	struct i2c_csk_data *data = (struct i2c_csk_data *)user_arg;
+#if defined(CONFIG_I2C_SLAVE)
+	struct i2c_csk_data *data = DEV_DATA(dev);
 	void *I2C_Handler = data->handle;
 	I2C_RESOURCES *i2c = (I2C_RESOURCES *)I2C_Handler;
 	// Slave Event handler
 	if (data->slave_cfg) {
 		struct i2c_slave_callbacks *slave_cb = data->slave_cfg->callbacks;
 		if (event & CSK_I2C_EVENT_SLAVE_RECEIVE) {
-			// Note: 写请求(已验证)
-            printk("[%d:%s] Event:0x%X, Slave Receive operation requested\n", __LINE__, __FUNCTION__, event);
 			if (slave_cb->write_requested) {
 				slave_cb->write_requested(data->slave_cfg);
 			}
-        }else if (event & CSK_I2C_EVENT_SLAVE_TRANSMIT) {
-			// TODO: 读请求
-            printk("[%d:%s] Event:0x%X, Slave Transmit operation requested\n", __LINE__, __FUNCTION__, event);
-			uint8_t val;
-			if (slave_cb->read_requested) {
-            	slave_cb->read_requested(data->slave_cfg, &val);
-				// Note: (用于地址命中中断之后)可选发送数据回 Master
-				// printk("[%d:%s] Slave read_requested val:0x%X\n", __LINE__, __FUNCTION__, val);
-			}
-			// TODO: 读取 Slave 处理，Slave 需要发送数据
+		} else if (event & CSK_I2C_EVENT_SLAVE_TRANSMIT) {
+			uint8_t val[10];
+			// if (slave_cb->read_requested) {
+			// 	slave_cb->read_requested(data->slave_cfg, &val[0]);
+			// }
 			if (slave_cb->read_processed) {
 				slave_cb->read_processed(data->slave_cfg, &val);
-				// TODO: 发送数据回 Master
-				printk("[%d:%s] Slave read_processed val:0x%X\n", __LINE__, __FUNCTION__, val);
 				I2C_SlaveTransmit(I2C_Handler, &val, 1);
 			}
 		}
 		if (event & CSK_I2C_EVENT_TRANSFER_DONE) {
-			printk("[%d:%s] Event:0x%X, %s %s finished, %s\n", __LINE__,
-			__FUNCTION__, event, 	 (data->mode)?"Master":"Slave",
-				 (i2c->info->state & I2C_DRV_SLAVE_RX_CMPL)?"RX":"TX",
-				 (i2c->info->state & I2C_DRV_SLAVE_TX_CMPL)?"Transmit":"Receive");
-
 			if (i2c->info->state & I2C_DRV_SLAVE_RX_CMPL) {
-				// TODO: Slave RX 完成中断处理，字节写处理
 				if (slave_cb->write_received) {
-					int last_rx_data_count = i2c->info->trans_info.slave_read_last_rx_data_count;
+					int last_rx_data_count =
+						i2c->info->trans_info.slave_read_last_rx_data_count;
 					uint8_t val = 0;
 					for (int i = last_rx_data_count; i > 0; i--) {
-						val = i2c->info->trans_info.slave_read_mid_buf[i2c->info->trans_info.slave_read_last_rx_data_count-i];
-						printk("[%d:%s] Slave Receive Data:0x%X\n", __LINE__, __FUNCTION__, val);
+						val = i2c->info->trans_info.slave_read_mid_buf
+							      [i2c->info->trans_info
+								       .slave_read_last_rx_data_count -
+							       i];
+						// printk("[%d:%s] Slave Receive Data:0x%X\n",
+						// __LINE__, __FUNCTION__, val);
 						slave_cb->write_received(data->slave_cfg, val);
 					}
 				}
@@ -118,11 +117,29 @@ static void i2c_csk_event_handler(uint32_t event, void *user_arg)
 #endif
 }
 
+#if defined(CONFIG_I2C_SLAVE)
+void slave_even_handler_task(const struct device *dev, void *dummy2, void *dummy3)
+{
+	struct i2c_csk_data *data = DEV_DATA(dev);
+	uint32_t evt = 0;
+
+	for (;;) {
+		evt = k_event_wait(data->slave_evt,
+				   CSK_I2C_EVENT_SLAVE_RECEIVE | CSK_I2C_EVENT_SLAVE_TRANSMIT |
+					   CSK_I2C_EVENT_TRANSFER_DONE,
+				   true, K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
+		i2c_csk_slave_event_handler(dev, evt);
+	}
+}
+#endif
+
 static void i2c_csk_event_cb(uint32_t event, void *user_arg)
 {
 	struct i2c_csk_data *data = (struct i2c_csk_data *)user_arg;
 	k_event_post(data->evt, event);
-	i2c_csk_event_handler(event, user_arg);
+#if defined(CONFIG_I2C_SLAVE)
+	k_event_post(data->slave_evt, event);
+#endif
 	return;
 }
 
@@ -141,7 +158,7 @@ static int i2c_csk_runtime_configure(const struct device *dev, uint32_t dev_conf
 		}
 
 		/* use default slave address, user also can define slave adderss use dev_config*/
-		arg |= I2C_SLAVE_ADDR;
+		// arg |= I2C_SLAVE_ADDR;
 
 		r = I2C_Control(I2C_Handler, CSK_I2C_OWN_ADDRESS, arg);
 
@@ -357,6 +374,10 @@ static int i2c_csk_slave_register(const struct device *dev, struct i2c_slave_con
 	I2C_Control(I2C_Handler, CSK_I2C_OWN_ADDRESS, config->address);
 	data->mode = false; // Set I2C Slave mode.
 
+	k_thread_create(&data->thread, data->thread_stack, TASK_STACK_SIZE,
+			(void (*)(void *, void *, void *))slave_even_handler_task, (void *)dev,
+			NULL, NULL, K_PRIO_COOP(4), 0, K_NO_WAIT);
+
 	LOG_DBG("i2c: slave registered");
 	return ret;
 }
@@ -438,7 +459,9 @@ static const struct i2c_driver_api i2c_csk_driver_api = {
 	};                                                                                         \
                                                                                                    \
 	K_EVENT_DEFINE(csk6_i2c_event_##n);                                                        \
-	static struct i2c_csk_data i2c_csk_data_##n = {.evt = &csk6_i2c_event_##n};                \
+	K_EVENT_DEFINE(csk6_i2c_slave_event_##n);                                                  \
+	static struct i2c_csk_data i2c_csk_data_##n = {.evt = &csk6_i2c_event_##n,                 \
+						       .slave_evt = &csk6_i2c_slave_event_##n};    \
                                                                                                    \
 	DEVICE_DT_INST_DEFINE(n, &i2c_csk_init, NULL, &i2c_csk_data_##n, &i2c_csk_config_##n,      \
 			      POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,                     \
