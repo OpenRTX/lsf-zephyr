@@ -13,7 +13,7 @@
 
 #include <drivers/i2c.h>
 #include <logging/log.h>
-LOG_MODULE_REGISTER(i2c_csk);
+LOG_MODULE_REGISTER(i2c_csk, CONFIG_I2C_LOG_LEVEL);
 
 #define DEV_CFG(dev)	 ((const struct i2c_csk_config *const)(dev)->config)
 #define DEV_DATA(dev)	 ((struct i2c_csk_data *const)(dev)->data)
@@ -124,7 +124,7 @@ static void i2c_csk_slave_event_handler(const struct device *dev, uint32_t event
 	I2C_RESOURCES *i2c = (I2C_RESOURCES *)I2C_Handler;
 	// Slave Event handler
 	if (data->slave_cfg) {
-		struct i2c_slave_callbacks *slave_cb = data->slave_cfg->callbacks;
+		const struct i2c_slave_callbacks *slave_cb = data->slave_cfg->callbacks;
 		if (event & CSK_I2C_EVENT_SLAVE_RECEIVE) {
 			if (slave_cb->write_requested) {
 				slave_cb->write_requested(data->slave_cfg);
@@ -133,11 +133,21 @@ static void i2c_csk_slave_event_handler(const struct device *dev, uint32_t event
 			uint8_t read_val;
 			if (slave_cb->read_requested) {
 				slave_cb->read_requested(data->slave_cfg, &read_val);
+				LOG_DBG("[%d:%s] Slave Send Data:0x%X", __LINE__, __FUNCTION__, read_val);
+				I2C_SlaveTransmit(I2C_Handler, &read_val, 1);
 			}
-			uint8_t val;
-			if (slave_cb->read_processed) {
-				slave_cb->read_processed(data->slave_cfg, &val);
-				I2C_SlaveTransmit(I2C_Handler, &val, 1);
+		}
+		if (event & CSK_I2C_EVENT_BYTE_TRANSFER_DONE) {
+			// Indicates Master/Slave that a byte of data has been transmitted.
+			if (i2c->reg->REG_SETUP.bit.MASTER == 0x0) {
+				uint8_t read_val;
+				if (slave_cb->read_processed) {
+					slave_cb->read_processed(data->slave_cfg, &read_val);
+					LOG_DBG("[%d:%s] Slave Send Data:0x%X", __LINE__, __FUNCTION__, read_val);
+					I2C_SlaveTransmit(I2C_Handler, &read_val, 1);
+				}
+			} else {
+				// 
 			}
 		}
 		if (event & CSK_I2C_EVENT_TRANSFER_DONE) {
@@ -147,13 +157,12 @@ static void i2c_csk_slave_event_handler(const struct device *dev, uint32_t event
 					uint8_t val = 0;
 					for (int i = count; i > 0; i--) {
 						val = i2c->info->trans_info.slave_read_mid_buf[i2c->info->trans_info.slave_read_last_rx_data_count - i];
-						// printk("[%d:%s] Slave Receive Data:0x%X\n",
-						// __LINE__, __FUNCTION__, val);
+						LOG_DBG("[%d:%s] Slave Receive Data:0x%X\n", __LINE__, __FUNCTION__, val);
 						slave_cb->write_received(data->slave_cfg, val);
 					}
 				}
 			} else if (i2c->info->state & I2C_DRV_SLAVE_TX_CMPL){
-				printk("[%d:%s] Event:0x%0X, Slave I2C_DRV_SLAVE_TX_CMPL\n", __LINE__, __FUNCTION__, event);
+				LOG_DBG("[%d:%s] Event:0x%0X, Slave I2C_DRV_SLAVE_TX_CMPL\n", __LINE__, __FUNCTION__, event);
 			}
 			if (slave_cb->stop) {
 				slave_cb->stop(data->slave_cfg);
@@ -171,8 +180,8 @@ void i2c_csk_slave_event_handler_task(const struct device *dev, void *dummy2, vo
 
 	for (;;) {
 		evt = k_event_wait(data->slave_evt,
-				   CSK_I2C_EVENT_SLAVE_RECEIVE | CSK_I2C_EVENT_SLAVE_TRANSMIT |
-					   CSK_I2C_EVENT_TRANSFER_DONE,
+				   CSK_I2C_EVENT_SLAVE_RECEIVE | CSK_I2C_EVENT_SLAVE_TRANSMIT
+					| CSK_I2C_EVENT_TRANSFER_DONE | CSK_I2C_EVENT_BYTE_TRANSFER_DONE,
 				   true, K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
 		i2c_csk_slave_event_handler(dev, evt);
 	}
@@ -436,6 +445,7 @@ static int i2c_csk_slave_unregister(const struct device *dev, struct i2c_slave_c
 	struct i2c_csk_data *data = DEV_DATA(dev);
 	void *I2C_Handler = DEV_HANDLER(dev);
 
+	k_thread_abort(&data->thread);
 	I2C_Initialize(I2C_Handler, i2c_csk_event_cb, data);
 	I2C_PowerControl(I2C_Handler, CSK_POWER_FULL);
 	I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0);

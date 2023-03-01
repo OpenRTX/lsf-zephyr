@@ -121,10 +121,10 @@ static int eeprom_slave_read_processed(struct i2c_slave_config *config,
 						struct i2c_eeprom_slave_data,
 						config);
 
-	*val = data->buffer[data->buffer_idx];
-
 	/* Increment here */
 	data->buffer_idx = (data->buffer_idx + 1) % data->buffer_size;
+
+	*val = data->buffer[data->buffer_idx];
 
 	LOG_DBG("eeprom: read done, val=0x%x", *val);
 
