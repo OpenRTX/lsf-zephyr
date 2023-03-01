@@ -133,6 +133,7 @@ static void i2c_csk_slave_event_handler(const struct device *dev, uint32_t event
 			uint8_t read_val;
 			if (slave_cb->read_requested) {
 				slave_cb->read_requested(data->slave_cfg, &read_val);
+				I2C_SlaveTransmit(I2C_Handler, &read_val, 1);
 			}
 			uint8_t val;
 			if (slave_cb->read_processed) {
