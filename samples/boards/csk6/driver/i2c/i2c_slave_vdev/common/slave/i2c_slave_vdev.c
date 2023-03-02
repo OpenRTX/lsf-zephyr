@@ -39,7 +39,6 @@ static struct k_event *slave_evt = &slave_vdev_evt;
 
 static uint8_t m_handler_task_initialized = 0;
 static slave_vdev_handler_t m_vdev_handler;
-static struct device *m_dev = NULL;
 uint32_t m_event = 0;
 
 static struct i2c_msg m_msg;
@@ -92,12 +91,12 @@ int slave_vdev_event_handler_register(const struct device *dev, slave_vdev_handl
 		LOG_ERR("Illegal, device(dev) cannot be NULL");
 		return -1;
 	}
-	m_dev = dev;
+
 	m_vdev_handler = handler;
 	return 0;
 }
 
-static void slave_vdev_thread(void *v1, void *v2, void *v3)
+static void slave_vdev_thread(void *user_data, void *v2, void *v3)
 {
 	uint32_t evt = 0;
 	LOG_DBG("Slave_vdev_thread start successful");
@@ -107,12 +106,12 @@ static void slave_vdev_thread(void *v1, void *v2, void *v3)
 					   SLAVE_VDEV_EVENT_WRITE_DONE,
 				   true, K_FOREVER);
 		if (m_vdev_handler) {
-			m_vdev_handler(m_dev, evt, m_msg);
+			m_vdev_handler((struct device *)user_data, slave_evt->events, m_msg);
 		}
 	}
 }
 
-int start_slave_vdev_handler_task(void)
+int start_slave_vdev_handler_task(const struct device *dev)
 {
 	if (m_handler_task_initialized) {
 		LOG_WRN("The virtual slave processing task has been initialized");
@@ -121,7 +120,7 @@ int start_slave_vdev_handler_task(void)
 
 	int pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&vdev_thread_data, slave_vdev_task_stack_area,
-			K_THREAD_STACK_SIZEOF(slave_vdev_task_stack_area), slave_vdev_thread, NULL,
+			K_THREAD_STACK_SIZEOF(slave_vdev_task_stack_area), slave_vdev_thread, (void *)dev,
 			NULL, NULL, pri, 0, K_NO_WAIT);
 	m_handler_task_initialized = 1;
 	LOG_INF("start_slave_vdev_handler_task ok");

@@ -51,12 +51,18 @@ int vdev_handler(const struct device *dev, const uint32_t event, const struct i2
 {
 	// Slave Virtual Device USER Handler
 	LOG_DBG("Event:0x%X", event);
-	if (event & SLAVE_VDEV_EVENT_READ_DONE) {
-		printk("I2C Transmit data length:%d\n", msg.len);
-
-	} else if (event & SLAVE_VDEV_EVENT_WRITE_DONE) {
-		printk("I2C Receive data length:%d\n", msg.len);
+	switch (event)
+	{
+	case SLAVE_VDEV_EVENT_READ_DONE:
+		printk("I2C Transmit data length:%d, Flag: 0x%X\n", msg.len, msg.flags);
+		break;
+	case SLAVE_VDEV_EVENT_WRITE_DONE:
+		printk("I2C Receive data length:%d, Flag: 0x%X\n", msg.len, msg.flags);
+		break;
+	default:
+		break;
 	}
+
 	return 0;
 }
 
@@ -65,7 +71,7 @@ void main(void)
 	i2_slave_vdev_init();
 
 	slave_vdev_event_handler_register(i2_vdev_0, &vdev_handler);
-	start_slave_vdev_handler_task();
+	start_slave_vdev_handler_task(i2_vdev_0);
 	while (1)
 	{
 		k_msleep(2000);

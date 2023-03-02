@@ -60,8 +60,9 @@ int slave_vdev_event_handler_register(const struct device *dev, slave_vdev_handl
 /**
  * @brief Start Slave virtual device handler task.
  *
+ * @param dev I2C Slave device instance
  * @return int Start task status
  */
-int start_slave_vdev_handler_task(void);
+int start_slave_vdev_handler_task(const struct device *dev);
 
 #endif
