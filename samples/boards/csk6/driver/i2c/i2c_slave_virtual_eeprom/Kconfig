@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: Apache-2.0
-
-mainmenu "I2C Slave Virtual Deveice Sample"
-
-source "Kconfig.zephyr"
