@@ -116,10 +116,10 @@ static void *i2c_csk_get_ctx(const struct device *dev)
  * 			4. slave_cb->read_processed
  * 			5. slave_cb->stop
  */
-static void i2c_csk_slave_event_handler(const struct device *dev, uint32_t event)
+static void i2c_csk_slave_event_handler(const struct i2c_csk_data *data, uint32_t event)
 {
 #if 1//defined(CONFIG_I2C_SLAVE)
-	struct i2c_csk_data *data = DEV_DATA(dev);
+	// struct i2c_csk_data *data = DEV_DATA(dev);
 	void *I2C_Handler = data->handle;
 	I2C_RESOURCES *i2c = (I2C_RESOURCES *)I2C_Handler;
 	// Slave Event handler
@@ -143,7 +143,7 @@ static void i2c_csk_slave_event_handler(const struct device *dev, uint32_t event
 				uint8_t read_val;
 				if (slave_cb->read_processed) {
 					slave_cb->read_processed(data->slave_cfg, &read_val);
-					LOG_DBG("[%d:%s] Slave Send Data:0x%X", __LINE__, __FUNCTION__, read_val);
+					LOG_DBG("[%d:%s] Slave Send Data:0x%X\n", __LINE__, __FUNCTION__, read_val);
 					I2C_SlaveTransmit(I2C_Handler, &read_val, 1);
 				}
 			} else {
@@ -183,7 +183,7 @@ void i2c_csk_slave_event_handler_task(const struct device *dev, void *dummy2, vo
 				   CSK_I2C_EVENT_SLAVE_RECEIVE | CSK_I2C_EVENT_SLAVE_TRANSMIT
 					| CSK_I2C_EVENT_TRANSFER_DONE | CSK_I2C_EVENT_BYTE_TRANSFER_DONE,
 				   true, K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
-		i2c_csk_slave_event_handler(dev, evt);
+		i2c_csk_slave_event_handler(data, evt);
 	}
 }
 #endif
@@ -193,7 +193,8 @@ static void i2c_csk_event_cb(uint32_t event, void *user_arg)
 	struct i2c_csk_data *data = (struct i2c_csk_data *)user_arg;
 	k_event_post(data->evt, event);
 #if defined(CONFIG_I2C_SLAVE)
-	k_event_post(data->slave_evt, event);
+	i2c_csk_slave_event_handler(data, event);
+	// k_event_post(data->slave_evt, event);
 #endif
 	return;
 }
@@ -429,9 +430,9 @@ static int i2c_csk_slave_register(const struct device *dev, struct i2c_slave_con
 	I2C_Control(I2C_Handler, CSK_I2C_OWN_ADDRESS, config->address);
 	data->mode = false; // Set I2C Slave mode.
 
-	k_thread_create(&data->thread, data->thread_stack, TASK_STACK_SIZE,
-			(void (*)(void *, void *, void *))i2c_csk_slave_event_handler_task,
-			 (void *)dev, NULL, NULL, K_PRIO_COOP(4), 0, K_NO_WAIT);
+	// k_thread_create(&data->thread, data->thread_stack, TASK_STACK_SIZE,
+	// 		(void (*)(void *, void *, void *))i2c_csk_slave_event_handler_task,
+	// 		 (void *)dev, NULL, NULL, K_PRIO_COOP(4), 0, K_NO_WAIT);
 
 	LOG_DBG("i2c: slave registered");
 	return ret;
@@ -445,7 +446,7 @@ static int i2c_csk_slave_unregister(const struct device *dev, struct i2c_slave_c
 	struct i2c_csk_data *data = DEV_DATA(dev);
 	void *I2C_Handler = DEV_HANDLER(dev);
 
-	k_thread_abort(&data->thread);
+	// k_thread_abort(&data->thread);
 	I2C_Initialize(I2C_Handler, i2c_csk_event_cb, data);
 	I2C_PowerControl(I2C_Handler, CSK_POWER_FULL);
 	I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0);

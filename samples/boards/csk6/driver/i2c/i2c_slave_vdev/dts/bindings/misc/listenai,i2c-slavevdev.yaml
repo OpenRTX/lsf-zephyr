@@ -1,0 +1,15 @@
+# Copyright (c) 2019 Vestas Wind Systems A/S
+# Copyright (c) 2018, Nordic Semiconductor
+# SPDX-License-Identifier: Apache-2.0
+
+description: listenai I2C Slave Virtual Device
+
+compatible: "listenai,i2c-slavevdev"
+
+include: [i2c-device.yaml]
+
+properties:
+    size:
+      type: int
+      required: true
+      description: Total Virtual Device Buffer Area size in bytes
