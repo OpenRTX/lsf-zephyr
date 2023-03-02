@@ -8,12 +8,19 @@
 
 #define DT_DRV_COMPAT focaltech_ft5336
 
-#include <zephyr/drivers/kscan.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/gpio.h>
+#include <drivers/kscan.h>
+#include <drivers/i2c.h>
+#include <drivers/gpio.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(ft5336, CONFIG_KSCAN_LOG_LEVEL);
+
+
+__attribute__((weak))
+void ai_press_callback(int row, int col, int pressed)
+{
+	printk("ai_press_callback (row=%d, col=%d, pressed=%d) \n", row, col, pressed);
+}
 
 /* FT5336 used registers */
 #define REG_TD_STATUS		0x02U
@@ -116,8 +123,8 @@ static int ft5336_process(const struct device *dev)
 	col = ((coords[2] & POSITION_H_MSK) << 8U) | coords[3];
 	pressed = (event == EVENT_PRESS_DOWN) || (event == EVENT_CONTACT);
 
-	LOG_DBG("event: %d, row: %d, col: %d", event, row, col);
-
+	// LOG_INF("event: %d, row: %d, col: %d", event, row, col);
+	ai_press_callback(row, col, pressed);
 	data->callback(dev, row, col, pressed);
 
 	return 0;

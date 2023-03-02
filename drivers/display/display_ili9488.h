@@ -6,25 +6,30 @@
 #ifndef ZEPHYR_DRIVERS_DISPLAY_DISPLAY_ILI9488_H_
 #define ZEPHYR_DRIVERS_DISPLAY_DISPLAY_ILI9488_H_
 
-#include <zephyr/device.h>
+#include <device.h>
 
 /* Commands/registers. */
 #define ILI9488_FRMCTR1 0xB1
 #define ILI9488_DISCTRL 0xB6
 #define ILI9488_PWCTRL1 0xC0
 #define ILI9488_PWCTRL2 0xC1
-#define ILI9488_VMCTRL 0xC5
+#define ILI9488_VMCTRL  0xC5
 #define ILI9488_PGAMCTRL 0xE0
 #define ILI9488_NGAMCTRL 0xE1
 
+
+#define ILI9488_NGAM21_LEN 1U
+#define ILI9488_NGAM21 0x21
+
 /* Commands/registers length. */
-#define ILI9488_FRMCTR1_LEN 2U
+#define ILI9488_FRMCTR1_LEN 3U
 #define ILI9488_DISCTRL_LEN 3U
 #define ILI9488_PWCTRL1_LEN 2U
 #define ILI9488_PWCTRL2_LEN 1U
 #define ILI9488_VMCTRL_LEN 4U
 #define ILI9488_PGAMCTRL_LEN 15U
 #define ILI9488_NGAMCTRL_LEN 15U
+
 
 /** X resolution (pixels). */
 #define ILI9488_X_RES 320U
