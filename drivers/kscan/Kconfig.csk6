@@ -6,3 +6,21 @@ config KSCAN_CSK6
 	depends on ADC
 	help
 		Enable driver for CSK6 keysense
+
+if KSCAN_CSK6
+
+config KSCAN_CSK6_DEBOUNCE
+	bool "CSK6 keysense sampling debounce"
+	depends on KSCAN_CSK6
+	help
+		Enable driver for CSK6 keysense debounce
+
+config KSCAN_CSK6_DEBOUNCE_TIME
+	int "CSK6 keysense sampling debounce time"
+	depends on KSCAN_CSK6_DEBOUNCE
+	range 0 100
+	default 5 
+	help
+		Keysense debounce time in ms
+
+endif
