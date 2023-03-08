@@ -74,14 +74,18 @@ static void keysense_press_handler(struct k_work *work)
 	uint8_t i;
 	struct keysense_csk6_cfg *config = DEV_CFG(dev);
 
+#if defined(CONFIG_KSCAN_CSK6_DEBOUNCE)
+	k_sleep(K_MSEC(CONFIG_KSCAN_CSK6_DEBOUNCE_TIME));
+#endif
 	csk6_adc_keysense_get_sample(dev, &key_voltage);
 
 	LOG_DBG("KEYSENSE press, voltage:%d mV\n", key_voltage);
 
 	for(i = 0; i < config->analog_key_num; i++)
 	{
-		if((key_voltage > (config->analog_key_voltage[i] - ANALOG_KEY_TRIGGER_OFFSET)) && (key_voltage < (config->analog_key_voltage[i] + ANALOG_KEY_TRIGGER_OFFSET)))
-			break;
+		if((key_voltage > (config->analog_key_voltage[i] - ANALOG_KEY_TRIGGER_OFFSET)) 
+		&& (key_voltage < (config->analog_key_voltage[i] + ANALOG_KEY_TRIGGER_OFFSET)))
+		break;
 	}
 
 	if(i < config->analog_key_num)
@@ -176,12 +180,12 @@ static int kscan_csk6_config(const struct device *dev,
 
 	LOG_DBG("analog key trigger %d %d %d \n", config->analog_key_voltage[0], config->analog_key_voltage[1], config->analog_key_voltage[2]);
  
-    HAL_KEYSENSE_RegisterCallback(DEV_HANDLER(dev), CSK_KEYSENSE_RELEASE, keysense_release_event);
-    HAL_KEYSENSE_RegisterCallback(DEV_HANDLER(dev), CSK_KEYSENSE_PRESS, keysense_press_event);
-	HAL_KEYSENSE_InterruptEnable(DEV_HANDLER(dev), CSK_KEYSENSE_INTERRUPT_MODE_RELEASE |\
-											 CSK_KEYSENSE_INTERRUPT_MODE_PRESS);
+	HAL_KEYSENSE_RegisterCallback(DEV_HANDLER(dev), CSK_KEYSENSE_RELEASE, keysense_release_event);
+	HAL_KEYSENSE_RegisterCallback(DEV_HANDLER(dev), CSK_KEYSENSE_PRESS, keysense_press_event);
+	HAL_KEYSENSE_InterruptEnable(DEV_HANDLER(dev), CSK_KEYSENSE_INTERRUPT_MODE_RELEASE 
+							| CSK_KEYSENSE_INTERRUPT_MODE_PRESS);
 
-    HAL_KEYSENSE_Enable(DEV_HANDLER(dev));
+	HAL_KEYSENSE_Enable(DEV_HANDLER(dev));
 
 	return 0;
 }
