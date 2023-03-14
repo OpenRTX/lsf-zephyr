@@ -44,6 +44,12 @@
         pinctrl_i2c1_sda_default: i2c1_sda_default{
         };
 
+        /* infrared alternate function */
+        pinctrl_ir0_data_in_default: ir0_data_in_default{
+        };
+        pinctrl_ir0_data_out_default: ir0_data_out_default{
+        };
+        
         /* SPIC alternate function */
         pinctrl_spi0_cs_default: spi0_cs_default{
         };
