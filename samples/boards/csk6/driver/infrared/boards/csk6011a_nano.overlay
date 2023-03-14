@@ -1,0 +1,28 @@
+/*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ &pinctrl {
+	/* I2C alternate function */
+	pinctrl_i2c0_scl_default: i2c0_scl_default{
+		pinctrls = <I2C0_SCL_GPIOA_10>;
+	};
+
+	pinctrl_i2c0_sda_default: i2c0_sda_default{
+		pinctrls = <I2C0_SDA_GPIOA_11>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
+	pinctrl-names = "default";
+
+	i2cslavevdev0: i2cslavevdev@32 {
+		compatible = "listenai,i2c-slavevdev";
+		reg = <0x32>;
+		label = "SLAVE_VDEV_0";
+		size = <256>;
+	};
+};
