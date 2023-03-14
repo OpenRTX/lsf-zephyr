@@ -33,12 +33,12 @@
 		reg = <0x00080000 (320*1024)>;
 	};
 
-    itcm0: code@10000 {
-        compatible = "zephyr,memory-region";
-        reg = <0x00010000 (16*1024)>;
-        label = "itcm CODE";
+	itcm0: code@10000 {
+		compatible = "zephyr,memory-region";
+		reg = <0x00010000 (16*1024)>;
+		label = "itcm CODE";
 		zephyr,memory-region = "ITCM";
-    };
+	};
 
 	dtcm0: code@20000000 {
 		compatible = "zephyr,memory-region";
@@ -138,6 +138,13 @@
 			#gpio-cells = <2>;
 		};
 
+		ir0: ir@45300000 {
+			compatible = "listenai,csk-ir";
+			reg = <0x45300000 0x100000>;
+			interrupts = <11 2>;
+			label = "IR_0";
+		};
+
 		spi0: spi@45400000 {
 			compatible = "listenai,csk-spi";
 			reg = <0x45400000 0x100000>;
@@ -147,14 +154,14 @@
 			#size-cells = <0>;
 		};
 
-        spi1: spi@45500000 {
-            compatible = "listenai,csk-spi";
-            reg = <0x45500000 0x100000>;
-            interrupts = <13 2>;
-            label = "SPI_1";
-            #address-cells = <1>;
-            #size-cells = <0>;
-        };
+		spi1: spi@45500000 {
+			compatible = "listenai,csk-spi";
+			reg = <0x45500000 0x100000>;
+			interrupts = <13 2>;
+			label = "SPI_1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 
 		mailbox0: mailbox@46100000 {
 			compatible = "listenai,csk-mailbox";
@@ -349,7 +356,7 @@
 			interrupts = <2 0>;
 			status = "disabled";
 			label = "SDMCC";
-        };
+		};
 
 	};
 };
