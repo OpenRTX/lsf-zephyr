@@ -1,0 +1,20 @@
+/*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+&pinctrl {
+	/* I2C alternate function */
+	pinctrl_ir0_data_in_default: ir0_data_in_default{
+		pinctrls = <IR_DATIN_GPIOB_10>;
+	};
+	pinctrl_ir0_data_out_default: ir0_data_out_default{
+		pinctrls = <IR_DATOUT_GPIOB_11>;
+	};
+};
+
+&ir0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ir0_data_in_default &pinctrl_ir0_data_out_default>;
+};
