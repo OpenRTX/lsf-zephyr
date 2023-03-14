@@ -1,0 +1,31 @@
+# INFRARED driver configuration options
+
+# Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig INFRARED
+	bool "Infrared driver"
+	help
+	  Enable infrared driver.
+
+if INFRARED
+
+module = INFRARED
+module-str = INFRARED
+source "subsys/logging/Kconfig.template.log_config"
+
+config INFRARED_SHELL
+	bool "INFRARED Shell"
+	default y
+	depends on SHELL
+	help
+	  Enable INFRARED Shell for testing.
+
+config INFRARED_CSK6
+	bool "listenai CSK6 device id"
+	default y
+	depends on HAS_CSK6
+	help
+	  Enable CSK6 INFRARED driver
+
+endif
