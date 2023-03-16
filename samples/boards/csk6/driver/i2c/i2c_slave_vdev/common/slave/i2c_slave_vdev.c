@@ -181,6 +181,13 @@ static int slave_vdev_write_received(struct i2c_slave_config *config, uint8_t va
 
 static int slave_vdev_read_processed(struct i2c_slave_config *config, uint8_t *val)
 {
+	/**
+	 * @note: Since the Hal library does not support I2C Slave multi-byte
+	 * transmission, this API is not currently supported.
+	 * 	(由于 Hal 库暂不支持 I2C Slave 多字节传输，故暂不支持该 API)
+	 *
+	 */
+#if 0
 	vdev_data_t *data = CONTAINER_OF(config, vdev_data_t, config);
 	LOG_DBG("slave_vdev: read done, val=0x%x", *val);
 
@@ -199,6 +206,7 @@ static int slave_vdev_read_processed(struct i2c_slave_config *config, uint8_t *v
 	/* Increment will be done in the next read_processed callback
 	 * In case of STOP, the byte won't be taken in account
 	 */
+#endif
 	return 0;
 }
 
