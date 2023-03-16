@@ -120,8 +120,8 @@ int start_slave_vdev_handler_task(const struct device *dev)
 
 	int pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&vdev_thread_data, slave_vdev_task_stack_area,
-			K_THREAD_STACK_SIZEOF(slave_vdev_task_stack_area), slave_vdev_thread, (void *)dev,
-			NULL, NULL, pri, 0, K_NO_WAIT);
+			K_THREAD_STACK_SIZEOF(slave_vdev_task_stack_area), slave_vdev_thread,
+			(void *)dev, NULL, NULL, pri, 0, K_NO_WAIT);
 	m_handler_task_initialized = 1;
 	LOG_INF("start_slave_vdev_handler_task ok");
 	return 0;
@@ -147,7 +147,7 @@ static int slave_vdev_read_requested(struct i2c_slave_config *config, uint8_t *v
 
 	*val = data->buffer[data->buffer_idx];
 	m_msg.len = 0;
-	
+
 	m_event |= SLAVE_VDEV_EVENT_READ_REQ;
 	/* Increment will be done in the read_processed callback */
 	return 0;
@@ -181,6 +181,13 @@ static int slave_vdev_write_received(struct i2c_slave_config *config, uint8_t va
 
 static int slave_vdev_read_processed(struct i2c_slave_config *config, uint8_t *val)
 {
+	/**
+	 * @note: Since the Hal library does not support I2C Slave multi-byte
+	 * transmission, this API is not currently supported.
+	 * 	(由于 Hal 库暂不支持 I2C Slave 多字节传输，故暂不支持该 API)
+	 *
+	 */
+#if 0 	
 	vdev_data_t *data = CONTAINER_OF(config, vdev_data_t, config);
 	LOG_DBG("slave_vdev: read done, val=0x%x", *val);
 
@@ -199,6 +206,7 @@ static int slave_vdev_read_processed(struct i2c_slave_config *config, uint8_t *v
 	/* Increment will be done in the next read_processed callback
 	 * In case of STOP, the byte won't be taken in account
 	 */
+#endif
 	return 0;
 }
 
