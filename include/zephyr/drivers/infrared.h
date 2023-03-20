@@ -6,7 +6,7 @@
 
 /**
  * Copyright (c) 2023 Anhui(Shenshen) Listenai Co., Ltd.
- * 
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
 #ifndef ZEPHYR_INCLUDE_DRIVERS_INFRARED_RADIATION_H_
@@ -22,6 +22,7 @@
 
 #include <zephyr/types.h>
 #include <zephyr/device.h>
+
 #include <zephyr/kernel.h>
 #include <zephyr/sys/slist.h>
 
@@ -32,26 +33,35 @@ extern "C" {
 #define IR_PROTOCOL_FREQ_38KHZ 38000
 #define IR_PROTOCOL_FREQ_DEFAULT IR_PROTOCOL_FREQ_38KHZ
 
-enum ir_protoclo_mode
-{
-    IR_PROTOCOL_CUSTOM,         /* Private protocol */
-    IR_PROTOCOL_NEC,            /* NEC */
-    IR_PROTOCOL_TOSHIBA_9012,   /* Toshiba 9012 */
-    IR_PROTOCOL_PHILIPS_RC5,    /* Philips RC5 */
-};
+/************IR Error**************/
+#define IR_ERR_TIMEOUT 						(1)
+#define IR_ERR_BUSY 						(2)
+#define IR_ERR_INVALID_PARAM					(3)
+#define IR_ERR_INVALID_PROTOCOL					(4)
 
-enum ir_repeat_event
-{
-    IR_REPEAT_EVENT_NONE,         /* No repeat event */
-    IR_REPEAT_EVENT_SEND,         /* Send repeat event */
-    IR_REPEAT_EVENT_RECEIVE,      /* Receive repeat event */
-};
+/************IR Event**************/
 
+#define IR_EVENT_HW_SEND_COMPLETE				(0x1UL << 0)
+#define IR_EVENT_HW_RECEIVE_COMPLETE				(0x1UL << 1)
+#define IR_EVENT_HW_TX_REPEAT_COMPLETE				(0x1UL << 2)
+#define IR_EVENT_HW_RX_REPEAT_TRIGGER				(0x1UL << 3)
+#define IR_EVENT_HW_ADDRESS_VERIFY_ERROR			(0x1UL << 4)
+#define IR_EVENT_HW_COMMAND_VERIFY_ERROR			(0x1UL << 5)
+#define IR_EVENT_SW_SEND_COMPLETE				(0x1UL << 6)
+#define IR_EVENT_SW_RECEIVE_COMPLETE				(0x1UL << 7)
+#define IR_EVENT_SW_RECEIVE_TIMEOUT				(0x1UL << 8)
+
+/************IR Protocol**************/
+#define IR_PROTOCOL_CUSTOM					(0x0UL)
+#define IR_PROTOCOL_NEC						(0x1UL)
+#define IR_PROTOCOL_TOSHIBA_9012				(0x2UL)
+#define IR_PROTOCOL_PHILIPS_RC5					(0x3UL)
+#define IR_PROTOCOL_DEFAULT					IR_PROTOCOL_NEC
 typedef struct
 {
-    enum ir_protoclo_mode mode; /* Protocol mode */
-    uint32_t freq;              /* Protocol frequency */
-    uint32_t timeout;           /* Timeout in milliseconds */
+    uint8_t protocol;		/* Protocol mode */
+    uint32_t freq;		/* Protocol frequency */
+    uint32_t timeout;		/* Timeout in milliseconds */
 } ir_config_t;
 
 typedef struct
@@ -67,10 +77,10 @@ typedef struct
  * expose.
  */
 
-typedef int (*ir_configure_t)(struct device *dev, ir_config_t *config);
-typedef int (*ir_send_t)(struct device *dev, ir_data_t *data);
-typedef int (*ir_recv_t)(struct device *dev, ir_data_t *data);
-typedef int (*ir_recv_timeout_t)(struct device *dev, ir_data_t *data, uint32_t timeout);
+typedef int (*ir_configure_t)(const struct device *dev, ir_config_t *config);
+typedef int (*ir_send_t)(const struct device *dev, ir_data_t *data);
+typedef int (*ir_recv_t)(const struct device *dev, ir_data_t *data);
+typedef int (*ir_recv_timeout_t)(const struct device *dev, ir_data_t *data, k_timeout_t timeout);
 __subsystem struct infrared_driver_api {
     ir_configure_t configure;
     ir_send_t send;
@@ -89,9 +99,9 @@ __subsystem struct infrared_driver_api {
  * @retval 0 If successful.
  * @retval -EIO General input / output error, failed to configure device.
  */
-__syscall int infrared_configure(struct device *dev, ir_config_t *config);
+__syscall int infrared_configure(const struct device *dev, ir_config_t *config);
 
-static inline int z_impl_infrared_configure(struct device *dev, ir_config_t *config)
+static inline int z_impl_infrared_configure(const struct device *dev, ir_config_t *config)
 {
     const struct infrared_driver_api *api = dev->api;
 
@@ -109,9 +119,9 @@ static inline int z_impl_infrared_configure(struct device *dev, ir_config_t *con
  * @retval 0 If successful.
  * @retval -EIO General input / output error, failed to configure device.
  */
-__syscall int infrared_send(struct device *dev, ir_data_t *data);
+__syscall int infrared_send(const struct device *dev, ir_data_t *data);
 
-static inline int z_impl_infrared_send(struct device *dev, ir_data_t *data)
+static inline int z_impl_infrared_send(const struct device *dev, ir_data_t *data)
 {
     const struct infrared_driver_api *api = dev->api;
 
@@ -129,9 +139,9 @@ static inline int z_impl_infrared_send(struct device *dev, ir_data_t *data)
  * @retval 0 If successful.
  * @retval -EIO General input / output error, failed to configure device.
  */
-__syscall int infrared_recv(struct device *dev, ir_data_t *data);
+__syscall int infrared_recv(const struct device *dev, ir_data_t *data);
 
-static inline int z_impl_infrared_recv(struct device *dev, ir_data_t *data)
+static inline int z_impl_infrared_recv(const struct device *dev, ir_data_t *data)
 {
     const struct infrared_driver_api *api = dev->api;
     return api->recv(dev, data);
@@ -149,9 +159,9 @@ static inline int z_impl_infrared_recv(struct device *dev, ir_data_t *data)
  * @retval 0 If successful.
  * @retval -EIO General input / output error, failed to configure device.
  */
-__syscall int infrared_recv_timeout(struct device *dev, ir_data_t *data, uint32_t timeout);
+__syscall int infrared_recv_timeout(const struct device *dev, ir_data_t *data, k_timeout_t timeout);
 
-static inline int z_impl_infrared_recv_timeout(struct device *dev, ir_data_t *data, uint32_t timeout)
+static inline int z_impl_infrared_recv_timeout(const struct device *dev, ir_data_t *data, k_timeout_t timeout)
 {
     const struct infrared_driver_api *api = dev->api;
     return api->recv_timeout(dev, data, timeout);

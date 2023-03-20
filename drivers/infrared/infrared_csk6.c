@@ -5,37 +5,35 @@
  */
 
 #define DT_DRV_COMPAT listenai_csk_ir
-// #include "venus_ap.h"
 
-// #include <string.h>
 #include "hal/Driver_IR.h"
 #include "hal/ir.h"
 
 #include <drivers/infrared.h>
-// #include <zephyr/init.h>
 
 #include <logging/log.h>
 #include <zephyr/drivers/pinctrl.h>
+#include <zephyr.h>
 
 
 LOG_MODULE_REGISTER(csk6_infrared, CONFIG_LOG_DEFAULT_LEVEL);
 
-#define DEV_CFG(dev)	 ((const struct ir_csk_config *const)(dev)->config)
-#define DEV_DATA(dev)	 ((struct ir_csk_data *const)(dev)->data)
-#define DEV_BASE(dev)	 ((IR_RegDef *)(DEV_CFG(dev))->base)
-#define DEV_HANDLER(dev) ((void *)(DEV_DATA(dev)->handle))
-
-struct ir_csk_config {
+typedef struct ir_csk_config {
 	IR_RegDef *base;
 	void (*irq_config_func)(const struct device *dev);
 	const struct pinctrl_dev_config *pcfg;
-};
+} ir_csk_config_t;
 
-struct ir_csk_data {
+typedef struct ir_csk_data {
 	void *handle;
 	struct k_event *evt;
-	uint8_t protocol;
-};
+	ir_config_t cfg;
+} ir_csk_data_t;
+
+#define DEV_CFG(dev)	 ((ir_csk_config_t *const)(dev)->config)
+#define DEV_DATA(dev)	 ((ir_csk_data_t *const)(dev)->data)
+#define DEV_BASE(dev)	 ((IR_RegDef *)(DEV_CFG(dev))->base)
+#define DEV_HANDLER(dev) ((void *)(DEV_DATA(dev)->handle))
 
 static void *ir_csk_get_context(const struct device *dev)
 {
@@ -48,68 +46,90 @@ static void *ir_csk_get_context(const struct device *dev)
 	}
 }
 
-/* CSK6 infrared driver */
-
-static int ir_csk_runtime_configure(struct device *dev, ir_config_t *config)
+static int ir_csk_runtime_configure(const struct device *dev, ir_config_t *config)
 {
-	
+	ir_csk_data_t *dev_data = DEV_DATA(dev);
+	if (config->protocol == IR_PROTOCOL_CUSTOM) {
+		dev_data->cfg.protocol = config->protocol;
+	}
 	return 0;
 }
 
-static int ir_csk_send(struct device *dev, ir_data_t *data)
+static int ir_csk_send(const struct device *dev, ir_data_t *data)
 {
-	printk("[%d:%s]IR Send\n", __LINE__, __func__);
 	void *IR0_Handler = DEV_HANDLER(dev);
-	IR_HW_Send(IR0_Handler, IR_PROTOCOL_NEC, data->addr, data->cmd);
-	return 0;
+	ir_csk_data_t *dev_data = DEV_DATA(dev);
+	return IR_HW_Send(IR0_Handler, dev_data->cfg.protocol, data->addr, data->cmd);
 }
 
-static int ir_csk_recv(struct device *dev, ir_data_t *data)
+static int ir_csk_recv_timeout(const struct device *dev, ir_data_t *data, k_timeout_t timeout)
 {
-	printk("[%d:%s]IR Recv\n", __LINE__, __func__);
+	int ret = 0;
+	uint32_t evt = 0;
 	void *IR0_Handler = DEV_HANDLER(dev);
-	IR_HW_Receive(IR0_Handler, IR_PROTOCOL_NEC, &data->addr, &data->cmd);
-	return 0;
+	ir_csk_data_t *dev_data = DEV_DATA(dev);
+
+	ret = IR_HW_Receive(IR0_Handler, dev_data->cfg.protocol, &data->addr, &data->cmd);
+	evt = k_event_wait(dev_data->evt, CSK_IR_EVENT_HW_RECEIVE_COMPLETE | CSK_IR_EVENT_HW_RX_REPEAT_TRIGGER,
+				true, timeout);
+
+	if (evt & CSK_IR_EVENT_HW_RECEIVE_COMPLETE) {
+		// return IR_EVENT_HW_RECEIVE_COMPLETE;
+		return 0;
+	} else if (evt & CSK_IR_EVENT_HW_RX_REPEAT_TRIGGER) {
+		IR_Control(IR0_Handler, CSK_IR_CONTROL_CLEAR_RX_FIFO, 0);
+		// return IR_EVENT_HW_RX_REPEAT_TRIGGER;
+		return 0;
+	} else {
+		IR_Control(IR0_Handler, CSK_IR_CONTROL_CLEAR_RX_FIFO, 0);
+		return -IR_ERR_TIMEOUT;
+	}
+
+	return ret;
+}
+
+static int ir_csk_recv(const struct device *dev, ir_data_t *data)
+{
+	return ir_csk_recv_timeout(dev, data, K_FOREVER);
 }
 
 static void ir_csk_event_cb(uint32_t event, void *user_arg)
 {
-	// struct i2c_csk_data *data = (struct i2c_csk_data *)user_arg;
-	// k_event_post(data->evt, event);
+	ir_csk_data_t *data = (ir_csk_data_t *)user_arg;
+	k_event_post(data->evt, event);
 	return;
-}
-
-static int ir_csk_init(const struct device *dev)
-{
-	printk("[%d:%s]IR ir_csk_init\n", __LINE__, __func__);
-	const struct ir_csk_config *config = DEV_CFG(dev);
-	struct ir_csk_data *data = DEV_DATA(dev);
-
-	data->handle = ir_csk_get_context(dev);
-	
-	void *IR0_Handler = DEV_HANDLER(dev);
-
-	IR_Initialize(IR0_Handler, ir_csk_event_cb, NULL);
-	IR_PowerControl(IR0_Handler, CSK_POWER_FULL);
-
-	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
-
-	return 0;
 }
 
 static void ir_csk_isr(const struct device *dev)
 {
-	extern void IR_IRQ_Handler(IR_RESOURCES * ir);
-
 	void *IR_Handler = DEV_HANDLER(dev);
+
+	extern void IR_IRQ_Handler(IR_RESOURCES * ir);
 	IR_IRQ_Handler(IR_Handler);
+}
+
+static int ir_csk_init(const struct device *dev)
+{
+	const struct ir_csk_config *config = DEV_CFG(dev);
+	struct ir_csk_data *dev_data = DEV_DATA(dev);
+
+	dev_data->handle = ir_csk_get_context(dev);
+
+	void *IR0_Handler = DEV_HANDLER(dev);
+	dev_data->cfg.protocol = IR_PROTOCOL_DEFAULT;//default protocol: NEC
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
+
+	IR_Initialize(IR0_Handler, ir_csk_event_cb, dev_data);
+	IR_PowerControl(IR0_Handler, CSK_POWER_FULL);
+
+	return 0;
 }
 
 static const struct infrared_driver_api ir_csk_driver_api = {
 	.configure = ir_csk_runtime_configure,
 	.send = ir_csk_send,
 	.recv = ir_csk_recv,
-	.recv_timeout = NULL,
+	.recv_timeout = ir_csk_recv_timeout,
 };
 
 
