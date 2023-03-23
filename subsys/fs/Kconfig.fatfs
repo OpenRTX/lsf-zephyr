@@ -80,7 +80,7 @@ if FS_FATFS_LFN
 
 choice FS_FATFS_LFN_MODE
 	prompt "LFN memory mode"
-	default FS_FATFS_LFN_MODE_BSS
+	default FS_FATFS_LFN_MODE_STACK
 
 config FS_FATFS_LFN_MODE_BSS
 	bool "Static buffer"
