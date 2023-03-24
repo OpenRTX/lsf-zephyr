@@ -1,0 +1,8 @@
+# Copyright (c) 2020 Rohit Gujarathi
+# SPDX-License-Identifier: Apache-2.0
+
+config LWEA2012
+	bool "LWEA2012 memory display controller driver"
+	depends on SPI
+	help
+        LWEA2012 memory display controller driver

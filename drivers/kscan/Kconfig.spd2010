@@ -1,0 +1,8 @@
+# Copyright (c) listenai
+# SPDX-License-Identifier: Apache-2.0
+
+config KSCAN_SPD2010
+	bool "SPD2010 keyscan driver"
+	depends on I2C
+	help
+		Enable driver for spd2010

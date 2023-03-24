@@ -15,6 +15,8 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app);
 
+#define DISPLAY_DEV_NAME DT_LABEL(DT_INST(0, solomon_lwea2012))
+
 void main(void)
 {
 	uint32_t count = 0U;
@@ -22,8 +24,8 @@ void main(void)
 	const struct device *display_dev;
 	lv_obj_t *hello_world_label;
 	lv_obj_t *count_label;
-
-	display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+	display_dev = device_get_binding(DISPLAY_DEV_NAME);
+	// display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 	if (!device_is_ready(display_dev)) {
 		LOG_ERR("Device not ready, aborting test");
 		return;
