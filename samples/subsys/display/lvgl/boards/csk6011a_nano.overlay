@@ -1,0 +1,38 @@
+/*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&pinctrl {
+	pinctrl_spi0_sclk_default: spi0_sclk_default {
+		pinctrls = <SPI0_CLK_GPIOA_07>;
+	};
+	pinctrl_spi0_mosi_default: spi0_mosi_default {
+		pinctrls = <SPI0_MOSI_GPIOA_06>;
+	};
+
+	pinctrl_spi0_cs_default: spi0_cs_default {
+		pinctrls = <SPI0_CS_N_GPIOA_04>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_cs_default>;
+	pinctrl-names = "default";
+	
+	lwea2012@0 {
+		height = <454>;
+		width = <180>;
+		compatible = "solomon,lwea2012";
+		label = "DISPLAY";
+		reg = <0>;
+		cmd-data-gpios = <&gpioa 15 1>;
+		reset-gpios = <&gpioa 9 1>;
+		// te-gpios = <&gpiob 0x5 1>;
+		x-offset = <0>;
+		y-offset = <0>;
+		spi-max-frequency = <50000000>;
+	};
+};

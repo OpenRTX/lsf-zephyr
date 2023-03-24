@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <dt-bindings/display/ili9xxx.h>
-
 &pinctrl {
 	pinctrl_spi0_sclk_default: spi0_sclk_default {
 		pinctrls = <SPI0_CLK_GPIOA_07>;
@@ -13,9 +11,7 @@
 	pinctrl_spi0_mosi_default: spi0_mosi_default {
 		pinctrls = <SPI0_MOSI_GPIOA_06>;
 	};
-	pinctrl_spi0_miso_default: spi0_miso_default {
-		pinctrls = <SPI0_MISO_GPIOA_05>;
-	};
+
 	pinctrl_spi0_cs_default: spi0_cs_default {
 		pinctrls = <SPI0_CS_N_GPIOA_04>;
 	};
@@ -23,24 +19,20 @@
 
 &spi0 {
 	status = "okay";
-	pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_miso_default &pinctrl_spi0_cs_default>;
+	pinctrl-0 = <&pinctrl_spi0_sclk_default &pinctrl_spi0_mosi_default &pinctrl_spi0_cs_default>;
 	pinctrl-names = "default";
-
-	ili9488@0 {
-		height = <480>;
-		width = <320>;
-		compatible = "ilitek,ili9488";
+	
+	lwea2012@0 {
+		height = <454>;
+		width = <180>;
+		compatible = "solomon,lwea2012";
 		label = "DISPLAY";
-		spi-max-frequency = <10000000>;
 		reg = <0>;
-		cmd-data-gpios = <&gpioa 8 1>;
+		cmd-data-gpios = <&gpioa 15 1>;
 		reset-gpios = <&gpioa 9 1>;
-		pixel-format = <ILI9XXX_PIXEL_FORMAT_RGB888>;
-		rotation = <0>;
-		frmctr1 = [ a0 11  ];
-		pwctrl1 = [ 17 15  ];
-		pwctrl2 = [ 41  ];
-		pgamctrl = [ 00 03 09 08 16 0a 3f 78 4c 09 0a 08 16 1a 0f  ];
-		ngamctrl = [ 00 16 19 03 0f 05 32 45 46 04 0e 0d 35 37 0f  ];
+		// te-gpios = <&gpiob 0x5 1>;
+		x-offset = <0>;
+		y-offset = <0>;
+		spi-max-frequency = <50000000>;
 	};
 };
