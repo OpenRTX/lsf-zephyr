@@ -1,0 +1,41 @@
+# Private config options for load sencond core firmware app
+
+# SPDX-License-Identifier: Apache-2.0
+
+# Workaround for not being able to have commas in macro arguments
+
+# path to custom driver Kconfig file.
+
+
+DT_CHOSEN_Z_FLASH_SYSFS_STORAGE := zephyr,flash_sysfs_storage
+DT_CHOSEN_Z_FLASH_CONTROLLER := zephyr,flash_controller
+DT_CHOSEN_Z_INN_FLASH := zephyr,flash
+
+
+if DISK_DRIVER_FLASH
+
+	config DISK_FLASH_START
+		default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_FLASH_SYSFS_STORAGE))"
+
+	config DISK_FLASH_DEV_NAME
+		default "$(dt_chosen_label,$(DT_CHOSEN_Z_FLASH_CONTROLLER))"
+
+	config DISK_VOLUME_SIZE
+		default "$(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_FLASH_SYSFS_STORAGE))"
+
+
+	config DISK_FLASH_MAX_RW_SIZE
+		default 4096
+		#default $(dt_node_int_prop_hex,$(DT_CHOSEN_Z_INN_FLASH),erase-block-size)
+
+	config DISK_FLASH_ERASE_ALIGNMENT
+		default 0x1000
+		#default "$(dt_node_int_prop_hex,$(DT_CHOSEN_Z_INN_FLASH),erase-block-size)"
+
+	config DISK_ERASE_BLOCK_SIZE
+		default 0x1000
+		#default "$(dt_node_int_prop_hex,$(DT_CHOSEN_Z_INN_FLASH),erase-block-size)"
+endif
+
+
+source "Kconfig.zephyr"
