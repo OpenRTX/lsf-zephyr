@@ -1,0 +1,11 @@
+# Copyright (c) listenai
+# SPDX-License-Identifier: Apache-2.0
+
+config KSCAN_SPD2010
+	bool "SPD2010 keyscan driver"
+	depends on I2C
+	depends on SPD2010
+	help
+		SPD2010 integrates display and touch,
+		and the initialization of touch depends on the display,
+		so the touch function cannot be used alone
