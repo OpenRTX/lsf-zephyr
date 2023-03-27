@@ -1,0 +1,15 @@
+# Copyright (c) 2020 Rohit Gujarathi
+# SPDX-License-Identifier: Apache-2.0
+
+config SPD2010
+	bool "LWEA2012 memory display controller driver"
+	depends on SPI
+	help
+        LWEA2012 memory display controller driver
+
+config SPD2010_TOUCH
+	bool "enable touch for spd2010"
+	default n
+	depends on SPD2010
+	help
+	   enable touch for spd2010
