@@ -1,0 +1,17 @@
+description: CH32V003 I2C-based GPIO expander
+
+
+compatible: "listenai,csk-gpio-ch32003"
+
+include: [gpio-controller.yaml, i2c-device.yaml]
+
+properties:
+    label:
+      required: true
+
+    "#gpio-cells":
+      const: 2
+
+gpio-cells:
+  - pin
+  - flags
