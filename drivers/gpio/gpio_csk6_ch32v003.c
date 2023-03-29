@@ -406,21 +406,37 @@ int gpio_ch32003_init(const struct device *dev)
 
 	uint16_t i = 0;
 
-	for (i = 0; i <= 0xFF; i++) {
+	for (i = 1; i <= 0xFF; i++) {
 		r = i2c_reg_read_byte_dt(&config->bus, i, &data);
 		if (r) {
 			printk("i2c read error %d\n", r);
 		} else {
-			printk("i2c read:%02X\n", data);
+			printk("i2c read, ret:%02X, value:%02X\n", i, data);
 		}
 	}
 
-	for (i = 0; i <= 0xFF; i++) {
-		r = i2c_reg_write_byte_dt(&config->bus, i, &data);
+	for (i = 1; i <= 0xFF; i++) {
+		r = i2c_reg_write_byte_dt(&config->bus, i, i);
 		if (r) {
 			printk("i2c write err:%d, reg:0x%02X\n", r, i);
 		} else {
-			printk("i2c read:%02X\n", data);
+			printk("i2c write, reg:%02X, value:%02X\n", i, i);
+		}
+
+		r = i2c_reg_read_byte_dt(&config->bus, i, &data);
+		if (r) {
+			printk("i2c read error %d\n", r);
+		} else {
+			printk("i2c read, ret:%02X, value:%02X\n", i, data);
+		}
+	}
+
+	for (i = 1; i <= 0xFF; i++) {
+		r = i2c_reg_write_byte_dt(&config->bus, i, i);
+		if (r) {
+			printk("i2c write err:%d, reg:0x%02X\n", r, i);
+		} else {
+			printk("i2c write, reg:%02X, value:%02X\n", i, i);
 		}
 	}
 
