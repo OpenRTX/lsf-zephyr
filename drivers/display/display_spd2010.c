@@ -114,6 +114,15 @@ static int spd2010_transmit(const struct device *dev, uint8_t cmd, const void *t
 	return 0;
 }
 
+static int spd2010_set_page(const struct device *dev, uint8_t page)
+{
+	uint8_t datas[] = {0x20, 0x10, 0x00};
+
+	int ret = spd2010_transmit(dev, 0xFF, datas, sizeof(datas));
+
+	return ret;
+}
+
 static void spd2010_reset_display(const struct device *dev)
 {
 	LOG_DBG("Resetting display");
@@ -139,6 +148,17 @@ static int spd2010_blanking_on(const struct device *dev)
 static int spd2010_blanking_off(const struct device *dev)
 {
 	return spd2010_transmit(dev, SPD2010_DISPON, NULL, 0);
+}
+
+static int spd2010_te_on(const struct device *dev)
+{
+	uint8_t data = 0x00;
+	return spd2010_transmit(dev, SPD2010_TEON, &data, 1);
+}
+
+static int spd2010_exit_sleep(const struct device *dev)
+{
+	return spd2010_transmit(dev, SPD2010_SLPOUT, NULL, 0);
 }
 
 static void spd2010_set_mem_area(const struct device *dev, const uint16_t x, const uint16_t y,
@@ -170,6 +190,8 @@ static int spd2010_write(const struct device *dev, const uint16_t x, const uint1
 	__ASSERT(desc->width <= desc->pitch, "Pitch is smaller then width");
 	__ASSERT((desc->pitch * SPD2010_PIXEL_SIZE * desc->height) <= desc->buf_size,
 		 "Input buffer to small");
+
+	__ASSERT((x % 4 != 0) || (desc->width % 4 != 0), "x and width must be a multiple of 4");
 
 	spd2010_set_mem_area(dev, x, y, desc->width, desc->height);
 
@@ -241,32 +263,72 @@ static void spd2010_get_capabilities(const struct device *dev,
 static int spd2010_set_pixel_format(const struct device *dev,
 				    const enum display_pixel_format pixel_format)
 {
-	uint8_t data;
+	uint8_t pixel_value;;
+	uint8_t madctr_value;
+	struct spd2010_data *data = dev->data;
+	int r;
+
+	if (data->orientation == DISPLAY_ORIENTATION_NORMAL) {
+		madctr_value = 0x00;
+	} else {
+		madctr_value = 0x03;
+	}
 
 	switch (pixel_format) {
 	case PIXEL_FORMAT_RGB_888:
-		data = 7;
+		pixel_value = 7;
 		break;
 	case PIXEL_FORMAT_RGB_565:
+		pixel_value = 5;
+		break;
 	case PIXEL_FORMAT_BGR_565:
+		madctr_value |= 1 << 3;
+		pixel_value = 5;
+		break;
 	default:
 		return -ENOTSUP;
 		break;
 	}
 
-	return spd2010_transmit(dev, SPD2010_SETPIXEL, &data, 1);
+	r = spd2010_transmit(dev, SPD2010_MADCTR, &madctr_value, 1);
+	if (r) {
+		return r;
+	}
+
+	r = spd2010_transmit(dev, SPD2010_SETPIXEL, &pixel_value, 1);
+	data->pixel_format = pixel_format;
+
+	return r;
 }
 
 static int spd2010_set_orientation(const struct device *dev,
 				   const enum display_orientation orientation)
 {
-	if (orientation == DISPLAY_ORIENTATION_NORMAL) {
-		return 0;
+	struct spd2010_data *data = dev->data;
+	uint8_t value;
+	int r;
+
+	if (orientation == DISPLAY_ORIENTATION_ROTATED_90 ||
+	    orientation == DISPLAY_ORIENTATION_ROTATED_270) {
+		return -ENOTSUP;
 	}
 
-	LOG_ERR("Changing display orientation not implemented");
+	if (orientation == DISPLAY_ORIENTATION_NORMAL) {
+		value = 0x00;
+	} else if (orientation == DISPLAY_ORIENTATION_ROTATED_180) {
+		value = 0x03;
+	}
 
-	return -ENOTSUP;
+	if (data->pixel_format == PIXEL_FORMAT_RGB_565) {
+
+	} else if (data->pixel_format == PIXEL_FORMAT_BGR_565) {
+		value |= (1 << 3);
+	}
+	r = spd2010_transmit(dev, SPD2010_MADCTR, &value, 1);
+
+	data->orientation = orientation;
+
+	return r;
 }
 
 static void spd2010_te_gpio_callback_handler(const struct device *port, struct gpio_callback *cb,
@@ -589,14 +651,15 @@ const static spd2010_init_cmd_item_t items[] = {
 	{.cmd = 0x2A, .data_len = 4, .data = {0x00, 0x00, 0x00, 0xB3},},
 	{.cmd = 0x2B, .data_len = 4, .data = {0x00, 0x00, 0x01, 0xC5},},
 	{.cmd = 0x3A, .data_len = 1, .data = {0x05},},
-	{.cmd = 0x36, .data_len = 1, .data = {0x00},},
-	{.cmd = 0x35, .data_len = 1, .data = {0x03},},
-	{.cmd = 0x11, .data_len = 0, .data = {},},
 };
+
+static uint8_t init_datas[2 * 2 * 180] = {0};
 
 static int spd2010_lcd_init(const struct device *dev)
 {
 	uint16_t i;
+	const struct spd2010_config *config = dev->config;
+
 	k_sleep(K_MSEC(20));
 	for (i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
 		int ret = spd2010_transmit(dev, items[i].cmd, &items[i].data, items[i].data_len);
@@ -607,9 +670,39 @@ static int spd2010_lcd_init(const struct device *dev)
 		}
 	}
 
+#if CONFIG_SPD2010_ORIENTATION_NORMAL
+	spd2010_set_orientation(dev, DISPLAY_ORIENTATION_NORMAL);
+#else
+	spd2010_set_orientation(dev, DISPLAY_ORIENTATION_ROTATED_180);
+#endif
+
+#if CONFIG_SPD2010_FIXEL_FORMAT_RGB565
+	spd2010_set_pixel_format(dev, PIXEL_FORMAT_RGB_565);
+#elif CONFIG_SPD2010_FIXEL_FORMAT_BGR565
+	spd2010_set_pixel_format(dev, PIXEL_FORMAT_BGR_565);
+#elif CONFIG_SPD2010_FIXEL_FORMAT_RGB888
+	spd2010_set_pixel_format(dev, PIXEL_FORMAT_RGB_888);
+#endif
+
+	if (config->te.port != NULL) {
+		spd2010_te_on(dev);
+	}
+
+	spd2010_exit_sleep(dev);
+
 	k_sleep(K_MSEC(100));
 	spd2010_blanking_off(dev);
 	k_sleep(K_MSEC(100));
+	
+	/*TODO:  */
+	memset(init_datas, 0x00, sizeof(init_datas));
+	struct display_buffer_descriptor desc = {
+		.buf_size = desc.width,
+		.width = 180,
+		.height = 2,
+		.pitch = 180,
+	};
+	spd2010_write(dev, 0, 452, &desc, init_datas);
 
 	return 0;
 }
@@ -679,10 +772,10 @@ static int spd2010_init(const struct device *dev)
 
 	spd2010_reset_display(dev);
 	ret = spd2010_lcd_init(dev);
-
 	if (ret) {
 		return ret;
 	}
+
 
 	return 0;
 }
