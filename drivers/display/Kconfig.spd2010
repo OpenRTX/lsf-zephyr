@@ -13,3 +13,27 @@ config SPD2010_TOUCH
 	depends on SPD2010
 	help
 	   enable touch for spd2010
+
+choice
+prompt "pixel format"
+config SPD2010_FIXEL_FORMAT_RGB565
+	bool "RGB565"
+
+config SPD2010_FIXEL_FORMAT_BGR565
+	bool "BGR565"
+
+config SPD2010_FIXEL_FORMAT_RGB888
+	bool "BGR888"
+
+endchoice
+
+choice
+prompt "orientation"
+config SPD2010_ORIENTATION_NORMAL
+	bool "orientation normal"
+
+config SPD2010_ORIENTATION_180
+	bool "orientation 180"
+
+endchoice
+
