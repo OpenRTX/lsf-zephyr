@@ -44,16 +44,28 @@ void main(void)
 		LOG_ERR("Device not ready, aborting test");
 		return;
 	}
-
+	
 	// kscan_init();
 
 	display_blanking_off(display_dev);
 	// lv_disp_set_rotation(NULL, LV_DISP_ROT_270);
 
-	extern void lv_demo_benchmark(void);
-	lv_demo_benchmark();
+	// extern void lv_demo_benchmark(void);
+	// lv_demo_benchmark();
+	extern void lv_demo_widgets(void);
+	lv_demo_widgets();
+	uint32_t i= 0;
 	while (1) {
 		lv_task_handler();
 		k_sleep(K_MSEC(10));
+		// ++i;
+		// int r;
+		// if (i % 400 == 0) {
+		// 	// lv_disp_set_rotation(NULL, LV_DISP_ROT_90);
+		// 	r = display_set_orientation(display_dev, DISPLAY_ORIENTATION_NORMAL);
+		// } else if (i % 200 == 0) {
+		// 	// lv_disp_set_rotation(NULL, LV_DISP_ROT_270);
+		// 	r = display_set_orientation(display_dev, DISPLAY_ORIENTATION_ROTATED_180);
+		// }
 	}
 }
