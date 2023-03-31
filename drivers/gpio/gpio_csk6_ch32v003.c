@@ -11,9 +11,39 @@
 
 #include "gpio_utils.h"
 
-#define DT_DRV_COMPAT listenai_csk_gpio_ch32003
+#define DT_DRV_COMPAT listenai_csk_gpio_ch32003_port
 
 LOG_MODULE_REGISTER(gpio_ch32003);
+
+#define CH32V003_DIR_REG_BASE	    0x10
+#define CH32V003_OUT_REG_BASE	    0x11
+#define CH32V003_OD_REG_BASE	    0x12
+#define CH32V003_IN_REG_BASE	    0x13
+#define CH32V003_PULL_UP_REG_BASE   0x14
+#define CH32V003_PULL_DWON_REG_BASE 0x15
+#define CH32V003_INT_STA_REG_BASE   0x16
+#define CH32V003_INT_EN_REG_BASE    0x17
+#define CH32V003_INT_CTL_REG_BASE   0x18
+
+#define CH32V003_DIR_REG(index)	      ((CH32V003_DIR_REG_BASE) + (index * 0x10))
+#define CH32V003_OUT_REG(index)	      ((CH32V003_OUT_REG_BASE) + (index * 0x10))
+#define CH32V003_OD_REG(index)	      ((CH32V003_OD_REG_BASE) + (index * 0x10))
+#define CH32V003_IN_REG(index)	      ((CH32V003_IN_REG_BASE) + (index * 0x10))
+#define CH32V003_PULL_UP_REG(index)   ((CH32V003_PULL_UP_REG_BASE) + (index * 0x10))
+#define CH32V003_PULL_DWON_REG(index) ((CH32V003_PULL_DWON_REG_BASE) + (index * 0x10))
+#define CH32V003_INT_STA_REG(index)   ((CH32V003_INT_STA_REG_BASE) + (index * 0x10))
+#define CH32V003_INT_EN_REG(index)    ((CH32V003_INT_EN_REG_BASE) + (index * 0x10))
+#define CH32V003_INT_CTL_REG(index)   ((CH32V003_INT_CTL_REG_BASE) + (index * 0x10))
+
+#define CH32V003_ID_REG	  0x01
+#define CH32V003_VER_REG  0x02
+#define CH32V003_STA_REG  0x03
+#define CH32V003_PAGE_REG 0x03
+
+enum {
+	CH32V003_STATUS_INVALID = 0,
+	CH32V003_STATUS_OK = 1,
+};
 
 /* Register definitions */
 #define REG_DEVICE_ID_CTRL	0x01
@@ -31,352 +61,151 @@ LOG_MODULE_REGISTER(gpio_ch32003);
 	(GPIO_INPUT | GPIO_OUTPUT | GPIO_OUTPUT_INIT_LOW | GPIO_OUTPUT_INIT_HIGH |                 \
 	 GPIO_PULL_DOWN | GPIO_PULL_UP | GPIO_ACTIVE_HIGH | GPIO_ACTIVE_LOW)
 
-/** Configuration data*/
 struct gpio_ch32003_config {
-	/* gpio_driver_config needs to be first */
-	struct gpio_driver_config common;
-
-	/** Master I2C device */
-	const struct device *i2c_master;
-
-	/** The slave address of the chip */
-	uint16_t i2c_slave_addr;
-
 	struct i2c_dt_spec bus;
+	uint8_t id;
 };
 
-/** Runtime driver data */
 struct gpio_ch32003_drv_data {
-	/* gpio_driver_data needs to be first */
-	struct gpio_driver_data common;
 
 	struct {
 		uint8_t input;
 		uint8_t output;
 		uint8_t dir;
-		uint8_t high_z;
-		uint8_t pud_en;
-		uint8_t pud_sel;
+		uint8_t pull_mode;
+		uint8_t pull_en;
+		uint8_t od;
 	} reg_cache;
 
 	struct k_sem lock;
 };
 
-/**
- * @brief Read the port of certain register function.
- *
- * @param dev Device struct of the CH32003.
- * @param reg Register to read.
- * @param cache Pointer to the cache to be updated after successful read.
- *
- * @return 0 if successful, failed otherwise.
- */
-static int read_port_regs(const struct device *dev, uint8_t reg, uint8_t *cache)
+static inline int gpio_ch32v003_register_read(const struct device *dev, uint8_t reg, uint8_t *value)
 {
 	const struct gpio_ch32003_config *const config = dev->config;
-	const struct device *i2c_master = config->i2c_master;
-	uint16_t i2c_addr = config->i2c_slave_addr;
-	uint8_t port_data;
-	int ret;
 
-	ret = i2c_reg_read_byte(i2c_master, i2c_addr, reg, &port_data);
-	if (ret != 0) {
-		LOG_ERR("Error reading register 0x%X (%d)", reg, ret);
-		return ret;
-	}
-	*cache = port_data;
-	LOG_DBG("Read: REG[0x%X] = 0x%X", reg, *cache);
-
-	return ret;
+	return i2c_reg_read_byte_dt(&config->bus, reg, value);
 }
 
-/**
- *  @brief Write to the port registers of certain register function.
- *
- * @param dev Device struct of the CH32003.
- * @param reg Register to write into. Possible values:  REG_DEVICE_ID_CTRL,
- * REG_OUTPUT, REG_DIRECTION, REG_PUD_SEL, REG_PUD_EN, REG_OUTPUT_HIGH_Z and
- * REG_INPUT_DEFAULT.
- * @param cache Pointer to the cache to be updated after successful write.
- * @param value New value to set.
- *
- * @return 0 if successful, failed otherwise.
- */
-static int write_port_regs(const struct device *dev, uint8_t reg, uint8_t *cache, uint8_t value)
+static inline int gpio_ch32v003_register_write(const struct device *dev, uint8_t reg, uint8_t value)
 {
 	const struct gpio_ch32003_config *const config = dev->config;
-	const struct device *i2c_master = config->i2c_master;
-	int ret = 0;
+	int r;
+	uint8_t status = 0x00;
 
-	if (*cache != value) {
-		ret = i2c_reg_write_byte(i2c_master, config->i2c_slave_addr, reg, value);
-		if (ret != 0) {
-			LOG_ERR("error writing to register 0x%X (%d)", reg, ret);
-			return ret;
-		}
-		*cache = value;
-		LOG_DBG("Write: REG[0x%X] = 0x%X", reg, *cache);
+	/* TODO: lock here */
+
+	r = i2c_reg_write_byte_dt(&config->bus, reg, value);
+	if (r) {
+		return r;
 	}
 
-	return ret;
+	r = gpio_ch32v003_register_read(dev, CH32V003_STA_REG, &status);
+	if (r) {
+		return r;
+	}
+
+	if (status != CH32V003_STATUS_OK) {
+		LOG_ERR("register %02X set error, status: %d", reg, status);
+	}
+
+	return 0;
 }
 
-static inline int update_input_regs(const struct device *dev, uint8_t *buf)
+static inline int ch32v003_dir_set(const struct device *dev, uint8_t flag)
 {
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
-	int ret = read_port_regs(dev, REG_INPUT_VALUE, &drv_data->reg_cache.input);
-	*buf = drv_data->reg_cache.input;
-
-	return ret;
-}
-
-static inline int update_output_regs(const struct device *dev, uint8_t value)
-{
+	const struct gpio_ch32003_config *config = dev->config;
 	struct gpio_ch32003_drv_data *const drv_data =
 		(struct gpio_ch32003_drv_data *const)dev->data;
 
-	return write_port_regs(dev, REG_OUTPUT, &drv_data->reg_cache.output, value);
+	int r = gpio_ch32v003_register_write(dev, CH32V003_DIR_REG(config->id), flag);
+
+	if (r == 0) {
+		drv_data->reg_cache.dir = flag;
+	}
+
+	return r;
 }
 
-static inline int update_high_z_regs(const struct device *dev, uint8_t value)
+static inline int ch32v003_dir_get(const struct device *dev, uint8_t *flag)
 {
+	const struct gpio_ch32003_config *config = dev->config;
 	struct gpio_ch32003_drv_data *const drv_data =
 		(struct gpio_ch32003_drv_data *const)dev->data;
 
-	return write_port_regs(dev, REG_OUTPUT_HIGH_Z, &drv_data->reg_cache.high_z, value);
+	int r = gpio_ch32v003_register_read(dev, CH32V003_DIR_REG(config->id), flag);
+	if (r == 0) {
+		drv_data->reg_cache.dir = *flag;
+	}
+
+	return r;
 }
 
-static inline int update_direction_regs(const struct device *dev, uint8_t value)
+static inline int ch32v003_od_set(const struct device *dev, uint8_t flag)
 {
+	const struct gpio_ch32003_config *config = dev->config;
 	struct gpio_ch32003_drv_data *const drv_data =
 		(struct gpio_ch32003_drv_data *const)dev->data;
 
-	return write_port_regs(dev, REG_DIRECTION, &drv_data->reg_cache.dir, value);
+	int r = gpio_ch32v003_register_write(dev, CH32V003_OD_REG(config->id), flag);
+	if (r == 0) {
+		drv_data->reg_cache.od = flag;
+	}
+	return r;
 }
 
-static inline int update_pul_sel_regs(const struct device *dev, uint8_t value)
+static inline int ch32v003_od_get(const struct device *dev, uint8_t *flag)
 {
+	const struct gpio_ch32003_config *config = dev->config;
+	return gpio_ch32v003_register_read(dev, CH32V003_OD_REG(config->id), *flag);
+}
+
+static inline int ch32v003_out_set(const struct device *dev, uint8_t flag)
+{
+	const struct gpio_ch32003_config *config = dev->config;
 	struct gpio_ch32003_drv_data *const drv_data =
 		(struct gpio_ch32003_drv_data *const)dev->data;
-
-	return write_port_regs(dev, REG_PUD_SEL, &drv_data->reg_cache.pud_sel, value);
+	int r = gpio_ch32v003_register_write(dev, CH32V003_OUT_REG(config->id), flag);
+	if (r == 0) {
+		drv_data->reg_cache.output = flag;
+	}
+	return r;
 }
 
-static inline int update_pul_en_regs(const struct device *dev, uint8_t value)
+static inline int ch32v003_out_get(const struct device *dev, uint8_t *flag)
 {
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
-
-	return write_port_regs(dev, REG_PUD_EN, &drv_data->reg_cache.pud_en, value);
+	const struct gpio_ch32003_config *config = dev->config;
+	return gpio_ch32v003_register_read(dev, CH32V003_OUT_REG(config->id), *flag);
 }
 
-static int setup_pin_dir(const struct device *dev, uint32_t pin, int flags)
+static inline int ch32v003_pull_mode_set(const struct device *dev, uint8_t flag)
 {
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
-	uint8_t reg_dir = drv_data->reg_cache.dir;
-	uint8_t reg_out = drv_data->reg_cache.output;
-	uint8_t reg_high_z = drv_data->reg_cache.high_z;
-	int ret;
-
-	if (((flags & GPIO_INPUT) != 0) && ((flags & GPIO_OUTPUT) != 0)) {
-		return -ENOTSUP;
-	}
-
-	/* Update the driver data to the actual situation of the CH32003 */
-	if (flags & GPIO_OUTPUT) {
-		if ((flags & GPIO_OUTPUT_INIT_HIGH)) {
-			reg_out |= BIT(pin);
-		} else if ((flags & GPIO_OUTPUT_INIT_LOW)) {
-			reg_out &= ~BIT(pin);
-		}
-		reg_dir |= BIT(pin);
-		reg_high_z &= ~BIT(pin);
-	} else if (flags & GPIO_INPUT) {
-		reg_dir &= ~BIT(pin);
-		reg_high_z &= ~BIT(pin);
-	} else {
-		reg_high_z |= BIT(pin);
-		reg_dir |= BIT(pin);
-	}
-
-	ret = update_output_regs(dev, reg_out);
-	if (ret != 0) {
-		return ret;
-	}
-
-	ret = update_high_z_regs(dev, reg_high_z);
-	if (ret != 0) {
-		return ret;
-	}
-
-	ret = update_direction_regs(dev, reg_dir);
-	return ret;
+	const struct gpio_ch32003_config *config = dev->config;
+	return gpio_ch32v003_register_write(dev, CH32V003_PULL_UP_REG(config->id), flag);
 }
 
-/**
- * @brief Setup the pin pull up/pull down status
- *
- * @param dev Device struct of the CH32003
- * @param pin The pin number
- * @param flags Flags of pin or port
- *
- * @return 0 if successful, failed otherwise
- */
-static int setup_pin_pullupdown(const struct device *dev, uint32_t pin, int flags)
+static inline int ch32v003_pull_mode_get(const struct device *dev, uint8_t *flag)
 {
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
-	uint8_t reg_pud;
-	int ret;
-
-	/* If disabling pull up/down, there is no need to set the selection
-	 * register. Just go straight to disabling.
-	 */
-	if ((flags & (GPIO_PULL_UP | GPIO_PULL_DOWN)) != 0U) {
-		/* Setup pin pull up or pull down */
-		reg_pud = drv_data->reg_cache.pud_sel;
-
-		/* Pull down == 0, pull up == 1 */
-		WRITE_BIT(reg_pud, pin, (flags & GPIO_PULL_UP) != 0U);
-
-		ret = update_pul_sel_regs(dev, reg_pud);
-		if (ret != 0) {
-			return ret;
-		}
-	}
-
-	/* Enable/disable pull up/down */
-	reg_pud = drv_data->reg_cache.pud_en;
-
-	WRITE_BIT(reg_pud, pin, (flags & (GPIO_PULL_UP | GPIO_PULL_DOWN)) != 0U);
-
-	ret = update_pul_en_regs(dev, reg_pud);
-	return ret;
+	const struct gpio_ch32003_config *config = dev->config;
+	return gpio_ch32v003_register_read(dev, CH32V003_PULL_UP_REG(config->id), *flag);
 }
 
-static int gpio_ch32003_pin_config(const struct device *dev, gpio_pin_t pin, gpio_flags_t flags)
+static inline int ch32v003_pull_en_set(const struct device *dev, uint8_t flag)
 {
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
-	int ret;
-
-	/* Check if supported flag is set */
-	if ((flags & ~SUPPORTED_FLAGS) != 0) {
-		return -ENOTSUP;
-	}
-
-	/* Can't do I2C bus operations from an ISR */
-	if (k_is_in_isr()) {
-		return -EWOULDBLOCK;
-	}
-	k_sem_take(&drv_data->lock, K_FOREVER);
-
-	ret = setup_pin_dir(dev, pin, flags);
-	if (ret != 0) {
-		LOG_ERR("error setting pin direction (%d)", ret);
-		goto done;
-	}
-
-	ret = setup_pin_pullupdown(dev, pin, flags);
-	if (ret) {
-		LOG_ERR("error setting pin pull up/down (%d)", ret);
-		goto done;
-	}
-
-done:
-	k_sem_give(&drv_data->lock);
-	return ret;
+	const struct gpio_ch32003_config *config = dev->config;
+	return gpio_ch32v003_register_write(dev, CH32V003_PULL_DWON_REG(config->id), flag);
 }
 
-static int gpio_ch32003_port_get_raw(const struct device *dev, uint32_t *value)
+static inline int ch32v003_pull_en_get(const struct device *dev, uint8_t *flag)
 {
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
-	uint8_t buf = 0;
-	int ret = 0;
-
-	/* Can't do I2C bus operations from an ISR */
-	if (k_is_in_isr()) {
-		return -EWOULDBLOCK;
-	}
-
-	k_sem_take(&drv_data->lock, K_FOREVER);
-
-	ret = update_input_regs(dev, &buf);
-	if (ret != 0) {
-		goto done;
-	}
-	*value = buf;
-
-done:
-	k_sem_give(&drv_data->lock);
-	return ret;
+	const struct gpio_ch32003_config *config = dev->config;
+	return gpio_ch32v003_register_read(dev, CH32V003_PULL_DWON_REG(config->id), flag);
 }
 
-static int gpio_ch32003_port_set_masked_raw(const struct device *dev, uint32_t mask, uint32_t value)
+static inline int ch32v003_in_get(const struct device *dev, uint8_t *flag)
 {
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
-	uint8_t reg_out;
-	int ret;
-
-	/* Can't do I2C bus operations from an ISR */
-	if (k_is_in_isr()) {
-		return -EWOULDBLOCK;
-	}
-
-	k_sem_take(&drv_data->lock, K_FOREVER);
-
-	reg_out = drv_data->reg_cache.output;
-	reg_out = (reg_out & ~mask) | (mask & value);
-
-	ret = update_output_regs(dev, reg_out);
-
-	k_sem_give(&drv_data->lock);
-
-	return ret;
-}
-
-static int gpio_ch32003_port_set_bits_raw(const struct device *dev, uint32_t mask)
-{
-	return gpio_ch32003_port_set_masked_raw(dev, mask, mask);
-}
-
-static int gpio_ch32003_port_clear_bits_raw(const struct device *dev, uint32_t mask)
-{
-	return gpio_ch32003_port_set_masked_raw(dev, mask, 0);
-}
-
-static int gpio_ch32003_port_toggle_bits(const struct device *dev, uint32_t mask)
-{
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
-	uint8_t reg_out;
-	int ret;
-
-	/* Can't do I2C bus operations from an ISR */
-	if (k_is_in_isr()) {
-		return -EWOULDBLOCK;
-	}
-
-	k_sem_take(&drv_data->lock, K_FOREVER);
-
-	reg_out = drv_data->reg_cache.output;
-	reg_out ^= mask;
-	ret = update_output_regs(dev, reg_out);
-
-	k_sem_give(&drv_data->lock);
-
-	return ret;
-}
-
-static int gpio_ch32003_pin_interrupt_configure(const struct device *port, gpio_pin_t pin,
-						enum gpio_int_mode mode, enum gpio_int_trig trig)
-{
-	LOG_DBG("Pin interrupts not supported.");
-	return -ENOTSUP;
+	const struct gpio_ch32003_config *config = dev->config;
+	return gpio_ch32v003_register_read(dev, CH32V003_IN_REG(config->id), flag);
 }
 
 int gpio_ch32003_init(const struct device *dev)
@@ -391,72 +220,206 @@ int gpio_ch32003_init(const struct device *dev)
 		return -ENODEV;
 	}
 
-	r = i2c_configure(config->bus.bus, I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER);
+	LOG_INF("addr:%02X", config->bus.addr);
+	r = i2c_configure(config->bus.bus, I2C_SPEED_SET(I2C_SPEED_FAST) | I2C_MODE_MASTER);
 	if (r) {
 		printk("i2c_configure failed, ret:%d\n", r);
 		return r;
 	}
-	printk("addr is %02x\n", config->bus.addr);
 
-	k_sem_init(&drv_data->lock, 1, 1);
-
-	uint8_t data = 0x01;
-	
-	data = 0xFF;
-
-	uint16_t i = 0;
-
-	for (i = 1; i <= 0xFF; i++) {
-		r = i2c_reg_read_byte_dt(&config->bus, i, &data);
-		if (r) {
-			printk("i2c read error %d\n", r);
-		} else {
-			printk("i2c read, ret:%02X, value:%02X\n", i, data);
-		}
+	uint8_t id = 0;
+	r = gpio_ch32v003_register_read(dev, CH32V003_ID_REG, &id);
+	if (r) {
+		LOG_ERR("read id failed, r:%d\n", r);
+		return r;
 	}
 
-	for (i = 1; i <= 0xFF; i++) {
-		r = i2c_reg_write_byte_dt(&config->bus, i, i);
-		if (r) {
-			printk("i2c write err:%d, reg:0x%02X\n", r, i);
-		} else {
-			printk("i2c write, reg:%02X, value:%02X\n", i, i);
-		}
-
-		r = i2c_reg_read_byte_dt(&config->bus, i, &data);
-		if (r) {
-			printk("i2c read error %d\n", r);
-		} else {
-			printk("i2c read, ret:%02X, value:%02X\n", i, data);
-		}
-	}
-
-	for (i = 1; i <= 0xFF; i++) {
-		r = i2c_reg_write_byte_dt(&config->bus, i, i);
-		if (r) {
-			printk("i2c write err:%d, reg:0x%02X\n", r, i);
-		} else {
-			printk("i2c write, reg:%02X, value:%02X\n", i, i);
-		}
-	}
+	LOG_INF("chip id: %u\n", id);
 
 	return 0;
 }
 
+static int ch32v003_pin_config(const struct device *dev, gpio_pin_t pin, gpio_flags_t flags)
+{
+	struct gpio_ch32003_drv_data *data = dev->data;
+	uint8_t dir = data->reg_cache.dir;
+	uint8_t output = data->reg_cache.output;
+	uint8_t pull_mode = data->reg_cache.pull_mode;
+	uint8_t pull_en = data->reg_cache.pull_en;
+	uint8_t dir_update = false;
+	uint8_t out_update = false;
+	uint8_t pull_update = false;
+	int r;
+
+	if (k_is_in_isr()) {
+		return -EWOULDBLOCK;
+	}
+
+	k_sem_take(&data->lock, K_FOREVER);
+	LOG_INF("ch32v003_pin_config");
+	if (flags & GPIO_OUTPUT) {
+		dir |= BIT(pin);
+		dir_update = true;
+		if (flags & GPIO_OUTPUT_INIT_HIGH) {
+			output &= ~BIT(pin);
+			out_update = true;
+		} else if (flags & GPIO_OUTPUT_INIT_LOW) {
+			output |= BIT(pin);
+			out_update = true;
+		}
+	} else if (flags & GPIO_INPUT) {
+		dir_update = true;
+		dir &= ~BIT(pin);
+	}
+
+	if ((flags & GPIO_PULL_UP) || (flags & GPIO_PULL_DOWN)) {
+		pull_update = true;
+		if (flags & GPIO_PULL_UP) {
+			pull_mode |= BIT(pin);
+			pull_en |= BIT(pin);
+		} else if (flags & GPIO_PULL_DOWN) {
+			pull_mode &= ~BIT(pin);
+			pull_en &= ~BIT(pin);
+		}
+	}
+
+	if (dir_update) {
+		r = ch32v003_dir_set(dev, dir);
+		if (r != 0) {
+			k_sem_give(&data->lock);
+			return r;
+		}
+	}
+
+	if (out_update) {
+		r = ch32v003_od_set(dev, 0x00);
+		if (r != 0) {
+			k_sem_give(&data->lock);
+			return r;
+		}
+
+		r = ch32v003_out_set(dev, output);
+		if (r != 0) {
+			k_sem_give(&data->lock);
+			return r;
+		}
+	}
+
+	if (pull_update) {
+		r = ch32v003_pull_mode_set(dev, pull_mode);
+		if (r != 0) {
+			k_sem_give(&data->lock);
+			return r;
+		}
+
+		r = ch32v003_pull_en_set(dev, pull_en);
+		if (r != 0) {
+			k_sem_give(&data->lock);
+			return r;
+		}
+	}
+
+	k_sem_give(&data->lock);
+
+	return r;
+}
+
+static int ch32v003_set_masked_raw(const struct device *dev, gpio_port_pins_t mask,
+				   gpio_port_value_t value)
+{
+	struct gpio_ch32003_drv_data *data = dev->data;
+	uint8_t output;
+	int r;
+
+	k_sem_take(&data->lock, K_FOREVER);
+	output = data->reg_cache.output;
+	mask &= 0xFF;
+	value &= 0xFF;
+	output = (output & ~mask) | (value & mask);
+
+	r = ch32v003_out_set(dev, output);
+	LOG_INF("ch32v003_set_masked_raw, output:%02X", output);
+	k_sem_give(&data->lock);
+
+	return r;
+}
+
+static int ch32v003_set_bits_raw(const struct device *dev, gpio_port_pins_t pins)
+{
+	struct gpio_ch32003_drv_data *data = dev->data;
+	uint8_t output;
+	int r;
+
+	k_sem_take(&data->lock, K_FOREVER);
+	output = data->reg_cache.output;
+	output |= (pins & 0xFF);
+
+	r = ch32v003_out_set(dev, output);
+	LOG_INF("ch32v003_set_bits_raw, output:%02X", output);
+	k_sem_give(&data->lock);
+
+	return r;
+}
+
+static int ch32v003_clear_bits_raw(const struct device *dev, gpio_port_pins_t pins)
+{
+	struct gpio_ch32003_drv_data *data = dev->data;
+	uint8_t output;
+	int r;
+
+	k_sem_take(&data->lock, K_FOREVER);
+	output = data->reg_cache.output;
+	output &= ~(pins & 0xFF);
+	LOG_INF("ch32v003_clear_bits_raw, output:%02X", output);
+	r = ch32v003_out_set(dev, output);
+	k_sem_give(&data->lock);
+
+	return r;
+}
+
+static int ch32v003_toggle_bits(const struct device *dev, gpio_port_pins_t pins)
+{
+	struct gpio_ch32003_drv_data *data = dev->data;
+	uint8_t output;
+	int r;
+	k_sem_take(&data->lock, K_FOREVER);
+	output = data->reg_cache.output;
+	LOG_INF("ch32v003_toggle_bits, cache output:%02X", output);
+	output ^= (pins & 0xFF);
+	LOG_INF("ch32v003_toggle_bits, output:%02X", output);
+	r = ch32v003_out_set(dev, output);
+	k_sem_give(&data->lock);
+
+	return r;
+}
+
 static const struct gpio_driver_api gpio_ch32003_driver = {
-	.pin_configure = gpio_ch32003_pin_config,
-	.port_get_raw = gpio_ch32003_port_get_raw,
-	.port_set_masked_raw = gpio_ch32003_port_set_masked_raw,
-	.port_set_bits_raw = gpio_ch32003_port_set_bits_raw,
-	.port_clear_bits_raw = gpio_ch32003_port_clear_bits_raw,
-	.port_toggle_bits = gpio_ch32003_port_toggle_bits,
-	.pin_interrupt_configure = gpio_ch32003_pin_interrupt_configure};
+	.pin_configure = ch32v003_pin_config,
+	.port_get_raw = NULL,
+	.port_set_masked_raw = ch32v003_set_masked_raw,
+	.port_set_bits_raw = ch32v003_set_bits_raw,
+	.port_clear_bits_raw = ch32v003_clear_bits_raw,
+	.port_toggle_bits = ch32v003_toggle_bits,
+	.pin_interrupt_configure = NULL,
+};
 
-#define GPIO_CH32003_INIT(inst)                                                                    \
-	static const struct gpio_ch32003_config gpio_ch32003_config##inst = {                      \
-		.bus = I2C_DT_SPEC_INST_GET(inst),                                                 \
+#define GPIO_DEVICE_INSTANCE(inst)                                                                 \
+	static const struct gpio_ch32003_config gpio_ch32003_##inst##_cfg = {                      \
+		.bus = I2C_DT_SPEC_GET(DT_INST_PARENT(inst)),                                      \
+		.id = inst,                                                                        \
 	};                                                                                         \
-	DEVICE_DT_INST_DEFINE(inst, gpio_ch32003_init, NULL, NULL, &gpio_ch32003_config##inst,     \
-			      POST_KERNEL, CONFIG_APPLICATION_INIT_PRIORITY, &gpio_ch32003_driver)
+                                                                                                   \
+	static struct gpio_ch32003_drv_data gpio_ch32003_##inst##_drvdata = {                      \
+		.reg_cache = {.input = 0x0,                                                        \
+			      .output = 0x00,                                                      \
+			      .dir = 0x0,                                                          \
+			      .pull_mode = 0xFF,                                                   \
+			      .od = 0x00,                                                          \
+			      .pull_en = 0x0},                                                     \
+		.lock = Z_SEM_INITIALIZER(gpio_ch32003_##inst##_drvdata.lock, 1, 1),               \
+	};                                                                                         \
+                                                                                                   \
+	DEVICE_DT_INST_DEFINE(inst, gpio_ch32003_init, NULL, &gpio_ch32003_##inst##_drvdata,       \
+			      &gpio_ch32003_##inst##_cfg, POST_KERNEL, 90, &gpio_ch32003_driver);
 
-DT_INST_FOREACH_STATUS_OKAY(GPIO_CH32003_INIT);
+DT_INST_FOREACH_STATUS_OKAY(GPIO_DEVICE_INSTANCE);

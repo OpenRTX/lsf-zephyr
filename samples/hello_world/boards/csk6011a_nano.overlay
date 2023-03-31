@@ -1,3 +1,14 @@
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+		green_led: led1 {
+			gpios = <&gpioe 0x6 0x1>;
+			label = "User LED1";
+		};
+	};
+};
+
 &pinctrl {
 
 	pinctrl_i2c0_scl_default: i2c0_scl_default{
@@ -18,8 +29,40 @@
 		reg = <0x6c>;
 		label = "GPIO-CSK6-CH32003";
 		status = "okay";
-		ngpios = <8>;
-		#gpio-cells = <2>;
-		gpio-controller;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpioc: gpio@0 {
+			compatible = "listenai,csk-gpio-ch32003-port";
+			label = "GPIOC";
+			reg = <0x00>;
+			status = "okay";
+			ngpios = <8>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			pin_mask = <0x00>;
+		};
+
+		gpiod: gpio@1 {
+			compatible = "listenai,csk-gpio-ch32003-port";
+			label = "GPIOD";
+			reg = <0x01>;
+			status = "okay";
+			ngpios = <8>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			pin_mask = <0xff>;
+		};
+
+		gpioe: gpio@2 {
+			compatible = "listenai,csk-gpio-ch32003-port";
+			label = "GPIOE";
+			reg = <0x02>;
+			status = "okay";
+			ngpios = <8>;
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
 	};
 };
+
