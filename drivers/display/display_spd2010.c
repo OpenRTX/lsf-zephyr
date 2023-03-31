@@ -78,6 +78,7 @@ struct spd2010_data {
 	uint16_t y_offset;
 	uint32_t pixel_format;
 	uint32_t orientation;
+	volatile uint32_t te_time;
 };
 
 static int spd2010_transmit(const struct device *dev, uint8_t cmd, const void *tx_data,
@@ -182,6 +183,8 @@ static void spd2010_set_mem_area(const struct device *dev, const uint16_t x, con
 static int spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 			 const struct display_buffer_descriptor *desc, const void *buf)
 {
+	const struct spd2010_config *config = dev->config;
+	struct spd2010_data *data = dev->data;
 	const uint8_t *write_data_start = (uint8_t *)buf;
 	uint16_t write_cnt;
 	uint16_t nbr_of_writes;
@@ -192,6 +195,23 @@ static int spd2010_write(const struct device *dev, const uint16_t x, const uint1
 		 "Input buffer to small");
 
 	__ASSERT((x % 4 != 0) || (desc->width % 4 != 0), "x and width must be a multiple of 4");
+
+	if (config->te.port != NULL) {
+		k_sem_reset(&data->te_sem);
+		k_sem_take(&data->te_sem, K_FOREVER);
+		uint32_t te_time = data->te_time;
+		int32_t dt = k_uptime_get_32() - te_time;
+
+		/* 1/10 *16ms + 5 */
+		const int32_t safe_time = 7;
+		int32_t temp = y * 16 / config->height;
+
+#define ABS(x) ((x) < 0 ? -(x) : (x))
+
+		if (ABS((temp - dt)) < safe_time) {
+			k_sem_take(&data->te_sem, K_FOREVER);
+		}
+	}
 
 	spd2010_set_mem_area(dev, x, y, desc->width, desc->height);
 
@@ -334,8 +354,8 @@ static int spd2010_set_orientation(const struct device *dev,
 static void spd2010_te_gpio_callback_handler(const struct device *port, struct gpio_callback *cb,
 					     gpio_port_pins_t pins)
 {
-	LOG_INF("spd2010_te_gpio_callback_handler");
 	struct spd2010_data *data = CONTAINER_OF(cb, struct spd2010_data, te_callback);
+	data->te_time = k_uptime_get_32();
 	k_sem_give(&data->te_sem);
 }
 
