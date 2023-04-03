@@ -58,6 +58,8 @@
 #define ST7789V_LCMCTRL_XMH			0x04
 #define ST7789V_LCMCTRL_XMV			0x02
 
+#define ST7789V_CMD_TEON			0x35
+#define ST7789V_CMD_STE			    0x44
 #define ST7789V_CMD_VDVVRHEN			0xc2
 #define ST7789V_CMD_VRH				0xc3
 #define ST7789V_CMD_VDS				0xc4

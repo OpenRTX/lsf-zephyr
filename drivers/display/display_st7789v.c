@@ -285,42 +285,54 @@ static void st7789v_lcd_init(const struct device *dev)
 	st7789v_transmit(dev, ST7789V_CMD_DGMEN, &tmp, 1);
 
 	/* Frame Rate Control in Normal Mode, default value */
-	tmp = 0x0f;
+	tmp = 0x1e;
 	st7789v_transmit(dev, ST7789V_CMD_FRCTRL2, &tmp, 1);
 
-	tmp = config->gctrl;
+	tmp = 0x35;
 	st7789v_transmit(dev, ST7789V_CMD_GCTRL, &tmp, 1);
 
-	tmp = config->vcom;
+	tmp = 0x1e;
 	st7789v_transmit(dev, ST7789V_CMD_VCOMS, &tmp, 1);
 
 	if (config->vdv_vrh_enable) {
 		tmp = 0x01;
 		st7789v_transmit(dev, ST7789V_CMD_VDVVRHEN, &tmp, 1);
 
-		tmp = config->vrh_value;
+		tmp = 0x0b;
 		st7789v_transmit(dev, ST7789V_CMD_VRH, &tmp, 1);
 
-		tmp = config->vdv_value;
+		tmp = 0x20;
 		st7789v_transmit(dev, ST7789V_CMD_VDS, &tmp, 1);
 	}
 
-	st7789v_transmit(dev, ST7789V_CMD_PWCTRL1,
-			 (uint8_t *)config->pwctrl1_param,
-			 sizeof(config->pwctrl1_param));
+	// st7789v_transmit(dev, ST7789V_CMD_PWCTRL1,
+	// 		 (uint8_t *)config->pwctrl1_param,
+	// 		 sizeof(config->pwctrl1_param));
 
 	/* Memory Data Access Control */
-	tmp = config->mdac;
+	tmp = 0x60;
 	st7789v_transmit(dev, ST7789V_CMD_MADCTL, &tmp, 1);
 
+	/* VDV and VRH Command Enable */
+	tmp = 0x01;
+	st7789v_transmit(dev, ST7789V_CMD_VDVVRHEN, &tmp, 1);
+
+	/* TEON (35h): Tearing Effect Line On */
+	tmp = 0x00;
+	st7789v_transmit(dev, ST7789V_CMD_TEON, &tmp, 1);
+
+	/* STE (44h): Set Tear Scanline */
+	uint8_t tmp1[2] = {0x00, 0x80};
+	st7789v_transmit(dev, ST7789V_CMD_STE, tmp1, 2);
+
 	/* Interface Pixel Format */
-	tmp = config->colmod;
+	tmp = 0x55;
 	st7789v_transmit(dev, ST7789V_CMD_COLMOD, &tmp, 1);
 
-	tmp = config->lcm;
+	tmp = 0x2c;
 	st7789v_transmit(dev, ST7789V_CMD_LCMCTRL, &tmp, 1);
 
-	tmp = config->gamma;
+	tmp = 0x01;
 	st7789v_transmit(dev, ST7789V_CMD_GAMSET, &tmp, 1);
 
 	st7789v_transmit(dev, ST7789V_CMD_INV_ON, NULL, 0);
@@ -340,6 +352,7 @@ static void st7789v_lcd_init(const struct device *dev)
 	st7789v_transmit(dev, ST7789V_CMD_RGBCTRL,
 			 (uint8_t *)config->rgb_param,
 			 sizeof(config->rgb_param));
+
 }
 
 static int st7789v_init(const struct device *dev)
