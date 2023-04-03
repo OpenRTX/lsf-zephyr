@@ -27,6 +27,7 @@ struct st7789v_config {
 	struct spi_dt_spec bus;
 	struct gpio_dt_spec cmd_data_gpio;
 	struct gpio_dt_spec reset_gpio;
+	struct gpio_dt_spec te;
 	uint8_t vcom;
 	uint8_t gctrl;
 	bool vdv_vrh_enable;
@@ -48,6 +49,8 @@ struct st7789v_config {
 };
 
 struct st7789v_data {
+	struct gpio_callback te_callback;
+	struct k_sem te_sem;
 	uint16_t x_offset;
 	uint16_t y_offset;
 };
@@ -161,6 +164,7 @@ static int st7789v_write(const struct device *dev,
 			 const struct display_buffer_descriptor *desc,
 			 const void *buf)
 {
+	struct st7789v_data *data = dev->data;
 	const struct st7789v_config *config = dev->config;
 	const uint8_t *write_data_start = (uint8_t *) buf;
 	struct spi_buf tx_buf;
@@ -175,6 +179,12 @@ static int st7789v_write(const struct device *dev,
 
 	LOG_DBG("Writing %dx%d (w,h) @ %dx%d (x,y)",
 		desc->width, desc->height, x, y);
+
+	if (config->te.port != NULL) {
+		k_sem_reset(&data->te_sem);
+		k_sem_take(&data->te_sem, K_FOREVER);
+	}
+
 	st7789v_set_mem_area(dev, x, y, desc->width, desc->height);
 
 	if (desc->pitch > desc->width) {
@@ -321,8 +331,10 @@ static void st7789v_lcd_init(const struct device *dev)
 	st7789v_transmit(dev, ST7789V_CMD_VDVVRHEN, &tmp, 1);
 
 	/* TEON (35h): Tearing Effect Line On */
-	tmp = 0x00;
-	st7789v_transmit(dev, ST7789V_CMD_TEON, &tmp, 1);
+	if (config->te.port != NULL) {
+		tmp = 0x00;
+		st7789v_transmit(dev, ST7789V_CMD_TEON, &tmp, 1);
+	}
 
 	/* STE (44h): Set Tear Scanline */
 	uint8_t tmp1[2] = {0x00, 0x80};
@@ -358,9 +370,18 @@ static void st7789v_lcd_init(const struct device *dev)
 
 }
 
+static void st7789_te_gpio_callback_handler(const struct device *port, struct gpio_callback *cb,
+					     gpio_port_pins_t pins)
+{
+	struct st7789v_data *data = CONTAINER_OF(cb, struct st7789v_data, te_callback);
+
+	k_sem_give(&data->te_sem);
+}
+
 static int st7789v_init(const struct device *dev)
 {
 	const struct st7789v_config *config = dev->config;
+	struct st7789v_data *data = dev->data;
 
 	if (!spi_is_ready(&config->bus)) {
 		LOG_ERR("SPI device not ready");
@@ -387,6 +408,32 @@ static int st7789v_init(const struct device *dev)
 	if (gpio_pin_configure_dt(&config->cmd_data_gpio, GPIO_OUTPUT)) {
 		LOG_ERR("Couldn't configure cmd/DATA pin");
 		return -EIO;
+	}
+
+	if (config->te.port != NULL) {
+		if (!device_is_ready(config->te.port)) {
+			LOG_ERR("TE GPIO port for display not ready");
+			return -ENODEV;
+		}
+
+		if (gpio_pin_configure_dt(&config->te, GPIO_INPUT)) {
+			LOG_ERR("Couldn't configure TE pin");
+			return -EIO;
+		}
+
+		gpio_init_callback(&data->te_callback, st7789_te_gpio_callback_handler,
+				   BIT(config->te.pin));
+
+		int ret = gpio_add_callback(config->te.port, &data->te_callback);
+		if (ret) {
+			LOG_ERR("Te GPIO add callback failed, ret:%d", ret);
+		}
+
+		ret = gpio_pin_interrupt_configure_dt(&config->te, GPIO_INT_EDGE_RISING);
+
+		if (ret) {
+			LOG_ERR("Te GPIO add interrupt configure failed, ret:%d", ret);
+		}
 	}
 
 	st7789v_reset_display(dev);
@@ -441,6 +488,7 @@ static const struct display_driver_api st7789v_api = {
 							  SPI_WORD_SET(8), 0),	\
 		.cmd_data_gpio = GPIO_DT_SPEC_INST_GET(inst, cmd_data_gpios),	\
 		.reset_gpio = GPIO_DT_SPEC_INST_GET_OR(inst, reset_gpios, {}),	\
+		.te = GPIO_DT_SPEC_INST_GET_OR(inst, te_gpios, {}),                                \
 		.vcom = DT_INST_PROP(inst, vcom),				\
 		.gctrl = DT_INST_PROP(inst, gctrl),				\
 		.vdv_vrh_enable = (DT_INST_NODE_HAS_PROP(inst, vrhs)            \
