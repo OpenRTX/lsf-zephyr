@@ -291,6 +291,9 @@ static void st7789v_lcd_init(const struct device *dev)
 	tmp = 0x35;
 	st7789v_transmit(dev, ST7789V_CMD_GCTRL, &tmp, 1);
 
+	tmp = 0x30;
+	st7789v_transmit(dev, 0x30, &tmp, 1);
+
 	tmp = 0x1e;
 	st7789v_transmit(dev, ST7789V_CMD_VCOMS, &tmp, 1);
 
@@ -310,7 +313,7 @@ static void st7789v_lcd_init(const struct device *dev)
 	// 		 sizeof(config->pwctrl1_param));
 
 	/* Memory Data Access Control */
-	tmp = 0x60;
+	tmp = 0xa0;
 	st7789v_transmit(dev, ST7789V_CMD_MADCTL, &tmp, 1);
 
 	/* VDV and VRH Command Enable */
