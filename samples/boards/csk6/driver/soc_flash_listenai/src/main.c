@@ -59,6 +59,34 @@ void main(void)
 		return;
 	}
 
+	uint32_t id = flash_read_id(flash_dev);
+	printk("Flash ID: 0x%x\n", id);
+
+#ifdef CONFIG_FLASH_CSK6_LOCK
+	flash_lock(flash_dev);
+
+	printk("==main write flash==\n");
+	if(flash_write(flash_dev, FLASH_TEST_OFFSET, 1, sizeof(int)) != 0) {
+		printf("Flash write failed!\n");
+		printf("1Flash flash_lock succeeded!\n");
+	} else {
+		printf("Flash write succeeded!\n");
+		printf("Flash flash_lock failed!\n");
+		flash_unlock(flash_dev);
+		return;
+	}
+	
+	flash_unlock(flash_dev);
+	if(flash_write(flash_dev, FLASH_TEST_OFFSET, 1, sizeof(int)) != 0) {
+		printf("Flash write failed!\n");
+		printf("Flash flash_unlock failed!\n");
+		return;
+	} else {
+		printf("Flash write succeeded!\n");
+		printf("Flash flash_unlock succeeded!\n");
+	}
+#endif
+
 	printf("\nTest 1: Flash erase page at 0x%x\n", FLASH_TEST_OFFSET);
 	if (flash_erase(flash_dev, FLASH_TEST_OFFSET, FLASH_PAGE_SIZE) != 0) {
 		printf("   Flash erase failed!\n");

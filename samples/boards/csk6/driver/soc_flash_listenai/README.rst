@@ -9,6 +9,10 @@ This sample demonstrates using the flash API on a SPI NOR serial flash
 memory device.  While trivial it is an example of direct access and
 allows confirmation that the flash is working.
 
+FLash Unlock burner
+********************
+sudo cskburn -s /dev/ttyUSB0 -C 6 --burner flash_unlock_burner.bin -b 748800
+
 
 Building and Running
 ********************
