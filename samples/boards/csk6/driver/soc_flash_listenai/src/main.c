@@ -58,11 +58,12 @@ void main(void)
 		printf("Litenai CSK6 flash driver was not found!\n");
 		return;
 	}
+	
+#ifdef CONFIG_FLASH_CSK6_LOCK
 
 	uint32_t id = flash_read_id(flash_dev);
 	printk("Flash ID: 0x%x\n", id);
 
-#ifdef CONFIG_FLASH_CSK6_LOCK
 	flash_lock(flash_dev);
 
 	printk("==main write flash==\n");
