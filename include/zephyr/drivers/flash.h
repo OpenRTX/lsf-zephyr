@@ -144,7 +144,7 @@ __subsystem struct flash_driver_api {
 	flash_api_lock lock;
 	flash_api_unlock unlock;
 	flash_api_read_id read_id;
-#endif /* CONFIG_FLASH_CSK6_XTX_LOCK */
+#endif /* CONFIG_FLASH_CSK6_LOCK */
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
 	flash_api_pages_layout page_layout;
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
