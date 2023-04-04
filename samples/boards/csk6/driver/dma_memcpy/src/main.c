@@ -14,7 +14,7 @@
 #include <sys/printk.h>
 #include <zephyr.h>
 
-#define BUFFER_SIZE		    (1024 * 10)
+#define BUFFER_SIZE		    (1024 * 100)
 #define CONFIG_TEST_DMA_CHANNEL_NUN (1)
 
 K_SEM_DEFINE(dma_sem, 0, 1);
@@ -103,19 +103,112 @@ void dump(void *datas, uint32_t len)
 	printk("\n");
 }
 
-int32_t sample_dma_scatter(const struct device *dma, void *src, void *dst, size_t size)
+void dump2(void *datas, uint32_t x, uint32_t y, uint8_t bits)
+{
+	uint32_t c = 0;
+	char *ch = datas;
+	uint32_t len = x * y;
+
+	while (len--) {
+		if (bits == 1) {
+			printk("%02X ", *ch++);
+		} else {
+			printk("%02X", *ch++);
+			printk("%02X ", *ch++);
+		}
+
+		if (++c % (x) == 0) {
+			printk("\n");
+		}
+	}
+
+	printk("\n");
+}
+
+#include <stdint.h>
+
+int32_t test_rotate_90(const struct device *dma, void *src, void *dst, uint32_t h, uint32_t w,
+		       uint8_t b)
 {
 	int r;
 
 	struct dma_block_config block_config = {
 		.source_address = (uint32_t)src,
 		.dest_address = (uint32_t)dst,
-		.block_size = size,
+		.block_size = w * b,
 		.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
 		.source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
 		.dest_scatter_en = 1,
-		.dest_scatter_count = 4,
-		.dest_scatter_interval = 2,
+		.dest_scatter_count = 1,
+		.dest_scatter_interval = h - 1,
+	};
+
+	struct dma_config dma_cfg = {
+		.channel_direction = MEMORY_TO_MEMORY,
+		.dma_callback = dma_callback,
+		.user_data = NULL,
+		.block_count = 1,
+		.head_block = &block_config,
+		.source_data_size = b,
+		.dest_data_size = b,
+		.channel_priority = 1,
+	};
+
+	if ((r = dma_config(dma, CONFIG_TEST_DMA_CHANNEL_NUN, &dma_cfg)) != 0) {
+		printk("DMA config error, error code:%d\n", r);
+		return -1;
+	}
+
+	memset(dst, 0, h * w * b);
+
+	uint32_t i = 0;
+	uint32_t time = k_uptime_get_32();
+
+	uint32_t x_offset = 0;
+	uint32_t y_offset = h * b;
+
+	while (i < h) {
+		x_offset = i * w * b;
+		y_offset -= b;
+		// printk("x_offset%d, y_offset%d\n", x_offset, y_offset);
+		r = dma_reload(dma, CONFIG_TEST_DMA_CHANNEL_NUN, src + x_offset,
+			       dst + y_offset, w * b);
+
+		if (r) {
+			printk("DMA reload failed, error code:%d\n", r);
+			return -1;
+		}
+
+		if ((r = dma_start(dma, CONFIG_TEST_DMA_CHANNEL_NUN)) != 0) {
+			printk("DMA start failed, error code:%d\n", r);
+			return -1;
+		}
+		k_sem_take(&dma_sem, K_FOREVER);
+		i++;
+	}
+	time = k_uptime_get_32() - time;
+	printk("cost time %d\n", time);
+	// dump2(src_buffer, w, h, b);
+	// dump2(dst_buffer, h, w, b);
+
+
+	return 0;
+}
+
+int32_t sample_dma_scatter(const struct device *dma, void *src, void *dst, size_t size)
+{
+	int r;
+
+	size = 64;
+	struct dma_block_config block_config = {
+		.source_address = (uint32_t)src,
+		.dest_address = (uint32_t)dst,
+		.block_size = 4,
+		.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+		.source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+		.dest_scatter_en = 1,
+		.dest_scatter_count = 1,
+		.dest_scatter_interval = 3,
 	};
 
 	struct dma_config dma_cfg = {
@@ -131,6 +224,8 @@ int32_t sample_dma_scatter(const struct device *dma, void *src, void *dst, size_
 
 	memset(dst, 0, size);
 
+	dump2(src, 4, 4, 1);
+
 	if ((r = dma_config(dma, CONFIG_TEST_DMA_CHANNEL_NUN, &dma_cfg)) != 0) {
 		printk("DMA config error, error code:%d\n", r);
 		return -1;
@@ -140,10 +235,11 @@ int32_t sample_dma_scatter(const struct device *dma, void *src, void *dst, size_
 		printk("DMA start failed, error code:%d\n", r);
 		return -1;
 	}
-
+	
 	k_sem_take(&dma_sem, K_FOREVER);
 	printk("------ %s ------\n", __FUNCTION__);
-	dump(dst, size);
+	// dump(dst, size);
+	dump2(dst, 4, 4, 1);
 
 	return 0;
 }
@@ -374,18 +470,23 @@ void main(void)
 		src_buffer[i] = i % UINT8_MAX;
 	}
 
+
+	// sample_dma_scatter(dma, src_buffer, dst_buffer, 16);
+
+
+	test_rotate_90(dma, src_buffer, dst_buffer, 2, 90* 454, 2);
+
 	while (1) {
-		sample_dma_scatter(dma, src_buffer, dst_buffer, 16);
-		sample_dma_gather(dma, src_buffer, dst_buffer, 16);
+		// sample_dma_gather(dma, src_buffer, dst_buffer, 16);
 
-		sample_dma_dest_decrement(dma, src_buffer, dst_buffer, 16);
-		sample_dma_source_decrement(dma, src_buffer, dst_buffer, 16);
+		// sample_dma_dest_decrement(dma, src_buffer, dst_buffer, 16);
+		// sample_dma_source_decrement(dma, src_buffer, dst_buffer, 16);
 
-		sample_dma_dest_data_width(dma, src_buffer, dst_buffer, 16);
-		sample_dma_source_data_width(dma, src_buffer, dst_buffer, 16);
+		// sample_dma_dest_data_width(dma, src_buffer, dst_buffer, 16);
+		// sample_dma_source_data_width(dma, src_buffer, dst_buffer, 16);
 
-		test_dma_copy(dma, src_buffer, dst_buffer, BUFFER_SIZE);
-		test_std_memcpy(src_buffer, dst_buffer, BUFFER_SIZE);
+		// test_dma_copy(dma, src_buffer, dst_buffer, BUFFER_SIZE);
+		// test_std_memcpy(src_buffer, dst_buffer, BUFFER_SIZE);
 		k_msleep(1000);
 	}
 }
