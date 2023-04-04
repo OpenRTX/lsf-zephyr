@@ -107,19 +107,23 @@ test_rotate_90_1(const struct device *dma, void *src, void *dst, uint32_t h, uin
 {
 	uint8_t real_channel = 3;
 	int r;
-
-	real_channel = dma_channel_select(NULL, csk_dma_event_callback, (uint32_t)NULL,
-					  DMA_CACHE_SYNC_NOP);
 	uint32_t i = 0;
 	uint32_t x_offset = 0;
 	uint32_t y_offset = h * b;
 	uint32_t dst_scat = (h - 1) | 1 << 20;
+
 	extern void dmd_fast_relaod(uint8_t ch, uint32_t src, uint32_t dst, uint32_t size);
 
 	x_offset = i * w * b;
 	y_offset -= b;
 	dma_done = 0;
-	dma_memcpy_SG(real_channel, src + x_offset, dst + y_offset, w * b, 0, dst_scat, 1, 1);
+	static uint8_t first = 1;
+	if (first) {
+		dma_memcpy_SG(real_channel, src + x_offset, dst + y_offset, w * b, 0, dst_scat, 1, 1);
+		// first = 0;
+	} else {
+		dmd_fast_relaod(real_channel, src + x_offset, dst + y_offset, w * b);
+	}
 	while (!dma_done)
 		;
 	i++;
@@ -363,31 +367,29 @@ static int spd2010_write(const struct device *dev, const uint16_t x, const uint1
 {
 	const struct spd2010_config *config = dev->config;
 	struct spd2010_data *data = dev->data;
-
 	const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
 
 	fifo_item_t *item;
 	item = k_fifo_get(&empty_fifo, K_MSEC(1000));
+
+	/* TODO:在初始化后这里存在NULL,需要排查 */
 	if (item == NULL) {
 		printk("item == NULL\n");
 		return -1;
 	}
 
+	/* 图像数据旋转 */
 	test_rotate_90_1(dma, buf, item->buf, desc2->height, desc2->width, 2);
-	struct display_buffer_descriptor desc = {
 
-	};
-
+	/* 坐标转换 */
 	memcpy(&item->desc, desc2, sizeof(struct display_buffer_descriptor));
-
 	item->desc.height = desc2->width;
 	item->desc.width = desc2->height;
-	item->desc.pitch = desc.width;
-
-	uint16_t x_new = x;
-	uint16_t y_new = y;
+	item->desc.pitch = item->desc.width;
 	item->y = x;
 	item->x = config->width - (y + desc2->height);
+
+	/* 发送给刷新线程 */
 	k_fifo_put(&flush_fifo, item);
 
 	return 0;
