@@ -202,10 +202,6 @@ int32_t test_rotate_90(const struct device *dma, void *src, void *dst, uint32_t 
 		k_sem_take(&dma_sem, K_FOREVER);
 		i++;
 	}
-	// time = k_uptime_get_32() - time;
-	// LOG_INF("cost time %d\n", time);
-	// dump2(src_buffer, w, h, b);
-	// dump2(dst_buffer, h, w, b);
 
 	return 0;
 }
@@ -309,10 +305,12 @@ static void spd2010_set_mem_area(const struct device *dev, const uint16_t x, con
 	spd2010_transmit(dev, SPD2010_SETPAGE, (uint8_t *)&spi_data[0], 4);
 }
 
+#define BUFFER_COUNT 2
+#define BUFFER_SIZE                                                                                \
+	(CONFIG_LV_Z_HOR_RES_MAX * CONFIG_LV_Z_VER_RES_MAX * 2 * CONFIG_LV_Z_VDB_SIZE / 100)
+
 static __attribute__((section(".psram_section")))
-uint8_t item_buf1[180 * 456 * 2 * CONFIG_LV_Z_VDB_SIZE / 100] = {0};
-static __attribute__((section(".psram_section")))
-uint8_t item_buf2[180 * 456 * 2 * CONFIG_LV_Z_VDB_SIZE / 100] = {0};
+uint8_t item_buf[BUFFER_COUNT * BUFFER_SIZE] = {0};
 
 typedef struct fifo_item {
 	void *reserved;
@@ -325,14 +323,14 @@ typedef struct fifo_item {
 K_FIFO_DEFINE(flush_fifo);
 K_FIFO_DEFINE(empty_fifo);
 
-static fifo_item_t flush_items[2] = {0};
+static fifo_item_t flush_items[BUFFER_COUNT] = {0};
 void flush_task(void *p1, void *p2, void *p3)
 {
 	fifo_item_t *item;
 	const struct device *dev = DEVICE_DT_INST_GET(0);
 	while (1) {
 		item = k_fifo_get(&flush_fifo, K_FOREVER);
-
+		uint32_t time = k_uptime_get_32();
 		const uint8_t *write_data_start = (uint8_t *)item->buf;
 
 		uint16_t write_cnt;
@@ -356,6 +354,7 @@ void flush_task(void *p1, void *p2, void *p3)
 					 item->desc.width * SPD2010_PIXEL_SIZE * write_h);
 			write_data_start += (item->desc.pitch * SPD2010_PIXEL_SIZE);
 		}
+		LOG_INF("flush datas cost %dms\n", k_uptime_get_32() - time);
 		k_fifo_put(&empty_fifo, item);
 	}
 }
@@ -378,8 +377,10 @@ static int spd2010_write(const struct device *dev, const uint16_t x, const uint1
 		return -1;
 	}
 
-	/* 图像数据旋转 */
+	uint32_t time = k_uptime_get_32();
+	/* 图像数据旋转，这里最后一个参数表示一个像素点用2个字节表示，不能使用RGB88，只能是RGB565或BGR565 */
 	test_rotate_90_1(dma, buf, item->buf, desc2->height, desc2->width, 2);
+	LOG_INF("rotate cost %dms\n", k_uptime_get_32() - time);
 
 	/* 坐标转换 */
 	memcpy(&item->desc, desc2, sizeof(struct display_buffer_descriptor));
@@ -993,11 +994,11 @@ static int spd2010_init(const struct device *dev)
 
 	dma_channel_reserve(3, csk_dma_event_callback, NULL, DMA_CACHE_SYNC_NOP);
 
-	flush_items[0].buf = item_buf1;
-	flush_items[1].buf = item_buf2;
-
-	k_fifo_put(&empty_fifo, &flush_items[0]);
-	k_fifo_put(&empty_fifo, &flush_items[1]);
+	uint8_t i;
+	for (i = 0; i < BUFFER_COUNT; i++) {
+		flush_items[i].buf = &item_buf[0] + i * BUFFER_SIZE;
+		k_fifo_put(&empty_fifo, &flush_items[i]);
+	}
 
 	return 0;
 }
