@@ -13,6 +13,8 @@
 #include <zephyr/pm/device.h>
 #include <zephyr/sys/byteorder.h>
 
+#include <drivers/dma.h>
+
 LOG_MODULE_REGISTER(display_spd2010, CONFIG_DISPLAY_LOG_LEVEL);
 
 #define SPD2010_SOFTRESET 0x01
@@ -59,7 +61,7 @@ LOG_MODULE_REGISTER(display_spd2010, CONFIG_DISPLAY_LOG_LEVEL);
 /** Command/data GPIO level for data. */
 #define SPD2010_DATA 0U
 
-#define SPD2010_PIXEL_SIZE 3
+#define SPD2010_PIXEL_SIZE 2
 struct spd2010_config {
 	const struct spi_dt_spec bus;
 	const struct gpio_dt_spec cmd_data;
@@ -79,7 +81,130 @@ struct spd2010_data {
 	uint32_t pixel_format;
 	uint32_t orientation;
 	volatile uint32_t te_time;
+	struct device *dma;
 };
+
+#define CONFIG_TEST_DMA_CHANNEL_NUN (4)
+
+K_SEM_DEFINE(dma_sem, 0, 1);
+
+void dma_callback(const struct device *dev, void *user_data, uint32_t channel, int status)
+{
+	if (status == 0) {
+		k_sem_give(&dma_sem);
+	}
+}
+
+__attribute__((section(".dtcm"))) volatile uint8_t dma_done = 0;
+__attribute__((section(".itcm"))) static void
+csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
+{
+	dma_done = 1;
+}
+#include "dma.h"
+__attribute__((section(".itcm"))) int32_t
+test_rotate_90_1(const struct device *dma, void *src, void *dst, uint32_t h, uint32_t w, uint8_t b)
+{
+	uint8_t real_channel = 3;
+	int r;
+
+	real_channel = dma_channel_select(NULL, csk_dma_event_callback, (uint32_t)NULL,
+					  DMA_CACHE_SYNC_NOP);
+	uint32_t i = 0;
+	uint32_t x_offset = 0;
+	uint32_t y_offset = h * b;
+	uint32_t dst_scat = (h - 1) | 1 << 20;
+	extern void dmd_fast_relaod(uint8_t ch, uint32_t src, uint32_t dst, uint32_t size);
+
+	x_offset = i * w * b;
+	y_offset -= b;
+	dma_done = 0;
+	dma_memcpy_SG(real_channel, src + x_offset, dst + y_offset, w * b, 0, dst_scat, 1, 1);
+	while (!dma_done)
+		;
+	i++;
+	x_offset = i * w * b;
+	y_offset -= b;
+	while (i < h) {
+		dma_done = 0;
+		dmd_fast_relaod(real_channel, src + x_offset, dst + y_offset, w * b);
+		x_offset = i * w * b;
+		y_offset -= b;
+		i++;
+		while (!dma_done)
+			;
+	}
+}
+
+int32_t test_rotate_90(const struct device *dma, void *src, void *dst, uint32_t h, uint32_t w,
+		       uint8_t b)
+{
+	int r;
+
+	struct dma_block_config block_config_1 = {
+		.source_address = (uint32_t)src,
+		.dest_address = (uint32_t)dst,
+		.block_size = w * b,
+		.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+		.source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+		.dest_scatter_en = 1,
+		.dest_scatter_count = 1,
+		.dest_scatter_interval = h - 1,
+	};
+
+	struct dma_config dma_cfg_1 = {
+		.channel_direction = MEMORY_TO_MEMORY,
+		.dma_callback = dma_callback,
+		.user_data = NULL,
+		.block_count = 1,
+		.head_block = &block_config_1,
+		.source_data_size = b,
+		.dest_data_size = b,
+		.channel_priority = 1,
+	};
+
+	if (!device_is_ready(dma)) {
+		LOG_ERR("data->dma not ready");
+		return -ENODEV;
+	}
+	if ((r = dma_config(dma, CONFIG_TEST_DMA_CHANNEL_NUN, &dma_cfg_1)) != 0) {
+		printk("DMA config error, error code:%d\n", r);
+		return -1;
+	}
+
+	// memset(dst, 0, h * w * b);
+
+	uint32_t i = 0;
+	// uint32_t time = k_uptime_get_32();
+
+	uint32_t x_offset = 0;
+	uint32_t y_offset = h * b;
+
+	while (i < h) {
+		x_offset = i * w * b;
+		y_offset -= b;
+		r = dma_reload(dma, CONFIG_TEST_DMA_CHANNEL_NUN, src + x_offset, dst + y_offset,
+			       w * b);
+
+		if (r) {
+			printk("DMA reload failed, error code:%d\n", r);
+			return -1;
+		}
+
+		if ((r = dma_start(dma, CONFIG_TEST_DMA_CHANNEL_NUN)) != 0) {
+			printk("DMA start failed, error code:%d\n", r);
+			return -1;
+		}
+		k_sem_take(&dma_sem, K_FOREVER);
+		i++;
+	}
+	// time = k_uptime_get_32() - time;
+	// LOG_INF("cost time %d\n", time);
+	// dump2(src_buffer, w, h, b);
+	// dump2(dst_buffer, h, w, b);
+
+	return 0;
+}
 
 static int spd2010_transmit(const struct device *dev, uint8_t cmd, const void *tx_data,
 			    size_t tx_len)
@@ -180,58 +305,90 @@ static void spd2010_set_mem_area(const struct device *dev, const uint16_t x, con
 	spd2010_transmit(dev, SPD2010_SETPAGE, (uint8_t *)&spi_data[0], 4);
 }
 
+static __attribute__((section(".psram_section")))
+uint8_t item_buf1[180 * 456 * 2 * CONFIG_LV_Z_VDB_SIZE / 100] = {0};
+static __attribute__((section(".psram_section")))
+uint8_t item_buf2[180 * 456 * 2 * CONFIG_LV_Z_VDB_SIZE / 100] = {0};
+
+typedef struct fifo_item {
+	void *reserved;
+	uint16_t x;
+	uint16_t y;
+	struct display_buffer_descriptor desc;
+	void *buf;
+} fifo_item_t;
+
+K_FIFO_DEFINE(flush_fifo);
+K_FIFO_DEFINE(empty_fifo);
+
+static fifo_item_t flush_items[2] = {0};
+void flush_task(void *p1, void *p2, void *p3)
+{
+	fifo_item_t *item;
+	const struct device *dev = DEVICE_DT_INST_GET(0);
+	while (1) {
+		item = k_fifo_get(&flush_fifo, K_FOREVER);
+
+		const uint8_t *write_data_start = (uint8_t *)item->buf;
+
+		uint16_t write_cnt;
+		uint16_t nbr_of_writes;
+		uint16_t write_h;
+
+		spd2010_set_mem_area(dev, item->x, item->y, item->desc.width, item->desc.height);
+		if (item->desc.pitch > item->desc.width) {
+			write_h = 1U;
+			nbr_of_writes = item->desc.height;
+		} else {
+			write_h = item->desc.height;
+			nbr_of_writes = 1U;
+		}
+
+		spd2010_transmit(dev, SPD2010_WRMEMST, (void *)write_data_start,
+				 item->desc.width * SPD2010_PIXEL_SIZE * write_h);
+		write_data_start += (item->desc.pitch * SPD2010_PIXEL_SIZE);
+		for (write_cnt = 1U; write_cnt < nbr_of_writes; ++write_cnt) {
+			spd2010_transmit(dev, SPD2010_WRMEMCONT, (void *)write_data_start,
+					 item->desc.width * SPD2010_PIXEL_SIZE * write_h);
+			write_data_start += (item->desc.pitch * SPD2010_PIXEL_SIZE);
+		}
+		k_fifo_put(&empty_fifo, item);
+	}
+}
+
+K_THREAD_DEFINE(flush_task_id, 4096, flush_task, NULL, NULL, NULL, -16, 0, 0);
+
 static int spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
-			 const struct display_buffer_descriptor *desc, const void *buf)
+			 const struct display_buffer_descriptor *desc2, const void *buf)
 {
 	const struct spd2010_config *config = dev->config;
 	struct spd2010_data *data = dev->data;
-	const uint8_t *write_data_start = (uint8_t *)buf;
-	uint16_t write_cnt;
-	uint16_t nbr_of_writes;
-	uint16_t write_h;
 
-	__ASSERT(desc->width <= desc->pitch, "Pitch is smaller then width");
-	__ASSERT((desc->pitch * SPD2010_PIXEL_SIZE * desc->height) <= desc->buf_size,
-		 "Input buffer to small");
+	const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
 
-	__ASSERT((x % 4 != 0) || (desc->width % 4 != 0), "x and width must be a multiple of 4");
-
-	if (config->te.port != NULL) {
-		k_sem_reset(&data->te_sem);
-		k_sem_take(&data->te_sem, K_FOREVER);
-		uint32_t te_time = data->te_time;
-		int32_t dt = k_uptime_get_32() - te_time;
-
-		/* 1/10 *16ms + 5 */
-		const int32_t safe_time = 7;
-		int32_t temp = y * 16 / config->height;
-
-#define ABS(x) ((x) < 0 ? -(x) : (x))
-
-		if (ABS((temp - dt)) < safe_time) {
-			k_sem_take(&data->te_sem, K_FOREVER);
-		}
+	fifo_item_t *item;
+	item = k_fifo_get(&empty_fifo, K_MSEC(1000));
+	if (item == NULL) {
+		printk("item == NULL\n");
+		return -1;
 	}
 
-	spd2010_set_mem_area(dev, x, y, desc->width, desc->height);
+	test_rotate_90_1(dma, buf, item->buf, desc2->height, desc2->width, 2);
+	struct display_buffer_descriptor desc = {
 
-	if (desc->pitch > desc->width) {
-		write_h = 1U;
-		nbr_of_writes = desc->height;
-	} else {
-		write_h = desc->height;
-		nbr_of_writes = 1U;
-	}
+	};
 
-	spd2010_transmit(dev, SPD2010_WRMEMST, (void *)write_data_start,
-			 desc->width * SPD2010_PIXEL_SIZE * write_h);
+	memcpy(&item->desc, desc2, sizeof(struct display_buffer_descriptor));
 
-	write_data_start += (desc->pitch * SPD2010_PIXEL_SIZE);
-	for (write_cnt = 1U; write_cnt < nbr_of_writes; ++write_cnt) {
-		spd2010_transmit(dev, SPD2010_WRMEMCONT, (void *)write_data_start,
-				 desc->width * SPD2010_PIXEL_SIZE * write_h);
-		write_data_start += (desc->pitch * SPD2010_PIXEL_SIZE);
-	}
+	item->desc.height = desc2->width;
+	item->desc.width = desc2->height;
+	item->desc.pitch = desc.width;
+
+	uint16_t x_new = x;
+	uint16_t y_new = y;
+	item->y = x;
+	item->x = config->width - (y + desc2->height);
+	k_fifo_put(&flush_fifo, item);
 
 	return 0;
 }
@@ -283,7 +440,8 @@ static void spd2010_get_capabilities(const struct device *dev,
 static int spd2010_set_pixel_format(const struct device *dev,
 				    const enum display_pixel_format pixel_format)
 {
-	uint8_t pixel_value;;
+	uint8_t pixel_value;
+	;
 	uint8_t madctr_value;
 	struct spd2010_data *data = dev->data;
 	int r;
@@ -713,7 +871,7 @@ static int spd2010_lcd_init(const struct device *dev)
 	k_sleep(K_MSEC(100));
 	spd2010_blanking_off(dev);
 	k_sleep(K_MSEC(100));
-	
+
 	/*TODO:  */
 	memset(init_datas, 0x00, sizeof(init_datas));
 	struct display_buffer_descriptor desc = {
@@ -726,6 +884,28 @@ static int spd2010_lcd_init(const struct device *dev)
 
 	return 0;
 }
+
+struct dma_block_config block_config = {
+	.source_address = (uint32_t)NULL,
+	.dest_address = (uint32_t)NULL,
+	.block_size = 2 * 2,
+	.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+	.source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+	.dest_scatter_en = 1,
+	.dest_scatter_count = 1,
+	.dest_scatter_interval = 2 - 1,
+};
+
+struct dma_config dma_cfg = {
+	.channel_direction = MEMORY_TO_MEMORY,
+	.dma_callback = dma_callback,
+	.user_data = NULL,
+	.block_count = 1,
+	.head_block = &block_config,
+	.source_data_size = 2,
+	.dest_data_size = 2,
+	.channel_priority = 1,
+};
 
 static int spd2010_init(const struct device *dev)
 {
@@ -795,7 +975,27 @@ static int spd2010_init(const struct device *dev)
 	if (ret) {
 		return ret;
 	}
+	const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
 
+	data->dma = dma;
+
+	if (!device_is_ready(data->dma)) {
+		LOG_ERR("data->dma not ready");
+		return -ENODEV;
+	}
+
+	if ((ret = dma_config(dma, CONFIG_TEST_DMA_CHANNEL_NUN, &dma_cfg)) != 0) {
+		printk("DMA config error, error code:%d\n", ret);
+		return -1;
+	}
+
+	dma_channel_reserve(3, csk_dma_event_callback, NULL, DMA_CACHE_SYNC_NOP);
+
+	flush_items[0].buf = item_buf1;
+	flush_items[1].buf = item_buf2;
+
+	k_fifo_put(&empty_fifo, &flush_items[0]);
+	k_fifo_put(&empty_fifo, &flush_items[1]);
 
 	return 0;
 }

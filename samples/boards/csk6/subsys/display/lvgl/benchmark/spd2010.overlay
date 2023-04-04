@@ -38,7 +38,7 @@
 		reg = <0>;
 		cmd-data-gpios = <&gpioa 15 1>;
 		reset-gpios = <&gpioa 9 1>;
-		te-gpios = <&gpiob 0x5 1>;
+		// te-gpios = <&gpiob 0x5 1>;
 		x-offset = <0>;
 		y-offset = <0>;
 		spi-max-frequency = <50000000>;
