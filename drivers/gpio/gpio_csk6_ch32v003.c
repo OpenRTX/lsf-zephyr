@@ -100,14 +100,15 @@ static inline int gpio_ch32v003_register_write(const struct device *dev, uint8_t
 		return r;
 	}
 
-	r = gpio_ch32v003_register_read(dev, CH32V003_STA_REG, &status);
-	if (r) {
-		return r;
-	}
+	/* 状态寄存器还未定义好 */
+	// r = gpio_ch32v003_register_read(dev, CH32V003_STA_REG, &status);
+	// if (r) {
+	// 	return r;
+	// }
 
-	if (status != CH32V003_STATUS_OK) {
-		LOG_ERR("register %02X set error, status: %d", reg, status);
-	}
+	// if (status != CH32V003_STATUS_OK) {
+	// 	LOG_ERR("register %02X set error, status: %d", reg, status);
+	// }
 
 	return 0;
 }
@@ -235,6 +236,67 @@ int gpio_ch32003_init(const struct device *dev)
 	}
 
 	LOG_INF("chip id: %u\n", id);
+
+
+	/* TODO: lock here */
+
+	// /**
+	//  * 测试固件中ADC 通道对应的引脚
+	//  * CH0 ->PA2
+	//  * CH1 ->PA1
+	//  * CH2 ->PC4
+	//  * CH3 ->PD2
+	//  * CH4 ->PD3
+	//  * CH5 -> NONE
+	//  * CH6 -> NONE
+	//  * CH7 ->PD4
+	//  *
+	//  * PC3为从机i2c地址选择引脚 IIC地址见协议 1：0x6C,0:0x15
+	//  *
+	//  */
+	// while (1) {
+
+	// 	// r = i2c_reg_write_byte_dt(&config->bus, 0x50, 0x00);
+	// 	// if (r) {
+	// 	// 	LOG_ERR("write 0x40 failed, r:%d\n", r);
+	// 	// 	return r;
+	// 	// }
+
+	// 	// r = i2c_reg_write_byte_dt(&config->bus, 0x51, 0x0A);
+	// 	// if (r) {
+	// 	// 	LOG_ERR("write 0x41 failed, r:%d\n", r);
+	// 	// 	return r;
+	// 	// }
+
+	// 	r = i2c_reg_write_byte_dt(&config->bus, 0x52, 0xF0);
+	// 	if (r) {
+	// 		LOG_ERR("write 0x42 failed, r:%d\n", r);
+	// 		return r;
+	// 	}
+
+	// 	k_msleep(500);
+	// 	uint8_t status = 0x00;
+	// 	r = i2c_reg_read_byte_dt(&config->bus, 0x55, &status);
+	// 	if (r) {
+	// 		LOG_ERR("write 0x45 failed, r:%d\n", r);
+	// 		return;
+	// 	}
+	// 	LOG_INF("status:%d", status);
+	// 	// if (status & 0x01) {
+	// 	uint8_t data[2] = {0};
+	// 	r = i2c_reg_read_byte_dt(&config->bus, 0x93, &data[0]);
+	// 	if (r) {
+	// 		LOG_ERR("write 0x43 failed, r:%d\n", r);
+	// 	}
+	// 	r = i2c_reg_read_byte_dt(&config->bus, 0x94, &data[1]);
+	// 	if (r) {
+	// 		LOG_ERR("write 0x44 failed, r:%d\n", r);
+	// 	}
+	// 	LOG_INF("ADC:%d,%d,%d", data[0], data[1], ((uint16_t)data[0]) << 8 | data[1]);
+	// 	// break;
+	// 	// }
+	// 	k_msleep(500);
+	// }
 
 	return 0;
 }
