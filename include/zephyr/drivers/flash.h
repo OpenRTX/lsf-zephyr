@@ -128,7 +128,7 @@ typedef void (*flash_api_pages_layout)(const struct device *dev,
  */
 typedef int (*flash_api_lock)(const struct device *dev);
 typedef int (*flash_api_unlock)(const struct device *dev);
-typedef uint32_t (*flash_api_read_id)(const struct device *dev);
+typedef int32_t (*flash_api_read_id)(const struct device *dev);
 #endif /* CONFIG_FLASH_CSK6_LOCK */
 
 typedef int (*flash_api_sfdp_read)(const struct device *dev, off_t offset,
@@ -265,9 +265,9 @@ struct flash_pages_info {
 };
 
 #if defined(CONFIG_FLASH_CSK6_LOCK)
-__syscall uint32_t flash_read_id(const struct device *dev);
+__syscall int32_t flash_read_id(const struct device *dev);
 
-static inline uint32_t z_impl_flash_read_id(const struct device *dev)
+static inline int32_t z_impl_flash_read_id(const struct device *dev)
 {
 	const struct flash_driver_api *api =
 		(const struct flash_driver_api *)dev->api;

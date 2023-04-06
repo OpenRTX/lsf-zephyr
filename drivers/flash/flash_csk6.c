@@ -272,9 +272,9 @@ int flash_csk6_unlock(const struct device *dev)
 	return iret;
 }
 
-uint32_t flash_csk6_read_id(const struct device *dev)
+int32_t flash_csk6_read_id(const struct device *dev)
 {
-	uint32_t id = 0;
+	int32_t id = 0;
 	FLASH_OPT_ENTER();
 	sflash_write_protection_set((void *)dev->config, false);
 
