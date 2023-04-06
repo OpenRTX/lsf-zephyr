@@ -83,6 +83,11 @@ properties:
       required: true
       description: Interface Pixel Format
 
+    teon:
+      type: int
+      required: false
+      description: Tearing Effect Line ON
+
     gamma:
       type: int
       required: true
