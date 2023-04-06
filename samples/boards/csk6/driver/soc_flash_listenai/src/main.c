@@ -67,7 +67,8 @@ void main(void)
 	flash_lock(flash_dev);
 
 	printk("==main write flash==\n");
-	if(flash_write(flash_dev, FLASH_TEST_OFFSET, 1, sizeof(int)) != 0) {
+	int test_data = 0x12;
+	if(flash_write(flash_dev, FLASH_TEST_OFFSET, &test_data, sizeof(int)) != 0) {
 		printf("Flash write failed!\n");
 		printf("1Flash flash_lock succeeded!\n");
 	} else {
@@ -78,7 +79,7 @@ void main(void)
 	}
 	
 	flash_unlock(flash_dev);
-	if(flash_write(flash_dev, FLASH_TEST_OFFSET, 1, sizeof(int)) != 0) {
+	if(flash_write(flash_dev, FLASH_TEST_OFFSET, &test_data, sizeof(int)) != 0) {
 		printf("Flash write failed!\n");
 		printf("Flash flash_unlock failed!\n");
 		return;
