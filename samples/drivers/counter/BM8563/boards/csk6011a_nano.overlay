@@ -29,11 +29,11 @@
 	pinctrl-0 = <&pinctrl_i2c1_scl_default &pinctrl_i2c1_sda_default>;
 	pinctrl-names = "default";
 
-	i2cslavevdev0: i2cslavevdev@32 {
-		compatible = "listenai,i2c-slavevdev";
+	bm8563_0: bm8563@32 {
+		compatible = "bm8563";
 		reg = <0x51>;
 		label = "SLAVE_VDEV_0";
-		size = <256>;
+		int-gpios = <&gpiob 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 	};
 };
 

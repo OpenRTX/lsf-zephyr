@@ -30,11 +30,18 @@ https://github.com/tuupola/bm8563
 SPDX-License-Identifier: MIT
 
 */
+#define DT_DRV_COMPAT bm8563
 
 #include <stdint.h>
 #include <time.h>
+#include <zephyr/device.h>
+#include <zephyr.h>
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/drivers/rtc/bm8563.h>
 
-#include "bm8563.h"
+#include <logging/log.h>
+LOG_MODULE_REGISTER(bm8563, LOG_LEVEL_INF);
 
 static inline uint8_t decimal2bcd (uint8_t decimal)
 {
@@ -46,17 +53,28 @@ static inline uint8_t bcd2decimal(uint8_t bcd)
    return (((bcd >> 4) * 10) + (bcd & 0x0f));
 }
 
+struct bm8563_config {
+	/* Common structure first because generic API expects this here. */
+	const struct device *i2c_dev;
+};
+
+struct bm8563_data
+{
+    /* data */
+    bm8563_t bm;
+    void *id;
+};
+
+
 bm8563_err_t bm8563_init(const bm8563_t *bm)
 {
     uint8_t clear = 0x00;
     int32_t status;
-    printk("bm8563_init\n");
     status = bm->write(bm->handle, BM8563_ADDRESS, BM8563_CONTROL_STATUS1, &clear, 1);
     if (BM8563_OK != status) {
         printk("bm8563_init: bm->write BM8563_CONTROL_STATUS1 failed\n");
         return status;
     }
-    printk("bm8563_init: bm->write BM8563_CONTROL_STATUS1 OK\n");
     return bm->write(bm->handle, BM8563_ADDRESS, BM8563_CONTROL_STATUS2, &clear, 1);
 }
 
@@ -109,25 +127,25 @@ bm8563_err_t bm8563_read(const bm8563_t *bm, struct tm *time)
     time->tm_year = bcd2decimal(bcd) + century;
 
     /* Calculate tm_yday. */
-    timeutil_timegm(time);
+    // mktime(time);
 
     /* low voltage warning */
     if (data[0] & 0b10000000) {
         return BM8563_ERR_LOW_VOLTAGE;
     }
-
+    LOG_DBG("bm8563_read: %d-%d-%d %d:%d:%d", time->tm_year, time->tm_mon, time->tm_mday, time->tm_hour, time->tm_min, time->tm_sec);
     return BM8563_OK;
 }
 
 bm8563_err_t bm8563_write(const bm8563_t *bm, const struct tm *time)
 {
+    int ret = 0;
     uint8_t bcd;
     uint8_t data[BM8563_TIME_SIZE] = {0};
-
     /* 0..59 */
     bcd = decimal2bcd(time->tm_sec);
     data[0] = bcd & 0b01111111;
-
+    
     /* 0..59 */
     bcd = decimal2bcd(time->tm_min);
     data[1] = bcd & 0b01111111;
@@ -157,7 +175,11 @@ bm8563_err_t bm8563_write(const bm8563_t *bm, const struct tm *time)
     bcd = decimal2bcd(time->tm_year % 100);
     data[6] = bcd & 0b11111111;
 
-    return bm->write(bm->handle, BM8563_ADDRESS, BM8563_SECONDS, data, BM8563_TIME_SIZE);
+    for (int i = 0; i < BM8563_TIME_SIZE; i++) {
+        ret = i2c_reg_write_byte(bm->handle, BM8563_ADDRESS, BM8563_SECONDS + i, data[i]);
+    }
+
+    return ret;
 }
 
 bm8563_err_t bm8563_ioctl(const bm8563_t *bm, int16_t command, void *buffer)
@@ -281,3 +303,130 @@ bm8563_err_t bm8563_close(const bm8563_t *bm)
 {
     return BM8563_OK;
 }
+
+static int bm8563_counter_start(const struct device *dev)
+{
+	return -EALREADY;
+}
+
+static int bm8563_counter_stop(const struct device *dev)
+{
+	return -ENOTSUP;
+}
+
+static int bm8563_counter_get_time(const struct device *dev,
+				    void *rtc)
+{
+	struct bm8563_data *data = dev->data;    
+	const struct bm8563_config *cfg = dev->config;
+	struct tm *_rtc = (struct tm *)rtc;
+
+    int rc = bm8563_read(&data->bm, _rtc);
+    if (rc < 0) {
+        LOG_ERR("bm8563_read failed: %d", rc);
+        return rc;
+    }
+
+	if (rc >= 0) {
+        LOG_DBG("get time: %d-%d-%d %d:%d:%d", _rtc->tm_year, _rtc->tm_mon, _rtc->tm_mday, _rtc->tm_hour, _rtc->tm_min, _rtc->tm_sec);
+        _rtc->tm_year += 1900;
+        _rtc->tm_mon += 1;
+	}
+
+	return rc;
+}
+
+// set time
+static int bm8563_counter_set_time(const struct device *dev,
+                    void* rtc)
+{
+    struct bm8563_data *data = dev->data;
+    const struct bm8563_config *cfg = dev->config;
+    struct tm *_rtc = (struct tm *)rtc;
+
+    _rtc->tm_year -= 1900;
+    _rtc->tm_mon -= 1;
+
+    int rc = bm8563_write(&data->bm, _rtc);
+    if (rc < 0) {
+        LOG_ERR("bm8563_write failed: %d", rc);
+        return rc;
+    }
+    LOG_DBG("set time: %d-%d-%d %d:%d:%d", _rtc->tm_year, _rtc->tm_mon, _rtc->tm_mday, _rtc->tm_hour, _rtc->tm_min, _rtc->tm_sec);
+
+    return rc;
+}
+
+
+int i2c_dev_init(const struct device **pdev, const char *dev_name, uint32_t i2c_config)
+{
+	*pdev = device_get_binding(dev_name);
+	if (*pdev == NULL) {
+		printk("%s: Device is not found.\n", dev_name);
+		return -ENODEV;
+	}
+
+	if (!device_is_ready(*pdev)) {
+		printk("%s: Device is not ready.\n", dev_name);
+		return -ENODEV;
+	}
+
+	if (i2c_configure(*pdev, i2c_config)) {
+		printk("%s: config failed\n", dev_name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+#define I2C_DEV_NAME "I2C_1"
+static int bm8563_device_init(const struct device *dev)
+{
+    struct bm8563_data *data = dev->data;
+	const struct bm8563_config *cfg = dev->config;
+
+    const struct device *i2c_dev = cfg->i2c_dev;
+
+	int ret = i2c_dev_init(&i2c_dev, I2C_DEV_NAME, I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER);
+	if (ret < 0) {
+		printk("I2C: Failed to init device.\n");
+		return;
+	}
+    
+	data->bm.read = &i2c_burst_read;
+	data->bm.write = &i2c_burst_write;
+	data->bm.handle = i2c_dev;
+    bm8563_init(&data->bm);
+    i2c_reg_write_byte(i2c_dev, BM8563_ADDRESS, BM8563_CONTROL_STATUS1, 0x00);      // 启动RTC
+    return 0;
+}
+
+static const struct counter_driver_api bm8563_api = {
+	.start = bm8563_counter_start,
+	.stop = bm8563_counter_stop,
+	// .get_value = bm8563_counter_get_value,
+    .get_time = bm8563_counter_get_time,
+    .set_time = bm8563_counter_set_time,
+    // .set_value = bm8563_counter_set_value,
+    // .get_freq = bm8563_counter_get_frequency,
+	// .set_alarm = bm8563_counter_set_alarm,
+	// .cancel_alarm = bm8563_counter_cancel_alarm,
+	// .set_top_value = bm8563_counter_set_top_value,
+	// .get_pending_int = bm8563_counter_get_pending_int,
+	// .get_top_value = bm8563_counter_get_top_value,
+};
+
+
+#define BM8563_INIT(n)						 \
+										 \
+    static struct bm8563_data bm8563_data_##n;  \
+										 \
+    static const struct bm8563_config bm8563_config_##n = { \
+        .i2c_dev = DT_LABEL(DT_NODELABEL(bm8563_##n))    \
+    };                                                      \
+    DEVICE_DT_INST_DEFINE(n, bm8563_device_init, NULL, &bm8563_data_##n,   \
+                &bm8563_config_##n,                                           \                  
+                APPLICATION, CONFIG_COUNTER_INIT_PRIORITY,               \           
+                &bm8563_api);
+
+DT_INST_FOREACH_STATUS_OKAY(BM8563_INIT)

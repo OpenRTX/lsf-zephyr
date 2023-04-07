@@ -34,6 +34,10 @@ SPDX-License-Identifier: MIT
 #ifndef _BM8563_H
 #define _BM8563_H
 
+#include <zephyr/drivers/counter.h>
+#include <zephyr/kernel.h>
+#include <zephyr/types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -109,6 +113,7 @@ bm8563_err_t bm8563_read(const bm8563_t *bm, struct tm *time);
 bm8563_err_t bm8563_write(const bm8563_t *bm, const struct tm *time);
 bm8563_err_t bm8563_ioctl(const bm8563_t *bm, int16_t command, void *buffer);
 bm8563_err_t bm8563_close(const bm8563_t *bm);
+
 
 #ifdef __cplusplus
 }
