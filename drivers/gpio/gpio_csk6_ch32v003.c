@@ -43,7 +43,12 @@ LOG_MODULE_REGISTER(gpio_ch32003);
 enum {
 	CH32V003_STATUS_INVALID = 0,
 	CH32V003_STATUS_OK = 1,
+
+	CH32V003_STATUS_BUSY = 0x80,
 };
+
+#define CH32V003_BUSY_DELAY_TIMEOUT_MS (10)
+#define CH32V003_BUSY_DELAY_CNT	       (3)
 
 /* Register definitions */
 #define REG_DEVICE_ID_CTRL	0x01
@@ -62,6 +67,7 @@ enum {
 	 GPIO_PULL_DOWN | GPIO_PULL_UP | GPIO_ACTIVE_HIGH | GPIO_ACTIVE_LOW)
 
 struct gpio_ch32003_config {
+	struct gpio_driver_config common;
 	struct i2c_dt_spec bus;
 	uint8_t id;
 };
@@ -92,23 +98,34 @@ static inline int gpio_ch32v003_register_write(const struct device *dev, uint8_t
 	const struct gpio_ch32003_config *const config = dev->config;
 	int r;
 	uint8_t status = 0x00;
+	uint8_t busy = 0x00;
+	uint8_t cnt = 0;
 
-	/* TODO: lock here */
+	LOG_INF("gpio_ch32v003_register_write, reg=0x%02x, value=0x%02x", reg, value);
+
+	while (1) {
+		r = gpio_ch32v003_register_read(dev, CH32V003_STA_REG, &busy);
+		if (r) {
+			return r;
+		}
+
+		if (busy & CH32V003_STATUS_BUSY) {
+			k_msleep(CH32V003_BUSY_DELAY_TIMEOUT_MS);
+		} else {
+			break;
+		}
+		cnt++;
+
+		if (cnt >= CH32V003_BUSY_DELAY_CNT) {
+			LOG_ERR("wait busy timeout");
+			return -EBUSY;
+		}
+	}
 
 	r = i2c_reg_write_byte_dt(&config->bus, reg, value);
 	if (r) {
 		return r;
 	}
-
-	/* 状态寄存器还未定义好 */
-	// r = gpio_ch32v003_register_read(dev, CH32V003_STA_REG, &status);
-	// if (r) {
-	// 	return r;
-	// }
-
-	// if (status != CH32V003_STATUS_OK) {
-	// 	LOG_ERR("register %02X set error, status: %d", reg, status);
-	// }
 
 	return 0;
 }
@@ -211,14 +228,17 @@ static inline int ch32v003_in_get(const struct device *dev, uint8_t *flag)
 
 int gpio_ch32003_init(const struct device *dev)
 {
+	static uint8_t inited = 0;
 	int r;
-	struct gpio_ch32003_drv_data *const drv_data =
-		(struct gpio_ch32003_drv_data *const)dev->data;
 	const struct gpio_ch32003_config *const config = dev->config;
 
 	if (!device_is_ready(config->bus.bus)) {
 		LOG_ERR("%s is not ready", config->bus.bus->name);
 		return -ENODEV;
+	}
+
+	if (inited) {
+		return 0;
 	}
 
 	LOG_INF("addr:%02X", config->bus.addr);
@@ -237,66 +257,7 @@ int gpio_ch32003_init(const struct device *dev)
 
 	LOG_INF("chip id: %u\n", id);
 
-
-	/* TODO: lock here */
-
-	// /**
-	//  * 测试固件中ADC 通道对应的引脚
-	//  * CH0 ->PA2
-	//  * CH1 ->PA1
-	//  * CH2 ->PC4
-	//  * CH3 ->PD2
-	//  * CH4 ->PD3
-	//  * CH5 -> NONE
-	//  * CH6 -> NONE
-	//  * CH7 ->PD4
-	//  *
-	//  * PC3为从机i2c地址选择引脚 IIC地址见协议 1：0x6C,0:0x15
-	//  *
-	//  */
-	// while (1) {
-
-	// 	// r = i2c_reg_write_byte_dt(&config->bus, 0x50, 0x00);
-	// 	// if (r) {
-	// 	// 	LOG_ERR("write 0x40 failed, r:%d\n", r);
-	// 	// 	return r;
-	// 	// }
-
-	// 	// r = i2c_reg_write_byte_dt(&config->bus, 0x51, 0x0A);
-	// 	// if (r) {
-	// 	// 	LOG_ERR("write 0x41 failed, r:%d\n", r);
-	// 	// 	return r;
-	// 	// }
-
-	// 	r = i2c_reg_write_byte_dt(&config->bus, 0x52, 0xF0);
-	// 	if (r) {
-	// 		LOG_ERR("write 0x42 failed, r:%d\n", r);
-	// 		return r;
-	// 	}
-
-	// 	k_msleep(500);
-	// 	uint8_t status = 0x00;
-	// 	r = i2c_reg_read_byte_dt(&config->bus, 0x55, &status);
-	// 	if (r) {
-	// 		LOG_ERR("write 0x45 failed, r:%d\n", r);
-	// 		return;
-	// 	}
-	// 	LOG_INF("status:%d", status);
-	// 	// if (status & 0x01) {
-	// 	uint8_t data[2] = {0};
-	// 	r = i2c_reg_read_byte_dt(&config->bus, 0x93, &data[0]);
-	// 	if (r) {
-	// 		LOG_ERR("write 0x43 failed, r:%d\n", r);
-	// 	}
-	// 	r = i2c_reg_read_byte_dt(&config->bus, 0x94, &data[1]);
-	// 	if (r) {
-	// 		LOG_ERR("write 0x44 failed, r:%d\n", r);
-	// 	}
-	// 	LOG_INF("ADC:%d,%d,%d", data[0], data[1], ((uint16_t)data[0]) << 8 | data[1]);
-	// 	// break;
-	// 	// }
-	// 	k_msleep(500);
-	// }
+	inited = 1;
 
 	return 0;
 }
@@ -467,6 +428,10 @@ static const struct gpio_driver_api gpio_ch32003_driver = {
 
 #define GPIO_DEVICE_INSTANCE(inst)                                                                 \
 	static const struct gpio_ch32003_config gpio_ch32003_##inst##_cfg = {                      \
+		.common =                                                                          \
+			{                                                                          \
+				.port_pin_mask = GPIO_PORT_PIN_MASK_FROM_DT_INST(inst),               \
+			},                                                                         \
 		.bus = I2C_DT_SPEC_GET(DT_INST_PARENT(inst)),                                      \
 		.id = inst,                                                                        \
 	};                                                                                         \
