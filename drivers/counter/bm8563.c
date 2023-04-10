@@ -419,6 +419,35 @@ static uint32_t bm8563_counter_get_frequency(const struct device *dev)
     return -ENOTSUP;
 }
 
+static int bm8563_counter_set_alarm(const struct device *dev,
+				        uint8_t chan_id,
+                        const struct counter_alarm_cfg *alarm_cfg)
+{
+    return -ENOTSUP;
+}
+
+static int bm8563_counter_cancel_alarm(const struct device *dev,
+					    uint8_t chan_id)
+{
+    return -ENOTSUP;
+}
+
+static int bm8563_counter_set_top_value(const struct device *dev,
+                          const struct counter_top_cfg *cfg)
+{
+    return -ENOTSUP;
+}
+
+static uint32_t bm8563_counter_get_top_value(const struct device *dev)
+{
+    return -ENOTSUP;
+}
+
+static uint32_t bm8563_counter_get_pending_int(const struct device *dev)
+{
+    return -ENOTSUP;
+}
+
 
 
 static const struct counter_driver_api bm8563_api = {
@@ -427,13 +456,12 @@ static const struct counter_driver_api bm8563_api = {
 	.get_value = bm8563_counter_get_value,
     .get_time = bm8563_counter_get_time,
     .set_time = bm8563_counter_set_time,
-    // .set_value = bm8563_counter_set_value,
     .get_freq = bm8563_counter_get_frequency,
-	// .set_alarm = bm8563_counter_set_alarm,
-	// .cancel_alarm = bm8563_counter_cancel_alarm,
-	// .set_top_value = bm8563_counter_set_top_value,
-	// .get_pending_int = bm8563_counter_get_pending_int,
-	// .get_top_value = bm8563_counter_get_top_value,
+	.set_alarm = bm8563_counter_set_alarm,
+	.cancel_alarm = bm8563_counter_cancel_alarm,
+	.set_top_value = bm8563_counter_set_top_value,
+	.get_pending_int = bm8563_counter_get_pending_int,
+	.get_top_value = bm8563_counter_get_top_value,
 };
 
 
