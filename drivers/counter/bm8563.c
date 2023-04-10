@@ -56,6 +56,7 @@ static inline uint8_t bcd2decimal(uint8_t bcd)
 struct bm8563_config {
 	/* Common structure first because generic API expects this here. */
 	const struct device *i2c_dev;
+    const struct device *i2c;
 };
 
 struct bm8563_data
@@ -72,7 +73,7 @@ bm8563_err_t bm8563_init(const bm8563_t *bm)
     int32_t status;
     status = bm->write(bm->handle, BM8563_ADDRESS, BM8563_CONTROL_STATUS1, &clear, 1);
     if (BM8563_OK != status) {
-        printk("bm8563_init: bm->write BM8563_CONTROL_STATUS1 failed\n");
+        LOG_ERR("bm8563_init: bm->write BM8563_CONTROL_STATUS1 failed");
         return status;
     }
     return bm->write(bm->handle, BM8563_ADDRESS, BM8563_CONTROL_STATUS2, &clear, 1);
@@ -362,24 +363,23 @@ int i2c_dev_init(const struct device **pdev, const char *dev_name, uint32_t i2c_
 {
 	*pdev = device_get_binding(dev_name);
 	if (*pdev == NULL) {
-		printk("%s: Device is not found.\n", dev_name);
+		LOG_ERR("%s: Device is not found.", dev_name);
 		return -ENODEV;
 	}
 
 	if (!device_is_ready(*pdev)) {
-		printk("%s: Device is not ready.\n", dev_name);
+		LOG_ERR("%s: Device is not ready.", dev_name);
 		return -ENODEV;
 	}
 
 	if (i2c_configure(*pdev, i2c_config)) {
-		printk("%s: config failed\n", dev_name);
+		LOG_ERR("%s: config failed", dev_name);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-#define I2C_DEV_NAME "I2C_1"
 static int bm8563_device_init(const struct device *dev)
 {
     struct bm8563_data *data = dev->data;
@@ -387,9 +387,9 @@ static int bm8563_device_init(const struct device *dev)
 
     const struct device *i2c_dev = cfg->i2c_dev;
 
-	int ret = i2c_dev_init(&i2c_dev, I2C_DEV_NAME, I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER);
+	int ret = i2c_dev_init(&i2c_dev, cfg->i2c, I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER);
 	if (ret < 0) {
-		printk("I2C: Failed to init device.\n");
+		LOG_ERR("I2C: Failed to init device.\n");
 		return;
 	}
     
@@ -401,14 +401,27 @@ static int bm8563_device_init(const struct device *dev)
     return 0;
 }
 
+static int bm8563_counter_get_value(const struct device *dev, uint32_t *ticks)
+{
+    return -ENOTSUP;
+}
+
+
+static int bm8563_counter_get_frequency(const struct device *dev, uint32_t *frequency)
+{
+    return -ENOTSUP;
+}
+
+
+
 static const struct counter_driver_api bm8563_api = {
 	.start = bm8563_counter_start,
 	.stop = bm8563_counter_stop,
-	// .get_value = bm8563_counter_get_value,
+	.get_value = bm8563_counter_get_value,
     .get_time = bm8563_counter_get_time,
     .set_time = bm8563_counter_set_time,
     // .set_value = bm8563_counter_set_value,
-    // .get_freq = bm8563_counter_get_frequency,
+    .get_freq = bm8563_counter_get_frequency,
 	// .set_alarm = bm8563_counter_set_alarm,
 	// .cancel_alarm = bm8563_counter_cancel_alarm,
 	// .set_top_value = bm8563_counter_set_top_value,
@@ -422,7 +435,8 @@ static const struct counter_driver_api bm8563_api = {
     static struct bm8563_data bm8563_data_##n;  \
 										 \
     static const struct bm8563_config bm8563_config_##n = { \
-        .i2c_dev = DT_LABEL(DT_NODELABEL(bm8563_##n))    \
+        .i2c_dev = DT_LABEL(DT_NODELABEL(bm8563_##n)),    \
+        .i2c = DT_LABEL(DT_BUS(DT_NODELABEL(bm8563_##n)))    \
     };                                                      \
     DEVICE_DT_INST_DEFINE(n, bm8563_device_init, NULL, &bm8563_data_##n,   \
                 &bm8563_config_##n,                                           \                  
