@@ -55,8 +55,8 @@ static inline uint8_t bcd2decimal(uint8_t bcd)
 
 struct bm8563_config {
 	/* Common structure first because generic API expects this here. */
-	const struct device *i2c_dev;
-    const struct device *i2c;
+	const char* i2c_dev;
+    const char* i2c;
 };
 
 struct bm8563_data
@@ -319,7 +319,6 @@ static int bm8563_counter_get_time(const struct device *dev,
 				    void *rtc)
 {
 	struct bm8563_data *data = dev->data;    
-	const struct bm8563_config *cfg = dev->config;
 	struct tm *_rtc = (struct tm *)rtc;
 
     int rc = bm8563_read(&data->bm, _rtc);
@@ -342,7 +341,6 @@ static int bm8563_counter_set_time(const struct device *dev,
                     void* rtc)
 {
     struct bm8563_data *data = dev->data;
-    const struct bm8563_config *cfg = dev->config;
     struct tm *_rtc = (struct tm *)rtc;
 
     _rtc->tm_year -= 1900;
@@ -380,22 +378,31 @@ int i2c_dev_init(const struct device **pdev, const char *dev_name, uint32_t i2c_
 	return 0;
 }
 
+int bm8563_i2c_write(void *handle, uint8_t address, uint8_t reg, const uint8_t *buffer, uint16_t size){
+    int ret = i2c_burst_write((const struct device *)handle, (uint16_t)address, reg, buffer, (uint32_t)size);
+    return ret;
+}
+
+int bm8563_i2c_read(void *handle, uint8_t address, uint8_t reg, uint8_t *buffer, uint16_t size){
+    return i2c_burst_read(handle, address, reg, buffer, size);
+}
+
 static int bm8563_device_init(const struct device *dev)
 {
     struct bm8563_data *data = dev->data;
 	const struct bm8563_config *cfg = dev->config;
 
-    const struct device *i2c_dev = cfg->i2c_dev;
+    const struct device *i2c_dev = device_get_binding(cfg->i2c);
 
-	int ret = i2c_dev_init(&i2c_dev, cfg->i2c, I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER);
+	int ret = i2c_dev_init(&i2c_dev, (const char *)cfg->i2c, I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER);
 	if (ret < 0) {
 		LOG_ERR("I2C: Failed to init device.\n");
-		return;
+		return -1;
 	}
     
-	data->bm.read = &i2c_burst_read;
-	data->bm.write = &i2c_burst_write;
-	data->bm.handle = i2c_dev;
+	data->bm.read = bm8563_i2c_read;
+	data->bm.write = bm8563_i2c_write;
+	data->bm.handle = (void *)i2c_dev;
     bm8563_init(&data->bm);
     i2c_reg_write_byte(i2c_dev, BM8563_ADDRESS, BM8563_CONTROL_STATUS1, 0x00);      // 启动RTC
     return 0;
@@ -407,7 +414,7 @@ static int bm8563_counter_get_value(const struct device *dev, uint32_t *ticks)
 }
 
 
-static int bm8563_counter_get_frequency(const struct device *dev, uint32_t *frequency)
+static uint32_t bm8563_counter_get_frequency(const struct device *dev)
 {
     return -ENOTSUP;
 }
@@ -439,8 +446,8 @@ static const struct counter_driver_api bm8563_api = {
         .i2c = DT_LABEL(DT_BUS(DT_NODELABEL(bm8563_##n)))    \
     };                                                      \
     DEVICE_DT_INST_DEFINE(n, bm8563_device_init, NULL, &bm8563_data_##n,   \
-                &bm8563_config_##n,                                           \                  
-                APPLICATION, CONFIG_COUNTER_INIT_PRIORITY,               \           
-                &bm8563_api);
+                &bm8563_config_##n, \
+                APPLICATION, CONFIG_COUNTER_INIT_PRIORITY,  \
+                &bm8563_api);\
 
 DT_INST_FOREACH_STATUS_OKAY(BM8563_INIT)
