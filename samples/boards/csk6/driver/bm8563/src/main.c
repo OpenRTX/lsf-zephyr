@@ -22,7 +22,7 @@ int main(void)
 	// get the device
 	const struct device *dev = device_get_binding(RTC);
 	if (!dev) {
-		printk("Failed to get device binding %s\n", dev);
+		LOG_INF("Failed to get device binding %p\n", dev);
 		return -ENODEV;
 	}
 	
