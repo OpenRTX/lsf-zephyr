@@ -272,6 +272,8 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 		return 0;
 	}
 
+	k_sem_take(&data->lock, K_FOREVER);
+
 	/* attenton: one i2c transfer(trnsmit or receive) can transfer max 256 bytes(address len +
 	data len), which means that if address length is 1 byte, then max data length is 255 bytes*/
 	if (data->mode) {
@@ -280,6 +282,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 
 			if (msgs->len > I2C_XFER_MAX_NUM) {
 				LOG_ERR("The maximum transfer size is 255 bytes");
+				k_sem_give(&data->lock);
 				return -EINVAL;
 			}
 
@@ -303,6 +306,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				LOG_ERR("i2c(%p) master transfer error: %d\n", i2c->reg, ret);
 				I2C_Control(I2C_Handler, CSK_I2C_ABORT_TRANSFER, 0);
 				ret = -EIO;
+				k_sem_give(&data->lock);
 				break;
 			}
 
@@ -317,7 +321,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				if (evt & CSK_I2C_EVENT_ARBITRATION_LOST) {
 					LOG_ERR("i2c(%p) lost arbitration", i2c->reg);
 				}
-
+				k_sem_give(&data->lock);
 				return -ETIMEDOUT;
 			}
 
@@ -326,6 +330,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				LOG_ERR("i2c(%p) data transfer error, status:%d/%d, last ack:%d",
 					i2c->reg, msgs->len - i2c->reg->REG_CTRL.bit.DATACNT,
 					msgs->len, !i2c->reg->REG_STATUS.bit.ACK);
+				k_sem_give(&data->lock);
 				return -EIO;
 			}
 			msgs++;
@@ -344,6 +349,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 						   K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
 				if (!(evt & CSK_I2C_EVENT_SLAVE_TRANSMIT)) {
 					LOG_ERR("Wait I2C complete time out.");
+					k_sem_give(&data->lock);
 					return -ETIMEDOUT;
 				}
 				/* start slave transmit, one by one */
@@ -365,6 +371,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 					if (!(evt & (CSK_I2C_EVENT_TRANSFER_DONE |
 						     CSK_I2C_EVENT_TRANSFER_INCOMPLETE))) {
 						LOG_ERR("Wait I2C complete time out.");
+						k_sem_give(&data->lock);
 						return -ETIMEDOUT;
 					}
 				}
@@ -379,6 +386,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				if (!(evt & (CSK_I2C_EVENT_TRANSFER_DONE |
 					     CSK_I2C_EVENT_SLAVE_RECEIVE))) {
 					LOG_ERR("Wait I2C complete time out.");
+					k_sem_give(&data->lock);
 					return -ETIMEDOUT;
 				}
 
@@ -398,6 +406,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 		}
 	}
 
+	k_sem_give(&data->lock);
 	return ret;
 }
 
