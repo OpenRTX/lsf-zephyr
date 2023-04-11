@@ -97,7 +97,6 @@ static inline int gpio_ch32v003_register_write(const struct device *dev, uint8_t
 {
 	const struct gpio_ch32003_config *const config = dev->config;
 	int r;
-	uint8_t status = 0x00;
 	uint8_t busy = 0x00;
 	uint8_t cnt = 0;
 
@@ -175,7 +174,7 @@ static inline int ch32v003_od_set(const struct device *dev, uint8_t flag)
 static inline int ch32v003_od_get(const struct device *dev, uint8_t *flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_read(dev, CH32V003_OD_REG(config->id), *flag);
+	return gpio_ch32v003_register_read(dev, CH32V003_OD_REG(config->id), flag);
 }
 
 static inline int ch32v003_out_set(const struct device *dev, uint8_t flag)
@@ -193,7 +192,7 @@ static inline int ch32v003_out_set(const struct device *dev, uint8_t flag)
 static inline int ch32v003_out_get(const struct device *dev, uint8_t *flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_read(dev, CH32V003_OUT_REG(config->id), *flag);
+	return gpio_ch32v003_register_read(dev, CH32V003_OUT_REG(config->id), flag);
 }
 
 static inline int ch32v003_pull_mode_set(const struct device *dev, uint8_t flag)
@@ -205,7 +204,7 @@ static inline int ch32v003_pull_mode_set(const struct device *dev, uint8_t flag)
 static inline int ch32v003_pull_mode_get(const struct device *dev, uint8_t *flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_read(dev, CH32V003_PULL_UP_REG(config->id), *flag);
+	return gpio_ch32v003_register_read(dev, CH32V003_PULL_UP_REG(config->id), flag);
 }
 
 static inline int ch32v003_pull_en_set(const struct device *dev, uint8_t flag)
