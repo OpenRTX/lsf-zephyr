@@ -1,0 +1,44 @@
+/*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+&pinctrl {
+	/* I2C alternate function */
+	pinctrl_i2c0_scl_default: i2c0_scl_default{
+		pinctrls = <I2C0_SCL_GPIOA_10>;
+	};
+
+	pinctrl_i2c0_sda_default: i2c0_sda_default{
+		pinctrls = <I2C0_SDA_GPIOA_11>;
+	};
+
+	pinctrl_i2c1_scl_default: i2c1_scl_default{
+		pinctrls = <I2C1_SCL_GPIOB_03>;
+	};
+
+	pinctrl_i2c1_sda_default: i2c1_sda_default{
+		pinctrls = <I2C1_SDA_GPIOB_04>;
+	};
+
+};
+
+
+&i2c1 {
+	status = "okay";
+	pinctrl-0 = <&pinctrl_i2c1_scl_default &pinctrl_i2c1_sda_default>;
+	pinctrl-names = "default";
+
+	bm8563_0: bm8563@32 {
+		compatible = "bm8563";
+		reg = <0x51>;
+		label = "SLAVE_VDEV_0";
+		int-gpios = <&gpiob 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+	};
+};
+
+&i2c0 {
+	status = "disabled";
+	pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
+	pinctrl-names = "default";
+};
