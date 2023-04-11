@@ -49,8 +49,11 @@ static void *ir_csk_get_context(const struct device *dev)
 static int ir_csk_runtime_configure(const struct device *dev, ir_config_t *config)
 {
 	ir_csk_data_t *dev_data = DEV_DATA(dev);
-	if (config->protocol == IR_PROTOCOL_CUSTOM) {
+	if (config->protocol != IR_PROTOCOL_CUSTOM) {
 		dev_data->cfg.protocol = config->protocol;
+	} else {
+		LOG_ERR("CSK6 IR module currently does not support custom infrared protocol.");
+		return -IR_ERR_INVALID_PARAM;
 	}
 	return 0;
 }
@@ -59,6 +62,20 @@ static int ir_csk_send(const struct device *dev, ir_data_t *data)
 {
 	void *IR0_Handler = DEV_HANDLER(dev);
 	ir_csk_data_t *dev_data = DEV_DATA(dev);
+	if (dev_data->cfg.protocol != IR_PROTOCOL_CUSTOM) {
+		uint8_t addr_hbyte = data->addr >> 8;
+		uint8_t addr_lbyte = ~(data->addr & 0xff);
+		if (addr_hbyte != addr_lbyte) {
+			LOG_WRN("The address code and its complement must be equal, please check and re-enter.");
+			return -IR_ERR_INVALID_PARAM;
+		}
+		uint8_t cmd_hbyte = data->cmd >> 8;
+		uint8_t cmd_lbyte = ~(data->cmd & 0xff);
+		if (cmd_hbyte != cmd_lbyte) {
+			LOG_WRN("The command code and its complement must be equal, please check and re-enter.");
+			return -IR_ERR_INVALID_PARAM;
+		}
+	}
 	return IR_HW_Send(IR0_Handler, dev_data->cfg.protocol, data->addr, data->cmd);
 }
 
