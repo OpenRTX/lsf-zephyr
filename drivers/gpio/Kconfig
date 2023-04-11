@@ -124,5 +124,6 @@ source "drivers/gpio/Kconfig.test"
 source "drivers/gpio/Kconfig.gd32"
 
 source "drivers/gpio/Kconfig.xlnx_ps"
+source "drivers/gpio/Kconfig.csk6_ch32v003"
 
 endif # GPIO
