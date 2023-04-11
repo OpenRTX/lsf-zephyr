@@ -117,7 +117,8 @@ int start_slave_vdev_handler_task(const struct device *dev)
 		LOG_WRN("The virtual slave processing task has been initialized");
 		return 1;
 	}
-
+	vdev_data_t *data = dev->data;
+	m_msg.buf = data->buffer;
 	int pri = k_thread_priority_get(k_current_get());
 	k_thread_create(&vdev_thread_data, slave_vdev_task_stack_area,
 			K_THREAD_STACK_SIZEOF(slave_vdev_task_stack_area), slave_vdev_thread, (void *)dev,
@@ -165,15 +166,20 @@ static int slave_vdev_write_received(struct i2c_slave_config *config, uint8_t va
 	 */
 
 	if (data->first_write) {
+		if (val > data->buffer_size) {
+			LOG_WRN("slave_vdev: out of buffer size, val=0x%x, buffer_size=%d", val, data->buffer_size);
+			return 0;
+		}
 		data->buffer_idx = val;
+		m_msg.buf = &(data->buffer[data->buffer_idx]);
 		data->first_write = false;
 	} else {
 		data->buffer[data->buffer_idx++] = val;
+		m_msg.len++;
 	}
 
 	data->buffer_idx = data->buffer_idx % data->buffer_size;
 
-	m_msg.len++;
 	m_msg.flags = I2C_MSG_READ;
 	m_event |= SLAVE_VDEV_EVENT_WRITE_DONE;
 	return 0;
