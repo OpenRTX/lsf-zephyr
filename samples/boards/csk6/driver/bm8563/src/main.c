@@ -41,8 +41,12 @@ int main(void)
 		return ret;
 	}
 	memset(&rtc, 0, sizeof(rtc));
+	int cnt = 0;
 	while (1)
 	{
+		cnt++;
+		if (cnt > 5)
+			return 0;
 		ret = counter_get_time(dev, &rtc);
 		if (ret != 0) {
 			LOG_ERR("Failed to get time: %d\n", ret);
