@@ -74,4 +74,6 @@ source "drivers/adc/Kconfig.test"
 
 source "drivers/adc/Kconfig.ads1x1x"
 
+source "drivers/adc/Kconfig.csk6_ch32v003"
+
 endif # ADC
