@@ -1,0 +1,39 @@
+#
+# Copyright (c) 2019 Peter Bigot Consulting, LLC
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+description: BM8563 I2C RTC/TCXO
+
+compatible: "bm8563"
+
+include: i2c-device.yaml
+
+properties:
+  reg:
+    required: true
+
+  32k-gpios:
+    type: phandle-array
+    required: false
+    description: |
+
+      32 KiHz open drain output
+
+      The BM8563 defaults to providing a 32 KiHz square wave on this
+      signal.  The driver does not make use of this, but applications
+      may want access.
+
+  int-gpios:
+    type: phandle-array
+    required: false
+    description: |
+
+      interrupt/square wave open drain output
+
+      The BM8563 uses this signal to notify when an alarm has triggered,
+      and also to produce a square wave aligned to the countdown chain.
+      Both capabilities are used within the driver.  This signal must be
+      present to support time set and read operations that preserve
+      sub-second accuracy.
