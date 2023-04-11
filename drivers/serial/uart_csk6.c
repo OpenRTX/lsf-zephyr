@@ -732,10 +732,7 @@ static int csk_uart_irq_is_pending(const struct device *dev)
 	// Get interrupt status
 	uint32_t iir = uart_reg->REG_IIR.all;
 
-	return ((iir & UARTC_IIR_INT_MASK) == UARTC_IIR_RDA) ||
-			       ((iir & UARTC_IIR_INT_MASK) == UARTC_IIR_THRE) ?
-		       true :
-			     false;
+	return (iir & UARTC_IIR_INT_MASK & (~UARTC_IIR_NONE))?true:false;
 }
 
 static int csk_uart_irq_update(const struct device *dev)
@@ -856,7 +853,7 @@ static int csk_uart_init(const struct device *dev)
 	}
 #else
 	ctrl |= CSK_UART_Function_CONTROL_Int;
-	ctrl |= CSK_UART_MODE_ASYNCHRONOUS;
+	ctrl |= CSK_UART_MODE_ASYNCHRONOUS_TIMEOUT;
 #endif
 
 	UART_Control(uart_driver_ctx, ctrl, baud_rate);
@@ -876,6 +873,11 @@ static int csk_uart_init(const struct device *dev)
 		/* Set rx fifo to 1/4 full */
 		uart_reg->REG_FCR.bit.RCVR = 0x01;
 	}
+#else
+	/* Set rx fifo to 1/4 full and enable rx timeout interrupt*/
+	DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
+	uart_reg->REG_FCR.bit.RCVR = 0x01;
+	uart_reg->REG_IER.bit.ECHT = 0x1;
 #endif
 	return 0;
 }
