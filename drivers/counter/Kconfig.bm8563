@@ -1,0 +1,7 @@
+# Counter driver for csk clock
+
+# Copyright (c) 2022 LISTENAI Corp.
+# SPDX-License-Identifier: Apache-2.0
+
+config COUNTER_BM8563
+	bool "Counter driver for bm8563 RTC clock"
