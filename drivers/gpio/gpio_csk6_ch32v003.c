@@ -13,7 +13,7 @@
 
 #define DT_DRV_COMPAT listenai_csk_gpio_ch32003_port
 
-LOG_MODULE_REGISTER(gpio_ch32003);
+LOG_MODULE_REGISTER(gpio_ch32003, CONFIG_GPIO_LOG_LEVEL);
 
 #define CH32V003_DIR_REG_BASE	    0x10
 #define CH32V003_OUT_REG_BASE	    0x11
@@ -73,7 +73,7 @@ struct gpio_ch32003_config {
 };
 
 struct gpio_ch32003_drv_data {
-
+	struct gpio_driver_data common;
 	struct {
 		uint8_t input;
 		uint8_t output;
@@ -100,7 +100,7 @@ static inline int gpio_ch32v003_register_write(const struct device *dev, uint8_t
 	uint8_t busy = 0x00;
 	uint8_t cnt = 0;
 
-	LOG_INF("gpio_ch32v003_register_write, reg=0x%02x, value=0x%02x", reg, value);
+	LOG_DBG("gpio_ch32v003_register_write, reg=0x%02x, value=0x%02x", reg, value);
 
 	while (1) {
 		r = gpio_ch32v003_register_read(dev, CH32V003_STA_REG, &busy);
@@ -222,7 +222,15 @@ static inline int ch32v003_pull_en_get(const struct device *dev, uint8_t *flag)
 static inline int ch32v003_in_get(const struct device *dev, uint8_t *flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_read(dev, CH32V003_IN_REG(config->id), flag);
+	struct gpio_ch32003_drv_data *const drv_data =
+		(struct gpio_ch32003_drv_data *const)dev->data;
+	int r = gpio_ch32v003_register_read(dev, CH32V003_IN_REG(config->id), flag);
+
+	if (r == 0) {
+		drv_data->reg_cache.input = *flag;
+	}
+
+	return r;
 }
 
 int gpio_ch32003_init(const struct device *dev)
@@ -240,7 +248,7 @@ int gpio_ch32003_init(const struct device *dev)
 		return 0;
 	}
 
-	LOG_INF("addr:%02X", config->bus.addr);
+	LOG_DBG("addr:%02X", config->bus.addr);
 	r = i2c_configure(config->bus.bus, I2C_SPEED_SET(I2C_SPEED_FAST) | I2C_MODE_MASTER);
 	if (r) {
 		printk("i2c_configure failed, ret:%d\n", r);
@@ -254,7 +262,7 @@ int gpio_ch32003_init(const struct device *dev)
 		return r;
 	}
 
-	LOG_INF("chip id: %u\n", id);
+	LOG_DBG("chip id: %u\n", id);
 
 	inited = 1;
 
@@ -278,7 +286,7 @@ static int ch32v003_pin_config(const struct device *dev, gpio_pin_t pin, gpio_fl
 	}
 
 	k_sem_take(&data->lock, K_FOREVER);
-	LOG_INF("ch32v003_pin_config");
+	LOG_DBG("ch32v003_pin_config");
 	if (flags & GPIO_OUTPUT) {
 		dir |= BIT(pin);
 		dir_update = true;
@@ -334,11 +342,12 @@ static int ch32v003_pin_config(const struct device *dev, gpio_pin_t pin, gpio_fl
 			return r;
 		}
 
-		r = ch32v003_pull_en_set(dev, pull_en);
-		if (r != 0) {
-			k_sem_give(&data->lock);
-			return r;
-		}
+		// /* TODO: 固件还未实现 */
+		// r = ch32v003_pull_en_set(dev, pull_en);
+		// if (r != 0) {
+		// 	k_sem_give(&data->lock);
+		// 	return r;
+		// }
 	}
 
 	k_sem_give(&data->lock);
@@ -360,7 +369,7 @@ static int ch32v003_set_masked_raw(const struct device *dev, gpio_port_pins_t ma
 	output = (output & ~mask) | (value & mask);
 
 	r = ch32v003_out_set(dev, output);
-	LOG_INF("ch32v003_set_masked_raw, output:%02X", output);
+	LOG_DBG("ch32v003_set_masked_raw, output:%02X", output);
 	k_sem_give(&data->lock);
 
 	return r;
@@ -377,7 +386,7 @@ static int ch32v003_set_bits_raw(const struct device *dev, gpio_port_pins_t pins
 	output |= (pins & 0xFF);
 
 	r = ch32v003_out_set(dev, output);
-	LOG_INF("ch32v003_set_bits_raw, output:%02X", output);
+	LOG_DBG("ch32v003_set_bits_raw, output:%02X", output);
 	k_sem_give(&data->lock);
 
 	return r;
@@ -392,7 +401,7 @@ static int ch32v003_clear_bits_raw(const struct device *dev, gpio_port_pins_t pi
 	k_sem_take(&data->lock, K_FOREVER);
 	output = data->reg_cache.output;
 	output &= ~(pins & 0xFF);
-	LOG_INF("ch32v003_clear_bits_raw, output:%02X", output);
+	LOG_DBG("ch32v003_clear_bits_raw, output:%02X", output);
 	r = ch32v003_out_set(dev, output);
 	k_sem_give(&data->lock);
 
@@ -406,10 +415,25 @@ static int ch32v003_toggle_bits(const struct device *dev, gpio_port_pins_t pins)
 	int r;
 	k_sem_take(&data->lock, K_FOREVER);
 	output = data->reg_cache.output;
-	LOG_INF("ch32v003_toggle_bits, cache output:%02X", output);
+	LOG_DBG("ch32v003_toggle_bits, cache output:%02X", output);
 	output ^= (pins & 0xFF);
-	LOG_INF("ch32v003_toggle_bits, output:%02X", output);
+	LOG_DBG("ch32v003_toggle_bits, output:%02X", output);
 	r = ch32v003_out_set(dev, output);
+	k_sem_give(&data->lock);
+
+	return r;
+}
+
+static int ch32v003_get_raw(const struct device *dev, uint32_t *value)
+{
+	struct gpio_ch32003_drv_data *data = dev->data;
+	int r;
+
+	k_sem_take(&data->lock, K_FOREVER);
+	uint8_t sta;
+	r = ch32v003_in_get(dev, &sta);
+	*value = sta;
+	LOG_DBG("ch32v003_get_raw, sta:%02X, value:%02X", sta, *value);
 	k_sem_give(&data->lock);
 
 	return r;
@@ -417,7 +441,7 @@ static int ch32v003_toggle_bits(const struct device *dev, gpio_port_pins_t pins)
 
 static const struct gpio_driver_api gpio_ch32003_driver = {
 	.pin_configure = ch32v003_pin_config,
-	.port_get_raw = NULL,
+	.port_get_raw = ch32v003_get_raw,
 	.port_set_masked_raw = ch32v003_set_masked_raw,
 	.port_set_bits_raw = ch32v003_set_bits_raw,
 	.port_clear_bits_raw = ch32v003_clear_bits_raw,
