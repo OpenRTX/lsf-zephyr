@@ -257,9 +257,9 @@ static void spd2010_reset_display(const struct device *dev)
 	if (config->reset.port != NULL) {
 		k_sleep(K_MSEC(50));
 		gpio_pin_set_dt(&config->reset, 1);
-		k_sleep(K_MSEC(50));
-		gpio_pin_set_dt(&config->reset, 0);
 		k_sleep(K_MSEC(100));
+		gpio_pin_set_dt(&config->reset, 0);
+		k_sleep(K_MSEC(50));
 	} else {
 		spd2010_transmit(dev, SPD2010_SOFTRESET, NULL, 0);
 		k_sleep(K_MSEC(100));
@@ -354,7 +354,7 @@ void flush_task(void *p1, void *p2, void *p3)
 					 item->desc.width * SPD2010_PIXEL_SIZE * write_h);
 			write_data_start += (item->desc.pitch * SPD2010_PIXEL_SIZE);
 		}
-		LOG_INF("flush datas cost %dms\n", k_uptime_get_32() - time);
+		LOG_DBG("flush datas cost %dms\n", k_uptime_get_32() - time);
 		k_fifo_put(&empty_fifo, item);
 	}
 }
@@ -380,7 +380,7 @@ static int spd2010_write(const struct device *dev, const uint16_t x, const uint1
 	uint32_t time = k_uptime_get_32();
 	/* 图像数据旋转，这里最后一个参数表示一个像素点用2个字节表示，不能使用RGB88，只能是RGB565或BGR565 */
 	test_rotate_90_1(dma, buf, item->buf, desc2->height, desc2->width, 2);
-	LOG_INF("rotate cost %dms\n", k_uptime_get_32() - time);
+	LOG_DBG("rotate cost %dms\n", k_uptime_get_32() - time);
 
 	/* 坐标转换 */
 	memcpy(&item->desc, desc2, sizeof(struct display_buffer_descriptor));
@@ -832,6 +832,17 @@ const static spd2010_init_cmd_item_t items[] = {
 	{.cmd = 0x2A, .data_len = 4, .data = {0x00, 0x00, 0x00, 0xB3},},
 	{.cmd = 0x2B, .data_len = 4, .data = {0x00, 0x00, 0x01, 0xC5},},
 	{.cmd = 0x3A, .data_len = 1, .data = {0x05},},
+
+#if 1
+	/**
+	 * @brief TEON
+	 * 	cmd: 0x35, parameter: TEM[bit0:bit0]
+	 * 	- When TEM ='0': The Tearing Effect output line consists of V-Blanking information only
+	 * 	- When TEM =’1’: The Tearing Effect output Line consists of both V-Blanking and H-Blanking information
+	 */
+	{.cmd = 0x35, .data_len = 1, .data = {0x00},},// TEM = 0
+	// {.cmd = 0x35, .data_len = 1, .data = {0x01},},// TEM = 1
+#endif
 };
 
 static uint8_t init_datas[2 * 2 * 180] = {0};
