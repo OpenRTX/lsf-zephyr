@@ -14,7 +14,7 @@
 #include "adc_context.h"
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(csk6_adc_ch32v003);
+LOG_MODULE_REGISTER(csk6_adc_ch32v003, CONFIG_ADC_LOG_LEVEL);
 
 #define CH32V003_ID_REG	  0x01
 #define CH32V003_VER_REG  0x02
@@ -53,7 +53,7 @@ struct adc_ch32v003_data {
 	struct adc_context ctx;
 	int16_t *buffer;
 	int16_t *repeat_buffer;
-	struct device *device;
+	const struct device *device;
 	struct k_sem acq_sem;
 };
 
@@ -61,7 +61,7 @@ static inline int adc_ch32v003_register_read(const struct device *dev, uint8_t r
 {
 	const struct adc_ch32v003_config *const config = dev->config;
 	int r = i2c_reg_read_byte_dt(&config->bus, reg, value);
-	LOG_INF("adc_ch32v003_register_read, name:%s, reg=0x%02x, value=%d", dev->name, reg, *value);
+	LOG_DBG("adc_ch32v003_register_read, name:%s, reg=0x%02x, value=%d", dev->name, reg, *value);
 	return r;
 }
 
@@ -159,7 +159,7 @@ static void adc_context_start_sampling(struct adc_context *ctx)
 	int r;
 
 	uint8_t channel_mask = ctx->sequence.channels;
-	LOG_INF("adc_context_start_sampling, ch:%02X", channel_mask);
+	LOG_DBG("adc_context_start_sampling, ch:%02X", channel_mask);
 
 	r = adc_ch32v003_start_conversion(dev, channel_mask);
 	if (r) {
@@ -216,19 +216,19 @@ static void adc_ch32v003_thread(void *p1, void *p2, void *p3)
 		LOG_ERR("adc_ch32v003_thread, device not ready");
 	}
 
-	LOG_INF("dev:%p, name:%s", dev, dev->name);
+	LOG_DBG("dev:%p, name:%s", dev, dev->name);
 	while (1) {
 		k_sem_take(&data->acq_sem, K_FOREVER);
 		uint8_t channel_mask = data->ctx.sequence.channels;
 		uint8_t i;
 		uint8_t err_happend = 0;
 
-		LOG_INF("channel_mask:%02X", channel_mask);
+		LOG_DBG("channel_mask:%02X", channel_mask);
 
 		/* FIXME:状态寄存器未实现 */
 		// for (i = 0; i < 8; i++) {
 		// 	if (channel_mask & (1 << i)) {
-		// 		LOG_INF("wait ch %d ready", i);
+		// 		LOG_DBG("wait ch %d ready", i);
 		// 		r = adc_ch32v003_wait_data_ready(dev, i);
 		// 		if (r) {
 		// 			adc_context_complete(&data->ctx, r);
@@ -237,7 +237,7 @@ static void adc_ch32v003_thread(void *p1, void *p2, void *p3)
 		// 		}
 		// 	}
 		// }
-
+		(void)adc_ch32v003_wait_data_ready;
 		k_msleep(100);
 		if (!err_happend) {
 			for (i = 0; i < 8; i++) {
@@ -250,7 +250,7 @@ static void adc_ch32v003_thread(void *p1, void *p2, void *p3)
 						break;
 					}
 					*data->buffer++ = value;
-					LOG_INF("value:%d", value);
+					LOG_DBG("value:%d", value);
 				}
 			}
 		}
@@ -271,7 +271,7 @@ int adc_ch32v003_init(const struct device *dev)
 		LOG_ERR("device:%s is not ready", config->bus.bus->name);
 	}
 
-	LOG_INF("adc_ch32v003_init, addr:%02X", config->bus.addr);
+	LOG_DBG("adc_ch32v003_init, addr:%02X", config->bus.addr);
 
 	r = i2c_configure(config->bus.bus, I2C_SPEED_SET(I2C_SPEED_FAST) | I2C_MODE_MASTER);
 	if (r) {
@@ -286,7 +286,7 @@ int adc_ch32v003_init(const struct device *dev)
 		return r;
 	}
 
-	LOG_INF("chip id: %u\n", id);
+	LOG_DBG("chip id: %u\n", id);
 	adc_context_unlock_unconditionally(&data->ctx);
 
 	return 0;
