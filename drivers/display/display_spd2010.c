@@ -359,7 +359,7 @@ void flush_task(void *p1, void *p2, void *p3)
 	}
 }
 
-K_THREAD_DEFINE(flush_task_id, 4096, flush_task, NULL, NULL, NULL, -16, 0, 0);
+K_THREAD_DEFINE(flush_task_id, 4096, flush_task, NULL, NULL, NULL, 1, 0, 0);
 
 static int spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 			 const struct display_buffer_descriptor *desc2, const void *buf)
