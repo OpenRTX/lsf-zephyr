@@ -222,7 +222,15 @@ static inline int ch32v003_pull_en_get(const struct device *dev, uint8_t *flag)
 static inline int ch32v003_in_get(const struct device *dev, uint8_t *flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_read(dev, CH32V003_IN_REG(config->id), flag);
+	struct gpio_ch32003_drv_data *const drv_data =
+		(struct gpio_ch32003_drv_data *const)dev->data;
+	int r = gpio_ch32v003_register_read(dev, CH32V003_IN_REG(config->id), flag);
+
+	if (r == 0) {
+		drv_data->reg_cache.input = *flag;
+	}
+
+	return r;
 }
 
 int gpio_ch32003_init(const struct device *dev)
@@ -334,11 +342,12 @@ static int ch32v003_pin_config(const struct device *dev, gpio_pin_t pin, gpio_fl
 			return r;
 		}
 
-		r = ch32v003_pull_en_set(dev, pull_en);
-		if (r != 0) {
-			k_sem_give(&data->lock);
-			return r;
-		}
+		// /* TODO: 固件还未实现 */
+		// r = ch32v003_pull_en_set(dev, pull_en);
+		// if (r != 0) {
+		// 	k_sem_give(&data->lock);
+		// 	return r;
+		// }
 	}
 
 	k_sem_give(&data->lock);
@@ -415,9 +424,24 @@ static int ch32v003_toggle_bits(const struct device *dev, gpio_port_pins_t pins)
 	return r;
 }
 
+static int ch32v003_get_raw(const struct device *dev, uint32_t *value)
+{
+	struct gpio_ch32003_drv_data *data = dev->data;
+	int r;
+
+	k_sem_take(&data->lock, K_FOREVER);
+	uint8_t sta;
+	LOG_INF("ch32v003_get_raw, sta:%02X", sta);
+	r = ch32v003_in_get(dev, &sta);
+	*value = sta;
+	k_sem_give(&data->lock);
+
+	return r;
+}
+
 static const struct gpio_driver_api gpio_ch32003_driver = {
 	.pin_configure = ch32v003_pin_config,
-	.port_get_raw = NULL,
+	.port_get_raw = ch32v003_get_raw,
 	.port_set_masked_raw = ch32v003_set_masked_raw,
 	.port_set_bits_raw = ch32v003_set_bits_raw,
 	.port_clear_bits_raw = ch32v003_clear_bits_raw,
