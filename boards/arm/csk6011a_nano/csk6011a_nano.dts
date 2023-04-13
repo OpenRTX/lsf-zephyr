@@ -181,7 +181,7 @@
         psram_ap: psram_ap@30600000 {
                 compatible = "zephyr,memory-region",
                              "listenai,csk6-psram-partition";
-                reg = <0x30600000 0x100000>;
+                reg = <0x30600000 0x200000>;
                 status = "okay";
                 zephyr,memory-region = "PSRAMAP";
         };

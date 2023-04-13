@@ -10,10 +10,30 @@
 #include <drivers/display.h>
 #include <lvgl.h>
 #include <zephyr.h>
+#include <drivers/kscan.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(app);
+
+static void k_callback(const struct device *dev, uint32_t row, uint32_t col, bool pressed)
+{
+	ARG_UNUSED(dev);
+	printk("row = %u col = %u, pressed:%s\n", row, col, pressed ? "TRUE" : "FLASE");
+}
+
+void kscan_init(void)
+{
+	const struct device *kscan_dev = device_get_binding("SPD2010");
+
+	if (!device_is_ready(kscan_dev)) {
+		LOG_ERR("kscan device %s not ready", kscan_dev->name);
+		return;
+	}
+
+	kscan_config(kscan_dev, k_callback);
+	kscan_enable_callback(kscan_dev);
+}
 
 void main(void)
 {
@@ -24,14 +44,28 @@ void main(void)
 		LOG_ERR("Device not ready, aborting test");
 		return;
 	}
+	
+	// kscan_init();
 
 	display_blanking_off(display_dev);
+	// lv_disp_set_rotation(NULL, LV_DISP_ROT_270);
 
-	extern void lv_demo_benchmark(void);
-	lv_demo_benchmark();
-
+	// extern void lv_demo_benchmark(void);
+	// lv_demo_benchmark();
+	extern void lv_demo_widgets(void);
+	lv_demo_widgets();
+	uint32_t i= 0;
 	while (1) {
 		lv_task_handler();
 		k_sleep(K_MSEC(10));
+		// ++i;
+		// int r;
+		// if (i % 400 == 0) {
+		// 	// lv_disp_set_rotation(NULL, LV_DISP_ROT_90);
+		// 	r = display_set_orientation(display_dev, DISPLAY_ORIENTATION_NORMAL);
+		// } else if (i % 200 == 0) {
+		// 	// lv_disp_set_rotation(NULL, LV_DISP_ROT_270);
+		// 	r = display_set_orientation(display_dev, DISPLAY_ORIENTATION_ROTATED_180);
+		// }
 	}
 }
