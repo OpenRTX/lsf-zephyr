@@ -248,6 +248,9 @@ int gpio_ch32003_init(const struct device *dev)
 		return 0;
 	}
 
+	/* TODO: 保证ch32v003初始化完成*/
+	k_msleep(CONFIG_GPIO_CSK6_CH32V003_INIT_DELAY_MS);
+
 	LOG_DBG("addr:%02X", config->bus.addr);
 	r = i2c_configure(config->bus.bus, I2C_SPEED_SET(I2C_SPEED_FAST) | I2C_MODE_MASTER);
 	if (r) {
@@ -470,6 +473,6 @@ static const struct gpio_driver_api gpio_ch32003_driver = {
 	};                                                                                         \
                                                                                                    \
 	DEVICE_DT_INST_DEFINE(inst, gpio_ch32003_init, NULL, &gpio_ch32003_##inst##_drvdata,       \
-			      &gpio_ch32003_##inst##_cfg, POST_KERNEL, 90, &gpio_ch32003_driver);
+			      &gpio_ch32003_##inst##_cfg, POST_KERNEL, CONFIG_GPIO_CSK6_CH32V003_INIT_PRIORITY, &gpio_ch32003_driver);
 
 DT_INST_FOREACH_STATUS_OKAY(GPIO_DEVICE_INSTANCE);
