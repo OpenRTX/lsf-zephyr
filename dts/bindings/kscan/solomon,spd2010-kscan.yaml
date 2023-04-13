@@ -10,7 +10,7 @@ include: [kscan.yaml, i2c-device.yaml]
 properties:
     int-gpios:
       type: phandle-array
-      required: true
+      required: false
     reset-gpios:
       type: phandle-array
       required: false
