@@ -10,3 +10,10 @@ config KSCAN_SPD2010
 		SPD2010 integrates display and touch,
 		and the initialization of touch depends on the display,
 		so the touch function cannot be used alone
+
+config KSCAN_SPD2010_DELAY_TIME_MS
+	int "SPD2010 scan delay time without interrupt"
+	default 5
+	depends on KSCAN_SPD2010
+	help
+		SPD2010 scan delay time without interrupt

@@ -25,7 +25,7 @@ LOG_MODULE_REGISTER(spd2010, CONFIG_KSCAN_LOG_LEVEL);
 #endif
 
 struct spd2010_data {
-	struct k_work work;
+	struct k_work_delayable work;
 	kscan_callback_t cb;
 	struct gpio_callback int_gpio_cb;
 	const struct device *device;
@@ -329,12 +329,13 @@ static void spd2010_dev_isr_handler(const struct device *dev, struct gpio_callba
 				    uint32_t pins)
 {
 	struct spd2010_data *data = CONTAINER_OF(cb, struct spd2010_data, int_gpio_cb);
-	k_work_submit(&data->work);
+	k_work_reschedule(&data->work, K_NO_WAIT);
 }
 
 static void spd2010_dev_work_handler(struct k_work *work)
 {
-	struct spd2010_data *dev_data = CONTAINER_OF(work, struct spd2010_data, work);
+	struct k_work_delayable *dwork = k_work_delayable_from_work(work);
+	struct spd2010_data *dev_data = CONTAINER_OF(dwork, struct spd2010_data, work);
 	const struct spd2010_config *config = (struct spd2010_config *)dev_data->device->config;
 	int ret;
 	struct spd2010_status status = {0};
@@ -345,13 +346,13 @@ static void spd2010_dev_work_handler(struct k_work *work)
 	ret = spd2010_tp_status_read(i2c_dev, &status);
 	if (ret) {
 		LOG_ERR("read tp status failed, ret=%d", ret);
-		return;
+		goto _work_handler_done;
 	}
 
 	if (status.status_h.tic_in_bios) {
 		if (status.status_h.tic_in_busy) {
 			/* not ready, retry, interrupt is not cleared */
-			return;
+			goto _work_handler_done;
 		} else {
 			spd2010_tp_clear_int(i2c_dev);
 			spd20120_tp_cpu_start(i2c_dev);
@@ -368,7 +369,7 @@ static void spd2010_dev_work_handler(struct k_work *work)
 		ret = spd2010_tp_hdp_read(i2c_dev, &touch, &status);
 		if (ret) {
 			LOG_ERR("tp hdp read failed, ret:%d", ret);
-			return;
+			goto _work_handler_done;
 		}
 
 		if (dev_data->cb) {
@@ -387,7 +388,7 @@ static void spd2010_dev_work_handler(struct k_work *work)
 			ret = sdp2010_hdp_status_read(i2c_dev, &hdp_staus);
 			if (ret) {
 				LOG_ERR("tp hdp status read failed, ret:%d", ret);
-				return;
+				goto _work_handler_done;
 			}
 
 			if (hdp_staus.sta == 0x82) {
@@ -400,6 +401,11 @@ static void spd2010_dev_work_handler(struct k_work *work)
 
 	} else if (status.status_h.cpu_run && status.status_l.aux) {
 		spd2010_tp_clear_int(i2c_dev);
+	}
+
+_work_handler_done:
+	if (!device_is_ready(config->int_gpio.port)) {
+		k_work_reschedule(&dev_data->work, K_MSEC(CONFIG_KSCAN_SPD2010_DELAY_TIME_MS));
 	}
 }
 
@@ -420,7 +426,12 @@ static int ksacn_driv_enable(const struct device *dev)
 	struct spd2010_data *data = (struct spd2010_data *)dev->data;
 	struct spd2010_config *config = (struct spd2010_config *)dev->config;
 
-	gpio_add_callback(config->int_gpio.port, &data->int_gpio_cb);
+	if (device_is_ready(config->int_gpio.port)) {
+		gpio_add_callback(config->int_gpio.port, &data->int_gpio_cb);
+	} else {
+		LOG_INF("ksacn_driv_enable");
+		k_work_reschedule(&data->work, K_MSEC(CONFIG_KSCAN_SPD2010_DELAY_TIME_MS));
+	}
 
 	return 0;
 }
@@ -430,7 +441,11 @@ static int kscan_driv_disable(const struct device *dev)
 	struct spd2010_data *data = (struct spd2010_data *)dev->data;
 	struct spd2010_config *config = (struct spd2010_config *)dev->config;
 
-	gpio_remove_callback(config->int_gpio.port, &data->int_gpio_cb);
+	if (device_is_ready(config->int_gpio.port)) {
+		gpio_remove_callback(config->int_gpio.port, &data->int_gpio_cb);
+	} else {
+		k_work_cancel_delayable(&data->work);
+	}
 
 	return 0;
 }
@@ -460,8 +475,9 @@ static int spd2010_dev_init(const struct device *dev)
 		return -1;
 	}
 
+	k_work_init_delayable(&data->work, spd2010_dev_work_handler);
+
 	if (device_is_ready(config->int_gpio.port)) {
-		k_work_init(&(data->work), spd2010_dev_work_handler);
 		r = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
 		if (r) {
 			LOG_ERR("[SPD2010]Could not configure interrupt GPIO pin");
@@ -483,6 +499,7 @@ static int spd2010_dev_init(const struct device *dev)
 		}
 	} else {
 		LOG_ERR("int gpio is not ready!");
+		
 	}
 
 	spd2010_reset(dev);
