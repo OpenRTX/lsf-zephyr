@@ -81,7 +81,7 @@ struct spd2010_data {
 	uint32_t pixel_format;
 	uint32_t orientation;
 	volatile uint32_t te_time;
-	struct device *dma;
+	const struct device *dma;
 };
 
 #define CONFIG_TEST_DMA_CHANNEL_NUN (4)
@@ -95,7 +95,7 @@ void dma_callback(const struct device *dev, void *user_data, uint32_t channel, i
 	}
 }
 
-__attribute__((section(".dtcm"))) volatile uint8_t dma_done = 0;
+__attribute__((section(".dtcm_data"))) volatile uint8_t dma_done = 0;
 __attribute__((section(".itcm"))) static void
 csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
 {
@@ -103,41 +103,41 @@ csk_dma_event_callback(uint32_t event_ctx, uint32_t xfer_bytes, uint32_t arg)
 }
 #include "dma.h"
 __attribute__((section(".itcm"))) int32_t
-test_rotate_90_1(const struct device *dma, void *src, void *dst, uint32_t h, uint32_t w, uint8_t b)
+test_rotate_90_1(const struct device *dma, uint8_t *src, uint8_t *dst, uint32_t h, uint32_t w, uint8_t b)
 {
 	uint8_t real_channel = 3;
-	int r;
 	uint32_t i = 0;
 	uint32_t x_offset = 0;
 	uint32_t y_offset = h * b;
 	uint32_t dst_scat = (h - 1) | 1 << 20;
 
-	extern void dmd_fast_relaod(uint8_t ch, uint32_t src, uint32_t dst, uint32_t size);
+	extern void dmd_fast_reload(uint8_t ch, uint32_t src, uint32_t dst, uint32_t size);
 
 	x_offset = i * w * b;
 	y_offset -= b;
 	dma_done = 0;
 	static uint8_t first = 1;
 	if (first) {
-		dma_memcpy_SG(real_channel, src + x_offset, dst + y_offset, w * b, 0, dst_scat, 1, 1);
+		dma_memcpy_SG(real_channel, (uint32_t)src + x_offset, (uint32_t)dst + y_offset, w * b, 0, dst_scat, 1, 1);
 		// first = 0;
 	} else {
-		dmd_fast_relaod(real_channel, src + x_offset, dst + y_offset, w * b);
+		dmd_fast_reload(real_channel, (uint32_t)src + x_offset, (uint32_t)dst + y_offset, w * b);
 	}
-	while (!dma_done)
-		;
+	while (!dma_done);
 	i++;
 	x_offset = i * w * b;
 	y_offset -= b;
+
 	while (i < h) {
 		dma_done = 0;
-		dmd_fast_relaod(real_channel, src + x_offset, dst + y_offset, w * b);
+		dmd_fast_reload(real_channel, (uint32_t)src + x_offset, (uint32_t)dst + y_offset, w * b);
 		x_offset = i * w * b;
 		y_offset -= b;
 		i++;
-		while (!dma_done)
-			;
+		while (!dma_done);
 	}
+
+	return 0;
 }
 
 int32_t test_rotate_90(const struct device *dma, void *src, void *dst, uint32_t h, uint32_t w,
@@ -187,7 +187,7 @@ int32_t test_rotate_90(const struct device *dma, void *src, void *dst, uint32_t 
 	while (i < h) {
 		x_offset = i * w * b;
 		y_offset -= b;
-		r = dma_reload(dma, CONFIG_TEST_DMA_CHANNEL_NUN, src + x_offset, dst + y_offset,
+		r = dma_reload(dma, CONFIG_TEST_DMA_CHANNEL_NUN, (uint32_t)src + x_offset, (uint32_t)dst + y_offset,
 			       w * b);
 
 		if (r) {
@@ -240,15 +240,6 @@ static int spd2010_transmit(const struct device *dev, uint8_t cmd, const void *t
 	return 0;
 }
 
-static int spd2010_set_page(const struct device *dev, uint8_t page)
-{
-	uint8_t datas[] = {0x20, 0x10, 0x00};
-
-	int ret = spd2010_transmit(dev, 0xFF, datas, sizeof(datas));
-
-	return ret;
-}
-
 static void spd2010_reset_display(const struct device *dev)
 {
 	LOG_DBG("Resetting display");
@@ -278,6 +269,15 @@ static int spd2010_blanking_off(const struct device *dev)
 
 static int spd2010_te_on(const struct device *dev)
 {
+	/**
+	 * @brief TEON
+	 * 	cmd: 0x35, parameter: TEM[bit0:bit0]
+	 * 	- When TEM ='0': The Tearing Effect output line consists of V-Blanking information
+	 * only
+	 * 	- When TEM =’1’: The Tearing Effect output Line consists of both V-Blanking and
+	 * H-Blanking information
+	 */
+
 	uint8_t data = 0x00;
 	return spd2010_transmit(dev, SPD2010_TEON, &data, 1);
 }
@@ -365,7 +365,6 @@ static int spd2010_write(const struct device *dev, const uint16_t x, const uint1
 			 const struct display_buffer_descriptor *desc2, const void *buf)
 {
 	const struct spd2010_config *config = dev->config;
-	struct spd2010_data *data = dev->data;
 	const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
 
 	fifo_item_t *item;
@@ -379,7 +378,7 @@ static int spd2010_write(const struct device *dev, const uint16_t x, const uint1
 
 	uint32_t time = k_uptime_get_32();
 	/* 图像数据旋转，这里最后一个参数表示一个像素点用2个字节表示，不能使用RGB88，只能是RGB565或BGR565 */
-	test_rotate_90_1(dma, buf, item->buf, desc2->height, desc2->width, 2);
+	test_rotate_90_1(dma, (uint8_t *)buf, (uint8_t *)item->buf, desc2->height, desc2->width, 2);
 	LOG_DBG("rotate cost %dms\n", k_uptime_get_32() - time);
 
 	/* 坐标转换 */
@@ -832,17 +831,6 @@ const static spd2010_init_cmd_item_t items[] = {
 	{.cmd = 0x2A, .data_len = 4, .data = {0x00, 0x00, 0x00, 0xB3},},
 	{.cmd = 0x2B, .data_len = 4, .data = {0x00, 0x00, 0x01, 0xC5},},
 	{.cmd = 0x3A, .data_len = 1, .data = {0x05},},
-
-#if 1
-	/**
-	 * @brief TEON
-	 * 	cmd: 0x35, parameter: TEM[bit0:bit0]
-	 * 	- When TEM ='0': The Tearing Effect output line consists of V-Blanking information only
-	 * 	- When TEM =’1’: The Tearing Effect output Line consists of both V-Blanking and H-Blanking information
-	 */
-	{.cmd = 0x35, .data_len = 1, .data = {0x00},},// TEM = 0
-	// {.cmd = 0x35, .data_len = 1, .data = {0x01},},// TEM = 1
-#endif
 };
 
 static uint8_t init_datas[2 * 2 * 180] = {0};
@@ -1003,7 +991,7 @@ static int spd2010_init(const struct device *dev)
 		return -1;
 	}
 
-	dma_channel_reserve(3, csk_dma_event_callback, NULL, DMA_CACHE_SYNC_NOP);
+	dma_channel_reserve(3, csk_dma_event_callback, 0, DMA_CACHE_SYNC_NOP);
 
 	uint8_t i;
 	for (i = 0; i < BUFFER_COUNT; i++) {
