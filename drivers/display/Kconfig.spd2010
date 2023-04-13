@@ -1,0 +1,39 @@
+# Copyright (c) 2020 Rohit Gujarathi
+# SPDX-License-Identifier: Apache-2.0
+
+config SPD2010
+	bool "LWEA2012 memory display controller driver"
+	depends on SPI
+	help
+        LWEA2012 memory display controller driver
+
+config SPD2010_TOUCH
+	bool "enable touch for spd2010"
+	default n
+	depends on SPD2010
+	help
+	   enable touch for spd2010
+
+choice
+prompt "pixel format"
+config SPD2010_FIXEL_FORMAT_RGB565
+	bool "RGB565"
+
+config SPD2010_FIXEL_FORMAT_BGR565
+	bool "BGR565"
+
+config SPD2010_FIXEL_FORMAT_RGB888
+	bool "BGR888"
+
+endchoice
+
+choice
+prompt "orientation"
+config SPD2010_ORIENTATION_NORMAL
+	bool "orientation normal"
+
+config SPD2010_ORIENTATION_180
+	bool "orientation 180"
+
+endchoice
+
