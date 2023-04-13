@@ -7,3 +7,17 @@ config GPIO_CSK6_CH32V003
 	select I2C
 	help
 	  Enable the csk6 GPIO driver.
+
+config GPIO_CSK6_CH32V003_INIT_PRIORITY
+	int "init priority"
+	default 51
+	depends on GPIO_CSK6_CH32V003
+	help
+	   init priority
+
+config GPIO_CSK6_CH32V003_INIT_DELAY_MS
+	int "init delay"
+	default 40
+	depends on GPIO_CSK6_CH32V003
+	help
+	   init delay
