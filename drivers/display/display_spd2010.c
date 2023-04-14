@@ -67,6 +67,7 @@ struct spd2010_config {
 	const struct gpio_dt_spec cmd_data;
 	const struct gpio_dt_spec reset;
 	const struct gpio_dt_spec te;
+	const struct gpio_dt_spec bl;
 	uint8_t pixel_format;
 	uint16_t height;
 	uint16_t width;
@@ -443,7 +444,6 @@ static int spd2010_set_pixel_format(const struct device *dev,
 				    const enum display_pixel_format pixel_format)
 {
 	uint8_t pixel_value;
-	;
 	uint8_t madctr_value;
 	struct spd2010_data *data = dev->data;
 	int r;
@@ -977,6 +977,15 @@ static int spd2010_init(const struct device *dev)
 	if (ret) {
 		return ret;
 	}
+#if 1
+	if (config->bl.port) {
+		ret = gpio_pin_configure_dt(&config->bl, GPIO_OUTPUT_LOW);
+		if (ret != 0) {
+			LOG_ERR("Error %d: failed to configure LED device %s pin %d\n", ret,
+				config->bl.port->name, config->bl.pin);
+		}
+	}
+#endif
 	const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
 
 	data->dma = dma;
@@ -1021,6 +1030,7 @@ static const struct display_driver_api spd2010_api = {
 		.cmd_data = GPIO_DT_SPEC_INST_GET(inst, cmd_data_gpios),                           \
 		.reset = GPIO_DT_SPEC_INST_GET_OR(inst, reset_gpios, {}),                          \
 		.te = GPIO_DT_SPEC_INST_GET_OR(inst, te_gpios, {}),                                \
+		.bl = GPIO_DT_SPEC_INST_GET_OR(inst, backlight_gpios, {}),                         \
 		.width = DT_INST_PROP(inst, width),                                                \
 		.height = DT_INST_PROP(inst, height),                                              \
 		.inversion_on = DT_INST_PROP(inst, inversion_on),                                  \
