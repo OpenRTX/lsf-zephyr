@@ -146,36 +146,36 @@ int32_t test_rotate_90(const struct device *dma, void *src, void *dst, uint32_t 
 {
 	int r;
 
-	struct dma_block_config block_config_1 = {
-		.source_address = (uint32_t)src,
-		.dest_address = (uint32_t)dst,
-		.block_size = w * b,
-		.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
-		.source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
-		.dest_scatter_en = 1,
-		.dest_scatter_count = 1,
-		.dest_scatter_interval = h - 1,
-	};
+	// struct dma_block_config block_config_1 = {
+	// 	.source_address = (uint32_t)src,
+	// 	.dest_address = (uint32_t)dst,
+	// 	.block_size = w * b,
+	// 	.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+	// 	.source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+	// 	.dest_scatter_en = 1,
+	// 	.dest_scatter_count = 1,
+	// 	.dest_scatter_interval = h - 1,
+	// };
 
-	struct dma_config dma_cfg_1 = {
-		.channel_direction = MEMORY_TO_MEMORY,
-		.dma_callback = dma_callback,
-		.user_data = NULL,
-		.block_count = 1,
-		.head_block = &block_config_1,
-		.source_data_size = b,
-		.dest_data_size = b,
-		.channel_priority = 1,
-	};
+	// struct dma_config dma_cfg_1 = {
+	// 	.channel_direction = MEMORY_TO_MEMORY,
+	// 	.dma_callback = dma_callback,
+	// 	.user_data = NULL,
+	// 	.block_count = 1,
+	// 	.head_block = &block_config_1,
+	// 	.source_data_size = b,
+	// 	.dest_data_size = b,
+	// 	.channel_priority = 1,
+	// };
 
 	if (!device_is_ready(dma)) {
 		LOG_ERR("data->dma not ready");
 		return -ENODEV;
 	}
-	if ((r = dma_config(dma, CONFIG_TEST_DMA_CHANNEL_NUN, &dma_cfg_1)) != 0) {
-		printk("DMA config error, error code:%d\n", r);
-		return -1;
-	}
+	// if ((r = dma_config(dma, CONFIG_TEST_DMA_CHANNEL_NUN, &dma_cfg_1)) != 0) {
+	// 	printk("DMA config error, error code:%d\n", r);
+	// 	return -1;
+	// }
 
 	// memset(dst, 0, h * w * b);
 
@@ -990,15 +990,15 @@ static int spd2010_init(const struct device *dev)
 
 	data->dma = dma;
 
-	if (!device_is_ready(data->dma)) {
-		LOG_ERR("data->dma not ready");
-		return -ENODEV;
-	}
+	// if (!device_is_ready(data->dma)) {
+	// 	LOG_ERR("data->dma not ready");
+	// 	return -ENODEV;
+	// }
 
-	if ((ret = dma_config(dma, CONFIG_TEST_DMA_CHANNEL_NUN, &dma_cfg)) != 0) {
-		printk("DMA config error, error code:%d\n", ret);
-		return -1;
-	}
+	// if ((ret = dma_config(dma, CONFIG_TEST_DMA_CHANNEL_NUN, &dma_cfg)) != 0) {
+	// 	printk("DMA config error, error code:%d\n", ret);
+	// 	return -1;
+	// }
 
 	dma_channel_reserve(3, csk_dma_event_callback, 0, DMA_CACHE_SYNC_NOP);
 
