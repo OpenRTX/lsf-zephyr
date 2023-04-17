@@ -120,6 +120,17 @@ typedef void (*flash_api_pages_layout)(const struct device *dev,
 				       size_t *layout_size);
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
 
+#if defined(CONFIG_FLASH_CSK6_LOCK)
+/**
+ * @brief Retrieve a flash device's layout.
+ *
+ * @param dev         Flash device whose layout to retrieve.
+ */
+typedef int (*flash_api_lock)(const struct device *dev);
+typedef int (*flash_api_unlock)(const struct device *dev);
+typedef int32_t (*flash_api_read_id)(const struct device *dev);
+#endif /* CONFIG_FLASH_CSK6_LOCK */
+
 typedef int (*flash_api_sfdp_read)(const struct device *dev, off_t offset,
 				   void *data, size_t len);
 typedef int (*flash_api_read_jedec_id)(const struct device *dev, uint8_t *id);
@@ -129,6 +140,11 @@ __subsystem struct flash_driver_api {
 	flash_api_write write;
 	flash_api_erase erase;
 	flash_api_get_parameters get_parameters;
+#if defined(CONFIG_FLASH_CSK6_LOCK)
+	flash_api_lock lock;
+	flash_api_unlock unlock;
+	flash_api_read_id read_id;
+#endif /* CONFIG_FLASH_CSK6_LOCK */
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
 	flash_api_pages_layout page_layout;
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
@@ -247,6 +263,40 @@ struct flash_pages_info {
 	size_t size;
 	uint32_t index;
 };
+
+#if defined(CONFIG_FLASH_CSK6_LOCK)
+__syscall int32_t flash_read_id(const struct device *dev);
+
+static inline int32_t z_impl_flash_read_id(const struct device *dev)
+{
+	const struct flash_driver_api *api =
+		(const struct flash_driver_api *)dev->api;
+
+	return api->read_id(dev);
+}
+// lock
+__syscall int flash_lock(const struct device *dev);
+
+static inline int z_impl_flash_lock(const struct device *dev)
+{
+	const struct flash_driver_api *api =
+		(const struct flash_driver_api *)dev->api;
+
+	return api->lock(dev);
+}
+
+// unlock
+__syscall int flash_unlock(const struct device *dev);
+
+static inline int z_impl_flash_unlock(const struct device *dev)
+{
+	const struct flash_driver_api *api =
+		(const struct flash_driver_api *)dev->api;
+
+	return api->unlock(dev);
+}
+
+#endif /* CONFIG_FLASH_CSK6_LOCK */
 
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
 /**
