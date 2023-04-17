@@ -36,15 +36,17 @@ properties:
         Frame head pulse signal. Utilize this signal when
         synchronizing RAM data write operations.
 
-    backlight-gpios:
+    backlight-pwms:
       type: phandle-array
-      required: false
+      required: true
       description: |
-        BL pin.
+        The backlight pwm is used to control the brightness of the LCD.
 
-        The BL pin of LWEA2012 is active high.
-        If connected directly the MCU pin should be configured
-        as active high.
+    bl—default-brightness:
+      type: phandle-array
+      required: true
+      description: |
+        The backlight pwm is used to control the brightness of the LCD.
 
     x-offset:
       type: int
@@ -55,7 +57,7 @@ properties:
       type: int
       required: true
       description: The row offset in pixels of the LCD to the controller memory
-    
+
     inversion-on:
       type: boolean
       description: |

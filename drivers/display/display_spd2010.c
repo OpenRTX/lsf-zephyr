@@ -13,6 +13,7 @@
 #include <zephyr/pm/device.h>
 #include <zephyr/sys/byteorder.h>
 
+#include <zephyr/drivers/pwm.h>
 #include <drivers/dma.h>
 
 LOG_MODULE_REGISTER(display_spd2010, CONFIG_DISPLAY_LOG_LEVEL);
@@ -67,7 +68,10 @@ struct spd2010_config {
 	const struct gpio_dt_spec cmd_data;
 	const struct gpio_dt_spec reset;
 	const struct gpio_dt_spec te;
-	const struct gpio_dt_spec bl;
+#if 0
+	// const struct gpio_dt_spec bl;
+#endif
+	const struct pwm_dt_spec pwm_bl;
 	uint8_t pixel_format;
 	uint16_t height;
 	uint16_t width;
@@ -884,6 +888,19 @@ static int spd2010_lcd_init(const struct device *dev)
 	};
 	spd2010_write(dev, 0, 452, &desc, init_datas);
 
+	const struct pwm_dt_spec *pwm_backlight = &config->pwm_bl;
+
+	if (!device_is_ready(pwm_backlight->dev)) {
+		LOG_ERR("%s: pwm device not ready", pwm_backlight->dev->name);
+		return -ENODEV;
+	}
+	LOG_INF("backlight device: %s", pwm_backlight->dev->name);
+
+	if (pwm_set_dt(pwm_backlight, pwm_backlight->period, pwm_backlight->period/2)) {
+		LOG_ERR("PWM device config error!");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -977,7 +994,7 @@ static int spd2010_init(const struct device *dev)
 	if (ret) {
 		return ret;
 	}
-#if 1
+#if 0
 	if (config->bl.port) {
 		ret = gpio_pin_configure_dt(&config->bl, GPIO_OUTPUT_LOW);
 		if (ret != 0) {
@@ -1024,26 +1041,26 @@ static const struct display_driver_api spd2010_api = {
 	.set_orientation = spd2010_set_orientation,
 };
 
-#define SPD2010_INIT(inst)                                                                         \
-	static struct spd2010_config spd2010_config_##inst = {                                     \
-		.bus = SPI_DT_SPEC_INST_GET(inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8), 0),        \
-		.cmd_data = GPIO_DT_SPEC_INST_GET(inst, cmd_data_gpios),                           \
-		.reset = GPIO_DT_SPEC_INST_GET_OR(inst, reset_gpios, {}),                          \
-		.te = GPIO_DT_SPEC_INST_GET_OR(inst, te_gpios, {}),                                \
-		.bl = GPIO_DT_SPEC_INST_GET_OR(inst, backlight_gpios, {}),                         \
-		.width = DT_INST_PROP(inst, width),                                                \
-		.height = DT_INST_PROP(inst, height),                                              \
-		.inversion_on = DT_INST_PROP(inst, inversion_on),                                  \
-	};                                                                                         \
-	static struct spd2010_data spd2010_data_##inst = {                                         \
-		.x_offset = DT_INST_PROP(inst, x_offset),                                          \
-		.y_offset = DT_INST_PROP(inst, y_offset),                                          \
-		.te_sem = Z_SEM_INITIALIZER(spd2010_data_##inst.te_sem, 0, 1),                     \
-		.pixel_format = PIXEL_FORMAT_RGB_565,                                              \
-		.orientation = DISPLAY_ORIENTATION_NORMAL,                                         \
-	};                                                                                         \
-	DEVICE_DT_INST_DEFINE(inst, spd2010_init, NULL, &spd2010_data_##inst,                      \
-			      &spd2010_config_##inst, POST_KERNEL, CONFIG_DISPLAY_INIT_PRIORITY,   \
+#define SPD2010_INIT(inst)                                                                         	\
+	static struct spd2010_config spd2010_config_##inst = {                                     	\
+		.bus = SPI_DT_SPEC_INST_GET(inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8), 0),        	\
+		.cmd_data = GPIO_DT_SPEC_INST_GET(inst, cmd_data_gpios),                           	\
+		.reset = GPIO_DT_SPEC_INST_GET_OR(inst, reset_gpios, {}),                          	\
+		.te = GPIO_DT_SPEC_INST_GET_OR(inst, te_gpios, {}),                                	\
+		.pwm_bl = PWM_DT_SPEC_INST_GET_OR(inst, pwms),                             	\
+		.width = DT_INST_PROP(inst, width),                                             	\
+		.height = DT_INST_PROP(inst, height),                                           	\
+		.inversion_on = DT_INST_PROP(inst, inversion_on),                               	\
+	};                                                                                      	\
+	static struct spd2010_data spd2010_data_##inst = {                                      	\
+		.x_offset = DT_INST_PROP(inst, x_offset),                                       	\
+		.y_offset = DT_INST_PROP(inst, y_offset),                                       	\
+		.te_sem = Z_SEM_INITIALIZER(spd2010_data_##inst.te_sem, 0, 1),                  	\
+		.pixel_format = PIXEL_FORMAT_RGB_565,                                           	\
+		.orientation = DISPLAY_ORIENTATION_NORMAL,                                      	\
+	};                                                                                      	\
+	DEVICE_DT_INST_DEFINE(inst, spd2010_init, NULL, &spd2010_data_##inst,                   	\
+			      &spd2010_config_##inst, POST_KERNEL, CONFIG_DISPLAY_INIT_PRIORITY,	\
 			      &spd2010_api);
 
 DT_INST_FOREACH_STATUS_OKAY(SPD2010_INIT);
