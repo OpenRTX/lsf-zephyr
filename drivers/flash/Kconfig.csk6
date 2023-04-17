@@ -28,6 +28,6 @@ config CSK6_FLASH_STALL_SECOND_CORE
 config FLASH_CSK6_LOCK
 	bool "Listenai CSK6 spi flash lock API"
 	default n
-	depends on HAS_CSK6
+	depends on SOC_FLASH_CSK6
 	help
 	  Enable CSK6 internal spi flash lock API.

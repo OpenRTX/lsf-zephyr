@@ -272,6 +272,21 @@ int flash_csk6_unlock(const struct device *dev)
 	return iret;
 }
 
+int flash_csk6_get_lock_status(const struct device *dev)
+{
+	int status;
+	FLASH_OPT_ENTER();
+	sflash_write_protection_set((void *)dev->config, false);
+
+	status = sflash_lock_status((void *)dev->config);
+
+	sflash_write_protection_set((void *)dev->config, true);
+	FLASH_OPT_EXIT();
+
+	return status;
+}
+#endif
+
 int32_t flash_csk6_read_id(const struct device *dev)
 {
 	int32_t id = 0;
@@ -284,7 +299,7 @@ int32_t flash_csk6_read_id(const struct device *dev)
 	FLASH_OPT_EXIT();
 	return id;
 }
-#endif
+
 
 static const struct flash_driver_api flash_csk6_driver_api = {
 	.read = flash_csk6_read,
@@ -294,8 +309,9 @@ static const struct flash_driver_api flash_csk6_driver_api = {
 #ifdef CONFIG_FLASH_CSK6_LOCK
 	.lock = flash_csk6_lock,
 	.unlock = flash_csk6_unlock,
-	.read_id = flash_csk6_read_id,
+	.get_lock_status = flash_csk6_get_lock_status,
 #endif
+	.read_id = flash_csk6_read_id,
 #ifdef CONFIG_FLASH_PAGE_LAYOUT
 	.page_layout = flash_csk6_page_layout,
 #endif
