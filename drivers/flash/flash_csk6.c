@@ -237,11 +237,65 @@ static int flash_csk6_init(const struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_FLASH_CSK6_LOCK
+int flash_csk6_lock(const struct device *dev)
+{
+	int iret;
+	FLASH_OPT_ENTER();
+	sflash_write_protection_set((void *)dev->config, false);
+
+	if (0 != sflash_lock((void *)dev->config)) {
+		iret = -EIO;
+	} else {
+		iret = 0;
+	}
+	
+	sflash_write_protection_set((void *)dev->config, true);
+	FLASH_OPT_EXIT();
+	return iret;
+}
+
+int flash_csk6_unlock(const struct device *dev)
+{
+	int iret;
+	FLASH_OPT_ENTER();
+	sflash_write_protection_set((void *)dev->config, false);
+
+	if (0 != sflash_unlock((void *)dev->config)) {
+		iret = -EIO;
+	} else {
+		iret = 0;
+	}
+
+	sflash_write_protection_set((void *)dev->config, true);
+	FLASH_OPT_EXIT();
+	return iret;
+}
+
+int32_t flash_csk6_read_id(const struct device *dev)
+{
+	int32_t id = 0;
+	FLASH_OPT_ENTER();
+	sflash_write_protection_set((void *)dev->config, false);
+
+	id = sflash_read_id((void *)dev->config);
+
+	sflash_write_protection_set((void *)dev->config, true);
+	FLASH_OPT_EXIT();
+	return id;
+}
+#endif
+
 static const struct flash_driver_api flash_csk6_driver_api = {
 	.read = flash_csk6_read,
 	.write = flash_csk6_write,
 	.erase = flash_csk6_erase,
 	.get_parameters = flash_csk6_get_parameters,
+#ifdef CONFIG_FLASH_CSK6_LOCK
+	.lock = flash_csk6_lock,
+	.unlock = flash_csk6_unlock,
+	.read_id = flash_csk6_read_id,
+#endif
 #ifdef CONFIG_FLASH_PAGE_LAYOUT
 	.page_layout = flash_csk6_page_layout,
 #endif
