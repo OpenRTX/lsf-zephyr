@@ -44,6 +44,10 @@ static const struct arm_mpu_region mpu_regions[] = {
 				CONFIG_AVF_IPC_SHM_BASE_ADDRESS,
 		 		REGION_RAM_NOCACHE_ATTR( CONFIG_AVF_IPC_SHM_BASE_ADDRESS,CONFIG_AVF_IPC_SHM_SIZE ))
 #endif
+	/*TODO:临时代码  */
+	MPU_REGION_ENTRY("AVF_SHARE_SRAM",
+				0x30000000,
+		 		REGION_RAM_NOCACHE_ATTR( 0x30000000, 4 * 1024 * 1024 )),
 
 };
 

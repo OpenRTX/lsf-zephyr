@@ -120,8 +120,7 @@ __attribute__((section(".itcm"))) static int spd2010_transmit(const struct devic
 		LOG_ERR("SPI_Send failed, error code:%d", r);
 		return r;
 	}
-	while (!spi_done)
-		;
+	while (!spi_done);
 	if ((tx_data != NULL) && (tx_len > 0)) {
 		gpio_pin_set_dt(&config->cmd_data, SPD2010_DATA);
 		/* data */
@@ -131,8 +130,7 @@ __attribute__((section(".itcm"))) static int spd2010_transmit(const struct devic
 			LOG_ERR("SPI_Send failed, error code:%d", r);
 			return r;
 		}
-		while (!spi_done)
-			;
+		while (!spi_done);
 	}
 
 	return 0;
@@ -144,8 +142,6 @@ __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *
 	static uint8_t first = 1;
 	const uint8_t ch = 3;
 	SPI_DEV *spi = (spi_dev);
-	int32_t stat;
-
 
 	if ((data == NULL) || (num == 0U) || (num > MAX_TRANCNT))
 		return CSK_DRIVER_ERROR_PARAMETER;
@@ -191,15 +187,15 @@ __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *
 	const uint32_t config_low = DMA_CH_CFGL_CH_PRIOR(1);
 	const uint32_t config_high = DMA_CH_CFGH_DST_PER(spi->dma_tx.reqsel);
 
-	stat = dma_channel_configure(spi->info->tx_dyn_dma_ch, (uint32_t)spi->info->xfer.tx_buf,
-				     (uint32_t)(&(spi->reg->DATA)), num, control, config_low,
-				     config_high, is_gather, 0);
+	dma_channel_configure(spi->info->tx_dyn_dma_ch, (uint32_t)spi->info->xfer.tx_buf,
+			      (uint32_t)(&(spi->reg->DATA)), num, control, config_low, config_high,
+			      is_gather, 0);
+
 	spi->reg->CTRL |= TXDMAEN;
-	// enable interrupts
 	spi->reg->INTREN = SPI_ENDINT;
 	spi->info->status.bit.tx_mode = DMA_IO;
-	while (SPI_TXFIFO_EMPTY(spi))
-		;
+
+	while (SPI_TXFIFO_EMPTY(spi));
 	spi->reg->CMD = 0;
 
 	return CSK_DRIVER_OK;
@@ -241,8 +237,7 @@ spd2010_set_display_datas_with_dma_rotate_90(const struct device *dev, uint8_t *
 			LOG_ERR("SPI_Send_1 failed, error code:%d", r);
 			return r;
 		}
-		while (!spi_done)
-			;
+		while (!spi_done);
 	}
 
 	return 0;
