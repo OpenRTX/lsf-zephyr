@@ -68,10 +68,8 @@ struct spd2010_config {
 	const struct gpio_dt_spec cmd_data;
 	const struct gpio_dt_spec reset;
 	const struct gpio_dt_spec te;
-#if 0
-	// const struct gpio_dt_spec bl;
-#endif
-	const struct pwm_dt_spec pwm_bl;
+	const struct pwm_dt_spec bl_pwm;
+	uint8_t bl_brightness;
 	uint8_t pixel_format;
 	uint16_t height;
 	uint16_t width;
@@ -413,6 +411,19 @@ static void *spd2010_get_framebuffer(const struct device *dev)
 
 static int spd2010_set_brightness(const struct device *dev, const uint8_t brightness)
 {
+	const struct spd2010_config *config = dev->config;
+	if (!device_is_ready(config->bl_pwm.dev)) {
+		LOG_ERR("%s, The current device does not support brightness adjustment.", dev->name);
+		return -ENOTSUP;
+	}
+	if (brightness > 100) {
+		LOG_ERR("Set brightness, brightness value error!");
+		return -EINVAL;
+	}
+	if(pwm_set_pulse_dt(&config->bl_pwm, config->bl_pwm.period * (100-brightness) / 100)) {
+		LOG_ERR("Set brightness, PWM device config error!");
+		return -1;
+	}
 	return -ENOTSUP;
 }
 
@@ -874,10 +885,6 @@ static int spd2010_lcd_init(const struct device *dev)
 
 	spd2010_exit_sleep(dev);
 
-	k_sleep(K_MSEC(100));
-	spd2010_blanking_off(dev);
-	k_sleep(K_MSEC(100));
-
 	/*TODO:  */
 	memset(init_datas, 0x00, sizeof(init_datas));
 	struct display_buffer_descriptor desc = {
@@ -888,7 +895,7 @@ static int spd2010_lcd_init(const struct device *dev)
 	};
 	spd2010_write(dev, 0, 452, &desc, init_datas);
 
-	const struct pwm_dt_spec *pwm_backlight = &config->pwm_bl;
+	const struct pwm_dt_spec *pwm_backlight = &config->bl_pwm;
 
 	if (!device_is_ready(pwm_backlight->dev)) {
 		LOG_ERR("%s: pwm device not ready", pwm_backlight->dev->name);
@@ -896,11 +903,7 @@ static int spd2010_lcd_init(const struct device *dev)
 	}
 	LOG_INF("backlight device: %s", pwm_backlight->dev->name);
 
-	if (pwm_set_dt(pwm_backlight, pwm_backlight->period, pwm_backlight->period/2)) {
-		LOG_ERR("PWM device config error!");
-		return -1;
-	}
-
+	spd2010_set_brightness(dev, config->bl_brightness);
 	return 0;
 }
 
@@ -994,15 +997,6 @@ static int spd2010_init(const struct device *dev)
 	if (ret) {
 		return ret;
 	}
-#if 0
-	if (config->bl.port) {
-		ret = gpio_pin_configure_dt(&config->bl, GPIO_OUTPUT_LOW);
-		if (ret != 0) {
-			LOG_ERR("Error %d: failed to configure LED device %s pin %d\n", ret,
-				config->bl.port->name, config->bl.pin);
-		}
-	}
-#endif
 	const struct device *dma = DEVICE_DT_GET(DT_NODELABEL(dma0));
 
 	data->dma = dma;
@@ -1047,8 +1041,9 @@ static const struct display_driver_api spd2010_api = {
 		.cmd_data = GPIO_DT_SPEC_INST_GET(inst, cmd_data_gpios),                           	\
 		.reset = GPIO_DT_SPEC_INST_GET_OR(inst, reset_gpios, {}),                          	\
 		.te = GPIO_DT_SPEC_INST_GET_OR(inst, te_gpios, {}),                                	\
-		.pwm_bl = PWM_DT_SPEC_INST_GET_OR(inst, pwms),                             	\
+		.bl_pwm = PWM_DT_SPEC_INST_GET_OR(inst, pwms),                             	\
 		.width = DT_INST_PROP(inst, width),                                             	\
+		.bl_brightness = DT_INST_PROP(inst, bl_default_brightness),                          \
 		.height = DT_INST_PROP(inst, height),                                           	\
 		.inversion_on = DT_INST_PROP(inst, inversion_on),                               	\
 	};                                                                                      	\
