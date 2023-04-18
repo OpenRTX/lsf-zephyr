@@ -13,7 +13,17 @@ properties:
       required: true
       description: channel id num of the hardware gpt
 
+    channel:
+      type: int
+      required: true
+      description: channel id num of the hardware gpt
+
     channel_mode:
+      type: int
+      required: true
+      description: channel id num of the hardware gpt
+
+    polarity:
       type: int
       required: true
       description: channel id num of the hardware gpt

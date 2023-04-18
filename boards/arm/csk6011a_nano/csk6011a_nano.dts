@@ -73,7 +73,8 @@
         clock-prescaler = <128>;
         pinctrl-0 = <&pinctrl_pwm2_default>;
         pinctrl-names = "default";
-
+	polarity = <PWM_POLARITY_NORMAL>;
+        channel = <2>;
 };
 
 &gpioa {
