@@ -86,13 +86,13 @@ static int csk6_init(const struct device *arg)
 #else
 	SCB_DisableICache();
 #endif
-// #ifdef CONFIG_CSK6_DCACHE
-// 	SCB_EnableDCache();
-// #else
-// 	SCB_DisableDCache();
-// #endif
-
+#ifdef CONFIG_CSK6_DCACHE
+	SCB_EnableDCache();
+#else
 	SCB_DisableDCache();
+#endif
+
+	// SCB_DisableDCache();
 	return 0;
 }
 
