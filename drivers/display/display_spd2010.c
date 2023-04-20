@@ -337,6 +337,8 @@ spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	write_h = desc->height;
 	spd2010_transmit(dev, SPD2010_WRMEMST, NULL, 0);
 
+	/* clean cache */
+	SCB_CleanDCache_by_Addr((void *)write_data_start, desc->width * desc->height * SPD2010_PIXEL_SIZE);
 	/* 发送数据 */
 	gpio_pin_set_dt(&config->cmd_data, SPD2010_DATA);
 	const uint32_t ctrl = CSK_SPI_MODE_MASTER | CSK_SPI_CPOL0_CPHA0 | CSK_SPI_MSB_LSB |
