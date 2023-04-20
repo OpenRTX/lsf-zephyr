@@ -18,14 +18,6 @@ config FS_CSK6_NAND_FLASH_FATFS
 	bool "nand flash use fatfs"
 	default n
 
-if FS_CSK6_NAND_FLASH_FATFS
-
-	config FS_CSK6_DISK_FLASH_START
-		hex
-		default "$(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_FLASH_SYSFS_STORAGE))"
-
-endif
-
 config FS_FATFS_READ_ONLY
 	bool "Read-only support for all volumes"
 	help
