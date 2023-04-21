@@ -77,6 +77,15 @@ struct spd2010_config {
 	bool inversion_on;
 };
 
+struct spd2010_display_send_ctx {
+	const uint8_t *buffer;
+	uint32_t h;
+	uint32_t w;
+	uint32_t curr_w;
+	uint32_t start_offset;
+	uint8_t pixel_size;
+};
+
 struct spd2010_data {
 	struct gpio_callback te_callback;
 	struct k_sem te_sem;
@@ -89,6 +98,7 @@ struct spd2010_data {
 	volatile uint32_t te_time;
 	const struct device *dma;
 	SPI_DEV *spi;
+	struct spd2010_display_send_ctx display_ctx;
 };
 
 __attribute__((section(".dtcm_data"))) volatile uint8_t spi_done = 0;
@@ -208,36 +218,25 @@ __attribute__((section(".itcm"))) static int
 spd2010_set_display_datas_with_dma_rotate_90(const struct device *dev, uint8_t *datas,
 					     uint32_t datas_size, uint32_t w, uint32_t h)
 {
-	int r;
 	struct spd2010_data *data = dev->data;
 
-	if (datas_size % 2 != 0) {
+	datas_size >>= 1;
+
+	if (datas_size == 0) {
+		return 0;
+	}
+
+	if (datas_size >= 512) {
+		/* 不可能会出现,这里还是检查下 */
 		k_panic();
 	}
-	datas_size /= 2;
 
-	uint32_t cnt = datas_size / 512;
-	uint32_t i;
-	uint8_t *buf = datas;
-	for (i = 0; i < cnt; i++) {
-		r = SPI_Send_1(data->spi, buf, 512, w);
-		if (r != 0) {
-			LOG_ERR("SPI_Send_1 failed, error code:%d", r);
-			return r;
-		}
-		k_sem_take(&data->spi_done_sem, K_FOREVER);
-		buf += 512 * 2;
-	}
+	uint32_t cnt = datas_size;
 
-	cnt = datas_size % 512;
-	if (cnt > 0) {
-		spi_done = 0;
-		r = SPI_Send_1(data->spi, buf, cnt, w);
-		if (r != 0) {
-			LOG_ERR("SPI_Send_1 failed, error code:%d", r);
-			return r;
-		}
-		k_sem_take(&data->spi_done_sem, K_FOREVER);
+	int r = SPI_Send_1(data->spi, datas, cnt, w);
+	if (r != 0) {
+		LOG_ERR("SPI_Send_1 failed, error code:%d", r);
+		return r;
 	}
 
 	return 0;
@@ -315,15 +314,16 @@ spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	const struct spd2010_config *config = dev->config;
 	struct spd2010_data *data = dev->data;
 
-	/* 坐标转换 */
+	/* 坐标转换旋转90度 */
 	uint32_t new_h = desc->width;
 	uint32_t new_w = desc->height;
 	uint32_t new_y = x;
 	uint32_t new_x = config->width - (y + desc->height);
+
 	spd2010_set_mem_area(dev, new_x, new_y, new_w, new_h);
 
 	if (device_is_ready(config->te.port)) {
-		/* TODO:这里RESET后强制等待一个TE信号， 这里需要有货*/
+		/* TODO:这里RESET后强制等待一个TE信号， 这里需要优化*/
 		k_sem_reset(&data->te_sem);
 		int r = k_sem_take(&data->te_sem, K_MSEC(60));
 		if (r != 0) {
@@ -332,13 +332,11 @@ spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	}
 
 	const uint8_t *write_data_start = (uint8_t *)buf;
-	uint16_t write_cnt;
 	uint16_t write_h;
 	uint32_t start_offset = desc->width * (desc->height - 1) * SPD2010_PIXEL_SIZE;
 	write_h = desc->height;
 	spd2010_transmit(dev, SPD2010_WRMEMST, NULL, 0);
 
-	/* clean cache */
 	SCB_CleanDCache_by_Addr((void *)write_data_start, desc->width * desc->height * SPD2010_PIXEL_SIZE);
 	/* 发送数据 */
 	gpio_pin_set_dt(&config->cmd_data, SPD2010_DATA);
@@ -347,17 +345,22 @@ spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	const uint32_t speed = 50 * 1000 * 1000;
 	int r = SPI_Control(data->spi, ctrl, speed);
 	if (r != 0) {
-		LOG_ERR("222SPI_Control failed, error code:%d", r);
+		LOG_ERR("SPI_Control failed, error code:%d", r);
 		return r;
 	}
 
-	for (write_cnt = 0U; write_cnt < desc->width; ++write_cnt) {
-		/* 利用DMA GATHER模式直接将显存中的数据搬运到SPI上，用来加速图像旋转 */
-		spd2010_set_display_datas_with_dma_rotate_90(
-			dev, (void *)(write_data_start + start_offset),
-			1 * SPD2010_PIXEL_SIZE * write_h, desc->width, desc->height);
-		start_offset += SPD2010_PIXEL_SIZE;
-	}
+	data->display_ctx.buffer = write_data_start;
+	data->display_ctx.h = desc->height;
+	data->display_ctx.w = desc->width;
+	data->display_ctx.curr_w = 1;
+	data->display_ctx.pixel_size = SPD2010_PIXEL_SIZE;
+	data->display_ctx.start_offset = start_offset;
+
+	/* 剩下的数据将会在中断中发送 */
+	spd2010_set_display_datas_with_dma_rotate_90(dev, (void *)(write_data_start + start_offset),
+						     1 * SPD2010_PIXEL_SIZE * write_h, desc->width,
+						     desc->height);
+	k_sem_take(&data->spi_done_sem, K_FOREVER);
 
 	return 0;
 }
@@ -863,7 +866,27 @@ __attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t even
 	if (event & CSK_SPI_EVENT_TRANSFER_COMPLETE) {
 		const struct device *dev = (const struct device *)usr_param;
 		struct spd2010_data *data = dev->data;
-		k_sem_give(&data->spi_done_sem);
+
+		if (data->display_ctx.buffer) {
+			/* 表示发送的是显示数据 */
+			if (data->display_ctx.curr_w < data->display_ctx.w) {
+				data->display_ctx.start_offset += 2;
+				spd2010_set_display_datas_with_dma_rotate_90(
+					dev,
+					(void *)(data->display_ctx.buffer +
+						 data->display_ctx.start_offset),
+					data->display_ctx.pixel_size * data->display_ctx.h,
+					data->display_ctx.w, data->display_ctx.h);
+
+				data->display_ctx.curr_w++;
+			} else {
+				k_sem_give(&data->spi_done_sem);
+				data->display_ctx.buffer = NULL;
+			}
+		} else {
+			/* 表示发送的是命令 */
+			k_sem_give(&data->spi_done_sem);
+		}
 	}
 }
 
@@ -872,6 +895,8 @@ static int spd2010_init(const struct device *dev)
 	const struct spd2010_config *config = dev->config;
 	struct spd2010_data *data = dev->data;
 	int ret;
+
+	memset(&data->display_ctx, 0, sizeof(struct spd2010_display_send_ctx));
 
 	if (!spi_is_ready(&config->bus)) {
 		LOG_ERR("SPI bus %s not ready", config->bus.bus->name);
