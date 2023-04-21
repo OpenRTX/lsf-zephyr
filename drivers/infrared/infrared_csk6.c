@@ -62,7 +62,7 @@ static int ir_csk_send(const struct device *dev, ir_data_t *data)
 {
 	void *IR0_Handler = DEV_HANDLER(dev);
 	ir_csk_data_t *dev_data = DEV_DATA(dev);
-	if (dev_data->cfg.protocol != IR_PROTOCOL_CUSTOM) {
+	if (dev_data->cfg.protocol == IR_PROTOCOL_NEC) {
 		uint8_t addr_hbyte = data->addr >> 8;
 		uint8_t addr_lbyte = ~(data->addr & 0xff);
 		if (addr_hbyte != addr_lbyte) {
