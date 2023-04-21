@@ -122,19 +122,16 @@ __attribute__((section(".itcm"))) static int spd2010_transmit(const struct devic
 		LOG_ERR("SPI_Send failed, error code:%d", r);
 		return r;
 	}
-	while (!spi_done)
-		;
+	k_sem_take(&data->spi_done_sem, K_FOREVER);
 	if ((tx_data != NULL) && (tx_len > 0)) {
 		gpio_pin_set_dt(&config->cmd_data, SPD2010_DATA);
 		/* data */
-		spi_done = 0;
 		r = SPI_Send(data->spi, tx_data, tx_len);
 		if (r != 0) {
 			LOG_ERR("SPI_Send failed, error code:%d", r);
 			return r;
 		}
-		while (!spi_done)
-			;
+		k_sem_take(&data->spi_done_sem, K_FOREVER);
 	}
 
 	return 0;
@@ -223,15 +220,12 @@ spd2010_set_display_datas_with_dma_rotate_90(const struct device *dev, uint8_t *
 	uint32_t i;
 	uint8_t *buf = datas;
 	for (i = 0; i < cnt; i++) {
-		/* data */
-		spi_done = 0;
 		r = SPI_Send_1(data->spi, buf, 512, w);
 		if (r != 0) {
 			LOG_ERR("SPI_Send_1 failed, error code:%d", r);
 			return r;
 		}
-		while (!spi_done)
-			;
+		k_sem_take(&data->spi_done_sem, K_FOREVER);
 		buf += 512 * 2;
 	}
 
@@ -243,8 +237,7 @@ spd2010_set_display_datas_with_dma_rotate_90(const struct device *dev, uint8_t *
 			LOG_ERR("SPI_Send_1 failed, error code:%d", r);
 			return r;
 		}
-		while (!spi_done)
-			;
+		k_sem_take(&data->spi_done_sem, K_FOREVER);
 	}
 
 	return 0;
@@ -321,7 +314,6 @@ spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 {
 	const struct spd2010_config *config = dev->config;
 	struct spd2010_data *data = dev->data;
-	uint32_t time = k_uptime_get_32();
 
 	/* 坐标转换 */
 	uint32_t new_h = desc->width;
@@ -329,6 +321,15 @@ spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	uint32_t new_y = x;
 	uint32_t new_x = config->width - (y + desc->height);
 	spd2010_set_mem_area(dev, new_x, new_y, new_w, new_h);
+
+	if (device_is_ready(config->te.port)) {
+		/* TODO:这里RESET后强制等待一个TE信号， 这里需要有货*/
+		k_sem_reset(&data->te_sem);
+		int r = k_sem_take(&data->te_sem, K_MSEC(60));
+		if (r != 0) {
+			LOG_ERR("te sem take timeout");
+		}
+	}
 
 	const uint8_t *write_data_start = (uint8_t *)buf;
 	uint16_t write_cnt;
@@ -357,7 +358,6 @@ spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 			1 * SPD2010_PIXEL_SIZE * write_h, desc->width, desc->height);
 		start_offset += SPD2010_PIXEL_SIZE;
 	}
-	LOG_INF("flush cost time: %u ms\n", k_uptime_get_32() - time);
 
 	return 0;
 }
@@ -816,7 +816,6 @@ static int spd2010_lcd_init(const struct device *dev)
 {
 	uint16_t i;
 	const struct spd2010_config *config = dev->config;
-	LOG_INF("spd2010_lcd_init");
 	k_sleep(K_MSEC(20));
 	for (i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
 		int ret = spd2010_transmit(dev, items[i].cmd, &items[i].data, items[i].data_len);
@@ -826,7 +825,7 @@ static int spd2010_lcd_init(const struct device *dev)
 			return ret;
 		}
 	}
-	LOG_INF("spd2010_set_orientation");
+
 #if CONFIG_SPD2010_ORIENTATION_NORMAL
 	spd2010_set_orientation(dev, DISPLAY_ORIENTATION_NORMAL);
 #else
@@ -844,13 +843,7 @@ static int spd2010_lcd_init(const struct device *dev)
 	if (config->te.port != NULL) {
 		spd2010_te_on(dev);
 	}
-	LOG_INF("spd2010_exit_sleep");
 	spd2010_exit_sleep(dev);
-	// LOG_INF("spd2010_blanking_off");
-	// k_sleep(K_MSEC(100));
-	// spd2010_blanking_off(dev);
-	// k_sleep(K_MSEC(100));
-	// LOG_INF("init ok");
 
 	const struct pwm_dt_spec *pwm_backlight = &config->bl_pwm;
 
@@ -858,9 +851,9 @@ static int spd2010_lcd_init(const struct device *dev)
 		LOG_ERR("%s: pwm device not ready", pwm_backlight->dev->name);
 		return -ENODEV;
 	}
-	LOG_INF("backlight device: %s", pwm_backlight->dev->name);
 
 	spd2010_set_brightness(dev, config->bl_brightness);
+
 	return 0;
 }
 
@@ -868,7 +861,9 @@ __attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t even
 								   uint32_t usr_param)
 {
 	if (event & CSK_SPI_EVENT_TRANSFER_COMPLETE) {
-		spi_done = 1;
+		const struct device *dev = (const struct device *)usr_param;
+		struct spd2010_data *data = dev->data;
+		k_sem_give(&data->spi_done_sem);
 	}
 }
 
@@ -878,13 +873,28 @@ static int spd2010_init(const struct device *dev)
 	struct spd2010_data *data = dev->data;
 	int ret;
 
-	LOG_INF("spd2010_init");
 	if (!spi_is_ready(&config->bus)) {
 		LOG_ERR("SPI bus %s not ready", config->bus.bus->name);
 		return -ENODEV;
 	} else {
-		/* SPI驱动已经初始化过了，为了直接调用hal驱动，这里需要改变SPI的事件回调地址 */
-		SPI_DEV *hal_spi = SPI0();
+		/**
+		 * SPI驱动已经初始化过了，为了直接调用hal驱动，这里需要改变SPI的事件回调地址
+		 *
+		 * 也就是说SPI驱动不能进行复用
+		 * 
+		 * 请确保SPI设备的名称为"SPI_0"和"SPI_1"
+		 */
+		SPI_DEV *hal_spi = NULL;
+		if (strcmp(config->bus.bus->name, "SPI_0") == 0) {
+			hal_spi = SPI0();
+		} else if (strcmp(config->bus.bus->name, "SPI_1") == 0) {
+			hal_spi = SPI1();
+		} else {
+			LOG_ERR("SPI device name: %s is not '%s' or '%s'!", config->bus.bus->name,
+				"SPI_0", "SPI_1");
+			k_panic();
+		}
+
 		hal_spi->info->cb_event = csk_spi_isr_callback;
 		hal_spi->info->usr_param = (uint32_t)dev;
 		data->spi = hal_spi;
