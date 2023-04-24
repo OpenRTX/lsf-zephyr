@@ -93,6 +93,48 @@ static inline int gpio_ch32v003_register_read(const struct device *dev, uint8_t 
 	return i2c_reg_read_byte_dt(&config->bus, reg, value);
 }
 
+#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+static K_EVENT_DEFINE(event_group);
+#define INIT_BIT 	BIT(0)
+static struct k_work_delayable init_work;
+static const struct device *s_init_dev = NULL;
+
+static int wait_init_done(void)
+{
+	int ret = k_event_wait(&event_group, INIT_BIT, false, K_FOREVER);
+	if (!(ret & INIT_BIT)) {
+		return -1;
+	}
+	return 0;
+}
+
+static void init_work_handler(struct k_work *item)
+{
+	ARG_UNUSED(item);
+	const struct device *dev = s_init_dev;
+	const struct gpio_ch32003_config *const config = dev->config;
+
+	LOG_DBG("addr:%02X", config->bus.addr);
+	int r = i2c_configure(config->bus.bus, I2C_SPEED_SET(I2C_SPEED_FAST) | I2C_MODE_MASTER);
+	if (r) {
+		printk("i2c_configure failed, ret:%d\n", r);
+		return;
+	}
+
+	uint8_t id = 0;
+	r = gpio_ch32v003_register_read(dev, CH32V003_ID_REG, &id);
+	if (r) {
+		LOG_ERR("read id failed, r:%d\n", r);
+		return;
+	}
+
+	LOG_DBG("chip id: %u\n", id);
+	k_event_set(&event_group, INIT_BIT);
+}
+#else
+#define	wait_init_done()
+#endif //ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+
 static inline int gpio_ch32v003_register_write(const struct device *dev, uint8_t reg, uint8_t value)
 {
 	const struct gpio_ch32003_config *const config = dev->config;
@@ -236,7 +278,6 @@ static inline int ch32v003_in_get(const struct device *dev, uint8_t *flag)
 int gpio_ch32003_init(const struct device *dev)
 {
 	static uint8_t inited = 0;
-	int r;
 	const struct gpio_ch32003_config *const config = dev->config;
 
 	if (!device_is_ready(config->bus.bus)) {
@@ -248,6 +289,12 @@ int gpio_ch32003_init(const struct device *dev)
 		return 0;
 	}
 
+#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+	s_init_dev = dev;
+	k_work_init_delayable(&init_work, init_work_handler);
+	k_work_schedule(&init_work, K_MSEC(CONFIG_GPIO_CSK6_CH32V003_INIT_DELAY_MS));
+#else
+	int r = 0;
 	/* TODO: 保证ch32v003初始化完成*/
 	k_msleep(CONFIG_GPIO_CSK6_CH32V003_INIT_DELAY_MS);
 
@@ -265,8 +312,7 @@ int gpio_ch32003_init(const struct device *dev)
 		return r;
 	}
 
-	LOG_DBG("chip id: %u\n", id);
-
+#endif
 	inited = 1;
 
 	return 0;
@@ -283,6 +329,8 @@ static int ch32v003_pin_config(const struct device *dev, gpio_pin_t pin, gpio_fl
 	uint8_t out_update = false;
 	uint8_t pull_update = false;
 	int r;
+
+	wait_init_done();
 
 	if (k_is_in_isr()) {
 		return -EWOULDBLOCK;
@@ -365,6 +413,7 @@ static int ch32v003_set_masked_raw(const struct device *dev, gpio_port_pins_t ma
 	uint8_t output;
 	int r;
 
+	wait_init_done();
 	k_sem_take(&data->lock, K_FOREVER);
 	output = data->reg_cache.output;
 	mask &= 0xFF;
@@ -384,6 +433,7 @@ static int ch32v003_set_bits_raw(const struct device *dev, gpio_port_pins_t pins
 	uint8_t output;
 	int r;
 
+	wait_init_done();
 	k_sem_take(&data->lock, K_FOREVER);
 	output = data->reg_cache.output;
 	output |= (pins & 0xFF);
@@ -401,6 +451,7 @@ static int ch32v003_clear_bits_raw(const struct device *dev, gpio_port_pins_t pi
 	uint8_t output;
 	int r;
 
+	wait_init_done();
 	k_sem_take(&data->lock, K_FOREVER);
 	output = data->reg_cache.output;
 	output &= ~(pins & 0xFF);
@@ -416,6 +467,8 @@ static int ch32v003_toggle_bits(const struct device *dev, gpio_port_pins_t pins)
 	struct gpio_ch32003_drv_data *data = dev->data;
 	uint8_t output;
 	int r;
+
+	wait_init_done();
 	k_sem_take(&data->lock, K_FOREVER);
 	output = data->reg_cache.output;
 	LOG_DBG("ch32v003_toggle_bits, cache output:%02X", output);
@@ -431,7 +484,7 @@ static int ch32v003_get_raw(const struct device *dev, uint32_t *value)
 {
 	struct gpio_ch32003_drv_data *data = dev->data;
 	int r;
-
+	wait_init_done();
 	k_sem_take(&data->lock, K_FOREVER);
 	uint8_t sta;
 	r = ch32v003_in_get(dev, &sta);
