@@ -45,7 +45,7 @@ struct i2c_csk_data {
 	uint32_t status; /* driver event status */
 	bool mode;	 /* transfer mode: true: master, false: slave */
 	struct i2c_slave_config *slave_cfg;
-	struct k_sem lock;
+	struct k_mutex lock;
 };
 
 static void *i2c_csk_get_ctx(const struct device *dev)
@@ -195,6 +195,8 @@ static int i2c_csk_runtime_configure(const struct device *dev, uint32_t dev_conf
 	uint32_t arg = 0;
 	int32_t r;
 
+	k_mutex_lock(&data->lock, K_FOREVER);
+
 	if (!(I2C_MODE_MASTER & dev_config)) { /* slave mode */
 
 		/* slave address 10bit*/
@@ -248,6 +250,8 @@ static int i2c_csk_runtime_configure(const struct device *dev, uint32_t dev_conf
 		data->mode = true;
 	}
 
+	k_mutex_unlock(&data->lock);
+
 	if (r != 0) {
 		LOG_ERR("I2C_Control failed. r:%d", r);
 		return -EIO;
@@ -268,8 +272,6 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 		return 0;
 	}
 
-	k_sem_take(&data->lock, K_FOREVER);
-
 	/* attenton: one i2c transfer(trnsmit or receive) can transfer max 256 bytes(address len +
 	data len), which means that if address length is 1 byte, then max data length is 255 bytes*/
 	if (data->mode) {
@@ -278,7 +280,6 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 
 			if (msgs->len > I2C_XFER_MAX_NUM) {
 				LOG_ERR("The maximum transfer size is 255 bytes");
-				k_sem_give(&data->lock);
 				return -EINVAL;
 			}
 
@@ -302,7 +303,6 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				LOG_ERR("i2c(%p) master transfer error: %d\n", i2c->reg, ret);
 				I2C_Control(I2C_Handler, CSK_I2C_ABORT_TRANSFER, 0);
 				ret = -EIO;
-				k_sem_give(&data->lock);
 				break;
 			}
 
@@ -317,7 +317,7 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				if (evt & CSK_I2C_EVENT_ARBITRATION_LOST) {
 					LOG_ERR("i2c(%p) lost arbitration", i2c->reg);
 				}
-				k_sem_give(&data->lock);
+
 				return -ETIMEDOUT;
 			}
 
@@ -326,7 +326,6 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				LOG_ERR("i2c(%p) data transfer error, status:%d/%d, last ack:%d",
 					i2c->reg, msgs->len - i2c->reg->REG_CTRL.bit.DATACNT,
 					msgs->len, !i2c->reg->REG_STATUS.bit.ACK);
-				k_sem_give(&data->lock);
 				return -EIO;
 			}
 			msgs++;
@@ -345,7 +344,6 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 						   K_MSEC(I2C_CSK6_MAX_TIME_OUT_MS));
 				if (!(evt & CSK_I2C_EVENT_SLAVE_TRANSMIT)) {
 					LOG_ERR("Wait I2C complete time out.");
-					k_sem_give(&data->lock);
 					return -ETIMEDOUT;
 				}
 				/* start slave transmit, one by one */
@@ -367,7 +365,6 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 					if (!(evt & (CSK_I2C_EVENT_TRANSFER_DONE |
 						     CSK_I2C_EVENT_TRANSFER_INCOMPLETE))) {
 						LOG_ERR("Wait I2C complete time out.");
-						k_sem_give(&data->lock);
 						return -ETIMEDOUT;
 					}
 				}
@@ -382,7 +379,6 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 				if (!(evt & (CSK_I2C_EVENT_TRANSFER_DONE |
 					     CSK_I2C_EVENT_SLAVE_RECEIVE))) {
 					LOG_ERR("Wait I2C complete time out.");
-					k_sem_give(&data->lock);
 					return -ETIMEDOUT;
 				}
 
@@ -402,8 +398,20 @@ static int i2c_csk_transfer(const struct device *dev, struct i2c_msg *msgs, uint
 		}
 	}
 
-	k_sem_give(&data->lock);
 	return ret;
+}
+
+static int i2c_csk_transfer_safe(const struct device *dev, struct i2c_msg *msgs, uint8_t num_msgs,
+			    uint16_t addr)
+{
+	struct i2c_csk_data *data = DEV_DATA(dev);
+	int r;
+
+	k_mutex_lock(&data->lock, K_FOREVER);
+	r = i2c_csk_transfer(dev, msgs, num_msgs, addr);
+	k_mutex_unlock(&data->lock);
+
+	return r;
 }
 
 #if defined(CONFIG_I2C_SLAVE)
@@ -417,6 +425,9 @@ static int i2c_csk_slave_register(const struct device *dev, struct i2c_slave_con
 	if (data->handle == NULL) {
 		return -EIO;
 	}
+
+	k_mutex_lock(&data->lock, K_FOREVER);
+
 	void *I2C_Handler = data->handle;
 
 	data->slave_cfg = config;
@@ -425,6 +436,7 @@ static int i2c_csk_slave_register(const struct device *dev, struct i2c_slave_con
 	I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0);
 	I2C_Control(I2C_Handler, CSK_I2C_OWN_ADDRESS, config->address);
 	data->mode = false; // Set I2C Slave mode.
+	k_mutex_unlock(&data->lock);
 
 	LOG_DBG("i2c: slave registered");
 	return ret;
@@ -437,10 +449,13 @@ static int i2c_csk_slave_unregister(const struct device *dev, struct i2c_slave_c
 	struct i2c_csk_data *data = DEV_DATA(dev);
 	void *I2C_Handler = DEV_HANDLER(dev);
 
+	k_mutex_lock(&data->lock, K_FOREVER);
+
 	I2C_Initialize(I2C_Handler, i2c_csk_master_event_cb, data);
 	I2C_PowerControl(I2C_Handler, CSK_POWER_FULL);
 	I2C_Control(I2C_Handler, CSK_I2C_TRANSMIT_MODE, 0);
 	data->mode = true; // Set I2C Master mode.
+	k_mutex_unlock(&data->lock);
 
 	LOG_DBG("i2c: slave unregistered");
 	return ret;
@@ -486,7 +501,7 @@ static void i2c_csk_isr(const struct device *dev)
 
 static const struct i2c_driver_api i2c_csk_driver_api = {
 	.configure = i2c_csk_runtime_configure,
-	.transfer = i2c_csk_transfer,
+	.transfer = i2c_csk_transfer_safe,
 #if defined(CONFIG_I2C_SLAVE)
 	.slave_register = i2c_csk_slave_register,
 	.slave_unregister = i2c_csk_slave_unregister,
@@ -507,7 +522,7 @@ static const struct i2c_driver_api i2c_csk_driver_api = {
 	K_EVENT_DEFINE(csk6_i2c_event_##n);                                                        \
 	static struct i2c_csk_data i2c_csk_data_##n = {                                            \
 		.evt = &csk6_i2c_event_##n,                                                        \
-		.lock = Z_SEM_INITIALIZER(i2c_csk_data_##n.lock, 1, 1),                            \
+		.lock = Z_MUTEX_INITIALIZER(i2c_csk_data_##n.lock),                            \
 	};                                                                                         \
                                                                                                    \
 	DEVICE_DT_INST_DEFINE(n, &i2c_csk_init, NULL, &i2c_csk_data_##n, &i2c_csk_config_##n,      \
