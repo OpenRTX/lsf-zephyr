@@ -376,11 +376,35 @@ static void spd2010_dev_work_handler(struct k_work *work)
 			/* spd2010 supports multi-touch and pressing pressure, but zephyr does not
 			 * support it yet, only one point is reported here  */
 			if (touch.touch_num) {
+				uint8_t preessed = touch.reports[0].weight >
+						   CONFIG_KSCAN_SPD2010_RELEASE_WEIGHT;
+#ifdef CONFIG_KSCAN_SPD2010_REPORT_FILTER
+				static uint32_t report_last_time = 0;
+				uint32_t curr_time = k_uptime_get_32();
+
+				if (preessed) {
+					if ((curr_time - report_last_time) >
+					    CONFIG_KSCAN_SPD2010_REPORT_FILTER_TIME_MS) {
+						dev_data->cb(
+							dev_data->device, touch.reports[0].x,
+							touch.reports[0].y,
+							touch.reports[0].weight >
+								CONFIG_KSCAN_SPD2010_RELEASE_WEIGHT);
+						report_last_time = curr_time;
+					}
+				} else {
+					dev_data->cb(dev_data->device, touch.reports[0].x,
+						     touch.reports[0].y,
+						     touch.reports[0].weight >
+							     CONFIG_KSCAN_SPD2010_RELEASE_WEIGHT);
+					report_last_time = curr_time;
+				}
+#else
 				dev_data->cb(dev_data->device, touch.reports[0].x,
-					     touch.reports[0].y, touch.reports[0].weight > 20);
+					     touch.reports[0].y, preessed);
+#endif
 				LOG_DBG("x:%d, y:%d, w:%d, press:%d", touch.reports[0].x,
-					touch.reports[0].y, touch.reports[0].weight,
-					touch.reports[0].weight > 20);
+					touch.reports[0].y, touch.reports[0].weight, preessed);
 			}
 		}
 
