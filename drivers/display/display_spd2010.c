@@ -101,6 +101,77 @@ struct spd2010_data {
 	struct spd2010_display_send_ctx display_ctx;
 };
 
+static int spd2010_lcd_init(const struct device *dev);
+static int spd2010_set_brightness(const struct device *dev, const uint8_t brightness);
+__attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t event,
+								   uint32_t usr_param);
+static void spd2010_te_gpio_callback_handler(const struct device *port, struct gpio_callback *cb,
+					     gpio_port_pins_t pins);
+
+#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+static K_EVENT_DEFINE(event_group);
+#define INIT_BIT 	BIT(0)
+static struct k_work_delayable init_work;
+static const struct device *s_init_dev = NULL;
+
+static int wait_init_done(void)
+{
+	int ret = k_event_wait(&event_group, INIT_BIT, false, K_FOREVER);
+	if (!(ret & INIT_BIT)) {
+		return -1;
+	}
+	return 0;
+}
+
+static void init_work_handler(struct k_work *item)
+{
+	ARG_UNUSED(item);
+	static int init_step = 0;
+	const struct device *dev = s_init_dev;
+	const struct spd2010_config *config = dev->config;
+
+	if (init_step == 0) {
+		init_step++;
+		gpio_pin_set_dt(&config->reset, 1);
+		k_work_reschedule(&init_work, K_MSEC(100));
+	} else if (init_step == 1) {
+		init_step++;
+		gpio_pin_set_dt(&config->reset, 0);
+		k_work_reschedule(&init_work, K_MSEC(70));
+	} else if (init_step == 2) {
+		k_event_set(&event_group, INIT_BIT);
+		init_step = 0;
+		int ret = spd2010_lcd_init(dev);
+		if (ret) {
+			LOG_ERR("init failed");
+			return;
+		}
+	}
+}
+
+#else
+#define	wait_init_done()
+
+__attribute__((section(".itcm"))) static int spd2010_transmit(const struct device *dev, uint8_t cmd,
+							      const void *tx_data, size_t tx_len);
+static void spd2010_reset_display(const struct device *dev)
+{
+	LOG_DBG("Resetting display");
+
+	const struct spd2010_config *config = dev->config;
+	if (config->reset.port != NULL) {
+		k_sleep(K_MSEC(50));
+		gpio_pin_set_dt(&config->reset, 1);
+		k_sleep(K_MSEC(100));
+		gpio_pin_set_dt(&config->reset, 0);
+		k_sleep(K_MSEC(50));
+	} else {
+		spd2010_transmit(dev, SPD2010_SOFTRESET, NULL, 0);
+		k_sleep(K_MSEC(100));
+	}
+}
+#endif //ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+
 __attribute__((section(".dtcm_data"))) volatile uint8_t spi_done = 0;
 
 __attribute__((section(".itcm"))) static int spd2010_transmit(const struct device *dev, uint8_t cmd,
@@ -242,30 +313,15 @@ spd2010_set_display_datas_with_dma_rotate_90(const struct device *dev, uint8_t *
 	return 0;
 }
 
-static void spd2010_reset_display(const struct device *dev)
-{
-	LOG_DBG("Resetting display");
-
-	const struct spd2010_config *config = dev->config;
-	if (config->reset.port != NULL) {
-		k_sleep(K_MSEC(50));
-		gpio_pin_set_dt(&config->reset, 1);
-		k_sleep(K_MSEC(100));
-		gpio_pin_set_dt(&config->reset, 0);
-		k_sleep(K_MSEC(50));
-	} else {
-		spd2010_transmit(dev, SPD2010_SOFTRESET, NULL, 0);
-		k_sleep(K_MSEC(100));
-	}
-}
-
 static int spd2010_blanking_on(const struct device *dev)
 {
+	wait_init_done();
 	return spd2010_transmit(dev, SPD2010_DISPOFF, NULL, 0);
 }
 
 static int spd2010_blanking_off(const struct device *dev)
 {
+	wait_init_done();
 	return spd2010_transmit(dev, SPD2010_DISPON, NULL, 0);
 }
 
@@ -311,6 +367,7 @@ __attribute__((section(".itcm"))) static int
 spd2010_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	      const struct display_buffer_descriptor *desc, const void *buf)
 {
+	wait_init_done();
 	const struct spd2010_config *config = dev->config;
 	struct spd2010_data *data = dev->data;
 
@@ -379,6 +436,7 @@ static void *spd2010_get_framebuffer(const struct device *dev)
 static int spd2010_set_brightness(const struct device *dev, const uint8_t brightness)
 {
 	const struct spd2010_config *config = dev->config;
+	wait_init_done();
 	if (!device_is_ready(config->bl_pwm.dev)) {
 		LOG_ERR("%s, The current device does not support brightness adjustment.", dev->name);
 		return -ENOTSUP;
@@ -405,6 +463,7 @@ static void spd2010_get_capabilities(const struct device *dev,
 	struct spd2010_data *data = dev->data;
 	const struct spd2010_config *config = dev->config;
 
+	// wait_init_done();
 	memset(capabilities, 0, sizeof(struct display_capabilities));
 
 	capabilities->supported_pixel_formats = PIXEL_FORMAT_RGB_888;
@@ -430,6 +489,7 @@ static int spd2010_set_pixel_format(const struct device *dev,
 	struct spd2010_data *data = dev->data;
 	int r;
 
+	wait_init_done();
 	if (data->orientation == DISPLAY_ORIENTATION_NORMAL) {
 		madctr_value = 0x00;
 	} else {
@@ -470,6 +530,7 @@ static int spd2010_set_orientation(const struct device *dev,
 	uint8_t value;
 	int r;
 
+	wait_init_done();
 	if (orientation == DISPLAY_ORIENTATION_ROTATED_90 ||
 	    orientation == DISPLAY_ORIENTATION_ROTATED_270) {
 		return -ENOTSUP;
@@ -819,7 +880,6 @@ static int spd2010_lcd_init(const struct device *dev)
 {
 	uint16_t i;
 	const struct spd2010_config *config = dev->config;
-	k_sleep(K_MSEC(20));
 	for (i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
 		int ret = spd2010_transmit(dev, items[i].cmd, &items[i].data, items[i].data_len);
 
@@ -976,11 +1036,17 @@ static int spd2010_init(const struct device *dev)
 		}
 	}
 
+#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+	s_init_dev = dev;
+	k_work_init_delayable(&init_work, init_work_handler);
+	k_work_schedule(&init_work, K_MSEC(50));
+#else
 	spd2010_reset_display(dev);
 	ret = spd2010_lcd_init(dev);
 	if (ret) {
 		return ret;
 	}
+#endif
 
 	return 0;
 }
