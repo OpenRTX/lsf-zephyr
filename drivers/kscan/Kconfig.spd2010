@@ -17,3 +17,24 @@ config KSCAN_SPD2010_DELAY_TIME_MS
 	depends on KSCAN_SPD2010
 	help
 		SPD2010 scan delay time without interrupt
+
+config KSCAN_SPD2010_RELEASE_WEIGHT
+	int "SPD2010 release weight"
+	default 20
+	depends on KSCAN_SPD2010
+	help
+	  SPD2010 release weight
+
+config KSCAN_SPD2010_REPORT_FILTER
+	bool "SPD2010 report filter"
+	default y
+	depends on KSCAN_SPD2010
+	help
+	   SPD2010 report filter
+
+config KSCAN_SPD2010_REPORT_FILTER_TIME_MS
+	int "SPD2010 report filter time ms"
+	default 50
+	depends on KSCAN_SPD2010_REPORT_FILTER
+	help
+	  SPD2010 report filter time ms
