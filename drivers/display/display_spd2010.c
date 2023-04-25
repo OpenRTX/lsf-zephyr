@@ -151,7 +151,7 @@ __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *
 						     uint32_t w)
 {
 	static uint8_t first = 1;
-	const uint8_t ch = 3;
+	const uint8_t ch = CONFIG_SPD2010_DMA_CHANNEL;
 	SPI_DEV *spi = (spi_dev);
 	int32_t stat;
 
@@ -166,7 +166,12 @@ __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *
 		return CSK_DRIVER_ERROR_BUSY;
 
 	if (first) {
-		dma_channel_reserve(ch, spi->dma_tx.cb_event, spi->dma_tx.usr_param, DMA_CACHE_SYNC_NOP);
+		int ret_ch = dma_channel_reserve(ch, spi->dma_tx.cb_event, spi->dma_tx.usr_param,
+						 DMA_CACHE_SYNC_NOP);
+		if (ret_ch != ch) {
+			LOG_ERR("ch %d is not a valid", ch);
+			k_panic();
+		}
 		first = 0;
 	}
 	spi->info->tx_dyn_dma_ch = ch;
@@ -186,7 +191,6 @@ __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *
 			       (spi->reg->TRANSCTRL & SPI_TRANSMODE_CMD_EN));
 
 	spi->info->xfer.dma_tx_done = 0;
-	spi->info->tx_dyn_dma_ch = spi->dma_tx.channel;
 	uint32_t is_gather = 0;
 	is_gather = (w - 1) | (1) << 20;
 	const uint32_t control = DMA_CH_CTLL_DST_WIDTH(spi->info->dma_width_shift) |
@@ -203,12 +207,17 @@ __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *
 	stat = dma_channel_configure(spi->info->tx_dyn_dma_ch, (uint32_t)spi->info->xfer.tx_buf,
 				     (uint32_t)(&(spi->reg->DATA)), num, control, config_low,
 				     config_high, is_gather, 0);
+
+	if (stat != 0) {
+		LOG_ERR("dma ch %d config failed, ret:%d", ch, stat);
+		return stat;
+	}
+
 	spi->reg->CTRL |= TXDMAEN;
 	// enable interrupts
 	spi->reg->INTREN = SPI_ENDINT;
 	spi->info->status.bit.tx_mode = DMA_IO;
-	while (SPI_TXFIFO_EMPTY(spi))
-		;
+	while (SPI_TXFIFO_EMPTY(spi));
 	spi->reg->CMD = 0;
 
 	return CSK_DRIVER_OK;
