@@ -7,12 +7,20 @@ config SPD2010
 	help
         LWEA2012 memory display controller driver
 
+config SPD2010_DMA_CHANNEL
+	int "spd2010 dma channel"
+	default 2
+	depends on SPD2010
+	help
+		spd2010 dma channel
+
 config SPD2010_TOUCH
 	bool "enable touch for spd2010"
 	default n
 	depends on SPD2010
 	help
 	   enable touch for spd2010
+
 
 choice
 prompt "pixel format"
