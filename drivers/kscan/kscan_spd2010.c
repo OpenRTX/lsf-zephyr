@@ -90,6 +90,52 @@ struct spd2010_hdp_status {
 	uint16_t next_packet_len;
 };
 
+#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+static K_EVENT_DEFINE(event_group);
+#define INIT_BIT 	BIT(0)
+static struct k_work_delayable init_work;
+static const struct device *s_init_dev = NULL;
+
+static int wait_init_done(void)
+{
+	int ret = k_event_wait(&event_group, INIT_BIT, false, K_FOREVER);
+	if (!(ret & INIT_BIT)) {
+		return -1;
+	}
+	return 0;
+}
+
+static int spd2010_tp_status_read(const struct device *i2c_dev, struct spd2010_status *status);
+
+static void init_work_handler(struct k_work *item)
+{
+	ARG_UNUSED(item);
+	int ret = 0;
+	static int init_step = 0;
+	const struct device *dev = s_init_dev;
+	struct spd2010_config *config = (struct spd2010_config *)(dev->config);
+
+
+	if (init_step == 0) {
+		ret = gpio_pin_configure_dt(&config->reset, GPIO_OUTPUT_INACTIVE);
+		if (ret) {
+			LOG_ERR("Couldn't configure reset pin");
+			return;
+		}
+		gpio_pin_set_dt(&config->reset, 1);
+		init_step++;
+		k_work_reschedule(&init_work, K_MSEC(100));
+		return;
+	} else if (init_step == 1) {
+		gpio_pin_set_dt(&config->reset, 0);
+		k_event_set(&event_group, INIT_BIT);
+		init_step = 0;
+	}
+}
+#else
+#define	wait_init_done()
+#endif //ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+
 static int spd2010_hdp_remain_data_read(const struct device *i2c_dev, uint16_t len)
 {
 	uint8_t datas[32] = {0};
@@ -299,6 +345,12 @@ static int spd2010_tp_clear_int(const struct device *i2c_dev)
 static int spd2010_reset(const struct device *dev)
 {
 	int ret = -1;
+
+#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+	s_init_dev = dev;
+	k_work_init_delayable(&init_work, init_work_handler);
+	k_work_schedule(&init_work, K_MSEC(100));
+#else
 	struct spd2010_config *config = (struct spd2010_config *)(dev->config);
 
 	if (device_is_ready(config->reset.port)) {
@@ -315,7 +367,7 @@ static int spd2010_reset(const struct device *dev)
 	} else {
 		LOG_WRN("reset pin is not ready!");
 	}
-
+#endif
 	return ret;
 }
 
@@ -343,6 +395,7 @@ static void spd2010_dev_work_handler(struct k_work *work)
 	struct spd2010_hdp_status hdp_staus = {0};
 	struct spd2010_touch touch = {0};
 
+	wait_init_done();
 	ret = spd2010_tp_status_read(i2c_dev, &status);
 	if (ret) {
 		LOG_ERR("read tp status failed, ret=%d", ret);
