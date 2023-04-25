@@ -130,10 +130,6 @@ bm8563_err_t bm8563_read(const bm8563_t *bm, struct tm *time)
     /* Calculate tm_yday. */
     // mktime(time);
 
-    /* low voltage warning */
-    if (data[0] & 0b10000000) {
-        return BM8563_ERR_LOW_VOLTAGE;
-    }
     LOG_DBG("bm8563_read: %d-%d-%d %d:%d:%d", time->tm_year, time->tm_mon, time->tm_mday, time->tm_hour, time->tm_min, time->tm_sec);
     return BM8563_OK;
 }
