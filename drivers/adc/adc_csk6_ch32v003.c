@@ -19,17 +19,31 @@ LOG_MODULE_REGISTER(csk6_adc_ch32v003, CONFIG_ADC_LOG_LEVEL);
 #define CH32V003_ID_REG	  0x01
 #define CH32V003_VER_REG  0x02
 #define CH32V003_STA_REG  0x03
-#define CH32V003_PAGE_REG 0x03
+#define CH32V003_PAGE_REG 0x04
 
 #define CH32V003_ADC_CONFIG_0	0x50
 #define CH32V003_ADC_CONFIG_1	0x51
-#define CH32V003_ADC_EN_REG		0x52
-#define CH32V003_ADC_DATA_H_REG	0x53
-#define CH32V003_ADC_DATA_L_REG	0x54
-#define CH32V003_ADC_STATUS_REG	0x55
+#define CH32V003_ADC_STATUS_REG	0x52
+#define CH32V003_ADC_DATA_REG	0x60
 
-#define CH32V003_ADC_CH_DATA_H_REG(ch) ((CH32V003_ADC_DATA_H_REG) + (ch)*16)
-#define CH32V003_ADC_CH_DATA_L_REG(ch) ((CH32V003_ADC_DATA_L_REG) + (ch)*16)
+#define CH32V003_ADC_CH_DATA_H_REG(ch) ((CH32V003_ADC_DATA_REG) + (ch) * 2)
+#define CH32V003_ADC_CH_DATA_L_REG(ch) (CH32V003_ADC_CH_DATA_H_REG(ch) + 1)
+
+#define CH32V003_ADC_WAIT_READY_TIMEOUT_S (5)
+
+#define CH32V003_ADC_SAMPLING_CYCLE_3 (0)
+#define CH32V003_ADC_SAMPLING_CYCLE_9 (1)
+#define CH32V003_ADC_SAMPLING_CYCLE_15 (2)
+#define CH32V003_ADC_SAMPLING_CYCLE_30 (3)
+#define CH32V003_ADC_SAMPLING_CYCLE_43 (4)
+#define CH32V003_ADC_SAMPLING_CYCLE_57 (5)
+#define CH32V003_ADC_SAMPLING_CYCLE_73 (6)
+#define CH32V003_ADC_SAMPLING_CYCLE_241 (7)
+
+#define CH32V003_ADC_SAMPLING_CYCLE_TIME_US (33)
+
+/* convert time = sampling time + 11 * sampling cycle time*/
+#define CH32V003_ADC_CONVERT_TIME_US(cycle) ((cycle) * CH32V003_ADC_ACQ_CYCLE_TIME_US + 11 * CH32V003_ADC_ACQ_CYCLE_TIME_US)
 
 enum {
 	CH32V003_STATUS_INVALID = 0,
@@ -107,14 +121,14 @@ static int adc_ch32v003_wait_data_ready(const struct device *dev, uint8_t ch)
 	int r;
 	uint32_t time = k_uptime_get_32();
 
-	while (!(status & (1 << ch))) {
-		r = adc_ch32v003_register_read(dev, 0x55 + ch * 16, &status);
+	while (!(status & BIT(0))) {
+		r = adc_ch32v003_register_read(dev, CH32V003_ADC_STATUS_REG, &status);
 		if (r) {
 			return r;
 		}
 		k_usleep(100);
 
-		if ((k_uptime_get_32() - time) > 2 * 1000) {
+		if ((k_uptime_get_32() - time) > (CH32V003_ADC_WAIT_READY_TIMEOUT_S * 1000)) {
 			LOG_ERR("wait ch %d ready timeout", ch);
 			return -ETIMEDOUT;
 		}
@@ -141,9 +155,18 @@ static int adc_ch32v003_read_data(const struct device *dev, uint8_t ch, uint16_t
 	return 0;
 }
 
-static int adc_ch32v003_start_conversion(const struct device *dev, uint8_t ch)
+static int adc_ch32v003_start_conversion(const struct device *dev, uint8_t ch_mask)
 {
-	return adc_ch32v003_register_write(dev, 0x52, ch);
+	int r;
+
+	r = adc_ch32v003_register_write(dev, CH32V003_ADC_CONFIG_0, (CH32V003_ADC_SAMPLING_CYCLE_30 << 1) | 0x00);
+	if (r) {
+		return r;
+	}
+
+	r = adc_ch32v003_register_write(dev, CH32V003_ADC_CONFIG_1, ch_mask);
+
+	return r;
 }
 
 static int adc_ch32v003_channel_setup(const struct device *dev,
@@ -221,43 +244,29 @@ static void adc_ch32v003_thread(void *p1, void *p2, void *p3)
 		k_sem_take(&data->acq_sem, K_FOREVER);
 		uint8_t channel_mask = data->ctx.sequence.channels;
 		uint8_t i;
-		uint8_t err_happend = 0;
 
 		LOG_DBG("channel_mask:%02X", channel_mask);
 
-		/* FIXME:状态寄存器未实现 */
-		// for (i = 0; i < 8; i++) {
-		// 	if (channel_mask & (1 << i)) {
-		// 		LOG_DBG("wait ch %d ready", i);
-		// 		r = adc_ch32v003_wait_data_ready(dev, i);
-		// 		if (r) {
-		// 			adc_context_complete(&data->ctx, r);
-		// 			err_happend = 1;
-		// 			break;
-		// 		}
-		// 	}
-		// }
-		(void)adc_ch32v003_wait_data_ready;
-		k_msleep(100);
-		if (!err_happend) {
-			for (i = 0; i < 8; i++) {
-				int16_t value = 0;
-				if (channel_mask & (1 << i)) {
-					r = adc_ch32v003_read_data(dev, i, &value);
-					if (r) {
-						adc_context_complete(&data->ctx, r);
-						err_happend = 1;
-						break;
-					}
-					*data->buffer++ = value;
-					LOG_DBG("value:%d", value);
+		r = adc_ch32v003_wait_data_ready(dev, channel_mask);
+		if (r) {
+			adc_context_complete(&data->ctx, r);
+			continue;
+		}
+
+		for (i = 0; i < 8; i++) {
+			int16_t value = 0;
+			if (channel_mask & (1 << i)) {
+				r = adc_ch32v003_read_data(dev, i, &value);
+				if (r) {
+					adc_context_complete(&data->ctx, r);
+					continue;
 				}
+				*data->buffer++ = value;
+				LOG_DBG("value:%d", value);
 			}
 		}
 
-		if (!err_happend) {
-			adc_context_on_sampling_done(&data->ctx, dev);
-		}
+		adc_context_on_sampling_done(&data->ctx, dev);
 	}
 }
 
