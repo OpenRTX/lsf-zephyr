@@ -63,18 +63,22 @@ void main(void)
 		LOG_ERR("Failed to send infrared signal, error code %d\n", ret);
 	}
 
-	LOG_INF("3.IR Rece");
-	ret = infrared_recv_timeout(ir_dev, &ir_data, K_MSEC(1000));
+	// The delay needed to switch from sending to receiving on the IR module is necessary (IR signal transmission takes time).
+	k_sleep(K_MSEC(100));
+
+	LOG_INF("3.IR Receive, Blocking Receive");
+	ret = infrared_recv(ir_dev, &ir_data);
 	if (ret == 0) {
-		LOG_ERR("Received IR signal with address 0x%02X and command 0x%02X", ir_data.addr,
-		       ir_data.cmd);
+		LOG_INF("Received IR signal with address 0x%02X and command 0x%02X", ir_data.addr,
+		ir_data.cmd);
 	}
 
 	while (1) {
-		ret = infrared_recv(ir_dev, &ir_data);
+		LOG_DBG("4.IR Receive, Timeout Receive");
+		ret = infrared_recv_timeout(ir_dev, &ir_data, K_MSEC(3000));
 		if (ret == 0) {
 			LOG_INF("Received IR signal with address 0x%02X and command 0x%02X", ir_data.addr,
-			ir_data.cmd);
+				ir_data.cmd);
 		}
 	}
 }
