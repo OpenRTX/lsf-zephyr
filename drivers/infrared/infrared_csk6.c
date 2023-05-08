@@ -62,7 +62,7 @@ static int ir_csk_send(const struct device *dev, ir_data_t *data)
 {
 	void *IR0_Handler = DEV_HANDLER(dev);
 	ir_csk_data_t *dev_data = DEV_DATA(dev);
-	if (dev_data->cfg.protocol != IR_PROTOCOL_CUSTOM) {
+	if (dev_data->cfg.protocol == IR_PROTOCOL_NEC) {
 		uint8_t addr_hbyte = data->addr >> 8;
 		uint8_t addr_lbyte = ~(data->addr & 0xff);
 		if (addr_hbyte != addr_lbyte) {
@@ -75,6 +75,9 @@ static int ir_csk_send(const struct device *dev, ir_data_t *data)
 			LOG_WRN("The command code and its complement must be equal, please check and re-enter.");
 			return -IR_ERR_INVALID_PARAM;
 		}
+	} else {
+		LOG_ERR("Currently, CSK6IR only supports the NEC protocol.");
+		return -IR_ERR_INVALID_PARAM;
 	}
 	return IR_HW_Send(IR0_Handler, dev_data->cfg.protocol, data->addr, data->cmd);
 }
@@ -85,6 +88,10 @@ static int ir_csk_recv_timeout(const struct device *dev, ir_data_t *data, k_time
 	uint32_t evt = 0;
 	void *IR0_Handler = DEV_HANDLER(dev);
 	ir_csk_data_t *dev_data = DEV_DATA(dev);
+	if (dev_data->cfg.protocol != IR_PROTOCOL_NEC) {
+		LOG_ERR("Currently, CSK6IR only supports the NEC protocol.");
+		return -IR_ERR_INVALID_PARAM;
+	}
 
 	ret = IR_HW_Receive(IR0_Handler, dev_data->cfg.protocol, &data->addr, &data->cmd);
 	evt = k_event_wait(dev_data->evt, CSK_IR_EVENT_HW_RECEIVE_COMPLETE | CSK_IR_EVENT_HW_RX_REPEAT_TRIGGER,
