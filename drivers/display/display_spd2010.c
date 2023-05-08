@@ -349,9 +349,41 @@ static int spd2010_te_on(const struct device *dev)
 	return spd2010_transmit(dev, SPD2010_TEON, &data, 1);
 }
 
+typedef struct {
+	uint8_t cmd;
+	uint16_t delay;//delay ms
+	uint8_t data_len;
+	uint8_t data[4];
+} spd2010_sleep_cmd_item_t;
+
+const static spd2010_sleep_cmd_item_t sleep_out[] = {
+	{.cmd = 0xFF, .data_len = 3,  .data = {0x20 ,0x10 ,0x2D},},
+	{.cmd = 0x02, .data_len = 1,  .data = {0x00},},
+	// {.cmd = 0xFF, .data_len = 3,  .data = {0x20 ,0x10 ,0x12},},
+	// {.cmd = 0x18, .data_len = 1,  .data = {0x02},},
+	{.cmd = 0xFF, .data_len = 3,  .data = {0x20 ,0x10 ,0x44},},
+	{.cmd = 0x10, .data_len = 1,  .data = {0x55},},//Self recovery for 1.45',1.99',2.22'
+	{.cmd = 0xFF, .data_len = 3,  .data = {0x20 ,0x10 ,0x00},},
+	{.delay=5,},
+	{.cmd = SPD2010_SLPOUT, .data_len = 1,  .data = {0x00},},
+	{.delay=120,},
+	{.cmd = 0x29, .data_len = 1,  .data = {0x00},},
+};
+
 static int spd2010_exit_sleep(const struct device *dev)
 {
-	return spd2010_transmit(dev, SPD2010_SLPOUT, NULL, 0);
+	int i;
+	int ret = 0;
+	for (i = 0; i < sizeof(sleep_out) / sizeof(sleep_out[0]); i++) {
+		if (sleep_out[i].cmd != 0x0) {
+			k_msleep(sleep_out[i].delay);
+			continue;
+		}
+		ret = spd2010_transmit(dev, sleep_out[i].cmd, &sleep_out[i].data, sleep_out[i].data_len);
+	}
+	
+	// spd2010_transmit(dev, SPD2010_SLPOUT, NULL, 0);
+	return ret;
 }
 
 static void spd2010_set_mem_area(const struct device *dev, const uint16_t x, const uint16_t y,
