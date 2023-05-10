@@ -49,10 +49,10 @@ static void *ir_csk_get_context(const struct device *dev)
 static int ir_csk_runtime_configure(const struct device *dev, ir_config_t *config)
 {
 	ir_csk_data_t *dev_data = DEV_DATA(dev);
-	if (config->protocol != IR_PROTOCOL_CUSTOM) {
+	if (config->protocol == IR_PROTOCOL_NEC) {
 		dev_data->cfg.protocol = config->protocol;
 	} else {
-		LOG_ERR("CSK6 IR module currently does not support custom infrared protocol.");
+		LOG_ERR("Currently, CSK6IR only supports the NEC protocol.");
 		return -IR_ERR_INVALID_PARAM;
 	}
 	return 0;
