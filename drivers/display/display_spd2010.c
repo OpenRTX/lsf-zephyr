@@ -381,8 +381,40 @@ static int spd2010_exit_sleep(const struct device *dev)
 		}
 		ret = spd2010_transmit(dev, sleep_out[i].cmd, &sleep_out[i].data, sleep_out[i].data_len);
 	}
-	
+
 	// spd2010_transmit(dev, SPD2010_SLPOUT, NULL, 0);
+	return ret;
+}
+
+const static spd2010_sleep_cmd_item_t sleep_enter[] = {
+	{.cmd = 0xFF, .data_len = 3,  .data = {0x20 ,0x10 ,0x11},},
+	{.cmd = 0x6A, .data_len = 1,  .data = {0x10},},//Disable TP Scannning when enter sleep
+	{.cmd = 0xFF, .data_len = 3,  .data = {0x20 ,0x10 ,0x44},},
+	{.cmd = 0x10, .data_len = 1,  .data = {0x5A},},//Self recovery for 1.45',1.99',2.22'
+
+	{.cmd = 0xFF, .data_len = 3,  .data = {0x20 ,0x10 ,0x12},},
+	{.cmd = 0x18, .data_len = 1,  .data = {0x00},},
+
+	{.cmd = 0xFF, .data_len = 3,  .data = {0x20 ,0x10 ,0x00},},
+	{.cmd = 0x28, .data_len = 1,  .data = {0x00},},
+	{.delay=120,},
+	{.cmd = SPD2010_SLPIN, .data_len = 1,  .data = {0x00},},
+	{.delay=10,},
+};
+
+static int spd2010_enter_sleep(const struct device *dev)
+{
+	int i;
+	int ret = 0;
+	for (i = 0; i < sizeof(sleep_enter) / sizeof(sleep_enter[0]); i++) {
+		if (sleep_enter[i].cmd != 0x0) {
+			k_msleep(sleep_enter[i].delay);
+			continue;
+		}
+		ret = spd2010_transmit(dev, sleep_enter[i].cmd, &sleep_enter[i].data, sleep_enter[i].data_len);
+	}
+
+	// spd2010_transmit(dev, SPD2010_SLPIN, NULL, 0);
 	return ret;
 }
 
@@ -1007,7 +1039,7 @@ static int spd2010_init(const struct device *dev)
 		 * SPI驱动已经初始化过了，为了直接调用hal驱动，这里需要改变SPI的事件回调地址
 		 *
 		 * 也就是说SPI驱动不能进行复用
-		 * 
+		 *
 		 * 请确保SPI设备的名称为"SPI_0"和"SPI_1"
 		 */
 		SPI_DEV *hal_spi = NULL;
