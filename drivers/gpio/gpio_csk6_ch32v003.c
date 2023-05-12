@@ -19,8 +19,8 @@ LOG_MODULE_REGISTER(gpio_ch32003, CONFIG_GPIO_LOG_LEVEL);
 #define CH32V003_OUT_REG_BASE	    0x11
 #define CH32V003_OD_REG_BASE	    0x12
 #define CH32V003_IN_REG_BASE	    0x13
-#define CH32V003_PULL_EN_REG_BASE   0x14
-#define CH32V003_PULL_REG_BASE 0x15
+#define CH32V003_PULL_UP_REG_BASE   0x14
+#define CH32V003_PULL_DWON_REG_BASE 0x15
 #define CH32V003_INT_STA_REG_BASE   0x16
 #define CH32V003_INT_EN_REG_BASE    0x17
 #define CH32V003_INT_CTL_REG_BASE   0x18
@@ -29,8 +29,8 @@ LOG_MODULE_REGISTER(gpio_ch32003, CONFIG_GPIO_LOG_LEVEL);
 #define CH32V003_OUT_REG(index)	      ((CH32V003_OUT_REG_BASE) + (index * 0x10))
 #define CH32V003_OD_REG(index)	      ((CH32V003_OD_REG_BASE) + (index * 0x10))
 #define CH32V003_IN_REG(index)	      ((CH32V003_IN_REG_BASE) + (index * 0x10))
-#define CH32V003_PULL_EN_REG(index)   ((CH32V003_PULL_EN_REG_BASE) + (index * 0x10))
-#define CH32V003_PULL_REG(index) 	  ((CH32V003_PULL_REG_BASE) + (index * 0x10))
+#define CH32V003_PULL_UP_REG(index)   ((CH32V003_PULL_UP_REG_BASE) + (index * 0x10))
+#define CH32V003_PULL_DWON_REG(index) ((CH32V003_PULL_DWON_REG_BASE) + (index * 0x10))
 #define CH32V003_INT_STA_REG(index)   ((CH32V003_INT_STA_REG_BASE) + (index * 0x10))
 #define CH32V003_INT_EN_REG(index)    ((CH32V003_INT_EN_REG_BASE) + (index * 0x10))
 #define CH32V003_INT_CTL_REG(index)   ((CH32V003_INT_CTL_REG_BASE) + (index * 0x10))
@@ -38,7 +38,7 @@ LOG_MODULE_REGISTER(gpio_ch32003, CONFIG_GPIO_LOG_LEVEL);
 #define CH32V003_ID_REG	  0x01
 #define CH32V003_VER_REG  0x02
 #define CH32V003_STA_REG  0x03
-#define CH32V003_PAGE_REG 0x04
+#define CH32V003_PAGE_REG 0x03
 
 enum {
 	CH32V003_STATUS_INVALID = 0,
@@ -240,25 +240,25 @@ static inline int ch32v003_out_get(const struct device *dev, uint8_t *flag)
 static inline int ch32v003_pull_mode_set(const struct device *dev, uint8_t flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_write(dev, CH32V003_PULL_REG(config->id), flag);
+	return gpio_ch32v003_register_write(dev, CH32V003_PULL_UP_REG(config->id), flag);
 }
 
 static inline int ch32v003_pull_mode_get(const struct device *dev, uint8_t *flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_read(dev, CH32V003_PULL_REG(config->id), flag);
+	return gpio_ch32v003_register_read(dev, CH32V003_PULL_UP_REG(config->id), flag);
 }
 
 static inline int ch32v003_pull_en_set(const struct device *dev, uint8_t flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_write(dev, CH32V003_PULL_EN_REG(config->id), flag);
+	return gpio_ch32v003_register_write(dev, CH32V003_PULL_DWON_REG(config->id), flag);
 }
 
 static inline int ch32v003_pull_en_get(const struct device *dev, uint8_t *flag)
 {
 	const struct gpio_ch32003_config *config = dev->config;
-	return gpio_ch32v003_register_read(dev, CH32V003_PULL_EN_REG(config->id), flag);
+	return gpio_ch32v003_register_read(dev, CH32V003_PULL_DWON_REG(config->id), flag);
 }
 
 static inline int ch32v003_in_get(const struct device *dev, uint8_t *flag)
@@ -393,11 +393,12 @@ static int ch32v003_pin_config(const struct device *dev, gpio_pin_t pin, gpio_fl
 			return r;
 		}
 
-		r = ch32v003_pull_en_set(dev, pull_en);
-		if (r != 0) {
-			k_sem_give(&data->lock);
-			return r;
-		}
+		// /* TODO: 固件还未实现 */
+		// r = ch32v003_pull_en_set(dev, pull_en);
+		// if (r != 0) {
+		// 	k_sem_give(&data->lock);
+		// 	return r;
+		// }
 	}
 
 	k_sem_give(&data->lock);
