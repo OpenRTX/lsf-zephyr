@@ -73,4 +73,7 @@ source "drivers/counter/Kconfig.csk6"
 source "drivers/counter/Kconfig.csk6_dual_timer"
 
 source "drivers/counter/Kconfig.csk6_gptchannel"
+
+source "drivers/counter/Kconfig.bm8563"
+
 endif # COUNTER
