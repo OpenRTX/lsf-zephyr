@@ -14,6 +14,10 @@ if FAT_FILESYSTEM_ELM
 menu "ELM FAT file system settings"
 	visible if FAT_FILESYSTEM_ELM
 
+config FS_CSK6_NAND_FLASH_FATFS
+	bool "nand flash use fatfs"
+	default n
+
 config FS_FATFS_READ_ONLY
 	bool "Read-only support for all volumes"
 	help
