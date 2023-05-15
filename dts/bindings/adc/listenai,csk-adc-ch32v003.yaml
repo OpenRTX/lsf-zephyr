@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: CSK ADC node
+
+compatible: "listenai,csk-adc-ch32v003"
+
+include: [adc-controller.yaml, i2c-device.yaml]
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: false
+
+    "#io-channel-cells":
+      const: 1
+
+io-channel-cells:
+    - input
