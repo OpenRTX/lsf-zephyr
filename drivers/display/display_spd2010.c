@@ -108,7 +108,7 @@ __attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t even
 static void spd2010_te_gpio_callback_handler(const struct device *port, struct gpio_callback *cb,
 					     gpio_port_pins_t pins);
 
-#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#ifdef CONFIG_SPD2010_DISP_NON_BLOCK_INIT
 static K_EVENT_DEFINE(event_group);
 #define INIT_BIT 	BIT(0)
 static struct k_work_delayable init_work;
@@ -170,7 +170,7 @@ static void spd2010_reset_display(const struct device *dev)
 		k_sleep(K_MSEC(120));
 	}
 }
-#endif //ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#endif //ifdef CONFIG_SPD2010_DISP_NON_BLOCK_INIT
 
 __attribute__((section(".dtcm_data"))) volatile uint8_t spi_done = 0;
 
@@ -1045,7 +1045,7 @@ static int spd2010_init(const struct device *dev)
 		}
 	}
 
-#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#ifdef CONFIG_SPD2010_DISP_NON_BLOCK_INIT
 	s_init_dev = dev;
 	k_work_init_delayable(&init_work, init_work_handler);
 	k_work_schedule(&init_work, K_MSEC(50));

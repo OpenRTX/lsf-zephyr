@@ -21,6 +21,10 @@ config SPD2010_TOUCH
 	help
 	   enable touch for spd2010
 
+config SPD2010_DISP_NON_BLOCK_INIT
+    bool "SPD2010 Display Non-Block Init"
+    help
+        Make the SPD2010 display driver init into non-block
 
 choice
 prompt "pixel format"
