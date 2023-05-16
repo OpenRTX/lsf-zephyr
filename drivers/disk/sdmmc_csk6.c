@@ -30,6 +30,62 @@ struct sdmmc_csk_data {
 	uint32_t erase_size;
 };
 
+static int csk6_sdmmc_bus_probe(const struct device *dev);
+static int csk6_sdmmc_access_init(struct disk_info *disk);
+static int csk6_sdmmc_access_status(struct disk_info *disk);
+static int csk6_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
+				   uint32_t start_sector, uint32_t num_sector);
+static int csk6_sdmmc_access_write(struct disk_info *disk,
+				    const uint8_t *data_buf,
+				    uint32_t start_sector, uint32_t num_sector);
+static int csk6_sdmmc_access_ioctl(struct disk_info *disk, uint8_t cmd,
+				    void *buff);
+static const struct disk_operations csk6_sdmmc_ops = {
+	.init = csk6_sdmmc_access_init,
+	.status = csk6_sdmmc_access_status,
+	.read = csk6_sdmmc_access_read,
+	.write = csk6_sdmmc_access_write,
+	.ioctl = csk6_sdmmc_access_ioctl,
+};
+
+static struct disk_info csk6_sdmmc_info = {
+	.name = CONFIG_SDMMC_VOLUME_NAME,
+	.ops = &csk6_sdmmc_ops,
+};
+
+#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+static struct k_work_q sdmmc_workq;
+struct k_work init_work;
+static K_THREAD_STACK_DEFINE(sdmmc_workq_stack_area, 2048);
+static K_EVENT_DEFINE(event_group);
+#define INIT_BIT 	BIT(0)
+static const struct device *s_init_dev = NULL;
+
+static int wait_init_done(void)
+{
+	int ret = k_event_wait(&event_group, INIT_BIT, false, K_FOREVER);
+	if (!(ret & INIT_BIT)) {
+		return -1;
+	}
+	return 0;
+}
+
+static void init_work_handler(struct k_work *item)
+{
+	ARG_UNUSED(item);
+	const struct device *dev = s_init_dev;
+
+	int err = csk6_sdmmc_bus_probe(dev);
+	if (err < 0) {
+		LOG_ERR("init failed");
+		return;
+	}
+	k_event_set(&event_group, INIT_BIT);
+}
+
+#else
+#define	wait_init_done()
+#endif
 
 static uint8_t sdcard_buf[sizeof(SDCardInfo)]     __attribute__ ((aligned(4)));
 
@@ -84,6 +140,7 @@ static int csk6_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
 	const struct device *dev = disk->dev;
 	struct sdmmc_csk_data *data = dev->data;
 
+	wait_init_done();
 	LOG_DBG("%s start_sector=%d num_sector=%d", __FUNCTION__, start_sector, num_sector);
 
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
@@ -126,6 +183,7 @@ static int csk6_sdmmc_access_write(struct disk_info *disk,
 	const struct device *dev = disk->dev;
 	struct sdmmc_csk_data *data = dev->data;
 
+	wait_init_done();
 	LOG_DBG("%s start_sector=%d num_sector=%d", __FUNCTION__, start_sector, num_sector);
 
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
@@ -160,7 +218,7 @@ static int csk6_sdmmc_access_ioctl(struct disk_info *disk, uint8_t cmd,
 {
 	uint32_t blk_len, blk_num, erase_size;
 	uint32_t err;
-
+	wait_init_done();
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 	err = lib_sdc_get_card_info(SD_0, &blk_len, &blk_num, &erase_size);
 	if (err != ERR_SD_NO_ERROR) {
@@ -188,20 +246,7 @@ static int csk6_sdmmc_access_ioctl(struct disk_info *disk, uint8_t cmd,
 	return 0;
 }
 
-static const struct disk_operations csk6_sdmmc_ops = {
-	.init = csk6_sdmmc_access_init,
-	.status = csk6_sdmmc_access_status,
-	.read = csk6_sdmmc_access_read,
-	.write = csk6_sdmmc_access_write,
-	.ioctl = csk6_sdmmc_access_ioctl,
-};
-
-static struct disk_info csk6_sdmmc_info = {
-	.name = CONFIG_SDMMC_VOLUME_NAME,
-	.ops = &csk6_sdmmc_ops,
-};
-
-int csk6_sdmmc_bus_probe(const struct device *dev)
+static int csk6_sdmmc_bus_probe(const struct device *dev)
 {
 	uint32_t err;
 	const struct sdmmc_csk_config *cfg = dev->config;
@@ -246,12 +291,19 @@ static int disk_csk6_sdmmc_init(const struct device *dev)
 	pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
 
 	cfg->irq_config_func(dev);
-
+#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+	s_init_dev = dev;
+	k_work_queue_init(&sdmmc_workq);
+	k_work_queue_start(&sdmmc_workq, sdmmc_workq_stack_area,
+						K_THREAD_STACK_SIZEOF(sdmmc_workq_stack_area), 1, NULL);
+	k_work_init(&init_work, init_work_handler);
+	k_work_submit_to_queue(&sdmmc_workq, &init_work);
+#else
 	err = csk6_sdmmc_bus_probe(dev);
 	if (err < 0) {
 		return err;
-	}    
-
+	}
+#endif
 
 	csk6_sdmmc_info.dev = dev;
 	err = disk_access_register(&csk6_sdmmc_info);
