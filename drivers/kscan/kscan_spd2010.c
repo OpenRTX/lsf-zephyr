@@ -90,7 +90,7 @@ struct spd2010_hdp_status {
 	uint16_t next_packet_len;
 };
 
-#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#ifdef CONFIG_SPD2010_KSCAN_NON_BLOCK_INIT
 static K_EVENT_DEFINE(event_group);
 #define INIT_BIT 	BIT(0)
 static struct k_work_delayable init_work;
@@ -134,7 +134,7 @@ static void init_work_handler(struct k_work *item)
 }
 #else
 #define	wait_init_done()
-#endif //ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#endif //ifdef CONFIG_SPD2010_KSCAN_NON_BLOCK_INIT
 
 static int spd2010_hdp_remain_data_read(const struct device *i2c_dev, uint16_t len)
 {
@@ -346,7 +346,7 @@ static int spd2010_reset(const struct device *dev)
 {
 	int ret = -1;
 
-#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#ifdef CONFIG_SPD2010_KSCAN_NON_BLOCK_INIT
 	s_init_dev = dev;
 	k_work_init_delayable(&init_work, init_work_handler);
 	k_work_schedule(&init_work, K_MSEC(100));
