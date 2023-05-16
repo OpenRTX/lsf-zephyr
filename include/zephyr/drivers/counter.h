@@ -190,6 +190,10 @@ typedef int (*counter_api_set_guard_period)(const struct device *dev,
 						uint32_t flags);
 typedef uint32_t (*counter_api_get_freq)(const struct device *dev);
 
+typedef int (*counter_api_get_time)(const struct device *dev,
+				     void *time);
+typedef int (*counter_api_set_time)(const struct device *dev,
+				     void *time);
 __subsystem struct counter_driver_api {
 	counter_api_start start;
 	counter_api_stop stop;
@@ -202,8 +206,31 @@ __subsystem struct counter_driver_api {
 	counter_api_get_guard_period get_guard_period;
 	counter_api_set_guard_period set_guard_period;
 	counter_api_get_freq get_freq;
+	counter_api_get_time get_time;
+	counter_api_set_time set_time;
 };
 
+__syscall int counter_get_time(const struct device *dev, void *time);
+
+static inline int z_impl_counter_get_time(const struct device *dev,
+					   void *time)
+{
+	const struct counter_driver_api *api =
+				(struct counter_driver_api *)dev->api;
+
+	return api->get_time(dev, time);
+}
+
+__syscall int counter_set_time(const struct device *dev, void *time);
+
+static inline int z_impl_counter_set_time(const struct device *dev,
+					   void *time)
+{
+	const struct counter_driver_api *api =
+				(struct counter_driver_api *)dev->api;
+
+	return api->set_time(dev, time);
+}
 /**
  * @brief Function to check if counter is counting up.
  *
