@@ -93,7 +93,7 @@ static inline int gpio_ch32v003_register_read(const struct device *dev, uint8_t 
 	return i2c_reg_read_byte_dt(&config->bus, reg, value);
 }
 
-#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#ifdef CONFIG_GPIO_CSK6_CH32V003_NON_BLOCK_INIT
 static K_EVENT_DEFINE(event_group);
 #define INIT_BIT 	BIT(0)
 static struct k_work_delayable init_work;
@@ -133,7 +133,7 @@ static void init_work_handler(struct k_work *item)
 }
 #else
 #define	wait_init_done()
-#endif //ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#endif //ifdef CONFIG_GPIO_CSK6_CH32V003_NON_BLOCK_INIT
 
 static inline int gpio_ch32v003_register_write(const struct device *dev, uint8_t reg, uint8_t value)
 {
@@ -289,7 +289,7 @@ int gpio_ch32003_init(const struct device *dev)
 		return 0;
 	}
 
-#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#ifdef CONFIG_GPIO_CSK6_CH32V003_NON_BLOCK_INIT
 	s_init_dev = dev;
 	k_work_init_delayable(&init_work, init_work_handler);
 	k_work_schedule(&init_work, K_MSEC(CONFIG_GPIO_CSK6_CH32V003_INIT_DELAY_MS));
