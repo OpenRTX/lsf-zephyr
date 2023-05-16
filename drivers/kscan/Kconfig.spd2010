@@ -38,3 +38,8 @@ config KSCAN_SPD2010_REPORT_FILTER_TIME_MS
 	depends on KSCAN_SPD2010_REPORT_FILTER
 	help
 	  SPD2010 report filter time ms
+
+config SPD2010_KSCAN_NON_BLOCK_INIT
+    bool "SPD2010 Kscan Non-Block Init"
+    help
+        Make the SPD2010 kscan driver init into non-block
