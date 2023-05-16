@@ -53,7 +53,7 @@ static struct disk_info csk6_sdmmc_info = {
 	.ops = &csk6_sdmmc_ops,
 };
 
-#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#ifdef CONFIG_SDMMC_NON_BLOCK_INIT
 static struct k_work_q sdmmc_workq;
 struct k_work init_work;
 static K_THREAD_STACK_DEFINE(sdmmc_workq_stack_area, 2048);
@@ -291,7 +291,7 @@ static int disk_csk6_sdmmc_init(const struct device *dev)
 	pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
 
 	cfg->irq_config_func(dev);
-#ifdef CONFIG_DRIVER_NON_BLOCK_INIT
+#ifdef CONFIG_SDMMC_NON_BLOCK_INIT
 	s_init_dev = dev;
 	k_work_queue_init(&sdmmc_workq);
 	k_work_queue_start(&sdmmc_workq, sdmmc_workq_stack_area,
