@@ -948,7 +948,7 @@ const static spd2010_init_cmd_item_t items[] = {
 	{.cmd = 0x2B, .data_len = 4, .data = {0x00, 0x00, 0x01, 0xC5},},
 	{.cmd = 0x3A, .data_len = 1, .data = {0x05},},
 	{.cmd = 0x35, .data_len = 1, .data = {0x00},},
-	{.cmd = 0x36, .data_len = 1, .data = {0x03},},
+	// {.cmd = 0x36, .data_len = 1, .data = {0x03},},
 	{.cmd = 0xFF, .data_len = 3, .data = {0x20, 0x10, 0x00},},
 	{.cmd = 0x11, .data_len = 1, .data = {0x00,},},
 	{.cmd = 0x29, .data_len = 1, .data = {0x00,},},
