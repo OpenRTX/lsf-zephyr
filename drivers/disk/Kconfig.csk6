@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+
+if SDMMC_CSK6
+
+config SDMMC_NON_BLOCK_INIT
+    bool "CSK6 SDMMC Non-Block Init"
+    help
+        Make the CSK6 SDMMC Driver init into non-block
+
+endif # SDMMC_CSK6

@@ -80,6 +80,12 @@ manifest:
       remote: listenai
       revision: 5537947a8cb2cc029ba59bf88dbdbc0c68e01dd4
       path: modules/lib/csk_sqlite3
+    - name: fatfs
+      remote: listenai
+      revision: b599336da2b997c31c3208bcbca39a5d831272c3
+      path: modules/fs/fatfs
+      groups:
+        - fs
 
   self:
     import:
@@ -101,5 +107,6 @@ manifest:
         - zcbor
         - zscilib
         - mipi-sys-t
+        - fatfs
       path-blocklist:
         - modules/hal/*
