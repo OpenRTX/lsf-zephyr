@@ -3,10 +3,10 @@
 
 #include "soc.h"
 #include "autoconf.h"
-#include "hal/venus_ap.h"
-#include "hal/reg/cmn_sysctrl_reg_venus.h"
-#include "hal/gpio.h"
-#include "hal/IOMuxManager.h"
+#include "venus_ap.h"
+#include "reg/cmn_sysctrl_reg_venus.h"
+#include "gpio.h"
+#include "IOMuxManager.h"
 
 #define SYSTEM_CLK ((SYSCFG_RegDef *)CMN_SYSCTRL_BASE)
 
