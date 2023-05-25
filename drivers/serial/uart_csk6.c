@@ -13,8 +13,8 @@
 
 #define DT_DRV_COMPAT listenai_csk_uart
 
-#include "hal/Driver_UART.h"
-#include "hal/uart.h"
+#include "Driver_UART.h"
+#include "uart.h"
 
 #include <zephyr/drivers/dma.h>
 #include <zephyr/drivers/pinctrl.h>
