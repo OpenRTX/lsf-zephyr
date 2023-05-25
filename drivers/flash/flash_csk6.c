@@ -16,8 +16,8 @@
 #include <kernel.h>
 #include <cache.h>
 #include <drivers/flash.h>
-#include <hal/venus_ap.h>
-#include <hal/spiflash.h>
+#include <venus_ap.h>
+#include <spiflash.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(flash_csk6, CONFIG_FLASH_LOG_LEVEL);

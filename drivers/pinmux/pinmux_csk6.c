@@ -7,10 +7,10 @@
 #define DT_DRV_COMPAT listenai_csk_pinmux
 
 #include <drivers/pinmux.h>
-#include <hal/IOMuxManager.h>
+#include <IOMuxManager.h>
 
 #if !(CONFIG_BOARD_LS_ADSP_CSK6)
-#include <hal/AON_IOMuxManager.h>
+#include <AON_IOMuxManager.h>
 #endif
 
 #define DEV_CFG(dev) ((const struct pinmux_csk_config *const)(dev)->config)
