@@ -4,7 +4,7 @@
     pinctrl-names = "default";
 
 
-    csk6_ch32v003@6c {
+    csk6_ch32v003: csk6_ch32v003@6c {
         /**
          * Please make sure that the external MCU firmware has been loaded
          * SCL --> external MCU PC5
@@ -80,4 +80,10 @@
 &green_led {
     gpios = <&gpioe 2 1>;
     label = "User LED1";
+};
+
+/ {
+    aliases {
+        csk6-exmcu = &csk6_ch32v003;
+    };
 };

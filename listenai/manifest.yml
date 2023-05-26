@@ -87,6 +87,11 @@ manifest:
       groups:
         - fs
 
+    - name: exmcu
+      remote: listenai
+      revision: master
+      path: modules/exmcu
+
   self:
     import:
       file: west.yml

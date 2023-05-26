@@ -2,7 +2,7 @@
     status = "okay";
     pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
     pinctrl-names = "default";
-    csk6_ch32v003@6c {
+    csk6_ch32v003: csk6_ch32v003@6c {
         /**
          * Please make sure that the external MCU firmware has been loaded
          * SCL --> external MCU PC5
@@ -43,5 +43,9 @@
 / {
     zephyr,user {
         io-channels = <&exadc 2>;
+    };
+
+    aliases {
+        csk6-exmcu = &csk6_ch32v003;
     };
 };
