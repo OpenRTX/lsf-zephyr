@@ -81,6 +81,11 @@ manifest:
       revision: 5537947a8cb2cc029ba59bf88dbdbc0c68e01dd4
       path: modules/lib/csk_sqlite3
 
+    - name: exmcu
+      remote: listenai
+      revision: master
+      path: modules/exmcu
+
   self:
     import:
       file: west.yml

@@ -1,0 +1,14 @@
+config CSK6_EXMCU
+    bool "csk6 exmcu"
+    default y
+    select I2C
+    select MUTEX
+    help
+        CSK6_EXMCU
+
+config CSK6_EXMCU_INIT_PRIORITY
+    int "csk6 exmcu int priority"
+    default 51
+    depends on CSK6_EXMCU
+    help
+        csk6 exmcu int priority
