@@ -26,6 +26,7 @@
                 zephyr,flash = &flash0;
                 zephyr,flash_controller = &flash;
                 zephyr,entropy = &trng;
+                zephyr,code-partition = &slot0_partition;
                 /* other chosen settings  for your hardware */
         };
 
@@ -143,24 +144,36 @@
                 #address-cells = <1>;
                 #size-cells = <1>;
 
-                /* wifi driver private storage: 8Kb */
-                wifi_driver_storage: partition@6ee000 {
-                        label = "wifi_driver_storage";
-                        reg = <0x6ee000 0x2000>;
+                /* 256KB for bootloader */
+                boot_partition: partition@0 {
+                        label = "mcuboot";
+                        reg = <0x0 0x40000>;
+                        read-only;
                 };
 
-                /* wifi_nvs_storage: 20Kb */
-                wifi_nvs_storage: partition@6F0000 {
-                        label = "wifi_nvs_storage";
-                        reg = <0x6F0000 0x10000>;
+                /* application image slot: 512KB */
+                slot0_partition: partition@40000 {
+                        label = "image-0";
+                        reg = <0x40000 0x80000>;
+                };
+
+                /* backup slot: 512KB */
+                slot1_partition: partition@c0000 {
+                        label = "image-1";
+                        reg = <0xc0000 0x80000>;
+                };
+
+                /* swap slot: 128KB */
+                scratch_partition: partition@140000 {
+                        label = "image-scratch";
+                        reg = <0x140000 0x20000>;
                 };
 
                 /* storage: 6.625MB for storage */
-                storage_partition: partition@700000 {
+                storage_partition: partition@160000 {
                         label = "storage";
-                        reg = <0x700000 0x100000>;
+                        reg = <0x160000 0x6a0000>;
                 };
-
 
         };
 };
