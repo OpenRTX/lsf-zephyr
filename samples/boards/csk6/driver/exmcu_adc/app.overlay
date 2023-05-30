@@ -1,0 +1,47 @@
+&i2c0 {
+    status = "okay";
+    pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
+    pinctrl-names = "default";
+    csk6_ch32v003@6c {
+        /**
+         * Please make sure that the external MCU firmware has been loaded
+         * SCL --> external MCU PC5
+         * SDA --> external MCU PC6
+         */
+        compatible = "listenai,csk-gpio-ch32003";
+        reg = <0x6c>;
+        label = "GPIO-CSK6-CH32003";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        exadc: adc@0 {
+            /**
+             * external adc channel map
+             *
+             * CH0 --> PA2
+             * CH1 --> PA1
+             * CH2 --> PC4
+             * CH3 --> PD2
+             * CH4 --> PD3
+             * CH5 --> PD5
+             * CH6 --> PD6
+             * CH7 --> PD4
+             *
+             */
+
+            compatible = "listenai,csk-adc-ch32v003";
+            label = "EXADC";
+            reg = <0>;
+            status = "okay";
+            #io-channel-cells = <1>;
+        };
+    };
+};
+
+
+/ {
+    zephyr,user {
+        io-channels = <&exadc 2>;
+    };
+};

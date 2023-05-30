@@ -24,5 +24,7 @@ zephyr_library_sources_ifdef(CONFIG_ADC_EMUL		adc_emul.c)
 zephyr_library_sources_ifdef(CONFIG_ADC_XEC_V2		adc_mchp_xec_v2.c)
 
 zephyr_library_sources_ifdef(CONFIG_ADC_CSK6		adc_csk6.c)
+zephyr_library_sources_ifdef(CONFIG_ADC_CSK6_CH32V003		adc_csk6_ch32v003.c)
+
 zephyr_library_sources_ifdef(CONFIG_ADC_TEST		adc_test.c)
 zephyr_library_sources_ifdef(CONFIG_ADC_ADS1X1X		adc_ads1x1x.c)

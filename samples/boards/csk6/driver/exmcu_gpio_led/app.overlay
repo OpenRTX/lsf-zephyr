@@ -1,0 +1,83 @@
+&i2c0 {
+    status = "okay";
+    pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
+    pinctrl-names = "default";
+
+
+    csk6_ch32v003@6c {
+        /**
+         * Please make sure that the external MCU firmware has been loaded
+         * SCL --> external MCU PC5
+         * SDA --> external MCU PC6
+         */
+        compatible = "listenai,csk-gpio-ch32003";
+        reg = <0x6c>;
+        label = "GPIO-CSK6-CH32003";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /**
+         * CSK6 to external gpio map
+         *
+         * GPIOC --> GPIOA
+         * GPIOD --> GPIOB
+         * GPIOE --> GPIOC
+         * GPIOF --> GPIOD
+         *
+         */
+
+        /* CH32V003-GPIOA */
+        gpioc: gpio@0 {
+            compatible = "listenai,csk-gpio-ch32003-port";
+            label = "GPIOC";
+            reg = <0x00>;
+            status = "okay";
+            ngpios = <8>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            pin_mask = <0x00>;
+        };
+
+        /* CH32V003-GPIOB */
+        gpiod: gpio@1 {
+            compatible = "listenai,csk-gpio-ch32003-port";
+            label = "GPIOD";
+            reg = <0x01>;
+            status = "okay";
+            ngpios = <8>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            pin_mask = <0x00>;
+        };
+
+        /* CH32V003-GPIOC */
+        gpioe: gpio@2 {
+            compatible = "listenai,csk-gpio-ch32003-port";
+            label = "GPIOE";
+            reg = <0x02>;
+            status = "okay";
+            ngpios = <8>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            pin_mask = <0x00>;
+        };
+
+        /* CH32V003-GPIOD */
+        gpiof: gpio@3 {
+            compatible = "listenai,csk-gpio-ch32003-port";
+            label = "GPIOF";
+            reg = <0x03>;
+            status = "okay";
+            ngpios = <8>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            pin_mask = <0x00>;
+        };
+    };
+};
+
+&green_led {
+    gpios = <&gpioe 2 1>;
+    label = "User LED1";
+};
