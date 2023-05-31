@@ -143,4 +143,6 @@ source "drivers/mipi_dsi/Kconfig"
 
 source "drivers/infrared/Kconfig"
 
+source "drivers/rtc/Kconfig"
+
 endmenu
