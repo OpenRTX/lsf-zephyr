@@ -110,3 +110,4 @@ manifest:
         - fatfs
       path-blocklist:
         - modules/hal/*
+        - modules/tee/*
