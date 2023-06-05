@@ -60,6 +60,8 @@ config SDMMC_CSK6
 	help
 	  File system on sdmmc accessed through csk6 sdmmc.
 
+source "drivers/disk/Kconfig.csk6"
+
 module = SDMMC
 module-str = sdmmc
 source "subsys/logging/Kconfig.template.log_config"
