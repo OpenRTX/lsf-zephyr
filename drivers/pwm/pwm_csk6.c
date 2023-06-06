@@ -14,11 +14,11 @@
 #include <device.h>
 #include <kernel.h>
 #include <init.h>
-#include "hal/Driver_GPT_PWM.h"
-#include "hal/venus_ap.h"
-#include "hal/reg/cmn_sysctrl_reg_venus.h"
+#include "Driver_GPT_PWM.h"
+#include "venus_ap.h"
+#include "cmn_sysctrl_reg_venus.h"
 #include <logging/log.h>
-#include "hal/gpt.h"
+#include "gpt.h"
 
 LOG_MODULE_REGISTER(pwm_csk6, CONFIG_PWM_LOG_LEVEL);
 

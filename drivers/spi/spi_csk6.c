@@ -16,9 +16,9 @@ LOG_MODULE_REGISTER(csk6_spi, CONFIG_SPI_LOG_LEVEL);
 
 #include "spi_context.h"
 
-#include "hal/spi.h"
-#include "hal/Driver_SPI.h"
-#include "hal/IOMuxManager.h"
+#include "spi.h"
+#include "Driver_SPI.h"
+#include "IOMuxManager.h"
 
 #define SPI0_LABEL "SPI_0"
 #define SPI1_LABEL "SPI_1"

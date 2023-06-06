@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "hal/Driver_AON_WDT.h"
-#include "hal/aon_timer.h"
+#include "Driver_AON_WDT.h"
+#include "aon_timer.h"
 
 #include <drivers/watchdog.h>
 

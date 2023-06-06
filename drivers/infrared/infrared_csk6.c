@@ -6,8 +6,8 @@
 
 #define DT_DRV_COMPAT listenai_csk_ir
 
-#include "hal/Driver_IR.h"
-#include "hal/ir.h"
+#include "Driver_IR.h"
+#include "ir.h"
 
 #include <drivers/infrared.h>
 

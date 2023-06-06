@@ -8,10 +8,10 @@
 
 #include <zephyr.h>
 #include <drivers/video.h>
-#include "hal/Driver_DVP.h"
+#include "Driver_DVP.h"
 #include <soc.h>
 #include <zephyr/drivers/pinctrl.h>
-#include "hal/venus_ap.h"
+#include "venus_ap.h"
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 #include <logging/log.h>

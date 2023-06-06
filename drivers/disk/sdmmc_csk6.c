@@ -8,8 +8,8 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/disk.h>
 #include <zephyr/logging/log.h>
-#include "hal/sdmmc/lib_sdc.h"
-#include "hal/sdmmc/ftsdc021.h"
+#include "sdmmc/lib_sdc.h"
+#include "sdmmc/ftsdc021.h"
 #include <zephyr/drivers/pinctrl.h>
 
 LOG_MODULE_REGISTER(csk6_sdmmc, CONFIG_SDMMC_LOG_LEVEL);

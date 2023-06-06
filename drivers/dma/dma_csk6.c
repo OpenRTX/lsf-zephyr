@@ -13,11 +13,11 @@
 #define DMA_CHANNEL_NUM_MAX DT_INST_PROP(0, dma_channels)
 
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
-#include "hal/reg/dma_venus.h"
+#include "dma_venus.h"
 #define DMA_CSK6_RAM_FUNC __attribute__ ((section (".iram0.text")))
 #define ARCH_ISR_DIRECT_DECLARE(name) int name(void)
 #else
-#include "hal/dma.h"
+#include "dma.h"
 #define DMA_CSK6_RAM_FUNC __attribute__((section(".itcm")))
 #endif /* end of CONFIG_SOC_LS_ADSP_CSK6 */
 

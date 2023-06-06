@@ -9,9 +9,9 @@
 
 #include "gpio_utils.h"
 
-#include "hal/gpio.h"
-#include "hal/Driver_GPIO.h"
-#include <hal/IOMuxManager.h>
+#include "gpio.h"
+#include "Driver_GPIO.h"
+#include <IOMuxManager.h>
 
 typedef void *gpio_driver_ctx_t;
 
