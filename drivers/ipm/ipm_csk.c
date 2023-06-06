@@ -10,14 +10,14 @@
 #include <device.h>
 #include <string.h>
 #include <drivers/ipm.h>
-#include "hal/Driver_MBX.h"
-#include "hal/reg/cmn_mailbox_reg_venus.h"
+#include "Driver_MBX.h"
+#include "cmn_mailbox_reg_venus.h"
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
-#include "hal/venus_cp.h"
+#include "venus_cp.h"
 #endif
 
 #ifdef CONFIG_SOC_CSK6
-#include "hal/venus_ap.h"
+#include "venus_ap.h"
 #endif
 
 #define CSK_MBX_CH(ch)            (0x1UL << ch)

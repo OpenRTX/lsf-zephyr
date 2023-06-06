@@ -6,8 +6,8 @@
 
 
 #include <drivers/counter.h>
-#include "hal/Driver_RTC.h"
-#include "hal/rtc.h"
+#include "Driver_RTC.h"
+#include "rtc.h"
 
 
 #define DEV_CFG(dev) (( struct counter_csk_config *)(dev)->config)
