@@ -4,8 +4,8 @@
 
 #define DT_DRV_COMPAT listenai_csk_dual
 
-#include "hal/Driver_DUAL_TIMER.h"
-#include "hal/dual_timer.h"
+#include "Driver_DUAL_TIMER.h"
+#include "dual_timer.h"
 
 #include <drivers/counter.h>
 #define DEV_CFG(dev)  ((struct counter_csk_config *)(dev)->config)

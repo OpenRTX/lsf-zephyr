@@ -11,8 +11,8 @@
 #include <drivers/usb/usb_dc.h>
 #include <usb/usb_device.h>
 
-#include "hal/usb_venus.h"
-#include "hal/cache.h"
+#include "usb_venus.h"
+#include "csk6_cm33/include/cache.h"
 
 #include <sys/byteorder.h>
 
