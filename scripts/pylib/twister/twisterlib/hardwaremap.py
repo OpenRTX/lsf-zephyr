@@ -46,6 +46,7 @@ class DUT(object):
                  pre_script=None,
                  post_script=None,
                  post_flash_script=None,
+                 fixture_only=None,
                  runner=None):
 
         self.serial = serial
@@ -61,6 +62,7 @@ class DUT(object):
         self.runner = runner
         self.runner_params = runner_params
         self.fixtures = []
+        self.fixture_only = fixture_only
         self.post_flash_script = post_flash_script
         self.post_script = post_script
         self.pre_script = pre_script
@@ -223,6 +225,7 @@ class HardwareMap:
             baud = dut.get('baud', None)
             product = dut.get('product')
             fixtures = dut.get('fixtures', [])
+            fixture_only = dut.get('fixture_only', False)
             connected= dut.get('connected') and ((serial or serial_pty) is not None)
             if not connected:
                 continue
@@ -237,6 +240,7 @@ class HardwareMap:
                           connected=connected,
                           pre_script=pre_script,
                           post_script=post_script,
+                          fixture_only=fixture_only,
                           post_flash_script=post_flash_script)
             new_dut.fixtures = fixtures
             new_dut.counter = 0

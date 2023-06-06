@@ -55,3 +55,7 @@ sequence:
         required: no
         sequence:
           - type: str
+      "fixture_only":
+        type: bool
+        required: false
+        default: false
