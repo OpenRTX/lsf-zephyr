@@ -295,7 +295,7 @@ static int disk_csk6_sdmmc_init(const struct device *dev)
 	s_init_dev = dev;
 	k_work_queue_init(&sdmmc_workq);
 	k_work_queue_start(&sdmmc_workq, sdmmc_workq_stack_area,
-						K_THREAD_STACK_SIZEOF(sdmmc_workq_stack_area), 1, NULL);
+						K_THREAD_STACK_SIZEOF(sdmmc_workq_stack_area), K_LOWEST_APPLICATION_THREAD_PRIO, NULL);
 	k_work_init(&init_work, init_work_handler);
 	k_work_submit_to_queue(&sdmmc_workq, &init_work);
 #else
