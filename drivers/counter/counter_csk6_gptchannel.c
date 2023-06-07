@@ -4,9 +4,9 @@
 
 #define DT_DRV_COMPAT listenai_csk_gptchannel
 
-#include "hal/Driver_GPT_TIMER.h"
-#include "hal/gpt_timer.h"
-#include "hal/gpt.h"
+#include "Driver_GPT_TIMER.h"
+#include "gpt_timer.h"
+#include "gpt.h"
 
 #include <drivers/counter.h>
 

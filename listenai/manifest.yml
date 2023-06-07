@@ -5,10 +5,10 @@ manifest:
       url-base: https://cloud.listenai.com/zephyr
 
   projects:
-    - name: hal_listenai
-      remote: listenai
-      revision: fd65b1c300cca757356e7fc71fc63628e4e8e341
-      path: modules/hal/listenai
+    - name: csk6_cm33
+      url: https://cloud.listenai.com/listenai/driver/csk6_cm33
+      revision: a71fa50a3b4b0754278ce7eab7079d0c74a19dbf
+      path: modules/hal/listenai/csk6_cm33
       groups:
         - hal
     - name: libmetal
@@ -42,7 +42,7 @@ manifest:
       path: bootloader/mcuboot
     - name: avf
       remote: listenai
-      revision: v1.0.0
+      revision: v1.1.0
       path: modules/lib/avf
       clone-depth: 1
     - name: licak

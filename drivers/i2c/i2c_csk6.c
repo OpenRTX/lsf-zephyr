@@ -6,8 +6,8 @@
 
 #define DT_DRV_COMPAT listenai_csk_i2c
 
-#include "hal/Driver_I2C.h"
-#include "hal/i2c.h"
+#include "Driver_I2C.h"
+#include "i2c.h"
 
 #include <zephyr/drivers/pinctrl.h>
 
