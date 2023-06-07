@@ -6,11 +6,9 @@
 
 #define DT_DRV_COMPAT listenai_csk_adc_ch32v003
 
-#include <zephyr/kernel.h>
 #include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/i2c.h>
-
-#include "exmcu_comm.h"
+#include <zephyr/kernel.h>
 
 #define ADC_CONTEXT_USES_KERNEL_TIMER
 #include "adc_context.h"
@@ -18,11 +16,9 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(csk6_adc_ch32v003, CONFIG_ADC_LOG_LEVEL);
 
-#define CH32V003_ADC_VREF_INTERNAL (3300)
-#define CH32V003_ADC_RESOLUTION (10)
+#include "exmcu_comm.h"
 
-#define CH32V003_BUSY_DELAY_TIMEOUT_MS (10)
-#define CH32V003_BUSY_DELAY_CNT	       (3)
+#define CH32V003_ADC_RESOLUTION	   (10)
 
 struct adc_ch32v003_config {
 	const struct device *exmcu;
@@ -44,14 +40,14 @@ static int adc_ch32v003_wait_data_ready(const struct device *dev, uint8_t ch)
 	uint32_t time = k_uptime_get_32();
 	const struct adc_ch32v003_config *config = dev->config;
 
-	while (!(status & (1 << ch))) {
-		r = exmcu_register_read_byte(config->exmcu, 0x55 + ch * 16, &status);
+	while (!(status & CH32V003_ADC_EOC)) {
+		r = exmcu_register_read_byte(config->exmcu, CH32V003_ADC_STATUS_REG, &status);
 		if (r) {
 			return r;
 		}
-		k_usleep(100);
+		k_msleep(100);
 
-		if ((k_uptime_get_32() - time) > 2 * 1000) {
+		if ((k_uptime_get_32() - time) > (2 * 1000)) {
 			LOG_ERR("wait ch %d ready timeout", ch);
 			return -ETIMEDOUT;
 		}
@@ -79,10 +75,20 @@ static int adc_ch32v003_read_data(const struct device *dev, uint8_t ch, uint16_t
 	return 0;
 }
 
-static int adc_ch32v003_start_conversion(const struct device *dev, uint8_t ch)
-{	
+static int adc_ch32v003_start_conversion(const struct device *dev, uint8_t ch_mask)
+{
+	int r;
 	const struct adc_ch32v003_config *config = dev->config;
-	return exmcu_register_write_byte(config->exmcu, 0x52, ch);
+
+	r = exmcu_register_write_byte(config->exmcu, CH32V003_ADC_CONFIG_0,
+				      (CH32V003_ADC_SAMPLING_CYCLE_30 << 1) | CH32V003_ADC_MODE_ONCE);
+	if (r) {
+		return r;
+	}
+
+	r = exmcu_register_write_byte(config->exmcu, CH32V003_ADC_CONFIG_1, ch_mask);
+
+	return r;
 }
 
 static int adc_ch32v003_channel_setup(const struct device *dev,
@@ -160,43 +166,29 @@ static void adc_ch32v003_thread(void *p1, void *p2, void *p3)
 		k_sem_take(&data->acq_sem, K_FOREVER);
 		uint8_t channel_mask = data->ctx.sequence.channels;
 		uint8_t i;
-		uint8_t err_happend = 0;
 
 		LOG_DBG("channel_mask:%02X", channel_mask);
 
-		/* FIXME:状态寄存器未实现 */
-		// for (i = 0; i < 8; i++) {
-		// 	if (channel_mask & (1 << i)) {
-		// 		LOG_DBG("wait ch %d ready", i);
-		// 		r = adc_ch32v003_wait_data_ready(dev, i);
-		// 		if (r) {
-		// 			adc_context_complete(&data->ctx, r);
-		// 			err_happend = 1;
-		// 			break;
-		// 		}
-		// 	}
-		// }
-		(void)adc_ch32v003_wait_data_ready;
-		k_msleep(100);
-		if (!err_happend) {
-			for (i = 0; i < 8; i++) {
-				int16_t value = 0;
-				if (channel_mask & (1 << i)) {
-					r = adc_ch32v003_read_data(dev, i, &value);
-					if (r) {
-						adc_context_complete(&data->ctx, r);
-						err_happend = 1;
-						break;
-					}
-					*data->buffer++ = value;
-					LOG_DBG("value:%d", value);
+		r = adc_ch32v003_wait_data_ready(dev, channel_mask);
+		if (r) {
+			adc_context_complete(&data->ctx, r);
+			continue;
+		}
+
+		for (i = 0; i < 8; i++) {
+			int16_t value = 0;
+			if (channel_mask & (1 << i)) {
+				r = adc_ch32v003_read_data(dev, i, &value);
+				if (r) {
+					adc_context_complete(&data->ctx, r);
+					continue;
 				}
+				*data->buffer++ = value;
+				LOG_DBG("value:%d", value);
 			}
 		}
 
-		if (!err_happend) {
-			adc_context_on_sampling_done(&data->ctx, dev);
-		}
+		adc_context_on_sampling_done(&data->ctx, dev);
 	}
 }
 
@@ -220,12 +212,12 @@ static const struct adc_driver_api api_ch32v003_driver_api = {
 #ifdef CONFIG_ADC_ASYNC
 	.read_async = NULL,
 #endif
-	.ref_internal = CH32V003_ADC_VREF_INTERNAL,
+	.ref_internal = CONFIG_ADC_CSK6_CH32V003_INTERNAL_VREF,
 };
 
 #define ADC_DEVICE_INSTANCE(inst)                                                                  \
 	static const struct adc_ch32v003_config adc_ch32003_##inst##_cfg = {                       \
-		.exmcu = DEVICE_DT_GET(DT_INST_PARENT(inst)),                                     \
+		.exmcu = DEVICE_DT_GET(DT_INST_PARENT(inst)),                                      \
 	};                                                                                         \
                                                                                                    \
 	static struct adc_ch32v003_data adc_ch32003_##inst##_data = {                              \
@@ -239,7 +231,8 @@ static const struct adc_driver_api api_ch32v003_driver_api = {
 	DEVICE_DT_INST_DEFINE(inst, adc_ch32v003_init, NULL, &adc_ch32003_##inst##_data,           \
 			      &adc_ch32003_##inst##_cfg, POST_KERNEL, 90,                          \
 			      &api_ch32v003_driver_api);                                           \
-	K_THREAD_DEFINE(adc_ch32v003_thread_id_##inst, 2048, adc_ch32v003_thread,                  \
-			DEVICE_DT_INST_GET(inst), NULL, NULL, 0, 0, 0);
+	K_THREAD_DEFINE(adc_ch32v003_thread_id_##inst, CONFIG_ADC_CSK6_CH32V003_THREAD_STACK_SIZE, \
+			adc_ch32v003_thread, DEVICE_DT_INST_GET(inst),                             \
+			CONFIG_ADC_CSK6_CH32V003_THREAD_PRIO, NULL, 0, 0, 0);
 
 DT_INST_FOREACH_STATUS_OKAY(ADC_DEVICE_INSTANCE);

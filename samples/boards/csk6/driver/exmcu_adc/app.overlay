@@ -8,7 +8,7 @@
          * SCL --> external MCU PC5
          * SDA --> external MCU PC6
          */
-        compatible = "listenai,csk-gpio-ch32003";
+        compatible = "listenai,csk-i2c-ch32v003";
         reg = <0x6c>;
         label = "GPIO-CSK6-CH32003";
         status = "okay";
