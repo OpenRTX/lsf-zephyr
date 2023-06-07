@@ -505,6 +505,10 @@ class DeviceHandler(Handler):
         if pre_script:
             self.run_custom_script(pre_script, 30)
 
+        flash_timeout = hardware.flash_timeout
+        if hardware.flash_with_test:
+            flash_timeout += self.timeout
+
         try:
             ser = serial.Serial(
                 serial_device,
@@ -512,7 +516,7 @@ class DeviceHandler(Handler):
                 parity=serial.PARITY_NONE,
                 stopbits=serial.STOPBITS_ONE,
                 bytesize=serial.EIGHTBITS,
-                timeout=self.timeout
+                timeout=max(flash_timeout, self.timeout)  # the worst case of no serial input
             )
         except serial.SerialException as e:
             self.instance.status = "failed"
@@ -551,6 +555,7 @@ class DeviceHandler(Handler):
 
         t = threading.Thread(target=self.monitor_serial, daemon=True,
                              args=(ser, read_pipe, harness))
+        start_time = time.time()
         t.start()
 
         d_log = "{}/device.log".format(self.instance.build_dir)
@@ -560,7 +565,7 @@ class DeviceHandler(Handler):
             stdout = stderr = None
             with subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE) as proc:
                 try:
-                    (stdout, stderr) = proc.communicate(timeout=180)
+                    (stdout, stderr) = proc.communicate(timeout=flash_timeout)
                     # ignore unencodable unicode chars
                     logger.debug(stdout.decode(errors = "ignore"))
 
@@ -592,6 +597,7 @@ class DeviceHandler(Handler):
             self.run_custom_script(post_flash_script, 30)
 
         if not flash_error:
+            # Always wait at most the test timeout here after flashing.
             t.join(self.timeout)
         else:
             # When the flash error is due exceptions,
