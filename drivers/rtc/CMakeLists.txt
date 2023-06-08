@@ -3,4 +3,5 @@
 
 zephyr_library()
 
-zephyr_library_sources_ifdef(CONFIG_USERSPACE rtc_handlers.c)
+zephyr_library_sources_ifdef(CONFIG_USERSPACE		rtc_handlers.c)
+zephyr_library_sources_ifdef(CONFIG_RTC_PCF8563		rtc_pcf8563.c)

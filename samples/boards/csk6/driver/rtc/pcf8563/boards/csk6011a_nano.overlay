@@ -1,0 +1,35 @@
+/*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&pinctrl {
+	pinctrl_i2c0_scl_default: i2c0_scl_default{
+		pinctrls = <I2C0_SCL_GPIOB_10>;
+	};
+
+	pinctrl_i2c0_sda_default: i2c0_sda_default{
+		pinctrls = <I2C0_SDA_GPIOB_11>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
+	pinctrl-names = "default";
+
+	rtc: pcf8563@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		alarms-count = <1>;
+		battery-switch-over = "standard";
+		label = "RTC_PCF8563";
+		/*
+		* Interrupt connection must be manually established using a jumper wire between
+		* pins "SQ" and "Digital I/O 7".
+		*/
+		// int1-gpios = <&gpiob 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* D7 */
+		status = "okay";
+	};
+};

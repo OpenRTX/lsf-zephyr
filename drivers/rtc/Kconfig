@@ -35,4 +35,6 @@ config RTC_CALIBRATION
 	  This is an option which enables driver support for RTC clock
 	  calibration.
 
+rsource "Kconfig.pcf8563"
+
 endif # RTC
