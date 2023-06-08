@@ -8,4 +8,4 @@ tests:
       fixture: ch32v003
       type: one_line
       regex:
-        - "exmcu gpio led sample"
+        - "GPIO LOOPBACK TEST OK"

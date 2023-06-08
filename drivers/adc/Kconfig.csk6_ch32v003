@@ -7,7 +7,27 @@ config ADC_CSK6_CH32V003
 	bool "listenai CSK6 embedded controller (EC) ADC driver"
 	default n
 	select I2C
+	select CSK6_EXMCU
 	depends on HAS_CSK6
 	help
 	  This option enables the ADC driver for CSK6.
-	  Say y if you wish to use ADC modules on CSK6.
+
+config ADC_CSK6_CH32V003_INIT_PRIO
+	int "adc csk6 ch32v003 init priority"
+	default 52
+	depends on ADC_CSK6_CH32V003
+
+config ADC_CSK6_CH32V003_THREAD_PRIO
+	int "adc csk6 ch32v003 thread priority"
+	default 0
+	depends on ADC_CSK6_CH32V003
+
+config ADC_CSK6_CH32V003_THREAD_STACK_SIZE
+	int "adc csk6 ch32v003 thread stack size"
+	default 2048
+	depends on ADC_CSK6_CH32V003
+
+config ADC_CSK6_CH32V003_INTERNAL_VREF
+	int "adc csk6 ch32v003 internal vref"
+	default 3300
+	depends on ADC_CSK6_CH32V003

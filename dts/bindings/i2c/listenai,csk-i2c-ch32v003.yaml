@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: CSK I2C node
+
+compatible: "listenai,csk-i2c-ch32v003"
+
+include: [i2c-device.yaml]
+
+properties:
+    reg:
+      required: true
+
+
