@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config VIDEO_SCO30IOT
+	bool "Support for the SCO30IOT out of tree driver"
+
+choice SCO30IOT_FPS
+	prompt "SCO30IOT working fps config"
+	default SCO30IOT_FPS_20
+
+	config SCO30IOT_FPS_30
+		bool "SCO30IOT using 30 fps"
+	config SCO30IOT_FPS_20
+		bool "SCO30IOT using 20 fps"
+	config SCO30IOT_FPS_15
+		bool "SCO30IOT using 15 fps"
+endchoice
+
+
+config VIDEO_SCO30IOT
+	bool "Support for the SCO30IOT out of tree driver"
