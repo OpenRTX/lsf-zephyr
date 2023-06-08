@@ -1,0 +1,5 @@
+tests:
+  sample.board.csk6.driver.video.gc032a:
+    platform_allow: csk6011_nano
+    tags: csk6
+    build_only: true
