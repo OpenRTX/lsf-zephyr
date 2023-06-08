@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config VIDEO_SCO30IOT
+	bool "sco30iot CMOS digital image sensor"
+    depends on HAS_CSK6
+	help
+	  Enable driver for sco30iot CMOS digital image sensor devices
