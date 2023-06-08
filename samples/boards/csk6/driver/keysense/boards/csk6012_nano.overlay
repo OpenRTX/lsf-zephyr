@@ -1,0 +1,34 @@
+/*
+ * Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+ &pinctrl {
+	printctl_aon_iomux_keysense_default: aon_iomux_keysense_default {
+		pinctrls = <AON_KEY_GPIOB_05>;
+	};
+};
+
+&keysense {
+	status = "okay";
+	pinctrl-0 = <&printctl_aon_iomux_keysense_default>;
+	pinctrl-names = "default";
+
+	//keysense use adc channel 6 to sample
+	io-channels = <&adc0 6>;
+
+	//Trigger voltage of each analog key (mV)
+	analogkey-trigger = <1100 1890 2570>;
+};
+
+
+/ {
+	aliases {
+		analogkey = &keysense;
+	};
+};
+
+&adc0 {
+	status = "okay";
+};

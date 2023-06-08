@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: xr819s wifi module
+
+compatible: "wifi,xr819s"
+
+properties:
+    dataready-gpios:
+      type: phandle-array
+      required: true
+
+    reset-gpios:
+      type: phandle-array
+      required: true
+
+    sdio-clk-gpios:
+      type: phandle-array
+      required: true
+
+    sdio-cmd-gpios:
+      type: phandle-array
+      required: true
+
+    sdio-dat0-gpios:
+      type: phandle-array
+      required: true
+
+    label:
+      required: true
+      type: string

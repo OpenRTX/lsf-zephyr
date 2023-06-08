@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+
+menu "Example Configuration"
+
+    config EXAMPLE_WIFI_SSID
+        string "WiFi SSID"
+        default "xiaowei-yyds"
+
+    config EXAMPLE_WIFI_PASSWORD
+        string "WiFi password"
+        default "xiaowei-yyds"
+
+endmenu
+
+source "Kconfig.zephyr"

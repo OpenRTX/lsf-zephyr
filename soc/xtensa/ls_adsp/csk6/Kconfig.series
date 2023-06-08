@@ -1,0 +1,12 @@
+# Copyright (c) 2021 ListenAI
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_LS_CSK6
+	bool "LS CSK6"
+	select SOC_FAMILY_LS_ADSP
+	select XTENSA
+	select XTENSA_RESET_VECTOR
+	select XTENSA_USE_CORE_CRT1
+	select ATOMIC_OPERATIONS_BUILTIN
+	help
+	  ListenAI CSK6

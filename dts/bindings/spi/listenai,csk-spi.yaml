@@ -1,0 +1,20 @@
+# Copyright (c) 2018, I-SENSE group of ICCS
+# SPDX-License-Identifier: Apache-2.0
+
+description: listenai csk spi controller
+
+include: [spi-controller.yaml, pinctrl-device.yaml]
+
+compatible: "listenai,csk-spi"
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true
+
+    spi-max-frequency:
+      type: int
+      required: false
+      description: spi-max-frequency

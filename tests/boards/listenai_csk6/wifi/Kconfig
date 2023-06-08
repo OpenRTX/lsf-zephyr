@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+
+menu "Example Configuration"
+
+    config TEST_VALID_WIFI_SSID
+        string "Valid WiFi SSID"
+        default "xiaowei-yyds"
+
+    config TEST_VALID_WIFI_PASSWORD
+        string "Valid WiFi Password"
+        default "xiaowei-yyds"
+
+    config TEST_INVALID_WIFI_SSID
+        string "Invalid WiFi SSID"
+        default "test_invalid_wifi_ssid"
+
+    config TEST_INVALID_WIFI_PASSWORD
+        string "Invalid WiFi Password"
+        default "test_invalid_wifi_password"
+
+endmenu
+
+source "Kconfig.zephyr"

@@ -1,0 +1,8 @@
+sample:
+  name: littlefs filesystem sample
+tests:
+  sample.filesystem.littlefs:
+    build_only: true
+    platform_allow: csk6011a_nano csk6012_nano
+
+    tags: filesystem

@@ -1,0 +1,14 @@
+sample:
+  description: csk_malloc sample, the simplest Zephyr
+    application
+  name: csk_malloc
+tests:
+  sample.board.csk6.subsys.csk_malloc:
+    tags: csk
+    platform_allow: csk6011a_nano
+    harness: console
+    timeout: 20
+    harness_config:
+      type: multi_line
+      regex:
+        - "CSK Heap test complete!"

@@ -1,0 +1,52 @@
+&pinctrl{
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                        pinctrls = <I2C0_SCL_GPIOB_02>;
+                };
+
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                        pinctrls = <I2C0_SDA_GPIOB_03>;
+                };
+
+                pinctrl_spi1_sclk_default: spi1_sclk_default {
+                    pinctrls = < SPI1_CLK_GPIOB_00 >;
+                };
+
+                pinctrl_spi1_mosi_default: spi1_mosi_default {
+                    pinctrls = < SPI1_MOSI_GPIOB_01 >;
+                };
+
+                pinctrl_spi1_cs_default: spi1_cs_default {
+                    pinctrls = < SPI1_CS_N_GPIOA_09 >;
+                };
+};
+
+&gpt0 {
+	status = "okay";
+};
+
+&spi0 {
+    status = "disabled";
+};
+
+&spi1 {
+    status = "okay";
+    spi-max-frequency = <100000000>;
+    pinctrl-0 = <&pinctrl_spi1_sclk_default &pinctrl_spi1_mosi_default &pinctrl_spi1_cs_default>;
+	pinctrl-names = "default";
+};
+
+&i2c0 {
+        status = "okay";
+        pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
+        pinctrl-names = "default";
+
+        bf30a2: bf30a2@6e {
+            compatible = "byd,bf30a2";
+            status = "okay";
+            label = "VIDEO";
+            reg = <0x6e>;
+            product-id = <0x3b02>;
+            spi = <&spi1>;
+	    xclk-gpios = <&gpioa 11 0>;
+        };
+};

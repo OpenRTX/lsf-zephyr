@@ -1,0 +1,7 @@
+# Xtensa board configuration
+
+# Copyright (c) 2021 ListenAI
+# SPDX-License-Identifier: Apache-2.0
+
+config  BOARD_LS_ADSP_CSK6
+	bool "ListenAI ADSP CSK6"

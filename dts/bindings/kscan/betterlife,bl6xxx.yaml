@@ -1,0 +1,16 @@
+# Copyright (c) 2022 listenai
+# SPDX-License-Identifier: Apache-2.0
+
+description: BL6XXX capacitive touch panels
+
+compatible: "betterlife,bl6xxx"
+
+include: [kscan.yaml, i2c-device.yaml]
+
+properties:
+    int-gpios:
+      type: phandle-array
+      required: true
+    reset-gpios:
+      type: phandle-array
+      required: false

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+
+cmake_minimum_required(VERSION 3.20.0)
+
+set(SUPPORT_BOARDS csk6012_nano csk6011a_nano)
+if(NOT ${BOARD} IN_LIST SUPPORT_BOARDS)
+    message("Please choose one of the following boards:")
+    foreach(item ${SUPPORT_BOARDS})
+        message(STATUS ${item})
+    endforeach()
+    message(FATAL_ERROR "\nThe project does not support the ${BOARD}")
+endif()
+
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+project(i2c_slave_vdev)
+
+# add_subdirectory_ifdef(CONFIG_I2C_SLAVE_VIRTUAL_DEVICE			common/slave)
+# FILE(GLOB app_sources src/*.c)
+
+zephyr_include_directories(common/slave)
+FILE(GLOB app_sources src/*.c common/slave/i2c_slave_vdev.c)
+
+target_sources(app PRIVATE ${app_sources})

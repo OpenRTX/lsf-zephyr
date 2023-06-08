@@ -1,0 +1,5 @@
+tests:
+  sample.board.csk6.driver.wdt:
+    platform_allow: csk6011a_nano
+    tags: csk6
+    build_only: true

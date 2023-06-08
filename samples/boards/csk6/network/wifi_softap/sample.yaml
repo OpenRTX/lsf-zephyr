@@ -1,0 +1,5 @@
+tests:
+  sample.board.csk6.network.wifi_softap:
+    platform_allow: csk6011a_c3_nano
+    build_only: true
+    tags: csk6

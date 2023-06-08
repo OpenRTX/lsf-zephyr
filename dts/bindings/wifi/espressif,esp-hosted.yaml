@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: esp-hosted wifi module
+
+compatible: "espressif,esp-hosted"
+
+include: [spi-device.yaml]
+
+properties:
+    dataready-gpios:
+      type: phandle-array
+      required: true
+
+    handshake-gpios:
+      type: phandle-array
+      required: true
+
+    reset-gpios:
+      type: phandle-array
+      required: true
+
+    label:
+      required: true
+      type: string

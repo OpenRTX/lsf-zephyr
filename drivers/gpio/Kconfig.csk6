@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config GPIO_CSK6
+	bool "CSK6 GPIO driver"
+	default y
+	depends on HAS_CSK6
+	help
+	  Enable the csk6 GPIO driver.

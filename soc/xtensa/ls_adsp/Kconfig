@@ -1,0 +1,19 @@
+# ListenAI CSK6 SoC family configuration options
+#
+# Copyright (c) 2021 ListenAI
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_FAMILY_LS_ADSP
+	bool
+	select ARCH_HAS_COHERENCE
+
+if SOC_FAMILY_LS_ADSP
+
+config SOC_FAMILY
+	string
+	default "ls_adsp"
+
+# Select SoC Part No. and configuration options
+source "soc/xtensa/ls_adsp/*/Kconfig.soc"
+
+endif # SOC_FAMILY_LS_ADSP

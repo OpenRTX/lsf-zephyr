@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: Listenai UART
+
+compatible: "listenai,csk-uart"
+
+include: [uart-controller.yaml, pinctrl-device.yaml]
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: false

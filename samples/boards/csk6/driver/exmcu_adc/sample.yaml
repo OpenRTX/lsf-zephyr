@@ -1,0 +1,11 @@
+tests:
+  sample.board.csk6.driver.adc:
+    platform_allow: csk6011a_nano
+    tags: csk6
+    harness: console
+    timeout: 10
+    harness_config:
+      fixture: ch32v003
+      type: one_line
+      regex:
+        - "adc\\(\\d*\\)\\=\\s\\d*\\smV"

@@ -1,0 +1,6 @@
+# ListenAI CSK6 SoC series selection
+#
+# Copyright (c) 2021 ListenAI
+# SPDX-License-Identifier: Apache-2.0
+
+source "soc/xtensa/ls_adsp/*/Kconfig.series"

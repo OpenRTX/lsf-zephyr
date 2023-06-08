@@ -1,0 +1,26 @@
+# Copyright (c) 2021 ITE Corporation. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+compatible: "listenai,csk-pinctrl"
+
+include:
+    - name: base.yaml
+    - name: pincfg-node.yaml
+      child-binding:
+        property-allowlist:
+          - bias-high-impedance
+          - bias-pull-pin-default
+          - bias-pull-up
+          - bias-pull-down
+          - input-enable
+
+child-binding:
+    description: |
+        This binding gives a base representation of the CSK6 pins configration.
+    properties:
+        pinctrls:
+          required: false
+          type: phandle-array
+          description: |
+              CSK6 pin's configuration (pinctrl node, pin and function).
+
+

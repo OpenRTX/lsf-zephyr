@@ -1,0 +1,11 @@
+description: |
+  CSK6 psram
+
+compatible: "listenai,csk6-psram"
+
+include: "mmio-sram.yaml"
+
+child-binding:
+  description: csk6 psram partions
+  compatible: "listenai,csk6-psram-partition"
+  include: "mmio-sram.yaml"

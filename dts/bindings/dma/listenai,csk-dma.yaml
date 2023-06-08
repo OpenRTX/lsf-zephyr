@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: ListenAI CSK DMA controller
+
+compatible: "listenai,csk-dma"
+
+include: dma-controller.yaml
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true
+
+    dma-channels:
+      required: true
+
+    "#dma-cells":
+      type: int
+      required: true
+      description: Number of items to expect in a DMA specifier
+
+#- #dma-cells : Must be <1>.
+# channel: the dma channel, each channel supports one DMA request line
+
+dma-cells:
+  - channel

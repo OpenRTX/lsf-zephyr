@@ -1,0 +1,61 @@
+# Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+
+menuconfig WIFI_CSK6
+	bool "CSK6 WiFi Driver"
+	default y
+	depends on HAS_CSK6
+	help
+	  Enable CSK6 SoC WiFi
+
+if WIFI_CSK6
+
+choice CSK_WIFI_OFFLOAD_MODULE
+    prompt "WiFi Offload Module"
+	config CSK_WIFI_ESP32C3
+		bool "ESP32C3"
+		select ESP_HOSTED
+		select GPIO
+		select SPI
+
+	config CSK_WIFI_XR819S
+		bool "XR819S"
+		select XR819S
+		select GPIO
+		select NVS
+		select FLASH
+		select FLASH_PAGE_LAYOUT
+		select FLASH_MAP
+		select MPU_ALLOW_FLASH_WRITE
+endchoice
+
+config CSK_WIFI_STATION
+	bool "WiFi Station Enable"
+
+config CSK_WIFI_SOFTAP
+	bool "WiFi SoftAP Enable"
+
+config WIFI_CTRL_STACK_SIZE
+	int "Control Task Stack Size"
+	default 8192
+
+config WIFI_CTRL_PRIORITY
+	int "Control Task Priority"
+	default 4
+
+if XR819S
+
+config MAX_SCAN_APS_NUM
+	int "WiFi Maximum Scan AP's Number"
+	default 40
+
+config WLAN_API_TIMEOUT
+	int "WiFi Driver api timeout(s)"
+	default 30
+
+config NET_RX_ALLOC_TIMEOUT
+	int "Net rx allocate buffer timeout(ms)"
+	default 100
+
+endif #XR819S
+
+endif #WIFI_CSK6

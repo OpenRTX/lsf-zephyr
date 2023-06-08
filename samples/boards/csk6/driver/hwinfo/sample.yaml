@@ -1,0 +1,10 @@
+tests:
+  sample.board.csk6.driver.hwinfo:
+    platform_allow: csk6011a_nano
+    tags: csk6
+    harness: console
+    timeout: 10
+    harness_config:
+      type: one_line
+      regex:
+        - "get device id success"

@@ -1,0 +1,20 @@
+# Copyright (c) 2022 listenai
+# SPDX-License-Identifier: Apache-2.0
+
+description: csk6 keysense driver
+
+compatible: "listenai,csk-keysense"
+
+include: [kscan.yaml, pinctrl-device.yaml]
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true
+
+    analogkey-trigger:
+      type: array
+      required: true
+

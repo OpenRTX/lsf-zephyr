@@ -1,0 +1,314 @@
+#include "csk6/priv/csk_wifi_priv.h"
+
+#include <logging/log.h>
+LOG_MODULE_REGISTER(csk_wifi, CONFIG_WIFI_LOG_LEVEL);
+
+K_MUTEX_DEFINE(wifi_api_mutex);
+
+static sys_slist_t wifi_callback_list;
+
+void wifi_dispatch_callbacks(csk_wifi_event_t events, void *event_data, uint32_t event_data_len)
+{
+    sys_slist_t *list = &wifi_callback_list;
+    csk_wifi_event_cb_t *cb, *tmp;
+    /* Fixme: should add mutex prevent the race condition */
+    SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, cb, tmp, node) {
+        if (cb->events & events) {
+            cb->handler(cb->events & events, event_data, event_data_len, cb->arg);
+        }
+    }
+}
+
+static int wifi_remove_callback(csk_wifi_event_cb_t *wifi_event_cb)
+{
+    int ret = -ENXIO;
+    sys_slist_t *list = &wifi_callback_list;
+    csk_wifi_event_cb_t *cb, *tmp;
+    SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, cb, tmp, node) {
+        if (cb == wifi_event_cb) {
+            sys_slist_find_and_remove(list, &cb->node);
+            ret = 0;
+            break;
+        }
+    }
+    return ret;
+}
+
+static void wifi_clean_callbacks(void)
+{
+    sys_slist_t *list = &wifi_callback_list;
+    csk_wifi_event_cb_t *cb, *tmp;
+    SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, cb, tmp, node) {
+        sys_slist_find_and_remove(list, &cb->node);
+    }
+}
+
+int csk_wifi_add_callback(csk_wifi_event_cb_t *wifi_event_cb)
+{
+    CSK_WIFI_CHECK(wifi_event_cb != NULL, -EINVAL);
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    sys_slist_prepend(&wifi_callback_list, &wifi_event_cb->node);
+    k_mutex_unlock(&wifi_api_mutex);
+    return 0;
+}
+
+int csk_wifi_remove_callback(csk_wifi_event_cb_t *wifi_event_cb)
+{
+    CSK_WIFI_CHECK(wifi_event_cb != NULL, -EINVAL);
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    int ret = wifi_remove_callback(wifi_event_cb);
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+int csk_wifi_init(void)
+{
+    int ret = 0;
+
+    sys_slist_init(&wifi_callback_list);
+    wifi_ret_msg_t ret_msg;
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+
+    ret = wifi_send_command(NULL, WIFI_CMD_INIT, K_NO_WAIT, false);
+    if (ret != 0)   goto __exit;
+    ret = wifi_take_result(&ret_msg, K_FOREVER);
+    if (ret != 0)   goto __exit;
+    ret = ret_msg.result;
+    k_mutex_unlock(&wifi_api_mutex);
+    return 0;
+
+__exit:
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+int csk_wifi_deinit(void)
+{
+    int ret = 0;
+
+    wifi_ret_msg_t ret_msg;
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    wifi_clean_callbacks();
+    ret = wifi_send_command(NULL, WIFI_CMD_DEINIT, K_NO_WAIT, false);
+    if (ret != 0)   goto __exit;
+    ret = wifi_take_result(&ret_msg, K_FOREVER);
+    if (ret != 0)   goto __exit;
+    ret = ret_msg.result;
+    k_mutex_unlock(&wifi_api_mutex);
+    return 0;
+
+__exit:
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+int csk_wifi_scan_ap(csk_wifi_scan_info_t **ap_info, csk_wifi_result_t *result, k_timeout_t timeout)
+{
+    bool async_mode = false;
+    *result = CSK_WIFI_ERR_SCAN_FAILED;
+    CSK_WIFI_CHECK(result != NULL, -EINVAL);
+
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
+    async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    const char* wifi_sm_str = WIFI_STA_SM_STRINGS[current_sm];
+    CSK_WIFI_CHECK_RETURN(current_sm != WIFI_SM_ON_STARTUP, -EAGAIN,
+                            "Invalid State, current_sm: %s", wifi_sm_str);
+    int ret = 0;
+    wifi_ret_msg_t ret_msg;
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    ret = wifi_send_command(NULL, WIFI_CMD_SCAN, K_NO_WAIT, async_mode);
+    if (ret != 0)   goto __exit;
+    if (async_mode == false) {
+        ret = wifi_take_result(&ret_msg, timeout);
+        if (ret != 0)   goto __exit;
+    } else {
+        goto __exit;
+    }
+
+    if (ret_msg.result > 0) {
+        /* Fixme: Refactor this API to return wifi failed reason */
+        *result = ret_msg.result;
+        ret = -EIO;
+        goto __exit;
+    } else if (ret_msg.result < 0) {
+        ret = ret_msg.result;
+        *result = CSK_WIFI_ERR_SCAN_FAILED;
+        goto __exit;
+    } else {
+        *result = ret_msg.result;
+    }
+    wifi_scan_list_t *scan_list = ret_msg.arg;
+    *ap_info = scan_list->ap_list;
+    k_mutex_unlock(&wifi_api_mutex);
+    return scan_list->count;
+
+__exit:
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+#ifdef CONFIG_CSK_WIFI_STATION
+
+int csk_wifi_sta_connect(csk_wifi_sta_config_t *sta_config, csk_wifi_result_t *result, k_timeout_t timeout)
+{
+    bool async_mode = false;
+    *result = CSK_WIFI_ERR_STA_FAILED;
+    CSK_WIFI_CHECK(sta_config != NULL && result != NULL, -EINVAL);
+    CSK_WIFI_CHECK(sta_config->encryption_mode >= 0 &&
+                   sta_config->encryption_mode < CSK_WIFI_AUTH_MAX,
+                   -EINVAL);
+
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
+    async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    const char* wifi_sm_str = WIFI_STA_SM_STRINGS[current_sm];
+    CSK_WIFI_CHECK_RETURN(current_sm == WIFI_SM_STA_DISCONNECTED ||
+                            current_sm == WIFI_SM_STA_SCAN_DONE ||
+                            current_sm == WIFI_SM_STARTUP_DONE,  -EAGAIN,
+                            "Invalid State, current_sm: %s", wifi_sm_str);
+    CSK_WIFI_CHECK_RETURN(data->sta_is_connected == false, -EAGAIN,
+                            "Invalid State, Staion has connected");
+
+    int ret = 0;
+    wifi_ret_msg_t ret_msg;
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+
+    memcpy(data->sta_config.ssid, sta_config->ssid, sizeof(data->sta_config.ssid));
+    memcpy(data->sta_config.pwd, sta_config->pwd, sizeof(data->sta_config.pwd));
+    memcpy(data->sta_config.bssid, sta_config->bssid, sizeof(data->sta_config.bssid));
+    data->sta_config.encryption_mode = wifi_get_encryption_mode(sta_config->encryption_mode);
+
+    ret = wifi_send_command(dev, WIFI_CMD_STA_CONNECT, K_NO_WAIT, async_mode);
+    if (ret != 0)   goto __exit;
+    
+    if (async_mode == false) {
+        ret = wifi_take_result(&ret_msg, timeout);
+        if (ret != 0)   goto __exit;
+    } else {
+        *result = CSK_WIFI_SUCCESS;
+        goto __exit;
+    }
+
+    if (ret_msg.result > 0) {
+        /* Fixme: Refactor this API to return wifi failed reason */
+        *result = ret_msg.result;
+        ret = -EIO;
+        goto __exit;
+    } else if (ret_msg.result < 0) {
+        ret = ret_msg.result;
+        *result = CSK_WIFI_ERR_STA_FAILED;
+        goto __exit;
+    } else {
+        *result = ret_msg.result;
+    }
+    memcpy(sta_config->ssid, data->sta_config.ssid, sizeof(sta_config->ssid));
+    memcpy(sta_config->bssid, data->sta_config.bssid, sizeof(sta_config->bssid));
+    sta_config->rssi = data->sta_config.rssi;
+    sta_config->channel = data->sta_config.channel;
+    sta_config->encryption_mode = wifi_get_encryption_mode(data->sta_config.encryption_mode);
+    k_mutex_unlock(&wifi_api_mutex);
+    return 0;
+
+__exit:
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+int csk_wifi_sta_disconnect(csk_wifi_result_t *result, k_timeout_t timeout)
+{
+    *result = CSK_WIFI_ERR_STA_FAILED;
+    bool async_mode = false;
+    CSK_WIFI_CHECK(result != NULL, -EINVAL);
+
+    CSK_WIFI_CHECK_RETURN((K_TIMEOUT_EQ(timeout, K_FOREVER)) || (K_TIMEOUT_EQ(timeout, K_NO_WAIT)),
+                            -ENOTSUP, "This timeout parameter is not available now, "
+                            "only FOREVER or NO_WAIT is abailable");
+    async_mode = K_TIMEOUT_EQ(timeout, K_NO_WAIT);
+    const struct device *dev = wifi_obj_get_dev(CSK_WIFI_MODE_STA);
+    struct csk_wifi_data *data = dev->data;
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    const char* wifi_sm_str = WIFI_STA_SM_STRINGS[current_sm];
+    CSK_WIFI_CHECK_RETURN(current_sm == WIFI_SM_STA_CONNECTED ||
+                            current_sm == WIFI_SM_STA_SCAN_DONE,-EAGAIN,
+                            "Invalid State, current_sm: %s", wifi_sm_str);
+    CSK_WIFI_CHECK_RETURN(data->sta_is_connected == true, -EAGAIN,
+                            "Invalid State, Staion has disconnected");
+
+    int ret = 0;
+    wifi_ret_msg_t ret_msg;
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    ret = wifi_send_command(dev, WIFI_CMD_STA_DISCONNECT, K_NO_WAIT, async_mode);
+    if (ret != 0)   goto __exit;
+    if (async_mode == false) {
+        ret = wifi_take_result(&ret_msg, timeout);
+        if (ret != 0)   goto __exit;
+    } else {
+        goto __exit;
+    }
+    if (ret_msg.result > 0) {
+        /* Fixme: Refactor this API to return wifi failed reason */
+        *result = ret_msg.result;
+        ret = -EIO;
+        goto __exit;
+    } else if (ret_msg.result < 0) {
+        ret = ret_msg.result;
+        *result = CSK_WIFI_ERR_STA_FAILED;
+        goto __exit;
+    } else {
+        *result = ret_msg.result;
+    }
+    k_mutex_unlock(&wifi_api_mutex);
+    return 0;
+
+__exit:
+    k_mutex_unlock(&wifi_api_mutex);
+    return ret;
+}
+
+
+int csk_wifi_sta_get_status(void)
+{
+    k_mutex_lock(&wifi_api_mutex, K_FOREVER);
+    int ret_status = CSK_WIFI_STATUS_STA_UNKNOWN;
+    int ret = 0;
+    wlan_sta_states_t wlan_state = WLAN_STA_STATE_MAX;
+
+    ret = wlan_sta_state(&wlan_state);
+    if (ret == 0) {
+        if (wlan_state == WLAN_STA_STATE_DISCONNECTED) {
+            ret_status = CSK_WIFI_STATUS_STA_DISCONNECTED;
+        } else if (wlan_state == WLAN_STA_STATE_CONNECTED) {
+            ret_status = CSK_WIFI_STATUS_STA_CONNECTED;
+        } else {
+            ret_status = CSK_WIFI_STATUS_STA_UNKNOWN;
+        }
+    }
+
+    k_mutex_unlock(&wifi_api_mutex);
+
+    return ret_status;
+}
+
+
+#endif
+
+int csk_wifi_get_mac(csk_wifi_mode_t mode, uint8_t *mac_addr)
+{
+    wifi_sta_state_machine_t current_sm = wifi_obj_get_sm();
+    if (current_sm == WIFI_SM_ON_STARTUP) {
+        return -EAGAIN;
+    }
+    CSK_WIFI_CHECK(mac_addr != NULL, -EINVAL);
+    CSK_WIFI_CHECK((mode >= CSK_WIFI_MODE_STA) && (mode < CSK_WIFI_MODE_MAX), -EINVAL);
+    const struct device *dev = wifi_obj_get_dev(mode);
+    struct csk_wifi_data *data = dev->data;
+    memcpy(mac_addr, data->mac_addr, sizeof(data->mac_addr));
+    return 0;
+}

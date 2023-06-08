@@ -1,0 +1,88 @@
+/*
+ * Copyright (c) 2021 ListenAI
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <xtensa/xtensa.dtsi>
+#include <mem.h>
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "cdns,tensilica-xtensa-lx7";
+			reg = <0>;
+		};
+	};
+
+	sram0: memory@60000000 {
+		device_type = "memory";
+		compatible = "mmio-sram";
+		reg = <0x60000000 DT_SIZE_M(7)>;
+	};
+
+	sram1: memory@60700000 {
+		device_type = "memory";
+		compatible = "mmio-sram";
+		reg = <0x60700000 DT_SIZE_K(512)>;
+	};
+
+	core_intc: core_intc@0 {
+		compatible = "cdns,xtensa-core-intc";
+		reg = <0x0 0x400>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+	};
+
+	pinmuxa: pinmux0@46200000 {
+		compatible = "listenai,csk-pinmux";
+		reg = <0x46200000 0x80>;
+		#pinmux-cells = <2>;
+		#pinctrl-cells = <2>;
+		label = "PINMUX_A";
+		status = "okay";
+	};
+
+	pinmuxb: pinmux@46200080 {
+		compatible = "listenai,csk-pinmux";
+		reg = <0x46200080 0xc0>;
+		#pinmux-cells = <2>;
+		#pinctrl-cells = <2>;
+		label = "PINMUX_B";
+		status = "okay";
+	};
+
+	mailbox0:mailbox@46100000 {
+		compatible = "listenai,csk-mailbox";
+		reg = <0x46100000 0x100000>;
+		interrupts = <0 0 2>;
+		interrupt-parent = <&core_intc>;
+		label = "MAILBOX_0";
+		status = "disabled";
+	};
+
+	spi1: spi@45500000 {
+		compatible = "listenai,csk-spi";
+		reg = <0x45500000 0x100000>;
+		interrupts = <17 13 0>;
+		label = "SPI_1";
+		interrupt-parent = <&core_intc>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	dma0: dma-controller@4A200000 {
+		compatible = "listenai,csk-dma";
+		reg = <0x4A200000 0x1000000>;
+		interrupts = <3 0 0>;
+		dma-channels = <8>;
+		status = "okay";
+		label = "DMA_0";
+		interrupt-parent = <&core_intc>;
+		#dma-cells = <1>;
+	};
+};

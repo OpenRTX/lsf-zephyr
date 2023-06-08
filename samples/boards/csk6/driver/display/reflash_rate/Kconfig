@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+
+menu "Example Configuration"
+
+    config DISPLAY_X_RES
+        int "X resolution (pixels) for display"
+        default 160
+
+    config DISPLAY_Y_RES
+        int "Y resolution (pixels) for display"
+        default 240
+
+    config FRAME_MEM_PSRAM
+        bool "Image data is stored in PSRAM"
+        default n
+    
+    config FRAME_MEM_SRAM
+        bool "Image data is stored in SRAM"
+        default n
+
+    config DISPLAY_DEV_NAME
+        string "display device name"
+        default "DISPLAY"
+
+endmenu
+
+source "Kconfig.zephyr"

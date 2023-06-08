@@ -1,0 +1,10 @@
+# Copyright (c) 2021 ListenAI
+#
+# SPDX-License-Identifier: Apache-2.0
+
+if BOARD_LS_ADSP_CSK6
+
+config BOARD
+	default "ls_adsp_csk6"
+
+endif # BOARD_LS_ADSP_CSK6

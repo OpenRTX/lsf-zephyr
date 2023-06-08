@@ -1,0 +1,65 @@
+# Copyright (c) 2022 LISTENAI (ShenZhen) Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+description: CSK counters
+
+compatible: "listenai,csk-gptchannel"
+
+include: [pwm-controller.yaml, base.yaml, pinctrl-device.yaml]
+
+properties:
+    channel-id:
+      type: int
+      required: true
+      description: channel id num of the hardware gpt
+
+    channel_mode:
+      type: int
+      required: true
+      description: channel id num of the hardware gpt
+
+    label:
+      required: true
+
+    clock-source:
+      type: int
+      required: false
+      default: 1
+      enum:
+       - 1
+       - 2
+       - 3
+      description: Config Pwm Clock Source. 1 for Peripheral Clock(200Mhz), 2 for External Clock(12Mhz) , 3 for Crystal Clock(24Mhz)
+
+    mode:
+      type: int
+      required: false
+      default: 1
+      enum:
+       - 1
+       - 2
+      description: PWM OutPut Mode. 1 for EDGE_ALIGNED, 2 for CENTRAL_ALIGNED.
+
+    clock-prescaler:
+      type: int
+      required: false
+      default: 1
+      enum:
+       - 1
+       - 2
+       - 4
+       - 8
+       - 16
+       - 32
+       - 64
+       - 128
+      description: PWM Peripheral Clock Prescaler.
+
+    "#pwm-cells":
+      const: 3
+
+pwm-cells:
+  - channel
+  - period
+  - flags
+

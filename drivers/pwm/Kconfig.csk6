@@ -1,0 +1,10 @@
+# Copyright (c) 2021 listenai Systems (anhui) Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+config PWM_CSK6
+	bool "CSK6 PWM driver"
+	depends on HAS_CSK6
+	select HAS_CSK6_GPT
+	default y
+	help
+	  This option enables the PWM driver for CSK6. Say y if you wish to use PWM port on CSK6.

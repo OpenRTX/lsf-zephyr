@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+
+menu "Example Configuration"
+
+    config SPI_SOFT_GPIO_CS_ENABLE
+        bool "Enable SPI software gpio cs function"
+        default n
+
+    config SPI_SOFT_GPIO_CS_PIN
+        int "SPI cs gpio pin"
+        depends on SPI_SOFT_GPIO_CS_ENABLE=y
+        default 20
+
+endmenu
+
+source "Kconfig.zephyr"

@@ -1,0 +1,8 @@
+# Copyright (c) listenai
+# SPDX-License-Identifier: Apache-2.0
+
+config KSCAN_BL6XXX
+	bool "GL6XXX keyscan driver"
+	depends on I2C
+	help
+		Enable driver for bl6xxx

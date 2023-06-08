@@ -1,0 +1,18 @@
+# Copyright (c) 2021, ListenAI
+# SPDX-License-Identifier: Apache-2.0
+
+description: CSK MAILBOX
+
+compatible: "listenai,csk-mailbox"
+
+include: base.yaml
+
+properties:
+  reg:
+      required: true
+
+  interrupts:
+      required: true
+
+  label:
+      required: true

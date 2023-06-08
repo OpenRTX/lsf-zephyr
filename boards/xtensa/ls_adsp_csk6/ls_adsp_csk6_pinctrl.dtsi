@@ -1,0 +1,108 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/ {
+        ls_adsp_csk6_pinctrl:adsp_csk6_pinctrl{
+                compatible = "listenai,csk-pinctrl";
+
+                /* UART alternate function */
+                pinctrl_uart0_rx_default: uart0_rx_default{
+                };
+                
+                pinctrl_uart0_tx_default: uart0_tx_default{
+                };
+
+                pinctrl_uart1_rx_default: uart1_rx_default{
+                };
+                
+                pinctrl_uart1_tx_default: uart1_tx_default{
+                };
+
+                pinctrl_uart2_rx_default: uart2_rx_default{
+                        pinctrls = <&pinmuxb 7 3>;
+                };
+                
+                pinctrl_uart2_tx_default: uart2_tx_default{
+                        pinctrls = <&pinmuxb 6 3>;
+                };
+
+                pinctrl_uart3_rx_default: uart3_rx_default{
+                };
+                
+                pinctrl_uart3_tx_default: uart3_tx_default{
+                };
+
+                /* I2C alternate function */
+                pinctrl_i2c0_scl_default: i2c0_scl_default{
+                };
+                
+                pinctrl_i2c0_sda_default: i2c0_sda_default{
+                };
+
+                pinctrl_i2c1_scl_default: i2c1_scl_default{
+                };
+                
+                pinctrl_i2c1_sda_default: i2c1_sda_default{
+                };
+
+                /* SPIC alternate function */
+                pinctrl_spi0_cs_default: spi0_cs_default{
+                };
+
+                pinctrl_spi0_miso_default: spi0_miso_default{
+                };
+
+                pinctrl_spi0_mosi_default: spi0_mosi_default{
+                };
+
+                pinctrl_spi0_sclk_default: spi0_sclk_default{
+                };
+                
+                pinctrl_spi1_sclk_default: spi1_sclk_default{
+                };
+                
+                pinctrl_spi1_mosi_default: spi1_mosi_default{
+                };
+
+                pinctrl_spi1_miso_default: spi1_miso_default{
+                };    
+
+                pinctrl_spi1_cs_default: spi1_cs_default{
+                };
+                
+                /* ADC alternate function */
+                pinctrl_adc0_ch0_default: adc0_ch0_default{
+                };
+                
+                pinctrl_adc0_ch1_default: adc0_ch1_default{
+                };
+
+                pinctrl_adc0_ch2_default: adc0_ch2_default{
+                };
+
+                /* PWM alternate function*/
+                pinctrl_pwm0_default: pwm0_default{
+                };
+
+                pinctrl_pwm1_default: pwm1_default{
+                };
+
+                pinctrl_pwm2_default: pwm2_default{
+                };
+
+                pinctrl_pwm3_default: pwm3_default{
+                };
+
+                pinctrl_pwm4_default: pwm4_default{
+                };
+
+                pinctrl_pwm5_default: pwm5_default{
+                };
+
+                pinctrl_pwm6_default: pwm6_default{
+                };
+
+                pinctrl_pwm7_default: pwm7_default{
+                };
+
+        };
+};

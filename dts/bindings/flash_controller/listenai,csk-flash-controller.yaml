@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: LISTENAI CSK flash controller
+
+compatible: "listenai,csk-flash-controller"
+
+include: flash-controller.yaml

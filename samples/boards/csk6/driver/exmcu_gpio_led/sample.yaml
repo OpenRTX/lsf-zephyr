@@ -1,0 +1,11 @@
+sample:
+  name: exmcu_gpio_led Sample
+
+tests:
+  sample.board.csk6.driver.exmcu_gpio_led:
+    harness: console
+    harness_config:
+      fixture: ch32v003
+      type: one_line
+      regex:
+        - "exmcu gpio led sample"

@@ -1,0 +1,11 @@
+tests:
+  sample.board.csk6.driver.i2c.master_slave:
+    platform_allow: csk6011a_nano
+    tags: csk6
+    timeout: 10
+    harness: console
+    harness_config:
+      type: one_line
+      ordered: true
+      regex:
+        - "I2C Slave Virtual device Note: SLAVE_VDEV_0"
