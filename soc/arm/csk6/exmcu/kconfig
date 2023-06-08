@@ -1,0 +1,26 @@
+config CSK6_EXMCU
+    bool "csk6 exmcu"
+    default n
+    select I2C
+    select MUTEX
+    help
+        CSK6_EXMCU
+
+config CSK6_EXMCU_INIT_PRIORITY
+    int "csk6 exmcu int priority"
+    default 51
+    depends on CSK6_EXMCU
+    help
+        csk6 exmcu int priority
+
+config CSK6_CH32V003_INIT_DELAY_MS
+    int "csk6 ch32v003 init delay ms"
+    default 40
+    depends on CSK6_EXMCU
+    help
+       csk6 ch32v003 init delay ms
+
+config CSK6_CH32V003_NON_BLOCK_INIT
+    bool "csk6 ch32v003 non block initialization"
+    default n
+    depends on CSK6_EXMCU

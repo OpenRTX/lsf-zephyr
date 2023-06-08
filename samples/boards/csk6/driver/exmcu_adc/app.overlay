@@ -2,13 +2,13 @@
     status = "okay";
     pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
     pinctrl-names = "default";
-    csk6_ch32v003@6c {
+    csk6_ch32v003: csk6_ch32v003@6c {
         /**
          * Please make sure that the external MCU firmware has been loaded
          * SCL --> external MCU PC5
          * SDA --> external MCU PC6
          */
-        compatible = "listenai,csk-gpio-ch32003";
+        compatible = "listenai,csk-i2c-ch32v003";
         reg = <0x6c>;
         label = "GPIO-CSK6-CH32003";
         status = "okay";
@@ -36,12 +36,82 @@
             status = "okay";
             #io-channel-cells = <1>;
         };
+
+        /* CH32V003-GPIOA */
+        exgpioa: gpio@0 {
+            compatible = "listenai,csk-gpio-ch32003-port";
+            label = "EX-GPIOA";
+            reg = <0x00>;
+            status = "okay";
+            ngpios = <8>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            pin_mask = <0x00>;
+        };
+
+        /* CH32V003-GPIOB */
+        exgpiob: gpio@1 {
+            compatible = "listenai,csk-gpio-ch32003-port";
+            label = "EX-GPIOB";
+            reg = <0x01>;
+            status = "okay";
+            ngpios = <8>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            pin_mask = <0x00>;
+        };
+
+        /* CH32V003-GPIOC */
+        exgpioc: gpio@2 {
+            compatible = "listenai,csk-gpio-ch32003-port";
+            label = "EX-GPIOC";
+            reg = <0x02>;
+            status = "okay";
+            ngpios = <8>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            pin_mask = <0x00>;
+        };
+
+        /* CH32V003-GPIOD */
+        exgpiod: gpio@3 {
+            compatible = "listenai,csk-gpio-ch32003-port";
+            label = "EX-GPIOD";
+            reg = <0x03>;
+            status = "okay";
+            ngpios = <8>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            pin_mask = <0x00>;
+        };
     };
 };
 
 
 / {
+    /**
+    *  PC2<---->PD2
+    *  PC3<---->PD3
+    *  PC4<---->PD4
+    * 
+    * external adc channel map
+    *
+    * CH0 --> PA2
+    * CH1 --> PA1
+    * CH2 --> PC4
+    * CH3 --> PD2
+    * CH4 --> PD3
+    * CH5 --> PD5
+    * CH6 --> PD6
+    * CH7 --> PD4
+    *
+    */
+
     zephyr,user {
-        io-channels = <&exadc 2>;
+        io-channels = <&exadc 3>, <&exadc 4>, <&exadc 7>;
+    };
+
+    aliases {
+        csk6-exmcu = &csk6_ch32v003;
     };
 };
