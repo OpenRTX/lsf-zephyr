@@ -7,7 +7,7 @@ manifest:
   projects:
     - name: csk6_cm33
       url: https://cloud.listenai.com/listenai/driver/csk6_cm33
-      revision: a71fa50a3b4b0754278ce7eab7079d0c74a19dbf
+      revision: 234a77af1b32a9b0f325df7ae2e031563497f0dd
       path: modules/hal/listenai/csk6_cm33
       groups:
         - hal
