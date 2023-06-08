@@ -1,0 +1,43 @@
+
+&i2c0 {
+    status = "okay";
+    pinctrl-0 = <&pinctrl_i2c0_scl_default &pinctrl_i2c0_sda_default>;
+    pinctrl-names = "default";
+    csk6_ch32v003: csk6_ch32v003@6c {
+        /**
+         * Please make sure that the external MCU firmware has been loaded
+         * SCL --> external MCU PC5
+         * SDA --> external MCU PC6
+         */
+        compatible = "listenai,csk-i2c-ch32v003";
+        reg = <0x6c>;
+        label = "GPIO-CSK6-CH32003";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        expwm: pwm-controller@0 {
+            compatible = "listenai,csk-ch32v003-pwm";
+            label = "EXPWM";
+            reg = <0>;
+            status = "okay";
+            clock-prescaler = <4800>;
+            clock-frequency = <48000000>;
+            #pwm-cells = <4>;
+        };
+    };
+};
+
+/ {
+    motor {
+        motor_pwm: motor_pwm {
+            compatible = "vnd,phandle-holder";
+            status = "okay";
+            pwms = <&expwm 0 1000 0x0 100>;
+        };
+    };
+
+    aliases {
+        csk6-exmcu = &csk6_ch32v003;
+    };
+};
