@@ -5,26 +5,13 @@ config GPIO_CSK6_CH32V003
 	default n
 	depends on HAS_CSK6
 	select I2C
+	select CSK6_EXMCU
 	help
 	  Enable the csk6 GPIO driver.
 
 config GPIO_CSK6_CH32V003_INIT_PRIORITY
 	int "init priority"
-	default 51
+	default 52
 	depends on GPIO_CSK6_CH32V003
 	help
 	   init priority
-
-config GPIO_CSK6_CH32V003_INIT_DELAY_MS
-	int "init delay"
-	default 40
-	depends on GPIO_CSK6_CH32V003
-	help
-	   init delay
-
-config GPIO_CSK6_CH32V003_NON_BLOCK_INIT
-	bool "non-block init for ch32v003"
-	default n
-	depends on GPIO_CSK6_CH32V003
-	help
-		non-block init for ch32v003

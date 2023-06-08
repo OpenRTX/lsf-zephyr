@@ -4,33 +4,23 @@
     pinctrl-names = "default";
 
 
-    csk6_ch32v003@6c {
+    csk6_ch32v003: csk6_ch32v003@6c {
         /**
          * Please make sure that the external MCU firmware has been loaded
          * SCL --> external MCU PC5
          * SDA --> external MCU PC6
          */
-        compatible = "listenai,csk-gpio-ch32003";
+        compatible = "listenai,csk-i2c-ch32v003";
         reg = <0x6c>;
         label = "GPIO-CSK6-CH32003";
         status = "okay";
         #address-cells = <1>;
         #size-cells = <0>;
 
-        /**
-         * CSK6 to external gpio map
-         *
-         * GPIOC --> GPIOA
-         * GPIOD --> GPIOB
-         * GPIOE --> GPIOC
-         * GPIOF --> GPIOD
-         *
-         */
-
         /* CH32V003-GPIOA */
-        gpioc: gpio@0 {
+        exgpioa: gpio@0 {
             compatible = "listenai,csk-gpio-ch32003-port";
-            label = "GPIOC";
+            label = "EX-GPIOA";
             reg = <0x00>;
             status = "okay";
             ngpios = <8>;
@@ -40,9 +30,9 @@
         };
 
         /* CH32V003-GPIOB */
-        gpiod: gpio@1 {
+        exgpiob: gpio@1 {
             compatible = "listenai,csk-gpio-ch32003-port";
-            label = "GPIOD";
+            label = "EX-GPIOB";
             reg = <0x01>;
             status = "okay";
             ngpios = <8>;
@@ -52,9 +42,9 @@
         };
 
         /* CH32V003-GPIOC */
-        gpioe: gpio@2 {
+        exgpioc: gpio@2 {
             compatible = "listenai,csk-gpio-ch32003-port";
-            label = "GPIOE";
+            label = "EX-GPIOC";
             reg = <0x02>;
             status = "okay";
             ngpios = <8>;
@@ -64,9 +54,9 @@
         };
 
         /* CH32V003-GPIOD */
-        gpiof: gpio@3 {
+        exgpiod: gpio@3 {
             compatible = "listenai,csk-gpio-ch32003-port";
-            label = "GPIOF";
+            label = "EX-GPIOD";
             reg = <0x03>;
             status = "okay";
             ngpios = <8>;
@@ -78,6 +68,12 @@
 };
 
 &green_led {
-    gpios = <&gpioe 2 1>;
+    gpios = <&exgpioc 2 1>;
     label = "User LED1";
+};
+
+/ {
+    aliases {
+        csk6-exmcu = &csk6_ch32v003;
+    };
 };
