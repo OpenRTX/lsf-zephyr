@@ -1,0 +1,36 @@
+# Copyright (c) 2022 LISTENAI (ShenZhen) Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+description: CSK CH32V003 PWM
+
+compatible: "listenai,csk-ch32v003-pwm"
+
+include: [pwm-controller.yaml, base.yaml, pinctrl-device.yaml]
+
+properties:
+
+    label:
+      required: true
+
+    clock-frequency:
+      type: int
+      required: true
+      default: 48000000
+      description: Config Pwm Clock Source. default 48Mhz
+
+    clock-prescaler:
+      type: int
+      required: false
+      default: 1
+      description: PWM Peripheral Clock Prescaler.
+
+    "#pwm-cells":
+      const: 4
+
+pwm-cells:
+  - channel
+  - period
+  - flags
+  - deadtime
+
+
