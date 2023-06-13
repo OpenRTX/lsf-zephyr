@@ -763,6 +763,12 @@ static void csk_uart_isr(const struct device *dev)
 	}
 	if (data->callback) {
 		data->callback(dev, data->cb_data);
+	} else {
+		/* read fifo value to clear irq */
+		while ((uart_reg->REG_LSR.all & UARTC_LSR_RDR)) {
+			volatile uint8_t value = (uint8_t)(uart_reg->REG_RBR.all & 0xFF);
+			while (!(uart_reg->REG_LSR.all & UARTC_LSR_TEMT));
+		}
 	}
 #endif
 
