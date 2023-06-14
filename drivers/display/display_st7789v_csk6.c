@@ -52,9 +52,11 @@ struct st7789v_display_send_ctx {
 	const uint8_t *buffer;
 	uint32_t h;
 	uint32_t w;
-	uint32_t curr_w;
-	uint32_t start_offset;
-	uint8_t pixel_size;
+
+	uint32_t line_size;
+	uint32_t line_cnt;
+	uint32_t curr_cnt;
+	uint32_t step_offset;
 };
 
 struct st7789v_data {
@@ -84,16 +86,15 @@ __attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t even
 
 		if (data->display_ctx.buffer) {
 			/* 表示发送的是显示数据 */
-			if (data->display_ctx.curr_w < data->display_ctx.w) {
-				data->display_ctx.start_offset += 2;
-				spd2010_set_display_datas_with_dma_rotate_90(
-					dev,
-					(void *)(data->display_ctx.buffer +
-						 data->display_ctx.start_offset),
-					data->display_ctx.pixel_size * data->display_ctx.h,
-					data->display_ctx.w, data->display_ctx.h);
+			if (data->display_ctx.curr_cnt < data->display_ctx.line_cnt) {
+				data->display_ctx.buffer += data->display_ctx.step_offset;
 
-				data->display_ctx.curr_w++;
+				spd2010_set_display_datas_with_dma_rotate_90(
+					dev, (void *)data->display_ctx.buffer,
+					data->display_ctx.line_size, data->display_ctx.w,
+					data->display_ctx.h);
+
+				data->display_ctx.curr_cnt++;
 			} else {
 				k_sem_give(&data->spi_done_sem);
 				data->display_ctx.buffer = NULL;
@@ -353,9 +354,7 @@ st7789v_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	// }
 
 	const uint8_t *write_data_start = (uint8_t *)buf;
-	uint16_t write_h;
 	uint32_t start_offset = desc->width * (desc->height - 1) * 2;
-	write_h = desc->height;
 	st7789v_transmit(dev, ST7789V_CMD_RAMWR, NULL, 0);
 
 	SCB_CleanDCache_by_Addr((void *)write_data_start, desc->width * desc->height * 2);
@@ -370,17 +369,47 @@ st7789v_write(const struct device *dev, const uint16_t x, const uint16_t y,
 		return r;
 	}
 
-	data->display_ctx.buffer = write_data_start;
 	data->display_ctx.h = desc->height;
 	data->display_ctx.w = desc->width;
-	data->display_ctx.curr_w = 1;
-	data->display_ctx.pixel_size = 2;
-	data->display_ctx.start_offset = start_offset;
+
+	data->display_ctx.curr_cnt = 1;
+	data->display_ctx.line_cnt = desc->width;
+	data->display_ctx.line_size = desc->height * 2;
+	data->display_ctx.step_offset = 2;
+	data->display_ctx.buffer = write_data_start + start_offset;
+
+	/**
+	 * ROTATE 90
+	 * **********************MEM*********************
+	 * Y                                         [end]
+	 * A  ^    ^    ^    ^    ^    ^    ^    ^    ^
+	 * L  |    |    |    |    |    |    |    |    |
+	 * P  |    |    |    |    |    |    |    |    |
+	 * S  |    |    |    |    |    |    |    |    |
+	 * I  |    |    |    |    |    |    |    |    |
+	 * D  |    |    |    |    |    |    |    |    |
+	 * *  |    |    |    |    |    |    |    |    |
+	 * *[start]
+	 * *********************************************
+	 * 
+	 */
+
+	/**
+	 * NORMAL
+	 * 
+	 * *********************DISPALY & MEM*************************
+     * [start]------------------------------------------->
+     *        ------------------------------------------->
+     *        ------------------------------------------->
+     *        ------------------------------------------->
+     *        -------------------------------------------> [end]
+	 * *********************************************************
+	 */
 
 	/* 剩下的数据将会在中断中发送 */
-	spd2010_set_display_datas_with_dma_rotate_90(dev, (void *)(write_data_start + start_offset),
-						     1 * 2 * write_h, desc->width,
-						     desc->height);
+	spd2010_set_display_datas_with_dma_rotate_90(dev, (void *)data->display_ctx.buffer,
+						    data->display_ctx.line_size, data->display_ctx.w,
+						     data->display_ctx.h);
 	k_sem_take(&data->spi_done_sem, K_FOREVER);
 
 	return 0;
