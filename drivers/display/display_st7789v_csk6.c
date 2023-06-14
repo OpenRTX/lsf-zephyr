@@ -57,6 +57,7 @@ struct st7789v_display_send_ctx {
 	uint32_t line_cnt;
 	uint32_t curr_cnt;
 	uint32_t step_offset;
+	uint8_t rotate_90;
 };
 
 struct st7789v_data {
@@ -74,8 +75,8 @@ struct st7789v_data {
 #endif
 
 __attribute__((section(".itcm"))) static int
-spd2010_set_display_datas_with_dma_rotate_90(const struct device *dev, uint8_t *datas,
-					     uint32_t datas_size, uint32_t w, uint32_t h);
+spd2010_set_display_datas_with_dma(const struct device *dev, uint8_t *datas,
+					     uint32_t datas_size, uint32_t w, uint32_t h, uint8_t rotate_90);
 
 __attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t event,
 								   uint32_t usr_param)
@@ -89,10 +90,10 @@ __attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t even
 			if (data->display_ctx.curr_cnt < data->display_ctx.line_cnt) {
 				data->display_ctx.buffer += data->display_ctx.step_offset;
 
-				spd2010_set_display_datas_with_dma_rotate_90(
+				spd2010_set_display_datas_with_dma(
 					dev, (void *)data->display_ctx.buffer,
 					data->display_ctx.line_size, data->display_ctx.w,
-					data->display_ctx.h);
+					data->display_ctx.h, data->display_ctx.rotate_90);
 
 				data->display_ctx.curr_cnt++;
 			} else {
@@ -107,7 +108,7 @@ __attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t even
 }
 
 __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *data, uint32_t num,
-						     uint32_t w)
+						     uint32_t gather_interval)
 {
 	static uint8_t first = 1;
 	const uint8_t ch = CONFIG_ST7789V_CSK6_DMA_CHANNEL;
@@ -151,14 +152,19 @@ __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *
 
 	spi->info->xfer.dma_tx_done = 0;
 	uint32_t is_gather = 0;
-	is_gather = (w - 1) | (1) << 20;
-	const uint32_t control = DMA_CH_CTLL_DST_WIDTH(spi->info->dma_width_shift) |
+	uint32_t control = DMA_CH_CTLL_DST_WIDTH(spi->info->dma_width_shift) |
 				 DMA_CH_CTLL_SRC_WIDTH(spi->info->dma_width_shift) |
 				 DMA_CH_CTLL_DST_BSIZE(spi->info->tx_bsize_shift) |
 				 DMA_CH_CTLL_SRC_BSIZE(spi->info->tx_bsize_shift) |
-				 DMA_CH_CTLL_DST_FIX | DMA_CH_CTLL_SRC_DEC | DMA_CH_CTLL_TTFC_M2P |
-				 DMA_CH_CTLL_DMS(0) | DMA_CH_CTLL_SMS(0) | DMA_CH_CTLL_INT_EN |
-				 DMA_CH_CTLL_S_GATH_EN;
+				 DMA_CH_CTLL_DST_FIX | DMA_CH_CTLL_TTFC_M2P |
+				 DMA_CH_CTLL_DMS(0) | DMA_CH_CTLL_SMS(0) | DMA_CH_CTLL_INT_EN;
+
+	if (gather_interval) {
+		is_gather = (gather_interval - 1) | (1) << 20;
+		control |= DMA_CH_CTLL_S_GATH_EN | DMA_CH_CTLL_SRC_DEC;
+	} else {
+		control |= DMA_CH_CTLL_SRC_INC;
+	}
 
 	const uint32_t config_low = DMA_CH_CFGL_CH_PRIOR(1);
 	const uint32_t config_high = DMA_CH_CFGH_DST_PER(spi->dma_tx.reqsel);
@@ -183,8 +189,8 @@ __attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *
 }
 
 __attribute__((section(".itcm"))) static int
-spd2010_set_display_datas_with_dma_rotate_90(const struct device *dev, uint8_t *datas,
-					     uint32_t datas_size, uint32_t w, uint32_t h)
+spd2010_set_display_datas_with_dma(const struct device *dev, uint8_t *datas,
+					     uint32_t datas_size, uint32_t w, uint32_t h, uint8_t rotate_90)
 {
 	struct st7789v_data *data = dev->data;
 
@@ -201,7 +207,7 @@ spd2010_set_display_datas_with_dma_rotate_90(const struct device *dev, uint8_t *
 
 	uint32_t cnt = datas_size;
 
-	int r = SPI_Send_1(data->spi, datas, cnt, w);
+	int r = SPI_Send_1(data->spi, datas, cnt, rotate_90 ? w : 0);
 	if (r != 0) {
 		LOG_ERR("SPI_Send_1 failed, error code:%d", r);
 		return r;
@@ -219,14 +225,7 @@ static void st7789v_set_lcd_margins(const struct device *dev,
 	data->y_offset = y_offset;
 }
 
-static void st7789v_set_cmd(const struct device *dev, int is_cmd)
-{
-	const struct st7789v_config *config = dev->config;
-
-	gpio_pin_set_dt(&config->cmd_data_gpio, is_cmd);
-}
-
-__attribute__((section(".itcm"))) static void st7789v_transmit(const struct device *dev, uint8_t cmd,
+__attribute__((section(".itcm"))) static int32_t st7789v_transmit(const struct device *dev, uint8_t cmd,
 			     uint8_t *tx_data, size_t tx_len)
 {
 	const struct st7789v_config *config = dev->config;
@@ -244,7 +243,7 @@ __attribute__((section(".itcm"))) static void st7789v_transmit(const struct devi
 
 	r = SPI_Control(data->spi, ctrl, 50 * 1000 * 1000);
 	if (r != 0) {
-		LOG_ERR("111SPI_Control failed, error code:%d", r);
+		LOG_ERR("SPI_Control failed, error code:%d", r);
 		return r;
 	}
 
@@ -265,6 +264,8 @@ __attribute__((section(".itcm"))) static void st7789v_transmit(const struct devi
 		}
 		k_sem_take(&data->spi_done_sem, K_FOREVER);
 	}
+
+	return 0;
 }
 
 static void st7789v_exit_sleep(const struct device *dev)
@@ -335,30 +336,32 @@ st7789v_write(const struct device *dev, const uint16_t x, const uint16_t y,
 {
 	const struct st7789v_config *config = dev->config;
 	struct st7789v_data *data = dev->data;
+	uint8_t rotate_90 = 0;
+	const uint8_t *write_data_start = (uint8_t *)buf;
+	uint32_t start_offset = 0;
 
-	/* 坐标转换旋转90度 */
-	uint32_t new_h = desc->width;
-	uint32_t new_w = desc->height;
-	uint32_t new_y = x;
-	uint32_t new_x = config->width - (y + desc->height);
+	uint32_t new_h = desc->height;
+	uint32_t new_w = desc->width;
+	uint32_t new_x = x;
+	uint32_t new_y = y;
+
+#if CONFIG_ST7789V_CSK6_ROTATE_90
+	rotate_90 = 1;
+#endif
+
+	if (rotate_90) {
+		/* 坐标转换旋转90度 */
+		new_h = desc->width;
+		new_w = desc->height;
+		new_y = x;
+		new_x = config->width - (y + desc->height);
+		start_offset = desc->width * (desc->height - 1) * 2;
+	}
 
 	st7789v_set_mem_area(dev, new_x, new_y, new_w, new_h);
-
-	// if (device_is_ready(config->te.port)) {
-	// 	/* TODO:这里RESET后强制等待一个TE信号， 这里需要优化*/
-	// 	k_sem_reset(&data->te_sem);
-	// 	int r = k_sem_take(&data->te_sem, K_MSEC(60));
-	// 	if (r != 0) {
-	// 		LOG_ERR("te sem take timeout");
-	// 	}
-	// }
-
-	const uint8_t *write_data_start = (uint8_t *)buf;
-	uint32_t start_offset = desc->width * (desc->height - 1) * 2;
 	st7789v_transmit(dev, ST7789V_CMD_RAMWR, NULL, 0);
 
 	SCB_CleanDCache_by_Addr((void *)write_data_start, desc->width * desc->height * 2);
-	/* 发送数据 */
 	gpio_pin_set_dt(&config->cmd_data_gpio, 0);
 	const uint32_t ctrl = CSK_SPI_MODE_MASTER | CSK_SPI_CPOL0_CPHA0 | CSK_SPI_MSB_LSB |
 			      CSK_SPI_TXIO_DMA | CSK_SPI_DATA_BITS(16);
@@ -371,45 +374,51 @@ st7789v_write(const struct device *dev, const uint16_t x, const uint16_t y,
 
 	data->display_ctx.h = desc->height;
 	data->display_ctx.w = desc->width;
-
 	data->display_ctx.curr_cnt = 1;
-	data->display_ctx.line_cnt = desc->width;
-	data->display_ctx.line_size = desc->height * 2;
-	data->display_ctx.step_offset = 2;
 	data->display_ctx.buffer = write_data_start + start_offset;
+	data->display_ctx.rotate_90 = rotate_90;
 
-	/**
-	 * ROTATE 90
-	 * **********************MEM*********************
-	 * Y                                         [end]
-	 * A  ^    ^    ^    ^    ^    ^    ^    ^    ^
-	 * L  |    |    |    |    |    |    |    |    |
-	 * P  |    |    |    |    |    |    |    |    |
-	 * S  |    |    |    |    |    |    |    |    |
-	 * I  |    |    |    |    |    |    |    |    |
-	 * D  |    |    |    |    |    |    |    |    |
-	 * *  |    |    |    |    |    |    |    |    |
-	 * *[start]
-	 * *********************************************
-	 * 
-	 */
+	if (data->display_ctx.rotate_90) {
+		/**
+		 * ROTATE 90
+		 * **********************MEM*********************
+		 * Y                                         [end]
+		 * A  ^    ^    ^    ^    ^    ^    ^    ^    ^
+		 * L  |    |    |    |    |    |    |    |    |
+		 * P  |    |    |    |    |    |    |    |    |
+		 * S  |    |    |    |    |    |    |    |    |
+		 * I  |    |    |    |    |    |    |    |    |
+		 * D  |    |    |    |    |    |    |    |    |
+		 * *  |    |    |    |    |    |    |    |    |
+		 * *[start]
+		 * *********************************************
+		 *
+		 */
 
-	/**
-	 * NORMAL
-	 * 
-	 * *********************DISPALY & MEM*************************
-     * [start]------------------------------------------->
-     *        ------------------------------------------->
-     *        ------------------------------------------->
-     *        ------------------------------------------->
-     *        -------------------------------------------> [end]
-	 * *********************************************************
-	 */
+		data->display_ctx.line_cnt = desc->width;
+		data->display_ctx.line_size = desc->height * 2;
+		data->display_ctx.step_offset = 1 * 2;
+	} else {
+		/**
+		 * NORMAL
+		 *
+		 * *********************DISPALY & MEM*************************
+		 * [start]------------------------------------------->
+		 *        ------------------------------------------->
+		 *        ------------------------------------------->
+		 *        ------------------------------------------->
+		 *        -------------------------------------------> [end]
+		 * *********************************************************
+		 */
+		data->display_ctx.line_cnt = desc->height;
+		data->display_ctx.line_size = desc->width * 2;
+		data->display_ctx.step_offset = desc->width * 2;
+	}
 
 	/* 剩下的数据将会在中断中发送 */
-	spd2010_set_display_datas_with_dma_rotate_90(dev, (void *)data->display_ctx.buffer,
+	spd2010_set_display_datas_with_dma(dev, (void *)data->display_ctx.buffer,
 						    data->display_ctx.line_size, data->display_ctx.w,
-						     data->display_ctx.h);
+						     data->display_ctx.h, data->display_ctx.rotate_90);
 	k_sem_take(&data->spi_done_sem, K_FOREVER);
 
 	return 0;

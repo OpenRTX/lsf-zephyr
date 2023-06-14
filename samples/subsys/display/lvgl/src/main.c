@@ -45,9 +45,9 @@ void main(void)
 	// count_label = lv_label_create(lv_scr_act());
 	// lv_obj_align(count_label, LV_ALIGN_BOTTOM_MID, 0, 0);
 
+	display_blanking_off(display_dev);
 	lv_demo_benchmark();
 	lv_task_handler();
-	display_blanking_off(display_dev);
 	while (1) {
 		// if ((count % 100) == 0U) {
 		// 	sprintf(count_str, "%d", count/100U);
