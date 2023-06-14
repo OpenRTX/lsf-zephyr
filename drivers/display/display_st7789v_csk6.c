@@ -64,6 +64,7 @@ struct st7789v_data {
 	uint16_t x_offset;
 	uint16_t y_offset;
 	struct k_sem spi_done_sem;
+	struct k_mutex lock;
 	SPI_DEV *spi;
 	struct st7789v_display_send_ctx display_ctx;
 };
@@ -241,9 +242,11 @@ __attribute__((section(".itcm"))) static int32_t st7789v_transmit(const struct d
 	ctrl |= CSK_SPI_TXIO_DMA;
 	ctrl |= CSK_SPI_DATA_BITS(8);
 
+	k_mutex_lock(&data->lock, K_FOREVER);
 	r = SPI_Control(data->spi, ctrl, 50 * 1000 * 1000);
 	if (r != 0) {
 		LOG_ERR("SPI_Control failed, error code:%d", r);
+		k_mutex_unlock(&data->lock);
 		return r;
 	}
 
@@ -251,6 +254,7 @@ __attribute__((section(".itcm"))) static int32_t st7789v_transmit(const struct d
 	r = SPI_Send(data->spi, &cmd, 1);
 	if (r != 0) {
 		LOG_ERR("SPI_Send failed, error code:%d", r);
+		k_mutex_unlock(&data->lock);
 		return r;
 	}
 	k_sem_take(&data->spi_done_sem, K_FOREVER);
@@ -260,10 +264,12 @@ __attribute__((section(".itcm"))) static int32_t st7789v_transmit(const struct d
 		r = SPI_Send(data->spi, tx_data, tx_len);
 		if (r != 0) {
 			LOG_ERR("SPI_Send failed, error code:%d", r);
+			k_mutex_unlock(&data->lock);
 			return r;
 		}
 		k_sem_take(&data->spi_done_sem, K_FOREVER);
 	}
+	k_mutex_unlock(&data->lock);
 
 	return 0;
 }
@@ -345,6 +351,8 @@ st7789v_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	uint32_t new_x = x;
 	uint32_t new_y = y;
 
+	k_mutex_lock(&data->lock, K_FOREVER);
+
 #if CONFIG_ST7789V_CSK6_ROTATE_90
 	rotate_90 = 1;
 #endif
@@ -369,6 +377,7 @@ st7789v_write(const struct device *dev, const uint16_t x, const uint16_t y,
 	int r = SPI_Control(data->spi, ctrl, speed);
 	if (r != 0) {
 		LOG_ERR("SPI_Control failed, error code:%d", r);
+		k_mutex_unlock(&data->lock);
 		return r;
 	}
 
@@ -420,6 +429,7 @@ st7789v_write(const struct device *dev, const uint16_t x, const uint16_t y,
 						    data->display_ctx.line_size, data->display_ctx.w,
 						     data->display_ctx.h, data->display_ctx.rotate_90);
 	k_sem_take(&data->spi_done_sem, K_FOREVER);
+	k_mutex_unlock(&data->lock);
 
 	return 0;
 }
@@ -696,6 +706,7 @@ static const struct display_driver_api st7789v_api = {
 		.x_offset = DT_INST_PROP(inst, x_offset),			\
 		.y_offset = DT_INST_PROP(inst, y_offset),			\
 		.spi_done_sem = Z_SEM_INITIALIZER(st7789v_data_##inst.spi_done_sem, 0, 1),                     \
+		.lock = Z_MUTEX_INITIALIZER(st7789v_data_##inst.lock),                     \
 	};									\
 										\
 	PM_DEVICE_DT_INST_DEFINE(inst, st7789v_pm_action);			\
