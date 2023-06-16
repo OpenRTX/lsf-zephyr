@@ -681,7 +681,8 @@ static void csk_uart_irq_rx_enable(const struct device *dev)
 	const struct csk_uart_config *config = DEV_CFG(dev);
 	DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
 
-	uart_reg->REG_IER.all |= UARTC_IER_RDR;
+	uart_reg->REG_IER.bit.ECHT = 1;
+	uart_reg->REG_IER.bit.ERBFI = 1;
 }
 
 static void csk_uart_irq_rx_disable(const struct device *dev)
@@ -763,6 +764,13 @@ static void csk_uart_isr(const struct device *dev)
 	}
 	if (data->callback) {
 		data->callback(dev, data->cb_data);
+	} else {
+		/* read fifo value to clear irq */
+		while ((uart_reg->REG_LSR.all & UARTC_LSR_RDR)) {
+			volatile uint8_t value = (uint8_t)(uart_reg->REG_RBR.all & 0xFF);
+			while (!(uart_reg->REG_LSR.all & UARTC_LSR_TEMT));
+			(void) value;
+		}
 	}
 #endif
 
@@ -877,7 +885,13 @@ static int csk_uart_init(const struct device *dev)
 	/* Set rx fifo to 1/4 full and enable rx timeout interrupt*/
 	DW_UART_RegDef *uart_reg = (DW_UART_RegDef *)config->reg_addr;
 	uart_reg->REG_FCR.bit.RCVR = 0x01;
-	uart_reg->REG_IER.bit.ECHT = 0x1;
+
+	/* disable all interrupt */
+	uart_reg->REG_IER.bit.ECHT = 0x0;
+	uart_reg->REG_IER.bit.ERBFI = 0;
+	uart_reg->REG_IER.bit.ETBEI = 0;
+	uart_reg->REG_IER.bit.ELSI = 0;
+	uart_reg->REG_IER.bit.EDSSI = 0;
 #endif
 	return 0;
 }
