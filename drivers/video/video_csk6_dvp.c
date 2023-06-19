@@ -103,6 +103,7 @@ static void dvp_callback(uint32_t event, uint32_t param)
 		case CSK_DVP_STATUS_JLB1_FULL:
 			break;
 		case CSK_DVP_STATUS_FIFO_OVF:
+			break;
 		case CSK_DVP_STATUS_AHB_ERR:
 			LOG_WRN("dvp err interrupt %d\r\n", event);
 			break;
