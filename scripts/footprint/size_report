@@ -528,10 +528,11 @@ class TreeNode(NodeMixin):
     A symbol node.
     """
 
-    def __init__(self, name, identifier, size=0, parent=None, children=None):
+    def __init__(self, name, identifier, addr=0, size=0, parent=None, children=None):
         super().__init__()
         self.name = name
         self.size = size
+        self.addr = addr
         self.parent = parent
         self.identifier = identifier
         if children:
@@ -579,7 +580,7 @@ def generate_any_tree(symbol_dict, total_size, path_prefix):
 
     # A set of helper function for building a simple tree with a path-like
     # hierarchy.
-    def _insert_one_elem(root, path, size):
+    def _insert_one_elem(root, path, addr, size):
         cur = None
         node = None
         parent = root
@@ -597,7 +598,8 @@ def generate_any_tree(symbol_dict, total_size, path_prefix):
             else:
                 if node:
                     parent = node
-                node = TreeNode(name=str(part), identifier=cur, size=size, parent=parent)
+                node = TreeNode(name=str(part), identifier=cur,
+                                addr=addr, size=size, parent=parent)
 
     # Mapping paths to tree nodes
     path_node_map = [
@@ -613,6 +615,7 @@ def generate_any_tree(symbol_dict, total_size, path_prefix):
     for name, sym in symbol_dict.items():
         for symbol in sym:
             size = get_symbol_size(symbol['symbol'])
+            addr = get_symbol_addr(symbol['symbol'])
             for file in symbol['mapped_files']:
                 path = Path(file, name)
                 if path.is_absolute():
@@ -630,8 +633,7 @@ def generate_any_tree(symbol_dict, total_size, path_prefix):
                 else:
                     dest_node = node_no_paths
 
-                _insert_one_elem(dest_node, path, size)
-
+                _insert_one_elem(dest_node, path, addr, size)
 
     if node_zephyr_base is not root:
         # ZEPHYR_BASE and OUTPUT_DIR nodes don't have sum of symbol size
@@ -673,18 +675,39 @@ def node_sort(items):
     return sorted(items, key=lambda item: item.name)
 
 
-def print_any_tree(root, total_size, depth):
+class Memory():
+    def __init__(self, name, start, size):
+        self.name = name
+        self.start = start
+        self.size = size
+
+
+def get_ram_name_by_addr(mems, addr):
+    if mems is None:
+        return "UNKNOWN"
+
+    for mem in mems:
+        if (addr >= mem.start) and (addr < (mem.start + mem.size)):
+            return mem.name
+
+    return "UNKNOWN"
+
+
+def print_any_tree(root, total_size, depth, memorys=None):
     """
     Print the symbol tree.
     """
-    print('{:101s} {:7s} {:8s}'.format(
-        Fore.YELLOW + "Path", "Size", "%" + Fore.RESET))
+    print('{:101s} {:7s} {:10s} {:7s}  {:24s}'.format(
+        Fore.YELLOW + "Path", "Size", "Addr", "Type", "%" + Fore.RESET))
     print('=' * 110)
     for row in RenderTree(root, childiter=node_sort, maxlevel=depth):
         f = len(row.pre) + len(row.node.name)
         s = str(row.node.size).rjust(100-f)
-        percent = 100 * float(row.node.size) / float(total_size)
 
+        addr = hex(row.node.addr).ljust(10)
+
+        type = get_ram_name_by_addr(memorys, row.node.addr).ljust(12)
+        percent = 100 * float(row.node.size) / float(total_size)
         cc = cr = ""
         if not row.node.children:
             if row.node.name != "(hidden)":
@@ -694,7 +717,7 @@ def print_any_tree(root, total_size, depth):
             cc = Fore.GREEN
             cr = Fore.RESET
 
-        print(f"{row.pre}{cc}{row.node.name} {s} {cr}{Fore.BLUE}{percent:6.2f}%{Fore.RESET}")
+        print(f"{row.pre}{cc}{row.node.name} {s} {cr}{Fore.BLUE} {addr} {cr}{Fore.BLUE} {type} {cr}{Fore.BLUE} {percent:6.2f}%{Fore.RESET}")
     print('=' * 110)
     print(f'{total_size:>101}')
 
@@ -725,8 +748,32 @@ def parse_args():
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Print extra debugging information")
     parser.add_argument("--json", help="store results in a JSON file.")
+
+    parser.add_argument("-l", "--linker", required=False, help="The linker file.")
     args = parser.parse_args()
 
+
+import re
+
+
+def parse_linker_file(filename):
+    """ TODO: from config file """
+    mems = list()
+    mems.append(Memory("PSRAM(AP)", 0x30000000, 8 * 1024 * 1024))
+    mems.append(Memory("SRAM", 0x80000, 320 * 1024))
+    mems.append(Memory("SRAM(SHARE)", 0x2080000, 320 * 1024))
+    mems.append(Memory("DTCM(AP)", 0x20000000, 16 * 1024))
+    mems.append(Memory("DRAM1(AP)", 0x28000000, 768 * 1024))
+    mems.append(Memory("ITCM", 0x10000, 16 * 1024))
+    mems.append(Memory("DRAM0(CP)", 0x5FdE0000, 16 * 1024))
+    mems.append(Memory("DRAM1(CP-SHARE)", 0x5FE00000, 768 * 1024))
+    mems.append(Memory("DRAM1(CP)", 0x48000000, 768 * 1024))
+    mems.append(Memory("IRAM(CP)", 0x5FF00000, 768 * 1024))
+    mems.append(Memory("PSRAM(CP)", 0x68000000, 8 * 1024 * 1024))
+    mems.append(Memory("FLASH(AP)", 0x18000000, 512 * 1024 * 1024))
+    mems.append(Memory("FLASH(CP)", 0x68000000, 512 * 1024 * 1024))
+
+    return mems
 
 def main():
     """
@@ -788,8 +835,10 @@ def main():
                     print("INFO: Unmapped symbol: {0}".format(sym))
 
             root = generate_any_tree(symbol_dict, symsize, common_path_prefix)
+            memorys = parse_linker_file(args.linker)
+
             if not args.quiet:
-                print_any_tree(root, symsize, args.depth)
+                print_any_tree(root, symsize, args.depth, memorys)
 
             exporter = DictExporter()
             data = dict()
