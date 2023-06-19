@@ -34,7 +34,7 @@ struct video_csk6_dvp_config {
 
 struct video_csk6_dvp_data {
 	/* driver handle */
-    void *handle; 
+	void *handle;
 
 	const struct device *dev;
 	const struct device *sensor_dev;
@@ -86,7 +86,7 @@ static void dvp_framedata_proc(void)
 	}else{
 		DVP_Stop(dvp_dev);
 		csk6_dvp_start(dev, temp_vbuf);
-		set_current_vbuf(dev, temp_vbuf);		
+		set_current_vbuf(dev, temp_vbuf);
 		LOG_DBG("not enough fifo_in \r\n");
 	}
 
@@ -103,6 +103,7 @@ static void dvp_callback(uint32_t event, uint32_t param)
 		case CSK_DVP_STATUS_JLB1_FULL:
 			break;
 		case CSK_DVP_STATUS_FIFO_OVF:
+			break;
 		case CSK_DVP_STATUS_AHB_ERR:
 			LOG_WRN("dvp err interrupt %d\r\n", event);
 			break;
@@ -148,18 +149,18 @@ static int video_csk6_dvp_set_fmt(const struct device *dev,
 		dvp_dev->Init.DataAlign = CSK_DVP_DATA_BUS_SEL_LEFT;
 	}
 
-    dvp_dev->Init.HandshakingMode = CSK_DVP_JLB_HANSHK_SEL_MODE_SOFT;
-    dvp_dev->Init.InputFormat = CSK_DVP_INPUT_FORM_LUMINA_8BIT;
+	dvp_dev->Init.HandshakingMode = CSK_DVP_JLB_HANSHK_SEL_MODE_SOFT;
+	dvp_dev->Init.InputFormat = CSK_DVP_INPUT_FORM_LUMINA_8BIT;
 	dvp_dev->Init.LineOffset = 0;
-    dvp_dev->Init.PixelOffset = 0;
+	dvp_dev->Init.PixelOffset = 0;
 	dvp_dev->Init.FrameWidth = fmt->pitch;
 	dvp_dev->Init.FrameHeight = fmt->height;
 
 	if(CSK_DRIVER_OK != DVP_Init(dvp_dev, dvp_callback))
-    {
+	{
 		LOG_ERR("DVP failed to set fmt\r\n");
 		return -EIO;
-    }
+	}
 
 	if (data->sensor_dev && video_set_format(data->sensor_dev, ep, fmt)) {
 		return -EIO;
@@ -221,11 +222,11 @@ static int csk6_dvp_start(const struct device *dev, struct video_buffer *vbuf)
 	ret = DVP_Start(dvp_dev, dvp_buf);
 	if(ret != 0){
 		LOG_ERR("dvp satrt faild \r\n");
-		return -EIO; 
+		return -EIO;
 	}
 
 	return 0;
-} 
+}
 
 
 static int video_csk6_dvp_stream_start(const struct device *dev)
@@ -269,7 +270,7 @@ static int video_csk6_dvp_flush(const struct device *dev,
 				bool cancel)
 {
 	struct video_csk6_dvp_data *data = dev->data;
-	struct video_buffer *vbuf;	
+	struct video_buffer *vbuf;
 
 	if (!cancel) {
 		/* wait for all buffer to be processed */
@@ -468,7 +469,7 @@ static const struct video_csk6_dvp_config video_csk6_dvp_config_0 = {
 	.pclk_polarity = DT_ENUM_IDX(DT_DRV_INST(0), pclk_polarity),
 	.hsync_polarity = DT_ENUM_IDX(DT_DRV_INST(0), hsync_polarity),
 	.vsync_polarity = DT_ENUM_IDX(DT_DRV_INST(0), vsync_polarity),
-	
+
 #if DT_NODE_HAS_PROP(DT_DRV_INST(0), clock_prescaler)
 	.clock_prescaler = DT_INST_PROP(0, clock_prescaler),
 #endif
