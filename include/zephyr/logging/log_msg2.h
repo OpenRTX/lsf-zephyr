@@ -29,6 +29,10 @@ extern "C" {
 #define LOG_MSG2_DEBUG 0
 #define LOG_MSG2_DBG(...) IF_ENABLED(LOG_MSG2_DEBUG, (printk(__VA_ARGS__)))
 
+#define Z_LOG_MSG2_PACKAGE_BITS 10
+
+#define Z_LOG_MSG2_MAX_PACKAGE BIT_MASK(Z_LOG_MSG2_PACKAGE_BITS)
+
 #ifdef CONFIG_LOG_TIMESTAMP_64BIT
 typedef uint64_t log_timestamp_t;
 #else
@@ -52,7 +56,7 @@ struct log_msg2_desc {
 	LOG_MSG2_GENERIC_HDR;
 	uint32_t domain:3;
 	uint32_t level:3;
-	uint32_t package_len:10;
+	uint32_t package_len:Z_LOG_MSG2_PACKAGE_BITS;
 	uint32_t data_len:12;
 	uint32_t reserved:1;
 };

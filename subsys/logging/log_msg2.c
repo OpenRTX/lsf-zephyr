@@ -9,6 +9,8 @@
 #include <zephyr/logging/log_ctrl.h>
 #include <zephyr/logging/log_frontend.h>
 #include <zephyr/logging/log_backend.h>
+#include <zephyr/logging/log.h>
+LOG_MODULE_DECLARE(log);
 
 /* Returns true if any backend is in use. */
 #define BACKENDS_IN_USE() \
@@ -59,6 +61,12 @@ void z_impl_z_log_msg2_static_create(const void *source,
 		len = cbprintf_package_copy(package, inlen,
 					    NULL, 0, flags,
 					    strl, ARRAY_SIZE(strl));
+		
+		if (len > Z_LOG_MSG2_MAX_PACKAGE) {
+			LOG_WRN("Message dropped because it exceeds size limitation (%u)",
+				(uint32_t)Z_LOG_MSG2_MAX_PACKAGE);
+			return;
+		}
 
 		/* Update package length with calculated value (which may be extended
 		 * when strings are copied into the package.
