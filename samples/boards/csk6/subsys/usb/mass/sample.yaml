@@ -1,0 +1,5 @@
+sample:
+  name: Mass Storage
+tests:
+  sample.usb.mass_ram_none:
+    build_only: true

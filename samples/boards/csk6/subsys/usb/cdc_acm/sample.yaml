@@ -1,0 +1,6 @@
+sample:
+  name: CDC ACM USB
+tests:
+  sample.usb.cdc-acm.buildonly:
+    tags: usb
+    build_only: true

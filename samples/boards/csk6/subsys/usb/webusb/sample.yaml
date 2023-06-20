@@ -1,0 +1,5 @@
+sample:
+  name: Web USB
+tests:
+  sample.usb.webusb:
+    build_only: true
