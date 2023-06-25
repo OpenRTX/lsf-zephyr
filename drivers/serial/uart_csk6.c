@@ -830,9 +830,6 @@ static int csk_uart_init(const struct device *dev)
 	/* disable interrupts */
 	old_level = irq_lock();
 
-	/* Set the pin to UART alternate function. */
-	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
-
 	void *uart_driver_ctx = get_uart_ctx((DW_UART_RegDef *)config->reg_addr);
 	baud_rate = config->baud_rate;
 	UART_Initialize(uart_driver_ctx, NULL, NULL);
@@ -893,6 +890,10 @@ static int csk_uart_init(const struct device *dev)
 	uart_reg->REG_IER.bit.ELSI = 0;
 	uart_reg->REG_IER.bit.EDSSI = 0;
 #endif
+
+	/* Set the pin to UART alternate function. */
+	pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
+	
 	return 0;
 }
 
