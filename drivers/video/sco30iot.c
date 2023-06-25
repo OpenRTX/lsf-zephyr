@@ -1267,6 +1267,7 @@ static int sco30iot_set_ctrl(const struct device *dev, unsigned int cid, void *v
 		目前是通过set_ctrl来提供sensor初始化的api.
 	*/
 	case 0:
+		k_sleep(K_MSEC(5));// wait for mclk stable, otherwise i2c can't work, and sensor can't be initialized. (>=4ms)
 		ret = sco30iot_ctrl_init(dev);
 		break;
 	default:
