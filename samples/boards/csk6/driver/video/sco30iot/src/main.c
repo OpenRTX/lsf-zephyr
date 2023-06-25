@@ -11,11 +11,12 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(main);
 
-#define VIDEO_DEV    DT_LABEL(DT_NODELABEL(dvp))
-#define VBUF_NUM     2
-#define IMAGE_HEIGHT 480
-#define IMAGE_WIDTH  640
-#define IMAGE_SIZE   (IMAGE_WIDTH * IMAGE_HEIGHT * 2)
+#define VIDEO_DEV		DT_LABEL(DT_NODELABEL(dvp))
+#define VBUF_NUM		2
+#define IMAGE_HEIGHT		480
+#define IMAGE_WIDTH		640
+#define PIXEL_BYTES_SIZE	2
+#define IMAGE_SIZE		(IMAGE_WIDTH * IMAGE_HEIGHT * PIXEL_BYTES_SIZE)
 
 #define USE_SERIAL_PROTOCOL (0)
 
@@ -77,7 +78,7 @@ void main(void)
 	fmt.pixelformat = VIDEO_PIX_FMT_VYUY;
 	fmt.width = IMAGE_WIDTH;
 	fmt.height = IMAGE_HEIGHT;
-	fmt.pitch = fmt.width * 2;
+	fmt.pitch = fmt.width * PIXEL_BYTES_SIZE;
 	if (video_set_format(video, VIDEO_EP_OUT, &fmt)) {
 		LOG_ERR("Unable to set video format");
 		return;
@@ -119,7 +120,7 @@ void main(void)
 		frame_send(vbuf->buffer, fmt.width, fmt.height, 0);
 #endif
 
-		LOG_INF("\rGot frame %u! size: %u; timestamp %u ms fps %d\n", frame++,
+		LOG_INF("Got frame %u! size: %u; timestamp %u ms fps %d", frame++,
 			vbuf->bytesused, vbuf->timestamp, calculate_fps(vbuf));
 
 		err = video_enqueue(video, VIDEO_EP_OUT, vbuf);
