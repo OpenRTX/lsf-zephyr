@@ -18,6 +18,10 @@ config FS_CSK6_NAND_FLASH_FATFS
 	bool "nand flash use fatfs"
 	default n
 
+config FATFS_SD2_START_ADDRESS
+	hex "SD2 Start Address"
+	default 0x0
+
 config FS_FATFS_READ_ONLY
 	bool "Read-only support for all volumes"
 	help
