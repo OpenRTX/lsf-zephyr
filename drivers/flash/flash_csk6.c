@@ -107,7 +107,7 @@ csk6_flash_config_t csk6_flash_config = { .flash_dev = {
 						  .d_width = 4,
 						  .sclk_div = 0xff, // 0xff: special div in chip,indicates that sclk frequency = SPI clock frequency
 						  .run_mod = RUN_WITH_INT,
-						  .timeout = 0,
+						  .timeout = 2000000,
 					  } };
 
 static const struct flash_parameters flash_csk6_parameters = {
