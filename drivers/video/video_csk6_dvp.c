@@ -34,7 +34,7 @@ struct video_csk6_dvp_config {
 
 struct video_csk6_dvp_data {
 	/* driver handle */
-    void *handle; 
+	void *handle;
 
 	const struct device *dev;
 	const struct device *sensor_dev;
@@ -76,20 +76,20 @@ static void dvp_framedata_proc(void)
 
 	temp_vbuf = get_current_vbuf(dev);
 	temp_vbuf->timestamp = k_uptime_get_32();
-
 	vbuf = k_fifo_get(&data->fifo_in, K_NO_WAIT);
 	if(vbuf){
-		DVP_Stop(dvp_dev);
+		/* Unlock the DVP peripheral state */
+		dvp_dev->State = DVP_STATE_READY;// DVP_Stop(dvp_dev);
 		csk6_dvp_start(dev, vbuf);
 		set_current_vbuf(dev, vbuf);
 		k_fifo_put(&data->fifo_out, temp_vbuf);
 	}else{
-		DVP_Stop(dvp_dev);
+		/* Unlock the DVP peripheral state */
+		dvp_dev->State = DVP_STATE_READY;// DVP_Stop(dvp_dev);
 		csk6_dvp_start(dev, temp_vbuf);
-		set_current_vbuf(dev, temp_vbuf);		
+		set_current_vbuf(dev, temp_vbuf);
 		LOG_DBG("not enough fifo_in \r\n");
 	}
-
 }
 
 static void dvp_callback(uint32_t event, uint32_t param)
@@ -103,6 +103,8 @@ static void dvp_callback(uint32_t event, uint32_t param)
 		case CSK_DVP_STATUS_JLB1_FULL:
 			break;
 		case CSK_DVP_STATUS_FIFO_OVF:
+			// LOG_WRN("dvp err fifo overflow %d\r\n", event);
+			break;
 		case CSK_DVP_STATUS_AHB_ERR:
 			LOG_WRN("dvp err interrupt %d\r\n", event);
 			break;
@@ -148,18 +150,18 @@ static int video_csk6_dvp_set_fmt(const struct device *dev,
 		dvp_dev->Init.DataAlign = CSK_DVP_DATA_BUS_SEL_LEFT;
 	}
 
-    dvp_dev->Init.HandshakingMode = CSK_DVP_JLB_HANSHK_SEL_MODE_SOFT;
-    dvp_dev->Init.InputFormat = CSK_DVP_INPUT_FORM_LUMINA_8BIT;
+	dvp_dev->Init.HandshakingMode = CSK_DVP_JLB_HANSHK_SEL_MODE_SOFT;
+	dvp_dev->Init.InputFormat = CSK_DVP_INPUT_FORM_LUMINA_8BIT;
 	dvp_dev->Init.LineOffset = 0;
-    dvp_dev->Init.PixelOffset = 0;
+	dvp_dev->Init.PixelOffset = 0;
 	dvp_dev->Init.FrameWidth = fmt->pitch;
 	dvp_dev->Init.FrameHeight = fmt->height;
 
 	if(CSK_DRIVER_OK != DVP_Init(dvp_dev, dvp_callback))
-    {
+	{
 		LOG_ERR("DVP failed to set fmt\r\n");
 		return -EIO;
-    }
+	}
 
 	if (data->sensor_dev && video_set_format(data->sensor_dev, ep, fmt)) {
 		return -EIO;
@@ -210,7 +212,7 @@ static int csk6_dvp_start(const struct device *dev, struct video_buffer *vbuf)
 
 	vbuf->bytesused = data->fmt.pitch * data->fmt.height;
 
-	memset(&dvp_buf, 0 ,sizeof(DVP_BufferDef));
+	// memset(&dvp_buf, 0 ,sizeof(DVP_BufferDef));
 
 	//DVP驱动访问的是CP侧的AHB总线，如果在AP侧使用DVP驱动，传入的地址必须重新映射
 	dvp_buf.pAddrY = (uint8_t *)DVP_PSRAM_ADDR_WRAP(vbuf->buffer);
@@ -220,12 +222,12 @@ static int csk6_dvp_start(const struct device *dev, struct video_buffer *vbuf)
 
 	ret = DVP_Start(dvp_dev, dvp_buf);
 	if(ret != 0){
-		LOG_ERR("dvp satrt faild \r\n");
-		return -EIO; 
+		LOG_ERR("dvp satrt faild ret: %d, dvp_dev->State:%d\r\n", ret, dvp_dev->State);
+		return -EIO;
 	}
 
 	return 0;
-} 
+}
 
 
 static int video_csk6_dvp_stream_start(const struct device *dev)
@@ -269,7 +271,7 @@ static int video_csk6_dvp_flush(const struct device *dev,
 				bool cancel)
 {
 	struct video_csk6_dvp_data *data = dev->data;
-	struct video_buffer *vbuf;	
+	struct video_buffer *vbuf;
 
 	if (!cancel) {
 		/* wait for all buffer to be processed */
@@ -468,7 +470,7 @@ static const struct video_csk6_dvp_config video_csk6_dvp_config_0 = {
 	.pclk_polarity = DT_ENUM_IDX(DT_DRV_INST(0), pclk_polarity),
 	.hsync_polarity = DT_ENUM_IDX(DT_DRV_INST(0), hsync_polarity),
 	.vsync_polarity = DT_ENUM_IDX(DT_DRV_INST(0), vsync_polarity),
-	
+
 #if DT_NODE_HAS_PROP(DT_DRV_INST(0), clock_prescaler)
 	.clock_prescaler = DT_INST_PROP(0, clock_prescaler),
 #endif
