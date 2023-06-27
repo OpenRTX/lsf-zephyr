@@ -128,7 +128,7 @@
 &dvp {
 	status = "okay";
 	sensor-label = "SCO30IOT";
-	clock-prescaler = <7>;
+	clock-prescaler = <6>;
 	data-align-type = "high_align";
 	pclk-polarity = "post_edge_sampling";
 	hsync-polarity = "active_high";
