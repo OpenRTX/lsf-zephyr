@@ -82,7 +82,7 @@ manifest:
       path: modules/lib/csk_sqlite3
     - name: fatfs
       remote: listenai
-      revision: b599336da2b997c31c3208bcbca39a5d831272c3
+      revision: 00316e7d4a41b1d4c0b492c94659b08b4fd63e9f
       path: modules/fs/fatfs
       groups:
         - fs
