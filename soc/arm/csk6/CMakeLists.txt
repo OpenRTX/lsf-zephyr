@@ -10,6 +10,8 @@ zephyr_sources_ifdef(CONFIG_CACHE_MANAGEMENT cache.c)
 zephyr_linker_sources(SECTIONS csk6_private.ld)
 zephyr_linker_sources(SECTIONS csk6_psram.ld)
 
+zephyr_sources_ifdef(CONFIG_PM power.c)
+
 if(NOT CONFIG_BOOTLOADER_MCUBOOT)
   if(CONFIG_BUILD_OUTPUT_HEX)
     set_property(GLOBAL APPEND PROPERTY extra_post_build_commands COMMAND
