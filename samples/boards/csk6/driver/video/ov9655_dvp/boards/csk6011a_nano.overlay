@@ -9,11 +9,11 @@
 	};
 
 	pinctrl_i2c0_scl_default: i2c0_scl_default{
-		pinctrls = <I2C0_SCL_GPIOB_00>;
+		pinctrls = <I2C0_SCL_GPIOB_10>;
 	};
 
 	pinctrl_i2c0_sda_default: i2c0_sda_default{
-		pinctrls = <I2C0_SDA_GPIOB_01>;
+		pinctrls = <I2C0_SDA_GPIOB_11>;
 	};
 
 	pinctrl_dvp_clkout_default: dvp_clkout_default{
