@@ -55,13 +55,13 @@ static size_t _backtrace_call_stack(uint32_t *buffer, size_t size, const z_arch_
 	if (!stack_is_overflow) {
 		/* first depth is PC */
 		buffer[depth++] = esf->basic.pc;
-		LOG_INF("call stack 0x%x", buffer[depth]);
+		LOG_INF(" %d call stack 0x%x", __LINE__, buffer[depth]);
 		/* fix the LR address in thumb mode */
 		pc = esf->basic.lr - 1;
 		if ((pc >= code_start_addr) && (pc <= code_start_addr + code_size) && (depth < _CALL_STACK_MAX_DEPTH)
 				&& (depth < size)) {
 			buffer[depth++] = pc;
-			LOG_INF("call stack 0x%x", buffer[depth]);
+			LOG_INF(" %d call stack 0x%x", __LINE__, buffer[depth]);
 			regs_saved_lr_is_valid = true;
 		}
 	}
@@ -98,7 +98,7 @@ static size_t _backtrace_call_stack(uint32_t *buffer, size_t size, const z_arch_
                 continue;
             }
             buffer[depth++] = pc;
-			LOG_INF("call stack 0x%x", buffer[depth]);
+			LOG_INF(" %d call stack 0x%x", __LINE__, buffer[depth]);
         }
     }
 
