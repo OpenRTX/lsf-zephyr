@@ -7,6 +7,7 @@ zephyr_sources(
 
 zephyr_sources_ifdef(CONFIG_CPU_HAS_CUSTOM_FIXED_SOC_MPU_REGIONS mpu_regions.c)
 zephyr_sources_ifdef(CONFIG_CACHE_MANAGEMENT cache.c)
+zephyr_sources_ifdef(CONFIG_EXTRA_EXCEPTION_INFO fatal.c)
 zephyr_linker_sources(SECTIONS csk6_private.ld)
 zephyr_linker_sources(SECTIONS csk6_psram.ld)
 
