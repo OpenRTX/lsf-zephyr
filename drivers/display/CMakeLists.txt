@@ -19,6 +19,7 @@ zephyr_library_sources_ifdef(CONFIG_ST7789V_CSK6		display_st7789v_csk6.c)
 zephyr_library_sources_ifdef(CONFIG_ST7735R		display_st7735r.c)
 zephyr_library_sources_ifdef(CONFIG_STM32_LTDC		display_stm32_ltdc.c)
 zephyr_library_sources_ifdef(CONFIG_RM68200		display_rm68200.c)
+zephyr_library_sources_ifdef(CONFIG_DISPLAY_CSK6_LCD	display_csk6_lcd.c)
 
 zephyr_library_sources_ifdef(CONFIG_MICROBIT_DISPLAY
 	mb_display.c
