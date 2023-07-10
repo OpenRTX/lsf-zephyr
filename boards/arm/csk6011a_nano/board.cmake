@@ -9,4 +9,6 @@ set_ifndef(BOARD_FLASH_RUNNER pyocd)
 
 include(${ZEPHYR_BASE}/boards/common/jlink.board.cmake)
 include(${ZEPHYR_BASE}/boards/common/pyocd.board.cmake)
-include(${ZEPHYR_BASE}/boards/common/csk.board.cmake)
+
+get_filename_component(PARENT_DIR "${CMAKE_CURRENT_LIST_DIR}" DIRECTORY)
+include(${PARENT_DIR}/../common/csk.board.cmake)

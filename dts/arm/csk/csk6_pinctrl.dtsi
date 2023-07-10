@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
-#include <dt-bindings/pinctrl/csk6-pinctrl.h>
+#include "csk6-pinctrl.h"
 
 / {
     pinctrl: pinctrl{

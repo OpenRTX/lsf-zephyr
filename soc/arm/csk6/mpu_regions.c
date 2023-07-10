@@ -6,7 +6,6 @@
 
 #include <arch/arm/aarch32/mpu/arm_mpu.h>
 
-#include "../common/cortex_m/arm_mpu_mem_cfg.h"
 
 #define REGION_RAM_NOCACHE_ATTR(base, size) \
 	{\
