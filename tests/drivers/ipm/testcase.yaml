@@ -1,5 +1,0 @@
-tests:
-  drivers.ipc.mailbox:
-    arch_exclude: posix xtensa
-    platform_exclude: csk6002_9s_nano csk6002_c3_nano csk6011a_nano csk6011a_9s_nano csk6011a_c3_nano csk6012_nano csk6012_9s_nano csk6012_c3_nano
-    tags: drivers ipc

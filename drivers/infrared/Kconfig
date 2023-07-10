@@ -17,7 +17,7 @@ config INFRARED_SHELL
 
 if INFRARED
 
-source "drivers/infrared/Kconfig.csk6"
+rsource "Kconfig.csk6"
 
 module = INFRARED
 module-str = INFRARED

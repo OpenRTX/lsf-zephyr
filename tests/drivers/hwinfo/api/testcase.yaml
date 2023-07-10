@@ -1,4 +1,0 @@
-tests:
-  drivers.hwinfo.api:
-    tags: drivers
-    depends_on: hwinfo

@@ -3,146 +3,68 @@
 # Copyright (c) 2015 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-menu "Device Drivers"
+menu "CSK Device Drivers"
 
-source "drivers/bluetooth/Kconfig"
+rsource "serial/Kconfig"
 
-source "drivers/ieee802154/Kconfig"
+rsource "entropy/Kconfig"
 
-source "drivers/lora/Kconfig"
+rsource "gpio/Kconfig"
 
-source "drivers/console/Kconfig"
+rsource "spi/Kconfig"
 
-source "drivers/debug/Kconfig"
+rsource "i2c/Kconfig"
 
-source "drivers/ec_host_cmd_periph/Kconfig"
+rsource "i2s/Kconfig"
 
-source "drivers/ethernet/Kconfig"
+rsource "pwm/Kconfig"
 
-source "drivers/mdio/Kconfig"
+rsource "pinmux/Kconfig"
 
-source "drivers/net/Kconfig"
+rsource "adc/Kconfig"
 
-source "drivers/serial/Kconfig"
+rsource "watchdog/Kconfig"
 
-source "drivers/interrupt_controller/Kconfig"
+rsource "flash/Kconfig"
 
-source "drivers/timer/Kconfig"
+rsource "counter/Kconfig"
 
-source "drivers/entropy/Kconfig"
+rsource "dma/Kconfig"
 
-source "drivers/pcie/Kconfig"
+rsource "usb/Kconfig"
 
-source "drivers/gpio/Kconfig"
+rsource "crypto/Kconfig"
 
-source "drivers/interrupt_controller/Kconfig.shared_irq"
+rsource "led_strip/Kconfig"
 
-source "drivers/spi/Kconfig"
+rsource "wifi/Kconfig"
 
-source "drivers/sdhc/Kconfig"
+rsource "led/Kconfig"
 
-source "drivers/i2c/Kconfig"
+rsource "hwinfo/Kconfig"
 
-source "drivers/i2s/Kconfig"
+rsource "espi/Kconfig"
 
-source "drivers/dai/Kconfig"
+rsource "kscan/Kconfig"
 
-source "drivers/pwm/Kconfig"
+rsource "video/Kconfig"
 
-source "drivers/pinmux/Kconfig"
+rsource "eeprom/Kconfig"
 
-source "drivers/adc/Kconfig"
+rsource "memc/Kconfig"
 
-source "drivers/dac/Kconfig"
+rsource "edac/Kconfig"
 
-source "drivers/watchdog/Kconfig"
+rsource "misc/Kconfig"
 
-source "drivers/clock_control/Kconfig"
+rsource "disk/Kconfig"
 
-source "drivers/ptp_clock/Kconfig"
+rsource "pinctrl/Kconfig"
 
-source "drivers/ipm/Kconfig"
+rsource "mbox/Kconfig"
 
-source "drivers/flash/Kconfig"
+rsource "mipi_dsi/Kconfig"
 
-source "drivers/sensor/Kconfig"
-
-source "drivers/counter/Kconfig"
-
-source "drivers/dma/Kconfig"
-
-source "drivers/usb/Kconfig"
-
-source "drivers/crypto/Kconfig"
-
-source "drivers/display/Kconfig"
-
-source "drivers/led_strip/Kconfig"
-
-source "drivers/wifi/Kconfig"
-
-source "drivers/led/Kconfig"
-
-source "drivers/can/Kconfig"
-
-source "drivers/modem/Kconfig"
-
-source "drivers/audio/Kconfig"
-
-source "drivers/neural_net/Kconfig"
-
-source "drivers/hwinfo/Kconfig"
-
-source "drivers/espi/Kconfig"
-
-source "drivers/ps2/Kconfig"
-
-source "drivers/kscan/Kconfig"
-
-source "drivers/video/Kconfig"
-
-source "drivers/eeprom/Kconfig"
-
-source "drivers/peci/Kconfig"
-
-source "drivers/regulator/Kconfig"
-
-source "drivers/memc/Kconfig"
-
-source "drivers/virtualization/Kconfig"
-
-source "drivers/edac/Kconfig"
-
-source "drivers/pm_cpu_ops/Kconfig"
-
-source "drivers/misc/Kconfig"
-
-source "drivers/disk/Kconfig"
-
-source "drivers/cache/Kconfig"
-
-source "drivers/syscon/Kconfig"
-
-source "drivers/bbram/Kconfig"
-
-source "drivers/fpga/Kconfig"
-
-source "drivers/pinctrl/Kconfig"
-
-source "drivers/mbox/Kconfig"
-
-source "drivers/mm/Kconfig"
-
-source "drivers/power_domain/Kconfig"
-
-source "drivers/usbc/Kconfig"
-
-source "drivers/reset/Kconfig"
-
-source "drivers/mipi_dsi/Kconfig"
-
-source "drivers/infrared/Kconfig"
-
-source "drivers/rtc/Kconfig"
+rsource "infrared/Kconfig"
 
 endmenu
