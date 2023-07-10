@@ -1,4 +1,6 @@
 manifest:
+  defaults:
+    remote: listenai
   remotes:
     - name: listenai
       url-base: https://cloud.listenai.com/zephyr
@@ -8,12 +10,10 @@ manifest:
       url-base: https://cloud.listenai.com/listenai/lsf-dev
     - name: scanpen_capabilities
       url-base: https://cloud.listenai.com/scanpen/capability
-    - name: zephyrproject
-      url-base: https://github.com/zephyrproject-rtos
   projects:
     - name: zephyr
-      remote: zephyrproject
-      revision: 0c70f3bad725c2389264eaea0bc4591fcebea1bc
+      repo-path: zephyr_downstream
+      revision: f525c4d507d35b554008d32c69b8775249039b9a
       import:
         name-allowlist:
           - cmsis

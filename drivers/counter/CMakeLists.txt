@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
-zephyr_library()
+set(TARGET_LIB drivers__counter)
 
-zephyr_library_sources_ifdef(CONFIG_COUNTER_CSK6                counter_csk6.c)
-zephyr_library_sources_ifdef(CONFIG_COUNTER_CSK6_DUAL           counter_dual_csk6.c)
-zephyr_library_sources_ifdef(CONFIG_COUNTER_CSK6_GPTCHANNEL     counter_csk6_gptchannel.c)
+target_sources_ifdef(CONFIG_COUNTER_CSK6 ${TARGET_LIB} PRIVATE counter_csk6.c)
+target_sources_ifdef(CONFIG_COUNTER_CSK6_DUAL ${TARGET_LIB} PRIVATE counter_dual_csk6.c)
+target_sources_ifdef(CONFIG_COUNTER_CSK6_GPTCHANNEL ${TARGET_LIB} PRIVATE counter_csk6_gptchannel.c)

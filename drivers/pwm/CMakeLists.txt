@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-zephyr_library()
+set(TARGET_LIB drivers__pwm)
 
-zephyr_library_sources_ifdef(CONFIG_PWM_CSK6   pwm_csk6.c)
-zephyr_library_sources_ifdef(CONFIG_PWM_CSK6_CH32V003   pwm_csk6_ch32v003.c)
+target_sources_ifdef(CONFIG_PWM_CSK6 ${TARGET_LIB} PRIVATE pwm_csk6.c)
+target_sources_ifdef(CONFIG_PWM_CSK6_CH32V003 ${TARGET_LIB} PRIVATE pwm_csk6_ch32v003.c)

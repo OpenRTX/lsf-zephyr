@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-zephyr_library()
+set(TARGET_LIB drivers__video)
 
-zephyr_library_sources_ifdef(CONFIG_VIDEO_CSK6_DVP	video_csk6_dvp.c)
+target_sources_ifdef(CONFIG_VIDEO_CSK6_DVP ${TARGET_LIB} PRIVATE video_csk6_dvp.c)

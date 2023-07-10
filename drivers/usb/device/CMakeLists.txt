@@ -2,8 +2,8 @@
 
 if(CONFIG_USB_DEVICE_DRIVER)
 
-zephyr_library()
+set(TARGET_LIB drivers__usb__device)
 
-zephyr_library_sources_ifdef(CONFIG_USB_DC_CSK6 	 usb_dc_csk6.c)
+target_sources_ifdef(CONFIG_USB_DC_CSK6 ${TARGET_LIB} PRIVATE usb_dc_csk6.c)
 
 endif()

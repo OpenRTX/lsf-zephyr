@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-zephyr_library()
+set(TARGET_LIB drivers__dma)
 
-zephyr_library_sources_ifdef(CONFIG_DMA_CSK6		dma_csk6.c)
+target_sources_ifdef(CONFIG_DMA_CSK6 ${TARGET_LIB} PRIVATE dma_csk6.c)

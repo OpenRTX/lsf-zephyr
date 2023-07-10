@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-zephyr_library()
+set(TARGET_LIB drivers__entropy)
 
-zephyr_library_sources_ifdef(CONFIG_ENTROPY_CSK6_RNG           entropy_csk6.c)
+target_sources_ifdef(CONFIG_ENTROPY_CSK6_RNG ${TARGET_LIB} PRIVATE entropy_csk6.c)

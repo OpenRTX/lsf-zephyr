@@ -1,5 +1,6 @@
 if GPIO
 
 rsource "Kconfig.csk6"
+rsource "Kconfig.csk6_ch32v003"
 
 endif # GPIO

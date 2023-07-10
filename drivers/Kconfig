@@ -15,8 +15,6 @@ rsource "spi/Kconfig"
 
 rsource "i2c/Kconfig"
 
-rsource "i2s/Kconfig"
-
 rsource "pwm/Kconfig"
 
 rsource "pinmux/Kconfig"
@@ -35,36 +33,18 @@ rsource "usb/Kconfig"
 
 rsource "crypto/Kconfig"
 
-rsource "led_strip/Kconfig"
-
 rsource "wifi/Kconfig"
 
-rsource "led/Kconfig"
-
 rsource "hwinfo/Kconfig"
-
-rsource "espi/Kconfig"
 
 rsource "kscan/Kconfig"
 
 rsource "video/Kconfig"
-
-rsource "eeprom/Kconfig"
-
-rsource "memc/Kconfig"
-
-rsource "edac/Kconfig"
 
 rsource "misc/Kconfig"
 
 rsource "disk/Kconfig"
 
 rsource "pinctrl/Kconfig"
-
-rsource "mbox/Kconfig"
-
-rsource "mipi_dsi/Kconfig"
-
-rsource "infrared/Kconfig"
 
 endmenu
