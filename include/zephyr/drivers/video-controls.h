@@ -34,11 +34,13 @@ extern "C" {
 #define VIDEO_CTRL_CLASS_CAMERA		0x00010000	/* Camera class controls */
 #define VIDEO_CTRL_CLASS_MPEG		0x00020000	/* MPEG-compression controls */
 #define VIDEO_CTRL_CLASS_JPEG		0x00030000	/* JPEG-compression controls */
+#define VIDEO_CTRL_CLASS_PARAMETERS	0x00040000	/* Parameters controls */
 #define VIDEO_CTRL_CLASS_VENDOR		0xFFFF0000	/* Vendor-specific class controls */
 
 /* Generic class control IDs */
 #define VIDEO_CID_HFLIP			(VIDEO_CTRL_CLASS_GENERIC + 0) /* Mirror the picture horizontally */
 #define VIDEO_CID_VFLIP			(VIDEO_CTRL_CLASS_GENERIC + 1) /* Mirror the picture vertically */
+#define VIDEO_CID_INIT			(VIDEO_CTRL_CLASS_GENERIC + 2) /* Initialize the camera */
 
 /* Camera class control IDs */
 #define VIDEO_CID_CAMERA_EXPOSURE	(VIDEO_CTRL_CLASS_CAMERA + 0)
@@ -50,6 +52,9 @@ extern "C" {
 #define VIDEO_CID_CAMERA_CONTRAST	(VIDEO_CTRL_CLASS_CAMERA + 6)
 #define VIDEO_CID_CAMERA_COLORBAR	(VIDEO_CTRL_CLASS_CAMERA + 7)
 #define VIDEO_CID_CAMERA_QUALITY	(VIDEO_CTRL_CLASS_CAMERA + 8)
+
+#define VIDEO_CID_CAMERA_EXPOSURE_TIME		(VIDEO_CTRL_CLASS_PARAMETERS | VIDEO_CID_CAMERA_EXPOSURE)
+#define VIDEO_CID_CAMERA_GAIN_PARAMETERS	(VIDEO_CTRL_CLASS_PARAMETERS | VIDEO_CID_CAMERA_GAIN)
 
 #ifdef __cplusplus
 }
