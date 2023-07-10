@@ -1,5 +1,5 @@
 tests:
-  sample.board.csk6.driver.hwinfo:
+  sample.board.csk6.driver.infrared:
     platform_allow: csk6011a_nano
     tags: csk6
     harness: console
