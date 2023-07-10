@@ -11,6 +11,7 @@
 #define DT_DRV_COMPAT sitronix_st7789v
 
 #include "display_st7789v.h"
+#include "display_csk6_lcd.h"
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/spi.h>
@@ -63,10 +64,7 @@ struct st7789v_display_send_ctx {
 struct st7789v_data {
 	uint16_t x_offset;
 	uint16_t y_offset;
-	struct k_sem spi_done_sem;
-	struct k_mutex lock;
-	SPI_DEV *spi;
-	struct st7789v_display_send_ctx display_ctx;
+	void *spi;
 };
 
 #ifdef CONFIG_ST7789V_RGB565
@@ -74,148 +72,6 @@ struct st7789v_data {
 #else
 #define ST7789V_PIXEL_SIZE 3u
 #endif
-
-__attribute__((section(".itcm"))) static int
-spd2010_set_display_datas_with_dma(const struct device *dev, uint8_t *datas,
-					     uint32_t datas_size, uint32_t w, uint32_t h, uint8_t rotate_90);
-
-__attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t event,
-								   uint32_t usr_param)
-{
-	if (event & CSK_SPI_EVENT_TRANSFER_COMPLETE) {
-		const struct device *dev = (const struct device *)usr_param;
-		struct st7789v_data *data = dev->data;
-
-		if (data->display_ctx.buffer) {
-			/* 表示发送的是显示数据 */
-			if (data->display_ctx.curr_cnt < data->display_ctx.line_cnt) {
-				data->display_ctx.buffer += data->display_ctx.step_offset;
-
-				spd2010_set_display_datas_with_dma(
-					dev, (void *)data->display_ctx.buffer,
-					data->display_ctx.line_size, data->display_ctx.w,
-					data->display_ctx.h, data->display_ctx.rotate_90);
-
-				data->display_ctx.curr_cnt++;
-			} else {
-				k_sem_give(&data->spi_done_sem);
-				data->display_ctx.buffer = NULL;
-			}
-		} else {
-			/* 表示发送的是命令 */
-			k_sem_give(&data->spi_done_sem);
-		}
-	}
-}
-
-__attribute__((section(".itcm"))) int32_t SPI_Send_1(void *spi_dev, const void *data, uint32_t num,
-						     uint32_t gather_interval)
-{
-	static uint8_t first = 1;
-	const uint8_t ch = CONFIG_ST7789V_CSK6_DMA_CHANNEL;
-	SPI_DEV *spi = (spi_dev);
-	int32_t stat;
-
-
-	if ((data == NULL) || (num == 0U) || (num > MAX_TRANCNT))
-		return CSK_DRIVER_ERROR_PARAMETER;
-
-	if (!(spi->info->flags & SPI_FLAG_CONFIGURED))
-		return CSK_DRIVER_ERROR;
-
-	if (spi->info->status.bit.busy)
-		return CSK_DRIVER_ERROR_BUSY;
-
-	if (first) {
-		int ret_ch = dma_channel_reserve(ch, spi->dma_tx.cb_event, spi->dma_tx.usr_param,
-						 DMA_CACHE_SYNC_NOP);
-		if (ret_ch != ch) {
-			LOG_ERR("ch %d is not a valid", ch);
-			k_panic();
-		}
-		first = 0;
-	}
-	spi->info->tx_dyn_dma_ch = ch;
-
-	// set busy flag
-	spi->info->status.bit.busy = 1U;
-	spi->info->status.bit.data_unf = 0;
-	spi->info->status.bit.tx_mode = NO_IO;
-	spi->info->xfer.tx_buf = data;
-	spi->info->xfer.tx_cnt = 0U;
-	spi->info->xfer.req_tx_cnt = num;
-	spi->info->xfer.cur_op = SPI_SEND;
-
-	while ((spi->reg->STATUS) & 0x1);
-
-	spi->reg->TRANSCTRL = (SPI_TRANSMODE_WRONLY | WR_TRANCNT(num) |
-			       (spi->reg->TRANSCTRL & SPI_TRANSMODE_CMD_EN));
-
-	spi->info->xfer.dma_tx_done = 0;
-	uint32_t is_gather = 0;
-	uint32_t control = DMA_CH_CTLL_DST_WIDTH(spi->info->dma_width_shift) |
-				 DMA_CH_CTLL_SRC_WIDTH(spi->info->dma_width_shift) |
-				 DMA_CH_CTLL_DST_BSIZE(spi->info->tx_bsize_shift) |
-				 DMA_CH_CTLL_SRC_BSIZE(spi->info->tx_bsize_shift) |
-				 DMA_CH_CTLL_DST_FIX | DMA_CH_CTLL_TTFC_M2P |
-				 DMA_CH_CTLL_DMS(0) | DMA_CH_CTLL_SMS(0) | DMA_CH_CTLL_INT_EN;
-
-	if (gather_interval) {
-		is_gather = (gather_interval - 1) | (1) << 20;
-		control |= DMA_CH_CTLL_S_GATH_EN | DMA_CH_CTLL_SRC_DEC;
-	} else {
-		control |= DMA_CH_CTLL_SRC_INC;
-	}
-
-	const uint32_t config_low = DMA_CH_CFGL_CH_PRIOR(1);
-	const uint32_t config_high = DMA_CH_CFGH_DST_PER(spi->dma_tx.reqsel);
-
-	stat = dma_channel_configure(spi->info->tx_dyn_dma_ch, (uint32_t)spi->info->xfer.tx_buf,
-				     (uint32_t)(&(spi->reg->DATA)), num, control, config_low,
-				     config_high, is_gather, 0);
-
-	if (stat != 0) {
-		LOG_ERR("dma ch %d config failed, ret:%d", ch, stat);
-		return stat;
-	}
-
-	spi->reg->CTRL |= TXDMAEN;
-	// enable interrupts
-	spi->reg->INTREN = SPI_ENDINT;
-	spi->info->status.bit.tx_mode = DMA_IO;
-	while (SPI_TXFIFO_EMPTY(spi));
-	spi->reg->CMD = 0;
-
-	return CSK_DRIVER_OK;
-}
-
-__attribute__((section(".itcm"))) static int
-spd2010_set_display_datas_with_dma(const struct device *dev, uint8_t *datas,
-					     uint32_t datas_size, uint32_t w, uint32_t h, uint8_t rotate_90)
-{
-	struct st7789v_data *data = dev->data;
-
-	datas_size >>= 1;
-
-	if (datas_size == 0) {
-		return 0;
-	}
-
-	if (datas_size >= 512) {
-		/* 不可能会出现,这里还是检查下 */
-		k_panic();
-	}
-
-	uint32_t cnt = datas_size;
-
-	int r = SPI_Send_1(data->spi, datas, cnt, rotate_90 ? w : 0);
-	if (r != 0) {
-		LOG_ERR("SPI_Send_1 failed, error code:%d", r);
-		return r;
-	}
-
-	return 0;
-}
 
 static void st7789v_set_lcd_margins(const struct device *dev,
 				    uint16_t x_offset, uint16_t y_offset)
@@ -235,41 +91,19 @@ __attribute__((section(".itcm"))) static int32_t st7789v_transmit(const struct d
 
 	gpio_pin_set_dt(&config->cmd_data_gpio, 1);
 
-	uint32_t ctrl = 0;
-	ctrl |= CSK_SPI_MODE_MASTER;
-	ctrl |= CSK_SPI_CPOL0_CPHA0;
-	ctrl |= CSK_SPI_MSB_LSB;
-	ctrl |= CSK_SPI_TXIO_DMA;
-	ctrl |= CSK_SPI_DATA_BITS(8);
-
-	k_mutex_lock(&data->lock, K_FOREVER);
-	r = SPI_Control(data->spi, ctrl, 50 * 1000 * 1000);
+	r = display_csk6_lcd_cmd_datas_send(data->spi, &cmd, 1);
 	if (r != 0) {
-		LOG_ERR("SPI_Control failed, error code:%d", r);
-		k_mutex_unlock(&data->lock);
 		return r;
 	}
 
-	/* cmd */
-	r = SPI_Send(data->spi, &cmd, 1);
-	if (r != 0) {
-		LOG_ERR("SPI_Send failed, error code:%d", r);
-		k_mutex_unlock(&data->lock);
-		return r;
-	}
-	k_sem_take(&data->spi_done_sem, K_FOREVER);
 	if ((tx_data != NULL) && (tx_len > 0)) {
 		gpio_pin_set_dt(&config->cmd_data_gpio, 0);
-		/* data */
-		r = SPI_Send(data->spi, tx_data, tx_len);
+		r = display_csk6_lcd_cmd_datas_send(data->spi, tx_data, tx_len);
 		if (r != 0) {
 			LOG_ERR("SPI_Send failed, error code:%d", r);
-			k_mutex_unlock(&data->lock);
 			return r;
 		}
-		k_sem_take(&data->spi_done_sem, K_FOREVER);
 	}
-	k_mutex_unlock(&data->lock);
 
 	return 0;
 }
@@ -342,96 +176,29 @@ st7789v_write(const struct device *dev, const uint16_t x, const uint16_t y,
 {
 	const struct st7789v_config *config = dev->config;
 	struct st7789v_data *data = dev->data;
-	uint8_t rotate_90 = 0;
-	const uint8_t *write_data_start = (uint8_t *)buf;
-	uint32_t start_offset = 0;
-
 	uint32_t new_h = desc->height;
 	uint32_t new_w = desc->width;
 	uint32_t new_x = x;
 	uint32_t new_y = y;
 
-	k_mutex_lock(&data->lock, K_FOREVER);
-
 #if CONFIG_ST7789V_CSK6_ROTATE_90
-	rotate_90 = 1;
+	new_h = desc->width;
+	new_w = desc->height;
+	new_y = x;
+	new_x = config->width - (y + desc->height);
 #endif
-
-	if (rotate_90) {
-		/* 坐标转换旋转90度 */
-		new_h = desc->width;
-		new_w = desc->height;
-		new_y = x;
-		new_x = config->width - (y + desc->height);
-		start_offset = desc->width * (desc->height - 1) * 2;
-	}
 
 	st7789v_set_mem_area(dev, new_x, new_y, new_w, new_h);
 	st7789v_transmit(dev, ST7789V_CMD_RAMWR, NULL, 0);
-
-	SCB_CleanDCache_by_Addr((void *)write_data_start, desc->width * desc->height * 2);
 	gpio_pin_set_dt(&config->cmd_data_gpio, 0);
-	const uint32_t ctrl = CSK_SPI_MODE_MASTER | CSK_SPI_CPOL0_CPHA0 | CSK_SPI_MSB_LSB |
-			      CSK_SPI_TXIO_DMA | CSK_SPI_DATA_BITS(16);
-	const uint32_t speed = 50 * 1000 * 1000;
-	int r = SPI_Control(data->spi, ctrl, speed);
-	if (r != 0) {
-		LOG_ERR("SPI_Control failed, error code:%d", r);
-		k_mutex_unlock(&data->lock);
-		return r;
+
+	int r = display_csk6_lcd_display_datas_send(data->spi, buf, desc->height, desc->width,
+						    IS_ENABLED(CONFIG_ST7789V_CSK6_ROTATE_90));
+	if (r) {
+		LOG_ERR("display_csk6_lcd_display_datas_send failed, r:%d", r);
 	}
 
-	data->display_ctx.h = desc->height;
-	data->display_ctx.w = desc->width;
-	data->display_ctx.curr_cnt = 1;
-	data->display_ctx.buffer = write_data_start + start_offset;
-	data->display_ctx.rotate_90 = rotate_90;
-
-	if (data->display_ctx.rotate_90) {
-		/**
-		 * ROTATE 90
-		 * **********************MEM*********************
-		 * Y                                         [end]
-		 * A  ^    ^    ^    ^    ^    ^    ^    ^    ^
-		 * L  |    |    |    |    |    |    |    |    |
-		 * P  |    |    |    |    |    |    |    |    |
-		 * S  |    |    |    |    |    |    |    |    |
-		 * I  |    |    |    |    |    |    |    |    |
-		 * D  |    |    |    |    |    |    |    |    |
-		 * *  |    |    |    |    |    |    |    |    |
-		 * *[start]
-		 * *********************************************
-		 *
-		 */
-
-		data->display_ctx.line_cnt = desc->width;
-		data->display_ctx.line_size = desc->height * 2;
-		data->display_ctx.step_offset = 1 * 2;
-	} else {
-		/**
-		 * NORMAL
-		 *
-		 * *********************DISPALY & MEM*************************
-		 * [start]------------------------------------------->
-		 *        ------------------------------------------->
-		 *        ------------------------------------------->
-		 *        ------------------------------------------->
-		 *        -------------------------------------------> [end]
-		 * *********************************************************
-		 */
-		data->display_ctx.line_cnt = desc->height;
-		data->display_ctx.line_size = desc->width * 2;
-		data->display_ctx.step_offset = desc->width * 2;
-	}
-
-	/* 剩下的数据将会在中断中发送 */
-	spd2010_set_display_datas_with_dma(dev, (void *)data->display_ctx.buffer,
-						    data->display_ctx.line_size, data->display_ctx.w,
-						     data->display_ctx.h, data->display_ctx.rotate_90);
-	k_sem_take(&data->spi_done_sem, K_FOREVER);
-	k_mutex_unlock(&data->lock);
-
-	return 0;
+	return r;
 }
 
 static void *st7789v_get_framebuffer(const struct device *dev)
@@ -578,33 +345,18 @@ static int st7789v_init(const struct device *dev)
 	const struct st7789v_config *config = dev->config;
 	struct st7789v_data *data = dev->data;
 
-	memset(&data->display_ctx, 0, sizeof(struct st7789v_display_send_ctx));
 	LOG_INF("st7789v_init");
 	if (!spi_is_ready(&config->bus)) {
 		LOG_ERR("SPI device not ready");
 		return -ENODEV;
 	} else {
-		/**
-		 * SPI驱动已经初始化过了，为了直接调用hal驱动，这里需要改变SPI的事件回调地址
-		 *
-		 * 也就是说SPI驱动不能进行复用
-		 *
-		 * 请确保SPI设备的名称为"SPI_0"和"SPI_1"
-		 */
-		SPI_DEV *hal_spi = NULL;
-		if (strcmp(config->bus.bus->name, "SPI_0") == 0) {
-			hal_spi = SPI0();
-		} else if (strcmp(config->bus.bus->name, "SPI_1") == 0) {
-			hal_spi = SPI1();
-		} else {
-			LOG_ERR("SPI device name: %s is not '%s' or '%s'!", config->bus.bus->name,
-				"SPI_0", "SPI_1");
+
+		data->spi = display_csk6_lcd_init(config->bus.bus->name,
+						  CONFIG_ST7789V_CSK6_DMA_CHANNEL);
+		if (data->spi == NULL) {
+			LOG_ERR("hal spi device is null");
 			k_panic();
 		}
-
-		hal_spi->info->cb_event = csk_spi_isr_callback;
-		hal_spi->info->usr_param = (uint32_t)dev;
-		data->spi = hal_spi;
 	}
 
 	if (config->reset_gpio.port != NULL) {
@@ -705,8 +457,6 @@ static const struct display_driver_api st7789v_api = {
 	static struct st7789v_data st7789v_data_ ## inst = {			\
 		.x_offset = DT_INST_PROP(inst, x_offset),			\
 		.y_offset = DT_INST_PROP(inst, y_offset),			\
-		.spi_done_sem = Z_SEM_INITIALIZER(st7789v_data_##inst.spi_done_sem, 0, 1),                     \
-		.lock = Z_MUTEX_INITIALIZER(st7789v_data_##inst.lock),                     \
 	};									\
 										\
 	PM_DEVICE_DT_INST_DEFINE(inst, st7789v_pm_action);			\

@@ -7,6 +7,7 @@ menuconfig ST7789V_CSK6
 	bool "ST7789V display driver"
 	depends on SPI
 	select MUTEX
+	select DISPLAY_CSK6_LCD
 	help
 	  Enable driver for ST7789V display driver.
 

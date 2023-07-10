@@ -1,0 +1,4 @@
+config DISPLAY_CSK6_LCD
+    bool "display csk6 lcd"
+    default n
+    depends on HAS_CSK6
