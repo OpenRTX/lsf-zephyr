@@ -12,12 +12,89 @@
 #include <drivers/video.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(sco30iot, CONFIG_LOG_DEFAULT_LEVEL);
+LOG_MODULE_REGISTER(sco30iot, LOG_LEVEL_INF);
 
 /**
  * @brief  SCO30IOT SENSOR ID
  */
-#define  SCO30IOT_SENSOR_ID    0x32
+// 数据手册中的 CHIP ID 为 0x8A46，实测为 0x9A46
+#define SCO30IOT_SENSOR_ID		0x9A46
+#define SC301IOT_CHIP_ID_REG_H		0xF7
+#define SC301IOT_CHIP_ID_REG_L		0xF8
+
+#define SC301IOT_REG_VALUE_08BIT	1
+#define SC301IOT_REG_VALUE_16BIT	2
+#define SC301IOT_REG_VALUE_24BIT	3
+
+#define BANK_SEL			0xF0
+#define BANK_SEL_SENSOR			0x01
+#define SENSOR_GAIN_AEC			0x70
+#define SENSOR_GAIN_AEC_EN		0x01
+
+/**
+ * @brief  SCO30IOT SENSOR REG
+ */
+#define PAGE_BANK_SEL			0xF0
+
+// 画面镜像和翻转
+#define PAGE_BANK_REG_CID_MIRROR		0x3221	// default mirror off
+#define PAGE_BANK_REG_CID_FLIP			0x3221	// default flip off
+
+#define REG_CID_MIRROR_OFF_VALUE		0x00	// 0x3221,bit[2:1],2'b00 mirror off,2'b11 mirror on
+#define REG_CID_MIRROR_ON_VALUE			0x06	// 0x3221,bit[2:1],2'b00 mirror off,2'b11 mirror on
+#define REG_CID_FLIP_OFF_VALUE			0x00	// 0x3221,bit[6:5],2'b00 flip off,2'b11 flip off
+#define REG_CID_FLIP_ON_VALUE			0x60	// 0x3221,bit[6:5],2'b00 flip off,2'b11 flip off
+
+// Color bar 模式
+#define PAGE_BANK_REG_COLOR_BAR			0x0100	// color bar
+#define PAGE_BANK_REG_COLOR_BAR_EN		0x80	// 0x0100, bit[7] color bar enable, 1: enable, 0: disable
+#define PAGE_BANK_REG_COLOR_BAR_R_VALUE		0x0101	// define color bar R value
+#define PAGE_BANK_REG_COLOR_BAR_G_VALUE		0x0102	// define color bar G value
+#define PAGE_BANK_REG_COLOR_BAR_B_VALUE		0x0103	// define color bar B value
+
+// GAMMA 配置
+#define PAGE_BANK_REG_GAMMA_EN			0x00F5	// gamma enable, 0: enable, 1: disable
+#define PAGE_BANK_REG_GAMMA_EP1			0x0041	//  EP1: gamma coefficient1
+#define PAGE_BANK_REG_GAMMA_EP2			0x0042	//  EP2: gamma coefficient2
+#define PAGE_BANK_REG_GAMMA_EP3			0x0043	//  EP3: gamma coefficient3
+#define PAGE_BANK_REG_GAMMA_EP4			0x0044	//  EP4: gamma coefficient4
+#define PAGE_BANK_REG_GAMMA_EP5			0x0045	//  EP5: gamma coefficient5
+#define PAGE_BANK_REG_GAMMA_EP6			0x0046	//  EP6: gamma coefficient6
+#define PAGE_BANK_REG_GAMMA_EP7			0x0047	//  EP7: gamma coefficient7
+#define PAGE_BANK_REG_GAMMA_EP8			0x0048	//  EP8: gamma coefficient8
+#define PAGE_BANK_REG_GAMMA_EP9			0x0049	//  EP9: gamma coefficient9
+#define PAGE_BANK_REG_GAMMA_EP10		0x004A	//  EP10: gamma coefficient10
+#define PAGE_BANK_REG_GAMMA_EP11		0x004B	//  EP11: gamma coefficient11
+#define PAGE_BANK_REG_GAMMA_EP12		0x004C	//  EP12: gamma coefficient12
+#define PAGE_BANK_REG_GAMMA_EP13		0x004D	//  EP13: gamma coefficient13
+#define PAGE_BANK_REG_GAMMA_EP14		0x004E	//  EP14: gamma coefficient14
+#define PAGE_BANK_REG_GAMMA_EP15		0x004F	//  EP15: gamma coefficient15
+
+// 坏点去除
+#define PAGE_BANK_REG_BAD_PIXEL_CANCELLATION_SIGNLE		0x00E0
+#define REG_BAD_PIXEL_CANCELLATION_SIGNLE_EN			0x04	// 0x00E0,bit[2] single bad pixel cancellation enable, 1: enable, 0: disable
+#define REG_BAD_PIXEL_CANCELLATION_BRIGHT_COUPLET_EN		0x08	// 0x00E0,bit[3] bright couplet bad pixel cancellation enable, 1: enable, 0: disable
+#define REG_BAD_PIXEL_CANCELLATION_DARK_COUPLET_EN		0x20	// 0x00E0,bit[5] dark couplet bad pixel cancellation enable, 1: enable, 0: disable
+
+#define PAGE_BANK_REG_BAD_PIXEL_CANCELLATION_BIG		0x00E2
+#define REG_BAD_PIXEL_CANCELLATION_BIG_CLUSTER_EN		0x08	// 0x00E2,bit[3] big cluster bad pixel cancellation enable, 1: enable, 0: disable
+
+// 手动曝光&全局增益
+#define PAGE_BANK_REG_EXPOSURE_GAIN				0x0070	// AEC/AGC enable
+#define REG_EXPOSURE_GAIN_AEC_REG_EN				0x01	// 0x0070,bit[0] mannual exposure AEC enable, 1: auto, 0: mannual
+#define REG_EXPOSURE_GAIN_AGC_REG_EN				0x02	// 0x0070,bit[1] mannual exposure value
+
+#define PAGE_BANK_REG_EXPOSURE_GLOBAL_GAIN			0x0072	// Exposure global gain
+#define REG_EXPOSURE_GLOBAL_GAIN_AGC_EN				0x80	// 0x0072,bit[7] Global gain and digital gain control 1: independent; 0: non independent
+
+// 以半行为单位，最小值为 1，最大值 为 2*{16'h320e,16'h320f} - 'd8，调节 步长为 1
+#define REG_EXPOSURE_REG_EXPOSURE_TIME_L			0x008D	// {16'h008d}
+#define REG_EXPOSURE_REG_EXPOSURE_TIME_H			0x008E	// {16'h008e}
+
+#define REG_EXPOSURE_GLOBAL_GAIN_TIME_L				0x008B	// {16'h008b[3:0]}
+#define REG_EXPOSURE_GLOBAL_GAIN_TIME_H				0x008C	// {16'h008c}
+
+#define PAGE_BANK_REG_EXPOSURE_DIGITAL_GAIN			0x009E	// Exposure digital gain
 
 struct sco30iot_data {
 	const struct i2c_dt_spec i2c_bus;
@@ -1095,6 +1172,7 @@ static int sco30iot_write_reg(const struct device *dev, uint8_t reg_addr, uint8_
 	return i2c_transfer(drv_data->i2c_bus.bus, &msgs, 1, drv_data->i2c_bus.addr);
 }
 
+
 static int sco30iot_read_reg(const struct device *dev, uint8_t reg_addr, uint8_t *value)
 {
 	struct sco30iot_data *drv_data = dev->data;
@@ -1139,12 +1217,33 @@ static int sco30iot_write_all(const struct device *dev, const struct sco30iot_re
 
 	for (i = 0; i < reg_num; i++) {
 		err = sco30iot_write_reg(dev, regs[i].addr, regs[i].value);
-		k_sleep(K_MSEC(10));
+		// k_sleep(K_MSEC(10));
 		if (err) {
 			return err;
 		}
 	}
 
+	return 0;
+}
+
+static int sco30iot_write_page_reg_16bit(const struct device *dev, uint16_t reg_addr, uint8_t value)
+{
+	int ret = 0;
+	struct sco30iot_data *drv_data = dev->data;
+
+	uint16_t reg_addr_tmp = reg_addr;
+	ret |= sco30iot_write_reg(dev, 0xF0, (reg_addr_tmp>>8));
+	ret |= sco30iot_write_reg(dev, (reg_addr_tmp&0xFF), value);
+	return ret;
+}
+
+static int sco30iot_read_page_reg_16bit(const struct device *dev, uint16_t reg_addr, uint8_t *value)
+{
+	int ret = 0;
+
+	uint16_t reg_addr_temp = reg_addr;
+	ret |= sco30iot_write_reg(dev, 0xF0, (reg_addr_temp>>8));
+	ret |= sco30iot_read_reg(dev, (reg_addr_temp & 0xFF), value);
 	return 0;
 }
 
@@ -1239,36 +1338,164 @@ static int sco30iot_ctrl_init(const struct device *dev)
 		LOG_ERR("I2C config failed!");
 		return -EIO;
 	}
+	uint32_t sensor_id = 0;
+	uint8_t id_h = 0;
+	uint8_t id_l = 0;
 
-	uint8_t sensor_id;
-	ret = sco30iot_read_reg(dev, 0xF0, &sensor_id);
+	ret = sco30iot_read_reg(dev, SC301IOT_CHIP_ID_REG_H, &id_h);
+	ret = sco30iot_read_reg(dev, SC301IOT_CHIP_ID_REG_L, &id_l);
+	sensor_id = (id_h << 8) | id_l;
 	if (ret) {
 		LOG_ERR("Unable to read sco30iot pid, ret=%d", ret);
 		return -ENODEV;
 	}
-	LOG_INF("Sensor id: 0x%x", sensor_id);
-
 	if(sensor_id != SCO30IOT_SENSOR_ID){
 		LOG_ERR("sco30iot read sensor id err 0x%x", sensor_id);
 		return -ENODEV;
 	}
 
+	LOG_INF("Sensor id: 0x%X", sensor_id);
 	/* Configure Sensor */
 
 	return 0;
 }
+
+static int sco30iot_set_gain_ctrl(const struct device *dev, int enable)
+{
+	int ret = 0;
+	uint8_t reg = 0;
+
+	ret = sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GAIN, &reg);
+
+	if (enable) {
+		reg |= REG_EXPOSURE_GAIN_AEC_REG_EN;
+	} else {
+		reg &= ~REG_EXPOSURE_GAIN_AEC_REG_EN;
+	}
+
+	ret |= sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GAIN, reg);
+	ret = sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GAIN, &reg);
+
+	return ret;
+}
+
+static int sco30iot_set_horizontal_mirror(const struct device *dev, int enable)
+{
+	int ret = 0;
+	uint8_t reg_mirror = 0;
+
+	sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_CID_MIRROR, &reg_mirror);
+	if (enable) {
+		reg_mirror |= REG_CID_MIRROR_ON_VALUE;
+	} else {
+		reg_mirror &= ~REG_CID_MIRROR_ON_VALUE;
+	}
+	ret = sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_CID_MIRROR, reg_mirror);
+
+	if (ret) {
+		LOG_WRN("Unable to write sco30iot mirror ret=%d", ret);
+		return ret;
+	}
+	return ret;
+}
+
+static int sco30iot_set_vertical_flip(const struct device *dev, int enable)
+{
+	int ret = 0;
+	uint8_t reg_value = 0;
+
+	sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_CID_FLIP, &reg_value);
+	// LOG_INF("sco30iot_set_horizontal_mirror reg = 0x%x\n", reg_value);
+	if (enable) {
+		reg_value |= REG_CID_FLIP_ON_VALUE;
+	} else {
+		reg_value &= ~REG_CID_FLIP_ON_VALUE;
+	}
+	ret = sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_CID_FLIP, reg_value);
+
+	if (ret) {
+		LOG_WRN("Unable to write sco30iot mirror ret=%d", ret);
+		return ret;
+	}
+	return ret;
+}
+
+static int sco30iot_set_exposure_time(const struct device *dev, int value)
+{
+	int ret = 0;
+	uint8_t reg_value = 0;
+
+	// disable auto exposure, disable auto gain
+	reg_value &= ~(REG_EXPOSURE_GAIN_AEC_REG_EN | REG_EXPOSURE_GAIN_AGC_REG_EN);
+	sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GAIN, reg_value);
+	
+	// set exposure time
+	uint16_t exposure_time = value;
+	#define EXPOSURE_TIME_MAX 0x3FFF
+	if (exposure_time > EXPOSURE_TIME_MAX) {
+		exposure_time = EXPOSURE_TIME_MAX;
+	}
+	ret = sco30iot_write_page_reg_16bit(dev, REG_EXPOSURE_REG_EXPOSURE_TIME_H, (exposure_time >> 8) & 0xFF);
+	ret = sco30iot_write_page_reg_16bit(dev, REG_EXPOSURE_REG_EXPOSURE_TIME_L, exposure_time & 0xFF);
+
+	if (ret) {
+		LOG_WRN("Unable to set sco30iot exposure ret=%d", ret);
+		return ret;
+	}
+	return ret;
+}
+
+static int sco30iot_set_colorbar(const struct device *dev, int enable)
+{
+	int ret = 0;
+	uint8_t reg_value = 0;
+
+	sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_COLOR_BAR, &reg_value);
+	if (enable) {
+		reg_value |= PAGE_BANK_REG_COLOR_BAR_EN;
+	} else {
+		reg_value &= ~PAGE_BANK_REG_COLOR_BAR_EN;
+	}
+
+	ret = sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_COLOR_BAR, reg_value);
+
+	if (ret) {
+		LOG_WRN("Unable to set sco30iot colorbar ret=%d", ret);
+		return ret;
+	}
+	return ret;
+}
+
 static int sco30iot_set_ctrl(const struct device *dev, unsigned int cid, void *value)
 {
 	int ret = 0;
 
 	switch (cid) {
-	/*
-		该sensor只有在mclk有输入时钟的情况下，i2c才能正常通信，所以并不能在内核设备初始化流程中进行sensor初始化。
-		目前是通过set_ctrl来提供sensor初始化的api.
-	*/
-	case 0:
-		k_sleep(K_MSEC(5));// wait for mclk stable, otherwise i2c can't work, and sensor can't be initialized. (>=4ms)
+	case VIDEO_CID_HFLIP:
+		ret = sco30iot_set_horizontal_mirror(dev, (int)value);
+		break;
+	case VIDEO_CID_VFLIP:
+		ret = sco30iot_set_vertical_flip(dev, (int)value);
+		break;
+	case VIDEO_CID_INIT:
+		/*
+			该sensor只有在mclk有输入时钟的情况下，i2c才能正常通信，所以并不能在内核设备初始化流程中进行sensor初始化。
+			目前是通过set_ctrl来提供sensor初始化的api.
+		*/
+		k_sleep(K_MSEC(50));// wait for mclk stable, otherwise i2c can't work, and sensor can't be initialized. (>=4ms)
 		ret = sco30iot_ctrl_init(dev);
+		break;
+	case VIDEO_CID_CAMERA_GAIN:
+		ret = sco30iot_set_gain_ctrl(dev, (int)value);
+		break;
+	case VIDEO_CID_CAMERA_EXPOSURE_TIME:
+		ret = sco30iot_set_exposure_time(dev, (int)value);
+		break;
+	// case VIDEO_CID_EXPOSURE:
+	// 	ret = sco30iot_set_exposure(dev, (int)value);
+	// 	break;
+	case VIDEO_CID_CAMERA_COLORBAR:
+		ret |= sco30iot_set_colorbar(dev, (int)value);
 		break;
 	default:
 		return -ENOTSUP;

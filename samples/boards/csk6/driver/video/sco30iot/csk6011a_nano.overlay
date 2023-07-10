@@ -121,7 +121,7 @@
 &uart1 {
 	pinctrl-0 = <&pinctrl_uart1_tx_default>;
 	pinctrl-names = "default";
-	current-speed = <921600>;
+	current-speed = <2000000>;
 	status = "okay";
 };
 
