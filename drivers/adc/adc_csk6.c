@@ -27,6 +27,7 @@ LOG_MODULE_REGISTER(csk6_adc, LOG_LEVEL_WRN);
 #define DEV_CFG(dev) ((struct adc_csk6_cfg * const)(dev)->config)
 #define DEV_HANDLER(dev) ((void *)(DEV_DATA(dev)->handle))
 #define CSK_ADC_CHANNEL_SEL(n)	((1 << n) << CSK_GPADC_CHANNEL_SEL_Pos)
+#define CSK_ADC_MASK_CHANNEL_SEL(n)	((n) << CSK_GPADC_CHANNEL_SEL_Pos)
 
 #define ADC_TRIGGER_NUM  (3)
 #define ADC_CHANNEL_COUNT (7)
@@ -42,8 +43,7 @@ struct adc_csk6_data {
     void *handle; 
     
 	struct adc_context ctx;
-	/* Channels mask */
-	uint32_t channels;
+
 	/* Save ADC result to the buffer. */
 	uint16_t *buffer;
 	/*
@@ -92,8 +92,6 @@ static int adc_csk6_start_read(const struct device *dev,
 static int adc_csk6_channel_setup(const struct device *dev,
 				   const struct adc_channel_cfg *channel_cfg)
 {
-	struct adc_csk6_data *data = DEV_DATA(dev);
-
 	if (channel_cfg->channel_id >= ADC_CHANNEL_COUNT) {
 		LOG_ERR("ADC Channel %d is not valid", channel_cfg->channel_id);
 		return -EINVAL;
@@ -120,12 +118,7 @@ static int adc_csk6_channel_setup(const struct device *dev,
 		return -EINVAL;
 	}
 	
-	data->channels |= CSK_ADC_CHANNEL_SEL(channel_cfg->channel_id);
-	HAL_GPADC_Control(DEV_HANDLER(dev), CSK_GPADC_SAMPLETIME_8 | CSK_GPADC_CLKFREQ_12M |	\
-	 					data->channels | \
-					  	CSK_GPADC_INPUT_MODE_Single | CSK_GPADC_VREF_SEL_1_25V | CSK_GPADC_DMA_DISABLE);
-	
-	LOG_DBG("channels(0x%x) setup", data->channels);
+	LOG_DBG("channels(0x%x) setup", channel_cfg->channel_id);
 
 	return 0;
 }
@@ -190,6 +183,10 @@ static void adc_context_start_sampling(struct adc_context *ctx)
 	const struct device *dev = DEVICE_DT_INST_GET(0);
 
 	LOG_DBG("start_sampling channel_mask: 0x%x", channel_mask);
+
+	HAL_GPADC_Control(DEV_HANDLER(dev), CSK_GPADC_SAMPLETIME_8 | CSK_GPADC_CLKFREQ_12M |	\
+	 					CSK_ADC_MASK_CHANNEL_SEL(channel_mask) | \
+					  	CSK_GPADC_INPUT_MODE_Single | CSK_GPADC_VREF_SEL_1_25V | CSK_GPADC_DMA_DISABLE);
 
 	//The previous two sample data was inaccurate,so need sample three times
 	data->triggernum = ADC_TRIGGER_NUM;
