@@ -8,7 +8,7 @@
 #include <zephyr.h>
 
 #include <zephyr/device.h>
-#include <zephyr/drivers/infrared.h>
+#include <infrared.h>
 #include <zephyr/sys/printk.h>
 
 #include <zephyr/logging/log.h>
