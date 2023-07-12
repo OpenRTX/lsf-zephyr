@@ -1,0 +1,15 @@
+#
+# Copyright (c) 2023 Anhui(Shenzhen) Listenai Co., Ltd.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+description: CSK IR
+
+compatible: "listenai,csk-ir"
+
+include: [base.yaml, pinctrl-device.yaml]
+
+properties:
+    interrupts:
+      required: true
