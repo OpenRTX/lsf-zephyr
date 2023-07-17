@@ -82,6 +82,9 @@ LOG_MODULE_REGISTER(sco30iot, CONFIG_LOG_DEFAULT_LEVEL);
 #define PAGE_BANK_REG_EXPOSURE_GLOBAL_GAIN			0x0072	// Exposure global gain
 #define REG_EXPOSURE_GLOBAL_GAIN_AGC_EN				0x80	// 0x0072,bit[7] Global gain and digital gain control 1: independent; 0: non independent
 
+// 数字增益
+#define PAGE_BANK_REG_DIG_GAIN					0x009E	// Digital gain
+
 // 以半行为单位，最小值为 1，最大值 为 2*{16'h320e,16'h320f} - 'd8，调节 步长为 1
 #define REG_EXPOSURE_REG_EXPOSURE_TIME_L			0x008D	// {16'h008d}
 #define REG_EXPOSURE_REG_EXPOSURE_TIME_H			0x008E	// {16'h008e}
@@ -593,6 +596,56 @@ static int sco30iot_set_vertical_flip(const struct device *dev, int enable)
 	return ret;
 }
 
+static const struct sco30iot_reg sco30iot_manual_gain[] = {
+	{0x53, 0x00},
+	{0x70, 0x4c},
+	{0x72, 0xc0},
+	{0xb0, 0xc0},
+	{0xc8, 0x10},
+	{0xc9, 0x10},
+	{0xf5, 0xff},
+};
+
+static int sco30iot_set_gain(const struct device *dev, int value)
+{
+	int ret = 0;
+	uint8_t reg_value = 0;
+
+	// disable auto exposure, disable auto gain
+	sco30iot_set_gain_ctrl(dev, 0);
+
+	sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GLOBAL_GAIN, &reg_value);
+	// LOG_INF("sco30iot_set_horizontal_mirror reg = 0x%x\n", reg_value);
+
+	// global gain and digital gain control: independent
+	reg_value |= REG_EXPOSURE_GLOBAL_GAIN_AGC_EN;
+	ret |= sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GLOBAL_GAIN, reg_value);
+	
+	if (ret) {
+		LOG_WRN("Unable to config sco30iot gain ret=%d", ret);
+		return ret;
+	}
+
+	ret |= sco30iot_write_all(dev, sco30iot_manual_gain,
+		ARRAY_SIZE(sco30iot_manual_gain));
+
+	if (ret) {
+		LOG_WRN("Unable to config sco30iot manual gain ret=%d", ret);
+		return ret;
+	}
+
+	sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_DIG_GAIN, &reg_value);
+	LOG_INF("sco30iot Digital reg = 0x%x\n", reg_value);
+	ret |= sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_DIG_GAIN, value);
+
+	if (ret) {
+		LOG_WRN("Unable to config sco30iot Digital gain ret=%d", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
 static int sco30iot_set_exposure_time(const struct device *dev, int value)
 {
 	int ret = 0;
@@ -664,9 +717,9 @@ static int sco30iot_set_ctrl(const struct device *dev, unsigned int cid, void *v
 	case VIDEO_CID_CAMERA_EXPOSURE_TIME:
 		ret = sco30iot_set_exposure_time(dev, (int)value);
 		break;
-	// case VIDEO_CID_EXPOSURE:
-	// 	ret = sco30iot_set_exposure(dev, (int)value);
-	// 	break;
+	case VIDEO_CID_CAMERA_GAIN_PARAMETERS:
+		ret = sco30iot_set_gain(dev, (int)value);
+		break;
 	case VIDEO_CID_CAMERA_COLORBAR:
 		ret |= sco30iot_set_colorbar(dev, (int)value);
 		break;
