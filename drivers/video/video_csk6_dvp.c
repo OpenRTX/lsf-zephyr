@@ -415,7 +415,7 @@ static int video_csk6_dvp_init(const struct device *dev)
 
 	//some SENSOR can communicate with I2C only when DVP interface outputs PCLK first
 	if (data->sensor_dev) {
-		ret = video_set_ctrl(data->sensor_dev, 0, 0);
+		ret = video_set_ctrl(data->sensor_dev, VIDEO_CID_INIT, (void *)1);
 	}
 
 	return 0;
