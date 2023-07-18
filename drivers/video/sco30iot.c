@@ -84,6 +84,8 @@ LOG_MODULE_REGISTER(sco30iot, CONFIG_LOG_DEFAULT_LEVEL);
 
 // 数字增益
 #define PAGE_BANK_REG_DIG_GAIN					0x009E	// Digital gain
+#define PAGE_BANK_REG_DIG_GAIN_VALUE_MIN			0x10	// 0x009E, digital gain min value
+#define PAGE_BANK_REG_DIG_GAIN_VALUE_MAX			0x7F	// 0x009E, digital gain max value
 
 // 以半行为单位，最小值为 1，最大值 为 2*{16'h320e,16'h320f} - 'd8，调节 步长为 1
 #define REG_EXPOSURE_REG_EXPOSURE_TIME_L			0x008D	// {16'h008d}
@@ -603,7 +605,7 @@ static const struct sco30iot_reg sco30iot_manual_gain[] = {
 	{0xb0, 0xc0},
 	{0xc8, 0x10},
 	{0xc9, 0x10},
-	{0xf5, 0xff},
+	// {0x00f5, 0xff},
 };
 
 static int sco30iot_set_gain(const struct device *dev, int value)
@@ -611,11 +613,22 @@ static int sco30iot_set_gain(const struct device *dev, int value)
 	int ret = 0;
 	uint8_t reg_value = 0;
 
+#if 1
+	// 配置开启手动增益,之后必须重新写入初始化序列
+	ret |= sco30iot_write_all(dev, sco30iot_manual_gain,
+		ARRAY_SIZE(sco30iot_manual_gain));
+	ret |= sco30iot_write_page_reg_16bit(dev, 0x00f5, 0xff);
+
+	ret = sco30iot_write_all(dev, sco30iot_init_reg_tb,
+					ARRAY_SIZE(sco30iot_init_reg_tb));
+	if (ret) {
+		LOG_WRN("Unable to config sco30iot manual gain ret=%d", ret);
+		return ret;
+	}
+#endif
+
 	// disable auto exposure, disable auto gain
 	sco30iot_set_gain_ctrl(dev, 0);
-
-	sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GLOBAL_GAIN, &reg_value);
-	// LOG_INF("sco30iot_set_horizontal_mirror reg = 0x%x\n", reg_value);
 
 	// global gain and digital gain control: independent
 	reg_value |= REG_EXPOSURE_GLOBAL_GAIN_AGC_EN;
@@ -626,16 +639,9 @@ static int sco30iot_set_gain(const struct device *dev, int value)
 		return ret;
 	}
 
-	ret |= sco30iot_write_all(dev, sco30iot_manual_gain,
-		ARRAY_SIZE(sco30iot_manual_gain));
-
-	if (ret) {
-		LOG_WRN("Unable to config sco30iot manual gain ret=%d", ret);
-		return ret;
+	if (value < PAGE_BANK_REG_DIG_GAIN_VALUE_MIN || value > PAGE_BANK_REG_DIG_GAIN_VALUE_MAX) {
+		LOG_WRN("sco30iot Digital gain value out of range");
 	}
-
-	sco30iot_read_page_reg_16bit(dev, PAGE_BANK_REG_DIG_GAIN, &reg_value);
-	LOG_INF("sco30iot Digital reg = 0x%x\n", reg_value);
 	ret |= sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_DIG_GAIN, value);
 
 	if (ret) {
@@ -651,16 +657,18 @@ static int sco30iot_set_exposure_time(const struct device *dev, int value)
 	int ret = 0;
 	uint8_t reg_value = 0;
 
+	sco30iot_read_page_reg_16bit(dev, REG_EXPOSURE_REG_EXPOSURE_TIME_H, &reg_value);
+	LOG_INF("sco30iot sco30iot_set_exposure_time_h reg = 0x%x\n", reg_value);
+	sco30iot_read_page_reg_16bit(dev, REG_EXPOSURE_REG_EXPOSURE_TIME_L, &reg_value);
+	LOG_INF("sco30iot sco30iot_set_exposure_time_l reg = 0x%x\n", reg_value);
+
 	// disable auto exposure, disable auto gain
 	reg_value &= ~(REG_EXPOSURE_GAIN_AEC_REG_EN | REG_EXPOSURE_GAIN_AGC_REG_EN);
 	sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GAIN, reg_value);
 	
 	// set exposure time
 	uint16_t exposure_time = value;
-	#define EXPOSURE_TIME_MAX 0x3FFF
-	if (exposure_time > EXPOSURE_TIME_MAX) {
-		exposure_time = EXPOSURE_TIME_MAX;
-	}
+
 	ret = sco30iot_write_page_reg_16bit(dev, REG_EXPOSURE_REG_EXPOSURE_TIME_H, (exposure_time >> 8) & 0xFF);
 	ret = sco30iot_write_page_reg_16bit(dev, REG_EXPOSURE_REG_EXPOSURE_TIME_L, exposure_time & 0xFF);
 
@@ -698,30 +706,30 @@ static int sco30iot_set_ctrl(const struct device *dev, unsigned int cid, void *v
 
 	switch (cid) {
 	case VIDEO_CID_HFLIP:
-		ret = sco30iot_set_horizontal_mirror(dev, (int)value);
+		ret = sco30iot_set_horizontal_mirror(dev, *(int *)value);
 		break;
 	case VIDEO_CID_VFLIP:
-		ret = sco30iot_set_vertical_flip(dev, (int)value);
+		ret = sco30iot_set_vertical_flip(dev, *(int *)value);
 		break;
 	case VIDEO_CID_INIT:
 		/*
 			该sensor只有在mclk有输入时钟的情况下，i2c才能正常通信，所以并不能在内核设备初始化流程中进行sensor初始化。
 			目前是通过set_ctrl来提供sensor初始化的api.
 		*/
-		k_sleep(K_MSEC(50));// wait for mclk stable, otherwise i2c can't work, and sensor can't be initialized. (>=4ms)
+		k_sleep(K_MSEC(5));// wait for mclk stable, otherwise i2c can't work, and sensor can't be initialized. (>=4ms)
 		ret = sco30iot_ctrl_init(dev);
 		break;
 	case VIDEO_CID_CAMERA_GAIN:
-		ret = sco30iot_set_gain_ctrl(dev, (int)value);
+		ret = sco30iot_set_gain_ctrl(dev, *(int *)value);
 		break;
 	case VIDEO_CID_CAMERA_EXPOSURE_TIME:
-		ret = sco30iot_set_exposure_time(dev, (int)value);
+		ret = sco30iot_set_exposure_time(dev, *(int *)value);
 		break;
 	case VIDEO_CID_CAMERA_GAIN_PARAMETERS:
-		ret = sco30iot_set_gain(dev, (int)value);
+		ret = sco30iot_set_gain(dev, *(int *)value);
 		break;
 	case VIDEO_CID_CAMERA_COLORBAR:
-		ret |= sco30iot_set_colorbar(dev, (int)value);
+		ret |= sco30iot_set_colorbar(dev, *(int *)value);
 		break;
 	default:
 		return -ENOTSUP;
