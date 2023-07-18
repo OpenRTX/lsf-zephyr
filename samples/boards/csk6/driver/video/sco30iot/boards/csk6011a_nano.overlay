@@ -132,7 +132,7 @@
 	data-align-type = "high_align";
 	pclk-polarity = "post_edge_sampling";
 	hsync-polarity = "active_high";
-	vsync-polarity = "active_low";
+	vsync-polarity = "active_high";
 
 	pinctrl-0 = <
 		&pinctrl_dvp_clkout_default
