@@ -716,7 +716,7 @@ static int sco30iot_set_ctrl(const struct device *dev, unsigned int cid, void *v
 			该sensor只有在mclk有输入时钟的情况下，i2c才能正常通信，所以并不能在内核设备初始化流程中进行sensor初始化。
 			目前是通过set_ctrl来提供sensor初始化的api.
 		*/
-		k_sleep(K_MSEC(5));// wait for mclk stable, otherwise i2c can't work, and sensor can't be initialized. (>=4ms)
+		k_sleep(K_MSEC(10));// wait for mclk stable, otherwise i2c can't work, and sensor can't be initialized. (>=4ms)
 		ret = sco30iot_ctrl_init(dev);
 		break;
 	case VIDEO_CID_CAMERA_GAIN:
