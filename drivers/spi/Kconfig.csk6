@@ -19,4 +19,12 @@ config SPI_RX_DMA
 	default y
 	select DMA
 
+config SPI_TX_RX_DMA_FAST_RELOAD
+	bool "Enable SPI TX RX DMA fast reload"
+	default n
+	depends on SPI_TX_DMA
+	depends on SPI_RX_DMA
+	help
+		Enable SPI TX RX DMA fast reload
+
 endif #SPI_CSK6

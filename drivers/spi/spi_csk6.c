@@ -276,7 +276,110 @@ static int csk_spi_release(const struct device *dev, const struct spi_config *sp
     return 0;
 }
 
-static void csk_spi_isr_callback(uint32_t event, uint32_t usr_param)
+#ifdef CONFIG_SPI_TX_RX_DMA_FAST_RELOAD
+__attribute__((section(".itcm"))) inline static int csk_spi_hal_reload(SPI_DEV *spi, uint8_t *tx_buf, uint8_t *rx_buf, uint32_t num)
+{
+	spi->info->status.bit.busy = 1U;
+	spi->info->status.bit.data_unf = 0;
+	spi->info->status.bit.tx_mode = NO_IO;
+
+	spi->info->xfer.tx_buf = tx_buf;
+	spi->info->xfer.rx_buf = rx_buf;
+	spi->info->xfer.tx_cnt = 0U;
+	spi->info->xfer.rx_cnt = 0U;
+	spi->info->xfer.req_tx_cnt = num;
+	spi->info->xfer.req_rx_cnt = num;
+
+	while ((spi->reg->STATUS) & 0x1);
+
+	uint32_t ctrl = (spi->reg->TRANSCTRL & SPI_TRANSMODE_CMD_EN);
+
+	if (tx_buf && rx_buf) {
+		ctrl |= SPI_TRANSMODE_WRnRD |  WR_TRANCNT(num) | RD_TRANCNT(num);
+	} else {
+		if (tx_buf) {
+			ctrl |= SPI_TRANSMODE_WRONLY |  WR_TRANCNT(num);
+		} else {
+			ctrl |= SPI_TRANSMODE_RDONLY |  RD_TRANCNT(num);
+		}
+	}
+	spi->reg->TRANSCTRL = ctrl;
+
+	if (TX_DMA(spi->info->txrx_mode)) {
+		extern int32_t dma_reload(uint8_t ch, void *dst, void *src, uint32_t cnt);
+
+		/* rx */
+		if (rx_buf) {
+			spi->info->xfer.dma_rx_done = 0;
+			spi->info->rx_dyn_dma_ch =
+				dma_channel_select(&spi->info->rx_dyn_dma_ch, spi->dma_rx.cb_event,
+						   spi->dma_rx.usr_param, DMA_CACHE_SYNC_NOP);
+			if (spi->info->rx_dyn_dma_ch == DMA_CHANNEL_ANY) {
+				LOG_ERR("%s: NO free DMA channel for rx!!\r\n", __func__);
+				return CSK_DRIVER_ERROR;
+			}
+			dma_reload(spi->info->rx_dyn_dma_ch, rx_buf, (void *)&spi->reg->DATA, num);
+			spi->reg->CTRL |= RXDMAEN;
+			spi->info->status.bit.rx_mode = DMA_IO;
+			spi->info->xfer.cur_op = SPI_RECEIVE;
+		}
+
+		/* tx */
+		if (tx_buf) {
+			spi->info->xfer.dma_tx_done = 0;
+			spi->info->tx_dyn_dma_ch =
+				dma_channel_select(&spi->info->tx_dyn_dma_ch, spi->dma_tx.cb_event,
+						   spi->dma_tx.usr_param, DMA_CACHE_SYNC_NOP);
+			if (spi->info->tx_dyn_dma_ch == DMA_CHANNEL_ANY) {
+				LOG_ERR("%s: NO free DMA channel for rx!!\r\n", __func__);
+				return CSK_DRIVER_ERROR;
+			}
+			dma_reload(spi->info->tx_dyn_dma_ch, (void *)&spi->reg->DATA, tx_buf, num);
+			spi->reg->CTRL |= TXDMAEN;
+			spi->info->status.bit.tx_mode = DMA_IO;
+			spi->info->xfer.cur_op = SPI_SEND;
+		}
+
+		if (tx_buf && rx_buf) {
+			spi->info->xfer.cur_op = SPI_TRANSFER;
+		}
+		spi->reg->INTREN = SPI_ENDINT;
+	}
+
+	if ((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_SLAVE) {
+		CLR_SLV_WRCNT(spi);
+		spi->reg->INTREN |= SPI_TXFIFOURINT;
+		spi->reg->SLVST |= SLVST_READY;
+	}
+
+	if ((spi->info->txrx_mode & CSK_SPI_MODE_Msk) == CSK_SPI_MODE_MASTER) {
+		while (SPI_TXFIFO_EMPTY(spi));
+		spi->reg->CMD = 0;
+	}
+
+	return CSK_DRIVER_OK;
+}
+
+__attribute__((section(".itcm"))) inline static int csk_spi_reload(const struct device *dev)
+{
+	struct csk_spi_data *data = dev->data;
+	struct spi_context *ctx = &data->ctx;
+	size_t chunk_len = spi_context_max_continuous_chunk(ctx);
+
+	if (chunk_len == 0) {
+		spi_context_cs_control(&data->ctx, false);
+		spi_context_complete(ctx, 0);
+		return 0;
+	}
+
+	uint32_t real_trans_size = (chunk_len > MAX_TRANCNT) ? MAX_TRANCNT : chunk_len;
+	data->current_transfer_len = real_trans_size;
+
+	return csk_spi_hal_reload(data->driver_context, (uint8_t *)ctx->tx_buf, (uint8_t *)ctx->rx_buf, real_trans_size);
+}
+#endif
+
+__attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t event, uint32_t usr_param)
 {
 	const struct device *dev = (const struct device *)usr_param;
 	struct csk_spi_data *data = dev->data;
@@ -286,7 +389,11 @@ static void csk_spi_isr_callback(uint32_t event, uint32_t usr_param)
 	if (event & CSK_SPI_EVENT_TRANSFER_COMPLETE) {
 		spi_context_update_tx(&data->ctx, dw, data->current_transfer_len);
 		spi_context_update_rx(&data->ctx, dw, data->current_transfer_len);
-		csk_spi_hal_transceive(dev);
+#ifdef CONFIG_SPI_TX_RX_DMA_FAST_RELOAD
+		csk_spi_reload(dev);
+#else
+		csk_spi_hal_transceive(dev);		
+#endif
 	}
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
     else if (event & CSK_SPI_EVENT_DMA_COMPLETE){
@@ -299,7 +406,7 @@ static void csk_spi_isr_callback(uint32_t event, uint32_t usr_param)
     /* TODO: add transfer error processing */
 }
 
-static void csk_zephyr_spi_isr(const struct device *dev)
+__attribute__((section(".itcm"))) static void csk_zephyr_spi_isr(const struct device *dev)
 {
 	struct csk_spi_data *data = dev->data;
 	SPI_DEV *hal_spi = data->driver_context;
