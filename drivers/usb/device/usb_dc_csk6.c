@@ -1045,7 +1045,7 @@ int usb_dc_ep_read_wait(uint8_t ep, uint8_t *data, uint32_t max_data_len, uint32
 			}
 		} else if (usb_venus_ctrl.status == USB_VENUS_STS_OUT) {
 			//OUT data phase
-			if (bytes_to_copy < usb_venus_ctrl.out_ep_ctrl[ep_idx].mps) {
+			if ((bytes_to_copy >= max_data_len) || (bytes_to_copy < usb_venus_ctrl.out_ep_ctrl[ep_idx].mps)) {
 				//return to setup phase
 				usb_venus_ctrl.status = USB_VENUS_STS_SETUP;
 			}
