@@ -8,4 +8,40 @@ config SDMMC_NON_BLOCK_INIT
     help
         Make the CSK6 SDMMC Driver init into non-block
 
+config SDMMC_CSK6_SRAM_CACHE_ACCESS
+    bool "CSK6 SDMMC SRAM Cache Access"
+    select DMA
+    select DMA_CSK6
+    default n
+    help
+        CSK6 SDMMC SRAM Cache Access
+
+config SDMMC_CSK6_SRAM_CACHE_SIZE
+    int "CSK6 SDMMC SRAM Cache Size"
+    default 51200
+    depends on SDMMC_CSK6_SRAM_CACHE_ACCESS
+    help 
+        CSK6 SDMMC SRAM Cache Size
+
+config SDMMC_CSK6_SRAM_CACHE_NUM
+    int "CSK6 SDMMC SRAM Cache Number"
+    default 1
+    depends on SDMMC_CSK6_SRAM_CACHE_ACCESS
+    help
+        CSK6 SDMMC SRAM Cache Number
+
+config SDMMC_CSK6_SRAM_CACHE_DMA_COPY_THRESHOLD
+    int "CSK6 SDMMC SRAM Cache dma copy threshold"
+    default 5120
+    depends on SDMMC_CSK6_SRAM_CACHE_ACCESS
+    help
+        CSK6 SDMMC SRAM Cache dma copy threshold
+
+config SDMMC_CSK6_DMA_CHANNEL
+    int "CSK6 SDMMMC DMA Channel"
+    default 1
+    depends on SDMMC_CSK6_SRAM_CACHE_ACCESS
+    help 
+        CSK6 SDMMMC DMA Channel
+
 endif # SDMMC_CSK6
