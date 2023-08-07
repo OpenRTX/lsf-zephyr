@@ -92,6 +92,7 @@ static uint8_t sdcard_buf[sizeof(SDCardInfo)]     __attribute__ ((aligned(4)));
 //SDIO驱动需要32字节对齐
 #define _ALIGEN		(32)
 
+#ifndef CONFIG_SDMMC_CSK6_SRAM_CACHE_ACCESS
 /*
 	目前上海SDIO驱动只支持sector为512字节的读写
 	后期可能优化至支持1024字节的block size
@@ -99,6 +100,8 @@ static uint8_t sdcard_buf[sizeof(SDCardInfo)]     __attribute__ ((aligned(4)));
 static uint8_t sdcard_w_buf[1024]     __attribute__((aligned(_ALIGEN)));
 
 static uint8_t sdcard_r_buf[1024]     __attribute__((aligned(_ALIGEN)));
+
+#endif
 
 static void NullSetting()
 {
@@ -121,7 +124,7 @@ static int csk6_sdmmc_access_status(struct disk_info *disk)
 	return DISK_STATUS_OK;
 }
 
-static bool is_addr_in_sdram(uint32_t addr)
+static inline bool is_addr_in_sdram(uint32_t addr)
 {
 	uint32_t sram_base = DT_REG_ADDR(DT_CHOSEN(zephyr_sram));
 	uint32_t sram_size = DT_REG_SIZE(DT_CHOSEN(zephyr_sram));
@@ -132,20 +135,409 @@ static bool is_addr_in_sdram(uint32_t addr)
 	return false;
 }
 
+#ifdef CONFIG_SDMMC_CSK6_SRAM_CACHE_ACCESS
+
+enum {
+	DISK_MEM_ERR_NONE = 0,
+	DISK_MEM_ERR_BREAKED = -1,
+	DISK_MEM_ERR_ACCESS_FAILED = -2,
+	DISK_MEM_ERR_DMA_FAILED = -3,
+};
+
+#include <zephyr/drivers/dma.h>
+
+#define SDMMC_CSK6_ACCESS_MODE_READ 0
+#define SDMMC_CSK6_ACCESS_MODE_WRITE 1
+
+static uint8_t sdmmc_sram_cache[CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM][CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE]
+	__attribute__((aligned(32))) = {0};
+
+K_FIFO_DEFINE(sdmmc_queue_psram2sram);
+
+typedef struct fifo_item {
+	void *reserved;
+	uint8_t *buffer;
+} fifo_item_t;
+
+static fifo_item_t fifo_items[CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM] = {0};
+
+#define SDMMC_CSK6_DMA_CHANNEL CONFIG_SDMMC_CSK6_DMA_CHANNEL
+#define SDMMC_ADDR2SECTOR(addr, sec_size) ((addr) / (sec_size))
+
+#if (CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE < 1024) 
+#error "CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE too small"
+#endif
+
+#if CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM < 1
+#error CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM < 1
+#endif
+
+static inline bool csk6_sdmmc_addr_can_fast_access(void *addr)
+{
+	return ((((uint32_t) addr) % _ALIGEN) == 0) && is_addr_in_sdram((uint32_t)addr);
+}
+
+static inline int csk6_sdmmc_hal_access(uint8_t *data_buf, uint32_t start_sector,
+					uint32_t num_sector, uint8_t mode)
+{
+	return mode == SDMMC_CSK6_ACCESS_MODE_READ
+		       ? gm_sdc_api_sdcard_sector_read(SD_0, start_sector, num_sector, data_buf)
+		       : gm_sdc_api_sdcard_sector_write(SD_0, start_sector, num_sector, data_buf);
+}
+
+static void dma_callback(const struct device *dev, void *user_data, uint32_t channel, int status)
+{
+	if (status == 0 && channel == SDMMC_CSK6_DMA_CHANNEL) {
+		if (user_data) {
+			k_fifo_put(&sdmmc_queue_psram2sram, user_data);
+		}
+	} else {
+		LOG_ERR("dma callback failed: %d, ch: %d", status, channel);
+	}
+}
+
+static inline int32_t  disk_mem_dma_copy(fifo_item_t *item, uint8_t *dst, uint8_t *src, uint32_t size)
+{
+	/* start dma to copy datas */
+	struct dma_block_config block_config = {
+		.source_address = (uint32_t)src,
+		.dest_address = (uint32_t)dst,
+		.block_size = size,
+		.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+		.source_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+	};
+
+	struct dma_config dma_cfg = {
+		.channel_direction = MEMORY_TO_MEMORY,
+		.dma_callback = dma_callback,
+		.user_data = item,
+		.block_count = 1,
+		.head_block = &block_config,
+		.source_data_size = 4,
+		.dest_data_size = 4,
+		.channel_priority = 1,
+		.source_burst_length = 4,
+		.dest_burst_length = 4,
+	};
+	const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(dma0));
+	int err = dma_config(dev, SDMMC_CSK6_DMA_CHANNEL, &dma_cfg);
+	if (err != 0) {
+		LOG_ERR("dma config failed: %d", err);
+		return err;
+	}
+
+	err = dma_start(dev, SDMMC_CSK6_DMA_CHANNEL);
+	if (err != 0) {
+		LOG_ERR("dma start failed: %d", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static inline void csk6_sdmmc_inner_sram_cache_to_target(fifo_item_t *item, uint8_t *dst,
+							 uint8_t *src, uint32_t size)
+{
+	if (size < CONFIG_SDMMC_CSK6_SRAM_CACHE_DMA_COPY_THRESHOLD) {
+		/* memcpy is better than dma when the amount of data is small */
+		memcpy(dst, src, size);
+		k_fifo_put(&sdmmc_queue_psram2sram, item);
+	} else {
+		/* item will be puted at dma callback */
+		disk_mem_dma_copy(item, dst, src, size);
+	}
+}
+
+static inline int csk_sdmmc_access_inner_sram(struct disk_info *disk, uint8_t *data_buf,
+				       uint32_t start_sector, uint32_t num_sector, uint8_t mode)
+{
+	const uint32_t sector_size = ((struct sdmmc_csk_data *)disk->dev->data)->blk_size;
+
+	uint32_t cache_num_sector = CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE / sector_size;
+	uint32_t cnt = num_sector / (cache_num_sector);
+	int err;
+	fifo_item_t *item = NULL;
+
+	while (cnt--) {
+		item = k_fifo_get(&sdmmc_queue_psram2sram, K_FOREVER);
+		if (mode == SDMMC_CSK6_ACCESS_MODE_READ) {
+			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cache_num_sector,
+						    mode);
+			if (err) {
+				k_fifo_put(&sdmmc_queue_psram2sram, item);
+				return err;
+			}
+			SCB_CleanDCache_by_Addr(item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+			csk6_sdmmc_inner_sram_cache_to_target(item, data_buf, item->buffer,
+							      CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+			SCB_InvalidateDCache_by_Addr(data_buf, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+
+		} else {
+			SCB_CleanDCache_by_Addr(data_buf, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+			csk6_sdmmc_inner_sram_cache_to_target(item, item->buffer, data_buf,
+							      CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+			SCB_InvalidateDCache_by_Addr(item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cache_num_sector, mode);
+			if (err) {
+				k_fifo_put(&sdmmc_queue_psram2sram, item);
+				return err;
+			}
+		}
+
+		start_sector += cache_num_sector;
+		data_buf += CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE;
+	}
+	item = k_fifo_get(&sdmmc_queue_psram2sram, K_FOREVER);
+	cnt = num_sector % cache_num_sector;
+	if (cnt) {
+		if (mode == SDMMC_CSK6_ACCESS_MODE_READ) {
+			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cnt, mode);
+			if (err) {
+				k_fifo_put(&sdmmc_queue_psram2sram, item);
+				return err;
+			}
+			SCB_CleanDCache_by_Addr(item->buffer, cnt * sector_size);
+			csk6_sdmmc_inner_sram_cache_to_target(item, data_buf, item->buffer,
+							      cnt * sector_size);
+			SCB_InvalidateDCache_by_Addr(data_buf, cnt * sector_size);
+		} else {
+			SCB_CleanDCache_by_Addr(data_buf, cnt * sector_size);
+			csk6_sdmmc_inner_sram_cache_to_target(item, item->buffer, data_buf,
+							      cnt * sector_size);
+			SCB_InvalidateDCache_by_Addr(item->buffer, cnt * sector_size);
+			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cache_num_sector,
+						    mode);
+			if (err) {
+				k_fifo_put(&sdmmc_queue_psram2sram, item);
+				return err;
+			}
+		}
+	} else {
+		k_fifo_put(&sdmmc_queue_psram2sram, item);
+	}
+
+	/* have to wait for dma copy complete here */
+	fifo_item_t *items[CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM];
+	uint8_t i;
+	for (i = 0; i < CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM; i++) {
+		items[i] = k_fifo_get(&sdmmc_queue_psram2sram, K_FOREVER);
+	}
+
+	for (i = 0; i < CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM; i++) {
+		k_fifo_put(&sdmmc_queue_psram2sram, items[i]);
+	}
+
+	return 0;
+}
+
+static int csk6_sdmmc_access(struct disk_info *disk, uint8_t *data_buf, uint32_t start_sector,
+			     uint32_t num_sector, uint8_t mode)
+{
+	int err = 0;
+
+	if (csk6_sdmmc_addr_can_fast_access(data_buf)) {
+		err = csk6_sdmmc_hal_access(data_buf, start_sector, num_sector, mode);
+	} else {
+		err = csk_sdmmc_access_inner_sram(disk, data_buf, start_sector, num_sector, mode);
+	}
+
+	if (err != ERR_SD_NO_ERROR) {
+		LOG_ERR("sd read single block failed %d", err);
+	}
+
+	return (err != ERR_SD_NO_ERROR) ? -EIO : 0;
+}
+
+static inline bool sdmmc_bytes_read_need_to_break(struct k_sem *break_sem)
+{
+	return break_sem ? (k_sem_take(break_sem, K_NO_WAIT) == 0) : false;
+}
+
+static int sdmmc_memcpy(void *dst, void *src, uint32_t size, struct k_sem *break_sem, uint32_t sector_size)
+{
+	int err;
+	uint32_t sec_num = 0;
+	uint32_t sec = 0;
+	void *p_dst = dst;
+	void *p_src = dst;
+
+	uint32_t s_size = size;
+	uint8_t breaked = 0;
+	if (break_sem) {
+		k_sem_reset(break_sem);
+	}
+
+	fifo_item_t *item = NULL;
+
+	if ((((uint32_t)src) & (sector_size - 1)) > 0) {
+		item = k_fifo_get(&sdmmc_queue_psram2sram, K_FOREVER);
+
+		/* nand address is not aligned with sector size */
+		sec = SDMMC_ADDR2SECTOR((uint32_t)src, sector_size);
+		sec_num = 1;
+
+		err = gm_sdc_api_sdcard_sector_read(SD_0, sec, sec_num, item->buffer);
+		if (err != 0) {
+			LOG_ERR("disk read failed: %d", err);
+			k_fifo_put(&sdmmc_queue_psram2sram, item);
+			return DISK_MEM_ERR_ACCESS_FAILED;
+		}
+
+		uint32_t copy_size =
+			sector_size - (((uint32_t)src) & (sector_size - 1));
+		/* no need to use DMA for data copying */
+		memcpy(dst, item->buffer + (((uint32_t)src) & (sector_size - 1)),
+		       copy_size <= size ? copy_size : size);
+		k_fifo_put(&sdmmc_queue_psram2sram, item);
+
+		if (size <= copy_size) {
+			/* datas read done */
+			goto dis_mem_done;
+		}
+
+		src = (char*)src + copy_size;
+		dst = (char*)dst + copy_size;
+		size -= copy_size;
+	}
+
+	uint32_t loop = size / CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE;
+	uint32_t remain = size % CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE;
+
+	/* nand address aligned with sector size now */
+	while (loop--) {
+		item = k_fifo_get(&sdmmc_queue_psram2sram, K_FOREVER);
+		/* is high prio msg received or not */
+		if (sdmmc_bytes_read_need_to_break(break_sem)) {
+			breaked = 1;
+			k_fifo_put(&sdmmc_queue_psram2sram, item);
+			goto disk_mem_break;
+		}
+
+		sec = SDMMC_ADDR2SECTOR((uint32_t)src, sector_size);
+		sec_num = CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE / sector_size;
+
+		LOG_DBG("sec:%d, sec_num:%d", sec, sec_num);
+	
+		/* read datas from disk */
+		err = gm_sdc_api_sdcard_sector_read(SD_0, sec, sec_num, item->buffer);
+		if (err != 0) {
+			LOG_ERR("disk read failed: %d", err);
+			k_fifo_put(&sdmmc_queue_psram2sram, item);
+			return DISK_MEM_ERR_ACCESS_FAILED;
+		}
+
+		/* put mem to queue to start next dma cpy */
+		SCB_CleanDCache_by_Addr(item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+
+		err = disk_mem_dma_copy(item, dst, item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+		if (err != 0) {
+			k_fifo_put(&sdmmc_queue_psram2sram, item);
+			return DISK_MEM_ERR_DMA_FAILED;
+		}
+
+		/* update for next loop */
+		size -= sec_num * sector_size;
+		dst = (char*)dst + sec_num * sector_size;
+		src = (char*)src + sec_num * sector_size;
+	}
+	item = k_fifo_get(&sdmmc_queue_psram2sram, K_FOREVER);
+	/**
+	 * item is always valid here
+	 * continue to read remain datas
+	 */
+	if (remain > 0) {
+		if (sdmmc_bytes_read_need_to_break(break_sem)) {
+			breaked = 1;
+			k_fifo_put(&sdmmc_queue_psram2sram, item);
+			goto disk_mem_break;
+		}
+
+		sec = SDMMC_ADDR2SECTOR((uint32_t)src, sector_size);
+		sec_num = remain / sector_size;
+
+		/* maybe need to read more sector */
+		sec_num += (remain % sector_size != 0) ? 1 : 0;
+		LOG_DBG("remain:%d, sec:%d, sec_num:%d, src:%p", remain, sec, sec_num, src);
+		err = gm_sdc_api_sdcard_sector_read(SD_0, sec, sec_num, item->buffer);
+		if (err != 0) {
+			LOG_ERR("disk read failed: %d", err);
+			k_fifo_put(&sdmmc_queue_psram2sram, item);
+			return DISK_MEM_ERR_ACCESS_FAILED;
+		}
+
+		SCB_CleanDCache_by_Addr(item->buffer, remain);
+		/* make sure size is aligned with 4 byte */
+		uint32_t s = ROUND_DOWN(remain, 4);
+
+		if (s > 0) {
+			err = disk_mem_dma_copy(item, dst, item->buffer, s);
+			if (err != 0) {
+				k_fifo_put(&sdmmc_queue_psram2sram, item);
+				return DISK_MEM_ERR_DMA_FAILED;
+			}
+		} else {
+			k_fifo_put(&sdmmc_queue_psram2sram, item);
+		}
+
+		uint8_t c = remain & 0x03;
+		if (c > 0) {
+			memcpy((char*)dst + s, item->buffer + s, c);
+		}
+	} else {
+		k_fifo_put(&sdmmc_queue_psram2sram, item);
+	}
+
+disk_mem_break:
+	if (breaked) {
+		LOG_WRN("Disk memory read stopped abnormally, dst:%p, src:%p, size:%d", p_dst, p_src, s_size);
+	}
+	/* have to wait for dma copy complete here */
+	fifo_item_t *items[CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM];
+	uint8_t i;
+	for (i = 0; i < CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM; i++) {
+		items[i] = k_fifo_get(&sdmmc_queue_psram2sram, K_FOREVER);
+	}
+
+	for (i = 0; i < CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM; i++) {
+		k_fifo_put(&sdmmc_queue_psram2sram, items[i]);
+	}
+
+dis_mem_done:
+	/* flush cache now */
+	SCB_InvalidateDCache_by_Addr(p_dst, s_size);
+
+	return breaked ? DISK_MEM_ERR_BREAKED : DISK_MEM_ERR_NONE;
+}
+
+static int csk6_sdmmc_bytes_read(struct disk_info *disk,
+				 const struct disk_ioctl_byte_read *read_info)
+{
+	wait_init_done();
+	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
+	const uint32_t sector_size = ((struct sdmmc_csk_data *)disk->dev->data)->blk_size;
+	int err = sdmmc_memcpy(read_info->datas, read_info->addr, read_info->size,
+			      read_info->break_sem, sector_size);
+	k_mutex_unlock(&sdmmc_mutex);
+
+	return err;
+}
+
+#endif
+
 static int csk6_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
 				   uint32_t start_sector, uint32_t num_sector)
 {
 	uint32_t err;
-	uint8_t *p = data_buf;
-	const struct device *dev = disk->dev;
-	struct sdmmc_csk_data *data = dev->data;
 
 	wait_init_done();
 	LOG_DBG("%s start_sector=%d num_sector=%d", __FUNCTION__, start_sector, num_sector);
 
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 
-
+#ifndef CONFIG_SDMMC_CSK6_SRAM_CACHE_ACCESS
+	const struct device *dev = disk->dev;
+	uint8_t *p = data_buf;
+	struct sdmmc_csk_data *data = dev->data;
 	if((((uint32_t)p % _ALIGEN) != 0) || !is_addr_in_sdram((uint32_t)p)){
 		for(uint32_t i = start_sector; i < start_sector + num_sector; i++){
 			err = gm_sdc_api_sdcard_sector_read(SD_0, i, 1, sdcard_r_buf);
@@ -169,6 +561,14 @@ static int csk6_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
 			return -EIO;
 		}
 	}
+#else
+	err = csk6_sdmmc_access(disk, data_buf, start_sector, num_sector,
+				SDMMC_CSK6_ACCESS_MODE_READ);
+	if (err) {
+		k_mutex_unlock(&sdmmc_mutex);
+		return err;
+	}
+#endif
 
 	k_mutex_unlock(&sdmmc_mutex);
 	return 0;
@@ -179,15 +579,16 @@ static int csk6_sdmmc_access_write(struct disk_info *disk,
 				    uint32_t start_sector, uint32_t num_sector)
 {
 	uint32_t err;
-	uint8_t *p = (uint8_t *)data_buf;
-	const struct device *dev = disk->dev;
-	struct sdmmc_csk_data *data = dev->data;
 
 	wait_init_done();
 	LOG_DBG("%s start_sector=%d num_sector=%d", __FUNCTION__, start_sector, num_sector);
 
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 
+#ifndef CONFIG_SDMMC_CSK6_SRAM_CACHE_ACCESS
+	const struct device *dev = disk->dev;
+	uint8_t *p = (uint8_t *)data_buf;
+	struct sdmmc_csk_data *data = dev->data;
 	if(((uint32_t)p % _ALIGEN) != 0 || !is_addr_in_sdram((uint32_t)p)){
 		for(uint32_t i = start_sector; i < start_sector + num_sector; i++){
 			memcpy(sdcard_w_buf, p, data->blk_size);
@@ -208,7 +609,14 @@ static int csk6_sdmmc_access_write(struct disk_info *disk,
 			return -EIO;
 		}
 	}
-
+#else
+	err = csk6_sdmmc_access(disk, (uint8_t *)data_buf, start_sector, num_sector,
+				SDMMC_CSK6_ACCESS_MODE_WRITE);
+	if (err) {
+		k_mutex_unlock(&sdmmc_mutex);
+		return err;
+	}
+#endif
 	k_mutex_unlock(&sdmmc_mutex);
 	return 0;
 }
@@ -219,6 +627,11 @@ static int csk6_sdmmc_access_ioctl(struct disk_info *disk, uint8_t cmd,
 	uint32_t blk_len, blk_num, erase_size;
 	uint32_t err;
 	wait_init_done();
+
+	if (cmd == DISK_IOCTL_BYTE_READ) {
+		return csk6_sdmmc_bytes_read(disk, (struct disk_ioctl_byte_read *)buff);
+	}
+
 	k_mutex_lock(&sdmmc_mutex, K_FOREVER);
 	err = lib_sdc_get_card_info(SD_0, &blk_len, &blk_num, &erase_size);
 	if (err != ERR_SD_NO_ERROR) {
@@ -287,6 +700,14 @@ static int disk_csk6_sdmmc_init(const struct device *dev)
 {
 	const struct sdmmc_csk_config *cfg = dev->config;
 	int err = 0;
+
+#ifdef CONFIG_SDMMC_CSK6_SRAM_CACHE_ACCESS
+	uint8_t i;
+	for (i = 0; i < CONFIG_SDMMC_CSK6_SRAM_CACHE_NUM; i++) {
+		fifo_items[i].buffer = &sdmmc_sram_cache[i][0];
+		k_fifo_put(&sdmmc_queue_psram2sram, &fifo_items[i]);
+	}
+#endif
 
 	pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
 
