@@ -47,6 +47,15 @@ extern "C" {
 /** Commit any cached read/writes to disk */
 #define DISK_IOCTL_CTRL_SYNC			5
 
+#define DISK_IOCTL_BYTE_READ 			6
+
+struct disk_ioctl_byte_read {
+	void *addr;
+	void *datas;
+	uint32_t size;
+	struct k_sem *break_sem;
+};
+
 /**
  * @brief Possible return bitmasks for disk_status()
  */
