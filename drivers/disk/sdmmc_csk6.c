@@ -215,7 +215,7 @@ static inline int32_t  disk_mem_dma_copy(fifo_item_t *item, uint8_t *dst, uint8_
 		.head_block = &block_config,
 		.source_data_size = 4,
 		.dest_data_size = 4,
-		.channel_priority = 1,
+		.channel_priority = 0,
 		.source_burst_length = 4,
 		.dest_burst_length = 4,
 	};
