@@ -81,6 +81,7 @@ LOG_MODULE_REGISTER(sco30iot, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define PAGE_BANK_REG_EXPOSURE_GLOBAL_GAIN			0x0072	// Exposure global gain
 #define REG_EXPOSURE_GLOBAL_GAIN_AGC_EN				0x80	// 0x0072,bit[7] Global gain and digital gain control 1: independent; 0: non independent
+#define REG_AUTO_EXPOSURE_TARGET_VALUE				0x7F	// 0x0072,bit[6:0] 自动曝光的目标值
 
 // 数字增益
 #define PAGE_BANK_REG_DIG_GAIN					0x009E	// Digital gain
@@ -598,54 +599,16 @@ static int sco30iot_set_vertical_flip(const struct device *dev, int enable)
 	return ret;
 }
 
-static const struct sco30iot_reg sco30iot_manual_gain[] = {
-	{0x53, 0x00},
-	{0x70, 0x4c},
-	{0x72, 0xc0},
-	{0xb0, 0xc0},
-	{0xc8, 0x10},
-	{0xc9, 0x10},
-	// {0x00f5, 0xff},
-};
-
 static int sco30iot_set_gain(const struct device *dev, int value)
 {
 	int ret = 0;
 	uint8_t reg_value = 0;
 
-#if 1
-	// 配置开启手动增益,之后必须重新写入初始化序列
-	ret |= sco30iot_write_all(dev, sco30iot_manual_gain,
-		ARRAY_SIZE(sco30iot_manual_gain));
-	ret |= sco30iot_write_page_reg_16bit(dev, 0x00f5, 0xff);
-
-	ret = sco30iot_write_all(dev, sco30iot_init_reg_tb,
-					ARRAY_SIZE(sco30iot_init_reg_tb));
-	if (ret) {
-		LOG_WRN("Unable to config sco30iot manual gain ret=%d", ret);
-		return ret;
-	}
-#endif
-
-	// disable auto exposure, disable auto gain
-	sco30iot_set_gain_ctrl(dev, 0);
-
-	// global gain and digital gain control: independent
-	reg_value |= REG_EXPOSURE_GLOBAL_GAIN_AGC_EN;
-	ret |= sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GLOBAL_GAIN, reg_value);
+	reg_value = (value & REG_AUTO_EXPOSURE_TARGET_VALUE);
+	ret = sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_EXPOSURE_GLOBAL_GAIN, reg_value);
 	
 	if (ret) {
 		LOG_WRN("Unable to config sco30iot gain ret=%d", ret);
-		return ret;
-	}
-
-	if (value < PAGE_BANK_REG_DIG_GAIN_VALUE_MIN || value > PAGE_BANK_REG_DIG_GAIN_VALUE_MAX) {
-		LOG_WRN("sco30iot Digital gain value out of range");
-	}
-	ret |= sco30iot_write_page_reg_16bit(dev, PAGE_BANK_REG_DIG_GAIN, value);
-
-	if (ret) {
-		LOG_WRN("Unable to config sco30iot Digital gain ret=%d", ret);
 		return ret;
 	}
 
