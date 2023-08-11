@@ -445,23 +445,34 @@ static int sco30iot_read_page_reg_16bit(const struct device *dev, uint16_t reg_a
 	return 0;
 }
 
+static int sc030iot_set_fmt_windows(const struct device *dev, int offset_x, int offset_y, int w, int h)
+{
+	//sc:H_start={0x0172[1:0],0x0170},H_end={0x0172[5:4],0x0171},
+	sco30iot_write_page_reg_16bit(dev, 0x0170, offset_x & 0xff);
+	sco30iot_write_page_reg_16bit(dev, 0x0171, (offset_x+w) & 0xff);
+	sco30iot_write_page_reg_16bit(dev, 0x0172, ((offset_x>>8) & 0x03) | (((offset_x+w)>>4)&0x30));
+
+	//sc:V_start={0x0175[1:0],0x0173},H_end={0x0175[5:4],0x0174},
+	sco30iot_write_page_reg_16bit(dev, 0x0173, offset_y & 0xff);
+	sco30iot_write_page_reg_16bit(dev, 0x0174, (offset_y+h) & 0xff);
+	sco30iot_write_page_reg_16bit(dev, 0x0175, ((offset_y>>8) & 0x03) | (((offset_y+h)>>4)&0x30));
+
+	return 0;
+}
+
 static int sco30iot_set_fmt(const struct device *dev, enum video_endpoint_id ep,
 			    struct video_format *fmt)
 {
 	int ret = 0;
-
-	if (fmt->pixelformat == VIDEO_PIX_FMT_VYUY && fmt->height == 480 && fmt->width == 640) {
-		ret = sco30iot_write_all(dev, sco30iot_init_reg_tb,
-					 ARRAY_SIZE(sco30iot_init_reg_tb));
-		if (ret) {
-			LOG_ERR("Unable to write sco30iot config");
-			return ret;
-		}
-
-		return 0;
+	if (fmt->pixelformat == VIDEO_PIX_FMT_VYUY) {
+		uint16_t offset_x = (640-fmt->width) /2;
+		uint16_t offset_y = (480-fmt->width) /2;
+		ret = sc030iot_set_fmt_windows(dev, offset_x, offset_y, fmt->width, fmt->height);
+	} else {
+		LOG_ERR("video format unsupported \n");
+		return -ENOTSUP;
 	}
-	LOG_ERR("video format unsupported \n");
-	return -ENOTSUP;
+	return ret;
 }
 
 static int sco30iot_get_fmt(const struct device *dev, enum video_endpoint_id ep,
@@ -536,7 +547,14 @@ static int sco30iot_ctrl_init(const struct device *dev)
 	LOG_INF("Sensor id: 0x%X", sensor_id);
 	/* Configure Sensor */
 
-	return 0;
+	ret = sco30iot_write_all(dev, sco30iot_init_reg_tb,
+					ARRAY_SIZE(sco30iot_init_reg_tb));
+	if (ret) {
+		LOG_ERR("Unable to write sco30iot config");
+		return ret;
+	}
+
+	return ret;
 }
 
 static int sco30iot_set_gain_ctrl(const struct device *dev, int enable)
