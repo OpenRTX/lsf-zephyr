@@ -465,8 +465,12 @@ static int sco30iot_set_fmt(const struct device *dev, enum video_endpoint_id ep,
 {
 	int ret = 0;
 	if (fmt->pixelformat == VIDEO_PIX_FMT_VYUY) {
+		if ((fmt->width > 640) || (fmt->height > 480)) {
+			LOG_ERR("video format unsupported \n");
+			return -ENOTSUP;
+		}
 		uint16_t offset_x = (640-fmt->width) /2;
-		uint16_t offset_y = (480-fmt->width) /2;
+		uint16_t offset_y = (480-fmt->height) /2;
 		ret = sc030iot_set_fmt_windows(dev, offset_x, offset_y, fmt->width, fmt->height);
 	} else {
 		LOG_ERR("video format unsupported \n");
