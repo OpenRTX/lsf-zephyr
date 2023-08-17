@@ -174,6 +174,7 @@ static int transceive(const struct device *dev,
 {
 	struct csk_spi_data *data = dev->data;
 	uint8_t dw = SPI_WORD_SIZE_GET(spi_cfg->operation);
+	uint32_t cnt;
 
 	if (dw != 8 && dw != 16 && dw != 32) {
 		LOG_ERR("Unsupported data width(%d bit).", dw);
@@ -227,6 +228,18 @@ static int transceive(const struct device *dev,
 			c--;
 		}
 	}
+#endif
+
+#ifdef CONFIG_SPI_TX_RX_DMA_FAST_RELOAD
+	/*clean cache of tx buffer */
+	for(cnt=0;(tx_bufs!= NULL) && (cnt<tx_bufs->count);cnt++){
+		SCB_CleanDCache_by_Addr(tx_bufs->buffers[cnt].buf, tx_bufs->buffers[cnt].len);
+	}
+
+	/*invalidate cache rx buffer*/
+	for(cnt=0;(rx_bufs!= NULL) && (cnt<rx_bufs->count);cnt++){
+		SCB_InvalidateDCache_by_Addr(rx_bufs->buffers[cnt].buf, rx_bufs->buffers[cnt].len);
+	}	
 #endif
 
 	spi_context_lock(&data->ctx, asynchronous, signal, spi_cfg);
