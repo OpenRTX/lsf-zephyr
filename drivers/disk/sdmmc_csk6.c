@@ -245,6 +245,10 @@ static inline void csk6_sdmmc_inner_sram_cache_to_target(fifo_item_t *item, uint
 	} else {
 		/* item will be puted at dma callback */
 		disk_mem_dma_copy(item, dst, src, size);
+
+		/* make sure dma complete if only has one fifo item */
+		fifo_item_t *next_item = k_fifo_get(&sdmmc_queue_psram2sram, K_FOREVER);
+		k_fifo_put(&sdmmc_queue_psram2sram, item);
 	}
 }
 
@@ -305,7 +309,7 @@ static inline int csk_sdmmc_access_inner_sram(struct disk_info *disk, uint8_t *d
 			csk6_sdmmc_inner_sram_cache_to_target(item, item->buffer, data_buf,
 							      cnt * sector_size);
 			SCB_InvalidateDCache_by_Addr(item->buffer, cnt * sector_size);
-			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cache_num_sector,
+			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cnt,
 						    mode);
 			if (err) {
 				k_fifo_put(&sdmmc_queue_psram2sram, item);
