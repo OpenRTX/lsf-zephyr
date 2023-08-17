@@ -26,6 +26,7 @@ config SDMMC_CSK6_SRAM_CACHE_SIZE
 config SDMMC_CSK6_SRAM_CACHE_NUM
     int "CSK6 SDMMC SRAM Cache Number"
     default 1
+    range 0 1
     depends on SDMMC_CSK6_SRAM_CACHE_ACCESS
     help
         CSK6 SDMMC SRAM Cache Number
