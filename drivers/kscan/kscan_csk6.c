@@ -24,7 +24,7 @@ LOG_MODULE_REGISTER(csk6_keysense, LOG_LEVEL_WRN);
 #define DEV_CB(dev) (DEV_DATA(dev)->cb)
 
 //offset of analog key voltage monitoring
-#define ANALOG_KEY_TRIGGER_OFFSET 100
+#define ANALOG_KEY_TRIGGER_OFFSET CONFIG_ANALOG_KEY_TRIGGER_OFFSET
 
 /* Common settings supported by most ADCs */
 #define ADC_RESOLUTION		11
