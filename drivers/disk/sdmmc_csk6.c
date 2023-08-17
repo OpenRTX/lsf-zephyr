@@ -15,6 +15,7 @@
 LOG_MODULE_REGISTER(csk6_sdmmc, CONFIG_SDMMC_LOG_LEVEL);
 
 K_MUTEX_DEFINE(sdmmc_mutex);
+K_SEM_DEFINE(dma_copy_sem,0,1);
 struct sdmmc_csk_config {
 	void (*irq_config_func)(const struct device *dev);
 	const struct pinctrl_dev_config *pcfg;
@@ -189,7 +190,8 @@ static void dma_callback(const struct device *dev, void *user_data, uint32_t cha
 {
 	if (status == 0 && channel == SDMMC_CSK6_DMA_CHANNEL) {
 		if (user_data) {
-			k_fifo_put(&sdmmc_queue_psram2sram, user_data);
+			k_sem_give(&dma_copy_sem);
+			
 		}
 	} else {
 		LOG_ERR("dma callback failed: %d, ch: %d", status, channel);
@@ -225,12 +227,17 @@ static inline int32_t  disk_mem_dma_copy(fifo_item_t *item, uint8_t *dst, uint8_
 		LOG_ERR("dma config failed: %d", err);
 		return err;
 	}
-
+	SCB_InvalidateDCache_by_Addr(dst, size);
+	SCB_CleanDCache_by_Addr(src, size);
 	err = dma_start(dev, SDMMC_CSK6_DMA_CHANNEL);
 	if (err != 0) {
 		LOG_ERR("dma start failed: %d", err);
 		return err;
 	}
+
+	k_sem_take(&dma_copy_sem,K_FOREVER);
+	
+	k_fifo_put(&sdmmc_queue_psram2sram, item);
 
 	return 0;
 }
@@ -267,16 +274,13 @@ static inline int csk_sdmmc_access_inner_sram(struct disk_info *disk, uint8_t *d
 				k_fifo_put(&sdmmc_queue_psram2sram, item);
 				return err;
 			}
-			SCB_CleanDCache_by_Addr(item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
 			csk6_sdmmc_inner_sram_cache_to_target(item, data_buf, item->buffer,
 							      CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
-			SCB_InvalidateDCache_by_Addr(data_buf, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
-
+	
 		} else {
-			SCB_CleanDCache_by_Addr(data_buf, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+		
 			csk6_sdmmc_inner_sram_cache_to_target(item, item->buffer, data_buf,
 							      CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
-			SCB_InvalidateDCache_by_Addr(item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
 			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cache_num_sector, mode);
 			if (err) {
 				k_fifo_put(&sdmmc_queue_psram2sram, item);
@@ -296,16 +300,16 @@ static inline int csk_sdmmc_access_inner_sram(struct disk_info *disk, uint8_t *d
 				k_fifo_put(&sdmmc_queue_psram2sram, item);
 				return err;
 			}
-			SCB_CleanDCache_by_Addr(item->buffer, cnt * sector_size);
+
 			csk6_sdmmc_inner_sram_cache_to_target(item, data_buf, item->buffer,
 							      cnt * sector_size);
-			SCB_InvalidateDCache_by_Addr(data_buf, cnt * sector_size);
+
 		} else {
-			SCB_CleanDCache_by_Addr(data_buf, cnt * sector_size);
+
 			csk6_sdmmc_inner_sram_cache_to_target(item, item->buffer, data_buf,
 							      cnt * sector_size);
-			SCB_InvalidateDCache_by_Addr(item->buffer, cnt * sector_size);
-			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cache_num_sector,
+								  
+			err = csk6_sdmmc_hal_access(item->buffer, start_sector, cnt,
 						    mode);
 			if (err) {
 				k_fifo_put(&sdmmc_queue_psram2sram, item);
@@ -425,7 +429,6 @@ static int sdmmc_memcpy(void *dst, void *src, uint32_t size, struct k_sem *break
 		}
 
 		/* put mem to queue to start next dma cpy */
-		SCB_CleanDCache_by_Addr(item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
 
 		err = disk_mem_dma_copy(item, dst, item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
 		if (err != 0) {
@@ -463,7 +466,6 @@ static int sdmmc_memcpy(void *dst, void *src, uint32_t size, struct k_sem *break
 			return DISK_MEM_ERR_ACCESS_FAILED;
 		}
 
-		SCB_CleanDCache_by_Addr(item->buffer, remain);
 		/* make sure size is aligned with 4 byte */
 		uint32_t s = ROUND_DOWN(remain, 4);
 
@@ -501,8 +503,6 @@ disk_mem_break:
 	}
 
 dis_mem_done:
-	/* flush cache now */
-	SCB_InvalidateDCache_by_Addr(p_dst, s_size);
 
 	return breaked ? DISK_MEM_ERR_BREAKED : DISK_MEM_ERR_NONE;
 }
