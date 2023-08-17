@@ -23,4 +23,9 @@ config KSCAN_CSK6_DEBOUNCE_TIME
 	help
 		Keysense debounce time in ms
 
+config ANALOG_KEY_TRIGGER_OFFSET
+	int "offset of analog key voltage monitoring"
+	default 100
+	help
+		offset of voltage in mV
 endif
