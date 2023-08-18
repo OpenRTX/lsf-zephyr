@@ -1148,6 +1148,39 @@ extern const struct net_buf_data_cb net_buf_fixed_cb;
 					 _net_buf_##_name, _count, _ud_size,   \
 					 _destroy)
 
+#if defined(CONFIG_CSK_NET_POOL_PSRAM)
+
+#define _CSK_PSRAM_NET_BUF_ARRAY_DEFINE(_name, _count, _ud_size)	\
+	struct _net_buf_##_name { uint8_t b[sizeof(struct net_buf)];	\
+				  uint8_t ud[_ud_size]; } __net_buf_align;		       \
+	BUILD_ASSERT(_ud_size <= UINT8_MAX);						       \
+	BUILD_ASSERT(offsetof(struct net_buf, user_data) ==				       \
+		     offsetof(struct _net_buf_##_name, ud), "Invalid offset");		       \
+	BUILD_ASSERT(__alignof__(struct net_buf) ==					       \
+		     __alignof__(struct _net_buf_##_name), "Invalid alignment");	       \
+	BUILD_ASSERT(sizeof(struct _net_buf_##_name) ==					       \
+		     ROUND_UP(sizeof(struct net_buf) + _ud_size, __alignof__(struct net_buf)), \
+		     "Size cannot be determined");					       \
+	static struct _net_buf_##_name _net_buf_##_name[_count] __csk_psram_net_pool
+
+
+#define CSK_PSRAM_NET_BUF_POOL_FIXED_DEFINE(_name, _count, _data_size, _ud_size, _destroy) \
+	_CSK_PSRAM_NET_BUF_ARRAY_DEFINE(_name, _count, _ud_size);                        \
+	static uint8_t __csk_psram_net_pool net_buf_data_##_name[_count][_data_size];      \
+	static const struct net_buf_pool_fixed net_buf_fixed_##_name = {       \
+		.data_size = _data_size,                                       \
+		.data_pool = (uint8_t *)net_buf_data_##_name,                  \
+	};                                                                     \
+	static const struct net_buf_data_alloc net_buf_fixed_alloc_##_name = { \
+		.cb = &net_buf_fixed_cb,                                       \
+		.alloc_data = (void *)&net_buf_fixed_##_name,                  \
+	};                                                                     \
+	static STRUCT_SECTION_ITERABLE(net_buf_pool, _name) =                  \
+		NET_BUF_POOL_INITIALIZER(_name, &net_buf_fixed_alloc_##_name,  \
+					 _net_buf_##_name, _count, _ud_size,   \
+					 _destroy)
+
+#endif
 /** @cond INTERNAL_HIDDEN */
 extern const struct net_buf_data_cb net_buf_var_cb;
 /** @endcond */

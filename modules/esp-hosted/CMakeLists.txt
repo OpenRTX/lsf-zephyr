@@ -39,4 +39,10 @@ zephyr_library_sources_ifdef(CONFIG_ESP_HOSTED
     csk/os/src/csk_os_timer.c
 )
 
+if (CONFIG_HOSTED_PSRAM_BUFFER)
+zephyr_linker_sources(SECTIONS hosted_buffer.ld)
+else()
+zephyr_linker_sources(RAM_SECTIONS hosted_buffer.ld)
+endif()
+
 endif()
