@@ -63,6 +63,32 @@ static void CRYPTO_EventCallback(uint32_t event, void* workspace)
 	data->event |= event;
 }
 
+static int csk6_hash_do_decrypt(struct hash_ctx *ctx, uint8_t *in_buf, int in_len, uint8_t *out_buf,
+				bool finish)
+{
+	const struct device *dev = ctx->device;
+	struct crypto_csk6_data *data = DEV_DATA(dev);
+
+	CRYPTO_Hash(DEV_HANDLER(dev), (uint32_t *)in_buf, in_len, (uint32_t *)out_buf, finish);
+
+	while (!(data->event & CSK_CRYPTO_EVENT_DONE));
+	data->event = 0;
+
+	return 0;
+}
+
+static int crypto_csk6_hase_encrypt(struct hash_ctx *ctx, struct hash_pkt *pkt, bool finish)
+{
+	int ret;
+
+	ret = csk6_hash_do_decrypt(ctx, pkt->in_buf, pkt->in_len, pkt->out_buf, finish);
+	if(0 == ret) {
+		pkt->in_len = 0;
+	}
+
+	return ret;
+}
+
 static int csk6_do_decrypt(struct cipher_ctx *ctx, uint8_t *in_buf, int in_len,
 		      uint8_t *out_buf)
 {
@@ -242,7 +268,34 @@ static int crtpto_csk6_async_callback_set(const struct device *dev, cipher_compl
 {
 	return -EINVAL;
 }
+static int crypto_csk6_hash_session_step(const struct device *dev, struct hash_ctx *ctx,
+					 enum hash_algo algo)
+{
+	if(algo != CRYPTO_HASH_ALGO_SHA256) {
+		LOG_ERR("Unsupported this mode \n");
+		return -EINVAL;
+	}
 
+	struct crypto_csk6_data *data = DEV_DATA(dev);
+	data->event = 0;
+	ctx->hash_hndlr = crypto_csk6_hase_encrypt;
+	CRYPTO_PowerControl(DEV_HANDLER(dev), CSK_POWER_FULL);
+	CRYPTO_Control(DEV_HANDLER(dev), CSK_CRYPTO_AES_KEY_MODE_Pos, 0);
+
+	return 0;
+}
+static int crypto_csk6_hash_session_free(const struct device *dev, struct hash_ctx *ctx)
+{
+	struct crypto_csk6_data *data = DEV_DATA(dev);
+	CRYPTO_PowerControl(DEV_HANDLER(dev), CSK_POWER_OFF);
+	data->event = 0;
+	return 0;
+}
+
+static int crtpto_csk6_hash_async_callback_set(const struct device *dev, hash_completion_cb cb)
+{
+	return -EINVAL;
+}
 static int crypto_csk6_init(const struct device *dev)
 {
     struct crypto_csk6_data *data = DEV_DATA(dev);
@@ -267,6 +320,9 @@ static struct crypto_driver_api crypto_enc_funcs = {
 	.cipher_free_session = crypto_csk6_session_free,
 	.cipher_async_callback_set = crtpto_csk6_async_callback_set,
 	.query_hw_caps = crypto_csk6_query_caps,
+	.hash_begin_session = crypto_csk6_hash_session_step,
+	.hash_free_session = crypto_csk6_hash_session_free,
+	.hash_async_callback_set = crtpto_csk6_hash_async_callback_set,
 };
 
 static struct crypto_csk6_data crypto_csk6_dev_data = {
