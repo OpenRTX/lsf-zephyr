@@ -27,6 +27,7 @@ struct st7789v_config {
 	struct spi_dt_spec bus;
 	struct gpio_dt_spec cmd_data_gpio;
 	struct gpio_dt_spec reset_gpio;
+	struct gpio_dt_spec te;
 	uint8_t vcom;
 	uint8_t gctrl;
 	bool vdv_vrh_enable;
@@ -35,6 +36,7 @@ struct st7789v_config {
 	uint8_t mdac;
 	uint8_t gamma;
 	uint8_t colmod;
+	uint8_t teon;
 	uint8_t lcm;
 	uint8_t porch_param[5];
 	uint8_t cmd2en_param[4];
@@ -48,6 +50,8 @@ struct st7789v_config {
 };
 
 struct st7789v_data {
+	struct gpio_callback te_callback;
+	struct k_sem te_sem;
 	uint16_t x_offset;
 	uint16_t y_offset;
 };
@@ -161,6 +165,7 @@ static int st7789v_write(const struct device *dev,
 			 const struct display_buffer_descriptor *desc,
 			 const void *buf)
 {
+	struct st7789v_data *data = dev->data;
 	const struct st7789v_config *config = dev->config;
 	const uint8_t *write_data_start = (uint8_t *) buf;
 	struct spi_buf tx_buf;
@@ -173,8 +178,14 @@ static int st7789v_write(const struct device *dev,
 	__ASSERT((desc->pitch * ST7789V_PIXEL_SIZE * desc->height) <= desc->buf_size,
 			"Input buffer to small");
 
-	LOG_DBG("Writing %dx%d (w,h) @ %dx%d (x,y)",
-		desc->width, desc->height, x, y);
+	LOG_DBG("Writing (x:%3d,y:%3d,w:%3d,h:%3d)", x, y, desc->width, desc->height);
+
+	if (config->te.port != NULL) {
+		LOG_DBG("Waiting for TE signal...");
+		k_sem_reset(&data->te_sem);
+		k_sem_take(&data->te_sem, K_FOREVER);
+	}
+
 	st7789v_set_mem_area(dev, x, y, desc->width, desc->height);
 
 	if (desc->pitch > desc->width) {
@@ -313,6 +324,13 @@ static void st7789v_lcd_init(const struct device *dev)
 	tmp = config->mdac;
 	st7789v_transmit(dev, ST7789V_CMD_MADCTL, &tmp, 1);
 
+	/* TEON (35h): Tearing Effect Line On */
+	if (config->te.port != NULL) {
+		tmp = config->teon;
+		LOG_DBG("Tearing effect line on, mode: 0x%X", tmp);
+		st7789v_transmit(dev, ST7789V_CMD_TEON, &tmp, 1);
+	}
+	
 	/* Interface Pixel Format */
 	tmp = config->colmod;
 	st7789v_transmit(dev, ST7789V_CMD_COLMOD, &tmp, 1);
@@ -340,11 +358,20 @@ static void st7789v_lcd_init(const struct device *dev)
 	st7789v_transmit(dev, ST7789V_CMD_RGBCTRL,
 			 (uint8_t *)config->rgb_param,
 			 sizeof(config->rgb_param));
+
+}
+
+static void st7789_te_gpio_callback_handler(const struct device *port, struct gpio_callback *cb,
+					     gpio_port_pins_t pins)
+{
+	struct st7789v_data *data = CONTAINER_OF(cb, struct st7789v_data, te_callback);
+	k_sem_give(&data->te_sem);
 }
 
 static int st7789v_init(const struct device *dev)
 {
 	const struct st7789v_config *config = dev->config;
+	struct st7789v_data *data = dev->data;
 
 	if (!spi_is_ready(&config->bus)) {
 		LOG_ERR("SPI device not ready");
@@ -371,6 +398,33 @@ static int st7789v_init(const struct device *dev)
 	if (gpio_pin_configure_dt(&config->cmd_data_gpio, GPIO_OUTPUT)) {
 		LOG_ERR("Couldn't configure cmd/DATA pin");
 		return -EIO;
+	}
+
+	if (config->te.port != NULL) {
+		LOG_DBG("Enabling TE pin");
+		if (!device_is_ready(config->te.port)) {
+			LOG_ERR("TE GPIO port for display not ready");
+			return -ENODEV;
+		}
+
+		if (gpio_pin_configure_dt(&config->te, GPIO_INPUT)) {
+			LOG_ERR("Couldn't configure TE pin");
+			return -EIO;
+		}
+
+		gpio_init_callback(&data->te_callback, st7789_te_gpio_callback_handler,
+				   BIT(config->te.pin));
+
+		int ret = gpio_add_callback(config->te.port, &data->te_callback);
+		if (ret) {
+			LOG_ERR("Te GPIO add callback failed, ret:%d", ret);
+		}
+
+		ret = gpio_pin_interrupt_configure_dt(&config->te, GPIO_INT_EDGE_RISING);
+
+		if (ret) {
+			LOG_ERR("Te GPIO add interrupt configure failed, ret:%d", ret);
+		}
 	}
 
 	st7789v_reset_display(dev);
@@ -425,6 +479,7 @@ static const struct display_driver_api st7789v_api = {
 							  SPI_WORD_SET(8), 0),	\
 		.cmd_data_gpio = GPIO_DT_SPEC_INST_GET(inst, cmd_data_gpios),	\
 		.reset_gpio = GPIO_DT_SPEC_INST_GET_OR(inst, reset_gpios, {}),	\
+		.te = GPIO_DT_SPEC_INST_GET_OR(inst, te_gpios, {}),		\
 		.vcom = DT_INST_PROP(inst, vcom),				\
 		.gctrl = DT_INST_PROP(inst, gctrl),				\
 		.vdv_vrh_enable = (DT_INST_NODE_HAS_PROP(inst, vrhs)            \
@@ -434,6 +489,7 @@ static const struct display_driver_api st7789v_api = {
 		.mdac = DT_INST_PROP(inst, mdac),				\
 		.gamma = DT_INST_PROP(inst, gamma),				\
 		.colmod = DT_INST_PROP(inst, colmod),				\
+		.teon = DT_INST_PROP_OR(inst, teon, 0x00),			\
 		.lcm = DT_INST_PROP(inst, lcm),					\
 		.porch_param = DT_INST_PROP(inst, porch_param),			\
 		.cmd2en_param = DT_INST_PROP(inst, cmd2en_param),		\
@@ -449,6 +505,7 @@ static const struct display_driver_api st7789v_api = {
 	static struct st7789v_data st7789v_data_ ## inst = {			\
 		.x_offset = DT_INST_PROP(inst, x_offset),			\
 		.y_offset = DT_INST_PROP(inst, y_offset),			\
+		.te_sem = Z_SEM_INITIALIZER(st7789v_data_##inst.te_sem, 0, 1),	\
 	};									\
 										\
 	PM_DEVICE_DT_INST_DEFINE(inst, st7789v_pm_action);			\
