@@ -11,7 +11,9 @@
 #include "sdmmc/lib_sdc.h"
 #include "sdmmc/ftsdc021.h"
 #include <zephyr/drivers/pinctrl.h>
-
+#if CONFIG_SDMMC_CSK6_CRYPTO_ENABLE
+#include "mbedtls/aes.h"
+#endif
 LOG_MODULE_REGISTER(csk6_sdmmc, CONFIG_SDMMC_LOG_LEVEL);
 
 K_MUTEX_DEFINE(sdmmc_mutex);
@@ -41,6 +43,132 @@ static int csk6_sdmmc_access_write(struct disk_info *disk,
 				    uint32_t start_sector, uint32_t num_sector);
 static int csk6_sdmmc_access_ioctl(struct disk_info *disk, uint8_t cmd,
 				    void *buff);
+#if CONFIG_SDMMC_CSK6_CRYPTO_ENABLE
+static int wait_init_done(void);
+K_MUTEX_DEFINE(sdmmc_encrypt_mutex);
+#define CRYPT_BLK_SIZE  (16)
+
+#define IS_IN_CRYPTO_RANGE(offset) ((offset >= CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_START_SECTOR)\
+										&&(offset < CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_START_SECTOR + CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_NUMBER_SECTOR))
+
+static mbedtls_aes_context aes_ctx_encrypt;
+static mbedtls_aes_context aes_ctx_decrypt;
+static void init_aes_encrypt_ctx(void) {
+	const char* key = CONFIG_SDMMC_CSK6_CRYPTO_KEY;
+	int ret;
+
+	if(strlen(key) != 16){
+		LOG_ERR("CSK6 sdmmc crypto key length invalid");
+		return;
+	}
+
+	mbedtls_aes_init(&aes_ctx_encrypt);
+	ret = mbedtls_aes_setkey_enc(&aes_ctx_encrypt, key, 128U);
+	if(ret != 0){
+		LOG_ERR("encrypt mbedtls_aes_setkey failed,ret:%d",ret);
+	}
+}
+static void init_aes_decrypt_ctx(void) {
+	const char* key = CONFIG_SDMMC_CSK6_CRYPTO_KEY;
+	int ret;
+
+	if(strlen(key) != 16){
+		LOG_ERR("CSK6 sdmmc crypto key length invalid");
+		return;
+	}
+
+	mbedtls_aes_init(&aes_ctx_decrypt);
+	ret = mbedtls_aes_setkey_dec(&aes_ctx_decrypt, key, 128U);
+	if(ret != 0){
+		LOG_ERR("decrypt mbedtls_aes_setkey failed,ret:%d",ret);
+	}
+}
+static ssize_t csk6_sdmmc_access_decrypt_read(struct disk_info *disk, uint8_t *data_buf,
+				   uint32_t start_sector, uint32_t num_sector) {
+    ssize_t read_size;
+	uint32_t sector_size;
+	uint32_t index;
+	uint16_t num;
+	uint32_t dec_bytes = 0;
+
+	wait_init_done();
+
+	k_mutex_lock(&sdmmc_encrypt_mutex, K_FOREVER);
+	sector_size = ((struct sdmmc_csk_data *)disk->dev->data)->blk_size;
+	read_size = csk6_sdmmc_access_read(disk, data_buf, start_sector,num_sector);
+
+	/*decrypt*/
+	for(index = start_sector; index < start_sector +  num_sector; index++){
+		if(!IS_IN_CRYPTO_RANGE(index)){
+			break;
+		}
+		for(num = 0; num<sector_size; num += 16){
+			mbedtls_aes_crypt_ecb(&aes_ctx_decrypt, MBEDTLS_AES_DECRYPT, &data_buf[dec_bytes], &data_buf[dec_bytes]);
+			dec_bytes += 16;
+		}
+	}
+	k_mutex_unlock(&sdmmc_encrypt_mutex);
+    return read_size;
+}
+
+static uint8_t encrypt_buffer[CONFIG_SDMMC_CSK6_CRYPTO_BUFFER_SIZE] __attribute__((aligned(32)));
+static ssize_t csk6_sdmmc_access_encrypt_write(struct disk_info *disk, uint8_t *data_buf,
+				   uint32_t start_sector, uint32_t num_sector) {
+	uint32_t index;
+	uint16_t num;
+	ssize_t write_size = 0;
+	uint32_t enc_bytes = 0;
+	uint32_t sector_size;
+ 
+	wait_init_done();
+
+	k_mutex_lock(&sdmmc_encrypt_mutex, K_FOREVER);
+	sector_size = ((struct sdmmc_csk_data *)disk->dev->data)->blk_size;
+	if(CONFIG_SDMMC_CSK6_CRYPTO_BUFFER_SIZE < sector_size){
+		LOG_ERR("The CONFIG_SDMMC_CSK6_CRYPTO_BUFFER_SIZE is smaller than the sector size");
+		return 0;
+	}
+
+	index = start_sector;
+	/*encrypt write*/
+	for(index = start_sector; index < start_sector +  num_sector; index++){
+		if(!IS_IN_CRYPTO_RANGE(index)){
+			break;
+		}
+		for(num = 0; num< sector_size; num += 16){
+			mbedtls_aes_crypt_ecb(&aes_ctx_encrypt, MBEDTLS_AES_ENCRYPT, &data_buf[enc_bytes], &encrypt_buffer[num]);
+			enc_bytes += 16;
+		}
+		write_size += csk6_sdmmc_access_write(disk, encrypt_buffer, index,1);
+	}
+
+	/*don't encrypt write*/
+	if(index < start_sector +  num_sector){
+		write_size += csk6_sdmmc_access_write(disk, data_buf[(index - start_sector)*sector_size], index,start_sector +  num_sector -index);
+	}
+
+	k_mutex_unlock(&sdmmc_encrypt_mutex);
+    return write_size;
+}
+
+static int csk6_sdmmc_encrypt_access_init(struct disk_info *disk){
+	k_mutex_lock(&sdmmc_encrypt_mutex, K_FOREVER);
+	init_aes_encrypt_ctx();
+	init_aes_decrypt_ctx();
+	csk6_sdmmc_access_init(disk);
+	k_mutex_unlock(&sdmmc_encrypt_mutex);
+}
+
+
+static const struct disk_operations csk6_sdmmc_ops = {
+	.init = csk6_sdmmc_encrypt_access_init,
+	.status = csk6_sdmmc_access_status,
+	.read = csk6_sdmmc_access_decrypt_read,
+	.write = csk6_sdmmc_access_encrypt_write,
+	.ioctl = csk6_sdmmc_access_ioctl,
+};
+
+#else
 static const struct disk_operations csk6_sdmmc_ops = {
 	.init = csk6_sdmmc_access_init,
 	.status = csk6_sdmmc_access_status,
@@ -48,6 +176,8 @@ static const struct disk_operations csk6_sdmmc_ops = {
 	.write = csk6_sdmmc_access_write,
 	.ioctl = csk6_sdmmc_access_ioctl,
 };
+
+#endif
 
 static struct disk_info csk6_sdmmc_info = {
 	.name = CONFIG_SDMMC_VOLUME_NAME,

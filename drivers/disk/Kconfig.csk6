@@ -45,4 +45,38 @@ config SDMMC_CSK6_DMA_CHANNEL
     help 
         CSK6 SDMMMC DMA Channel
 
+config SDMMC_CSK6_CRYPTO_ENABLE
+    bool "Enable CSK6 SDMMC  encrypt/decrypt partition" 
+    default n
+    depends on MBEDTLS
+    help 
+        Enable CSK6 SDMMC  encrypt/decrypt partition
+
+if SDMMC_CSK6_CRYPTO_ENABLE
+
+config SDMMC_CSK6_CRYPTO_KEY
+    string "Enable CSK6 SDMMC  encrypt/decrypt key"
+    default "0123456789abcdef"
+    help 
+        Enable CSK6 SDMMC  encrypt/decrypt key
+
+config SDMMC_CSK6_CRYPTO_BUFFER_SIZE
+    hex "CSK6 SDMMC encrypt buffer size"
+    default 0x200
+    help 
+        CSK6 SDMMC encrypt buffer size
+
+config SDMMC_CSK6_CRYPTO_PARTITION_START_SECTOR
+    hex "CSK6 SDMMC encrypt/decrypt partition start sector"
+    default 0x00
+    help 
+        CSK6 SDMMC encrypt/decrypt partition address
+
+config SDMMC_CSK6_CRYPTO_PARTITION_NUMBER_SECTOR
+    hex "CSK6 SDMMC encrypt/decrypt partition number sector"
+    default 0x00
+    help 
+        CSK6 SDMMC encrypt/decrypt partition size
+
+endif
 endif # SDMMC_CSK6
