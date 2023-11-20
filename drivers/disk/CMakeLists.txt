@@ -11,5 +11,6 @@ zephyr_library_sources_ifdef(CONFIG_DISK_DRIVER_RAM ramdisk.c)
 zephyr_library_sources_ifdef(CONFIG_SDMMC_STM32 sdmmc_stm32.c)
 zephyr_library_sources_ifdef(CONFIG_SDMMC_CSK6 sdmmc_csk6.c)
 zephyr_library_sources_ifdef(CONFIG_SDMMC_SUBSYS sdmmc_subsys.c)
+zephyr_library_link_libraries_ifdef(CONFIG_SDMMC_CSK6_CRYPTO_ENABLE mbedTLS)
 
 endif()
