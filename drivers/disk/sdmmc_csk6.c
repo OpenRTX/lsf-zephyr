@@ -48,8 +48,8 @@ static int wait_init_done(void);
 K_MUTEX_DEFINE(sdmmc_encrypt_mutex);
 #define CRYPT_BLK_SIZE  (16)
 
-#define IS_IN_CRYPTO_RANGE(offset) ((offset >= CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_ADDRESS)\
-										&&(offset < CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_ADDRESS + CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_SIZE))
+#define IS_IN_CRYPTO_RANGE(offset) (((uint64_t)offset >= (uint64_t)CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_ADDRESS)\
+										&&((uint64_t)offset < (uint64_t)CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_ADDRESS + CONFIG_SDMMC_CSK6_CRYPTO_PARTITION_SIZE))
 
 static mbedtls_aes_context aes_ctx_encrypt;
 static mbedtls_aes_context aes_ctx_decrypt;
