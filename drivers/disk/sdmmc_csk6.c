@@ -112,6 +112,7 @@ static ssize_t csk6_sdmmc_access_decrypt_read(struct disk_info *disk, uint8_t *d
 }
 
 static uint8_t encrypt_buffer[CONFIG_SDMMC_CSK6_CRYPTO_BUFFER_SIZE] __attribute__((aligned(32)));
+static uint8_t encrypt_temp_buffer[CONFIG_SDMMC_CSK6_CRYPTO_BUFFER_SIZE] __attribute__((aligned(32)));
 static ssize_t csk6_sdmmc_access_encrypt_write(struct disk_info *disk, uint8_t *data_buf,
 				   uint32_t start_sector, uint32_t num_sector) {
 	uint32_t index;
@@ -136,7 +137,8 @@ static ssize_t csk6_sdmmc_access_encrypt_write(struct disk_info *disk, uint8_t *
 			break;
 		}
 		for(num = 0; num< sector_size; num += 16){
-			mbedtls_aes_crypt_ecb(&aes_ctx_encrypt, MBEDTLS_AES_ENCRYPT, &data_buf[enc_bytes], &encrypt_buffer[num]);
+			memcpy(encrypt_temp_buffer, &data_buf[enc_bytes], 16);
+			mbedtls_aes_crypt_ecb(&aes_ctx_encrypt, MBEDTLS_AES_ENCRYPT, encrypt_temp_buffer, &encrypt_buffer[num]);
 			enc_bytes += 16;
 		}
 		write_size += csk6_sdmmc_access_write(disk, encrypt_buffer, index,1);
@@ -144,7 +146,7 @@ static ssize_t csk6_sdmmc_access_encrypt_write(struct disk_info *disk, uint8_t *
 
 	/*don't encrypt write*/
 	if(index < start_sector +  num_sector){
-		write_size += csk6_sdmmc_access_write(disk, data_buf[(index - start_sector)*sector_size], index,start_sector +  num_sector -index);
+		write_size += csk6_sdmmc_access_write(disk, &data_buf[(index - start_sector)*sector_size], index,start_sector +  num_sector -index);
 	}
 
 	k_mutex_unlock(&sdmmc_encrypt_mutex);
