@@ -83,6 +83,8 @@ static void init_aes_decrypt_ctx(void) {
 		LOG_ERR("decrypt mbedtls_aes_setkey failed,ret:%d",ret);
 	}
 }
+
+static uint8_t decrypt_buffer[16] __attribute__((aligned(32)));
 static ssize_t csk6_sdmmc_access_decrypt_read(struct disk_info *disk, uint8_t *data_buf,
 				   uint32_t start_sector, uint32_t num_sector) {
     ssize_t read_size;
@@ -103,7 +105,9 @@ static ssize_t csk6_sdmmc_access_decrypt_read(struct disk_info *disk, uint8_t *d
 			break;
 		}
 		for(num = 0; num<sector_size; num += 16){
-			mbedtls_aes_crypt_ecb(&aes_ctx_decrypt, MBEDTLS_AES_DECRYPT, &data_buf[dec_bytes], &data_buf[dec_bytes]);
+			memcpy(decrypt_buffer, &data_buf[dec_bytes], 16);
+			mbedtls_aes_crypt_ecb(&aes_ctx_decrypt, MBEDTLS_AES_DECRYPT, decrypt_buffer, decrypt_buffer);
+			memcpy(&data_buf[dec_bytes], decrypt_buffer, 16);
 			dec_bytes += 16;
 		}
 	}
