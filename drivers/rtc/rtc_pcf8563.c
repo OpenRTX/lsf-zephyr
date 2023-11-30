@@ -353,7 +353,7 @@ static int pcf8563_set_time(const struct device *dev, const struct rtc_time *tim
 		goto unlock;
 	}
 
-	LOG_DBG("set time: year = %d, mon = %d, mday = %d, wday = %d, hour = %d, "
+	LOG_INF("set time: year = %d, mon = %d, mday = %d, wday = %d, hour = %d, "
 		"min = %d, sec = %d",
 		timeptr->tm_year, timeptr->tm_mon, timeptr->tm_mday, timeptr->tm_wday,
 		timeptr->tm_hour, timeptr->tm_min, timeptr->tm_sec);
@@ -478,7 +478,9 @@ static int pcf8563_alarm_set_time(const struct device *dev, uint16_t id, uint16_
 		regs[3] = PCF8563_WEEKDAY_ALARM_AEN_W;
 	}
 
-	LOG_DBG("set alarm: year = %d, mon = %d, mday = %d, hour = %d, min = %d, mask = 0x%04x",
+	pcf8563_write_reg8(dev, PCF8563_CONTROL_STATUS2, PCF8563_CONTROL_STATUS2_AIE);
+
+	LOG_INF("set alarm: year = %d, mon = %d, mday = %d, hour = %d, min = %d, mask = 0x%04x",
 		timeptr->tm_year, timeptr->tm_mon, timeptr->tm_mday, timeptr->tm_hour,
 		timeptr->tm_min, mask);
 
@@ -546,19 +548,19 @@ static int pcf8563_alarm_is_pending(const struct device *dev, uint16_t id)
 
 	k_mutex_lock(&data->lock, K_FOREVER);
 
-	err = pcf8563_read_reg8(dev, PCF8563_CONTROL_2, &control_2);
+	err = pcf8563_read_reg8(dev, PCF8563_CONTROL_STATUS2, &control_2);
 	if (err != 0) {
 		goto unlock;
 	}
 
-	if ((control_2 & PCF8563_CONTROL_2_AF) != 0) {
+	if ((control_2 & PCF8563_CONTROL_STATUS2_AF) != 0) {
 		/* Clear alarm flag */
-		control_2 &= ~(PCF8563_CONTROL_2_AF);
+		control_2 &= ~(PCF8563_CONTROL_STATUS2_AF);
 
 		/* Ensure other flags are left unchanged (PCF8563 performs logic AND at write) */
-		control_2 |= PCF8563_CONTROL_2_CTAF | PCF8563_CONTROL_2_CTBF | PCF8563_CONTROL_2_SF;
+		control_2 |= PCF8563_CONTROL_STATUS2_TI_TP | PCF8563_CONTROL_STATUS2_TF | PCF8563_CONTROL_STATUS2_AIE | PCF8563_CONTROL_STATUS2_TIE;
 
-		err = pcf8563_write_reg8(dev, PCF8563_CONTROL_2, control_2);
+		err = pcf8563_write_reg8(dev, PCF8563_CONTROL_STATUS2, control_2);
 		if (err != 0) {
 			goto unlock;
 		}
