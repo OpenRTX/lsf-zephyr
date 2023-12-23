@@ -1,0 +1,20 @@
+menuconfig LTE
+	bool "LTE drivers"
+    select NETWORKING
+    select NET_SOCKETS
+    select NET_OFFLOAD
+    select NET_SOCKETS_OFFLOAD
+
+
+if LTE
+
+choice LTE_OFFLOAD_MODULE
+    prompt "LTE Module"
+	config LTE_EC718
+		bool "EC718"
+		select EC718
+		select UART_CSK6
+		select UART_INTERRUPT_DRIVEN
+endchoice
+
+endif
