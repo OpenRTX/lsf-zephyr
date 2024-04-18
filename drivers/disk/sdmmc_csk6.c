@@ -381,7 +381,7 @@ static inline int32_t  disk_mem_dma_copy(fifo_item_t *item, uint8_t *dst, uint8_
 static inline void csk6_sdmmc_inner_sram_cache_to_target(fifo_item_t *item, uint8_t *dst,
 							 uint8_t *src, uint32_t size)
 {
-	if (size < CONFIG_SDMMC_CSK6_SRAM_CACHE_DMA_COPY_THRESHOLD) {
+	if ((size < CONFIG_SDMMC_CSK6_SRAM_CACHE_DMA_COPY_THRESHOLD)||((uint32_t)src % _ALIGEN) || (size %_ALIGEN)) {
 		/* memcpy is better than dma when the amount of data is small */
 		memcpy(dst, src, size);
 		k_fifo_put(&sdmmc_queue_psram2sram, item);
