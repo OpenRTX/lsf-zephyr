@@ -772,6 +772,7 @@ static int csk6_sdmmc_access_ioctl(struct disk_info *disk, uint8_t cmd,
 	err = lib_sdc_get_card_info(SD_0, &blk_len, &blk_num, &erase_size);
 	if (err != ERR_SD_NO_ERROR) {
 		k_mutex_unlock(&sdmmc_mutex);
+		LOG_ERR("[%s %d]lib_sdc_get_card_info failed,err: %d",__FUNCTION__,__LINE__ ,err);
 		return -EIO;
 	}
 	k_mutex_unlock(&sdmmc_mutex);
@@ -825,6 +826,7 @@ static int csk6_sdmmc_bus_probe(const struct device *dev)
 	err = lib_sdc_get_card_info(SD_0, &data->blk_size, &data->blk_num, &data->erase_size);
 	if (err != ERR_SD_NO_ERROR) {
 		k_mutex_unlock(&sdmmc_mutex);
+		LOG_ERR("[%s %d]lib_sdc_get_card_info failed,err: %d",__FUNCTION__,__LINE__ ,err);
 		return -EIO;
 	}
 
