@@ -174,7 +174,6 @@ static int transceive(const struct device *dev,
 {
 	struct csk_spi_data *data = dev->data;
 	uint8_t dw = SPI_WORD_SIZE_GET(spi_cfg->operation);
-	uint32_t cnt;
 
 	if (dw != 8 && dw != 16 && dw != 32) {
 		LOG_ERR("Unsupported data width(%d bit).", dw);
@@ -394,13 +393,21 @@ __attribute__((section(".itcm"))) static void csk_spi_isr_callback(uint32_t even
 
 	uint8_t dw = SPI_WORD_SIZE_GET(config->operation) / 8;
 	if (event & CSK_SPI_EVENT_TRANSFER_COMPLETE) {
+#ifdef CONFIG_SPI_SLAVE
+		data->current_transfer_len = SPI_GetDataCount(data->driver_context);
+		spi_context_update_tx(&data->ctx, dw, data->current_transfer_len);
+		spi_context_update_rx(&data->ctx, dw, data->current_transfer_len);
+		spi_context_complete(&data->ctx, 0);
+#else
 		spi_context_update_tx(&data->ctx, dw, data->current_transfer_len);
 		spi_context_update_rx(&data->ctx, dw, data->current_transfer_len);
 #ifdef CONFIG_SPI_TX_RX_DMA_FAST_RELOAD
 		csk_spi_reload(dev);
 #else
-		csk_spi_hal_transceive(dev);		
+		csk_spi_hal_transceive(dev);
 #endif
+
+#endif /* CONFIG_SPI_SLAVE */
 	}
 #ifdef CONFIG_SOC_LS_ADSP_CSK6
     else if (event & CSK_SPI_EVENT_DMA_COMPLETE){
