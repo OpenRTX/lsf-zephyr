@@ -378,17 +378,23 @@ static inline int32_t  disk_mem_dma_copy(fifo_item_t *item, uint8_t *dst, uint8_
 	return 0;
 }
 
-static inline void csk6_sdmmc_inner_sram_cache_to_target(fifo_item_t *item, uint8_t *dst,
+static inline int csk6_sdmmc_inner_sram_cache_to_target(fifo_item_t *item, uint8_t *dst,
 							 uint8_t *src, uint32_t size)
 {
-	if (size < CONFIG_SDMMC_CSK6_SRAM_CACHE_DMA_COPY_THRESHOLD) {
+	int ret = 0;
+	if ((size < CONFIG_SDMMC_CSK6_SRAM_CACHE_DMA_COPY_THRESHOLD)||
+		(0 != (size % CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE))||
+		(0 != ((uint32_t)dst % CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE))||
+		(0 != ((uint32_t)src % CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE))) {
 		/* memcpy is better than dma when the amount of data is small */
 		memcpy(dst, src, size);
 		k_fifo_put(&sdmmc_queue_psram2sram, item);
 	} else {
 		/* item will be puted at dma callback */
-		disk_mem_dma_copy(item, dst, src, size);
+		ret = disk_mem_dma_copy(item, dst, src, size);
 	}
+
+	return ret;
 }
 
 static inline int csk_sdmmc_access_inner_sram(struct disk_info *disk, uint8_t *data_buf,
@@ -566,7 +572,7 @@ static int sdmmc_memcpy(void *dst, void *src, uint32_t size, struct k_sem *break
 
 		/* put mem to queue to start next dma cpy */
 
-		err = disk_mem_dma_copy(item, dst, item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
+		err = csk6_sdmmc_inner_sram_cache_to_target(item, dst, item->buffer, CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE);
 		if (err != 0) {
 			k_fifo_put(&sdmmc_queue_psram2sram, item);
 			return DISK_MEM_ERR_DMA_FAILED;
@@ -606,7 +612,7 @@ static int sdmmc_memcpy(void *dst, void *src, uint32_t size, struct k_sem *break
 		uint32_t s = ROUND_DOWN(remain, 4);
 
 		if (s > 0) {
-			err = disk_mem_dma_copy(item, dst, item->buffer, s);
+			err = csk6_sdmmc_inner_sram_cache_to_target(item, dst, item->buffer, s);
 			if (err != 0) {
 				k_fifo_put(&sdmmc_queue_psram2sram, item);
 				return DISK_MEM_ERR_DMA_FAILED;
