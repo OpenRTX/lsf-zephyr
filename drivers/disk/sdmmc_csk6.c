@@ -383,9 +383,9 @@ static inline int csk6_sdmmc_inner_sram_cache_to_target(fifo_item_t *item, uint8
 {
 	int ret = 0;
 	if ((size < CONFIG_SDMMC_CSK6_SRAM_CACHE_DMA_COPY_THRESHOLD)||
-		(0 != (size % CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE))||
-		(0 != ((uint32_t)dst % CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE))||
-		(0 != ((uint32_t)src % CONFIG_SDMMC_CSK6_SRAM_CACHE_SIZE))) {
+		(0 != (size % _ALIGEN))||
+		(0 != ((uint32_t)dst % _ALIGEN))||
+		(0 != ((uint32_t)src % _ALIGEN))) {
 		/* memcpy is better than dma when the amount of data is small */
 		memcpy(dst, src, size);
 		k_fifo_put(&sdmmc_queue_psram2sram, item);
